@@ -1,0 +1,280 @@
+   1  Hydrogen
+   2  Helium
+   3  Lithium
+   4  Beryllium
+   5  Boron
+   6  Amorphous carbon
+   7  Nitrogen
+   8  Oxygen
+   9  Fluorine
+  10  Neon
+  11  Sodium
+  12  Magnesium
+  13  Aluminium
+  14  Silicon
+  15  Phosphorus
+  16  Sulfur
+  17  Chlorine
+  18  Argon
+  19  Potassium
+  20  Calcium
+  21  Scandium
+  22  Titanium
+  23  Vanadium
+  24  Chromium
+  25  Manganese
+  26  Iron
+  27  Cobalt
+  28  Nickel
+  29  Copper
+  30  Zinc
+  31  Gallium
+  32  Germanium
+  33  Arsenic
+  34  Selenium
+  35  Bromine
+  36  Krypton
+  37  Rubidium
+  38  Strontium
+  39  Yttrium
+  40  Zirconium
+  41  Niobium
+  42  Molybdenum
+  43  Technetium
+  44  Ruthenium
+  45  Rhodium
+  46  Palladium
+  47  Silver
+  48  Cadmium
+  49  Indium
+  50  Tin
+  51  Antimony
+  52  Tellurium
+  53  Iodine
+  54  Xenon
+  55  Cesium
+  56  Barium
+  57  Lanthanum
+  58  Cerium
+  59  Praseodymium
+  60  Neodymium
+  61  Promethium
+  62  Samarium
+  63  Europium
+  64  Gadolinium
+  65  Terbium
+  66  Dysprosium
+  67  Holmium
+  68  Erbium
+  69  Thulium
+  70  Ytterbium
+  71  Lutetium
+  72  Hafnium
+  73  Tantalum
+  74  Tungsten
+  75  Rhenium
+  76  Osmium
+  77  Iridium
+  78  Platinum
+  79  Gold
+  80  Mercury
+  81  Thallium
+  82  Lead
+  83  Bismuth
+  84  Polonium
+  85  Astatine
+  86  Radon
+  87  Francium
+  88  Radium
+  89  Actinium
+  90  Thorium
+  91  Protactinium
+  92  Uranium
+  93  Neptunium
+  94  Plutonium
+  95  Americium
+  96  Curium
+  97  Berkelium
+  98  Californium
+  99  Einsteinium
+ 100  Acetone
+ 101  Acetylene
+ 102  Adenine
+ 103  Adipose tissue (ICRP)
+ 104  Air, dry (near sea level)
+ 105  Alanine
+ 106  Aluminum oxide
+ 107  Amber
+ 108  Ammonia
+ 109  Aniline
+ 110  Anthracene
+ 111  B-100 bone-equivalent plastic
+ 112  Bakelite
+ 113  Barium fluoride
+ 114  Barium sulfate
+ 115  Benzene
+ 116  Beryllium oxide
+ 117  Bismuth germanium oxide
+ 118  Blood (ICRP)
+ 119  Bone, compact (ICRU)
+ 120  Bone, cortical (ICRP)
+ 121  Boron carbide
+ 122  Boron oxide
+ 123  Brain (ICRP)
+ 124  Butane
+ 125  N-butyl alcohol
+ 126  C-552 air-equivalent plastic
+ 127  Cadmium telluride
+ 128  Cadmium tungstate
+ 129  Calcium carbonate
+ 130  Calcium fluoride
+ 131  Calcium oxide
+ 132  Calcium sulfate
+ 133  Calcium tungstate
+ 134  Carbon dioxide
+ 135  Carbon tetrachloride
+ 136  Cellulose acetate, cellophane
+ 137  Cellulose acetate butyrate
+ 138  Cellulose nitrate
+ 139  Ceric sulfate dosimeter solution
+ 140  Cesium fluoride
+ 141  Cesium iodide
+ 142  Chlorobenzene
+ 143  Chloroform
+ 144  Concrete, portland
+ 145  Cyclohexane
+ 146  1,2-dichlorobenzene
+ 147  Dichlorodiethyl ether
+ 148  1,2-dichloroethane
+ 149  Diethyl ether
+ 150  N,n-dimethyl formamide
+ 151  Dimethyl sulfoxide
+ 152  Ethane
+ 153  Ethyl alcohol
+ 154  Ethyl cellulose
+ 155  Ethylene
+ 156  Eye lens (ICRP)
+ 157  Ferric oxide
+ 158  Ferroboride
+ 159  Ferrous oxide
+ 160  Ferrous sulfate dosimeter solution
+ 161  Freon-12
+ 162  Freon-12b2
+ 163  Freon-13
+ 164  Freon-13b1
+ 165  Freon-13i1
+ 166  Gadolinium oxysulfide
+ 167  Gallium arsenide
+ 168  Gel in photographic emulsion
+ 169  Pyrex glass
+ 170  Glass, lead
+ 171  Glass, plate
+ 172  Glucose
+ 173  Glutamine
+ 174  Glycerol
+ 175  Graphite
+ 176  Guanine
+ 177  Gypsum, plaster of Paris
+ 178  N-heptane
+ 179  N-hexane
+ 180  Kapton polyimide film
+ 181  Lanthanum oxybromide
+ 182  Lanthanum oxysulfide
+ 183  Lead oxide
+ 184  Lithium amide
+ 185  Lithium carbonate
+ 186  Lithium fluoride
+ 187  Lithium hydride
+ 188  Lithium iodide
+ 189  Lithium oxide
+ 190  Lithium tetraborate
+ 191  Lung (ICRP)
+ 192  M3 wax
+ 193  Magnesium carbonate
+ 194  Magnesium fluoride
+ 195  Magnesium oxide
+ 196  Magnesium tetraborate
+ 197  Mercuric iodide
+ 198  Methane
+ 199  Methanol
+ 200  Mixed wax
+ 201  Ms20 tissue substitute
+ 202  Muscle, skeletal (ICRP)
+ 203  Muscle, striated (ICRU)
+ 204  Muscle-equivalent liquid, with sucrose
+ 205  Muscle-equivalent liquid, without sucrose
+ 206  Naphthalene
+ 207  Nitrobenzene
+ 208  Nitrous oxide
+ 209  Nylon, du Pont elvamide 8062
+ 210  Nylon, type 6 and type 6/6
+ 211  Nylon, type 6/10
+ 212  Nylon, type 11 (rilsan)
+ 213  Octane, liquid
+ 214  Paraffin wax
+ 215  N-pentane
+ 216  Photographic emulsion
+ 217  Plastic scintillator (vinyltoluene based)
+ 218  Plutonium dioxide
+ 219  Polyacrylonitrile
+ 220  Polycarbonate (makrolon, lexan)
+ 221  Polychlorostyrene
+ 222  Polyethylene
+ 223  Polyethylene terephthalate (mylar)
+ 224  Polymethyl methacrilate (lucite, perspex, plexiglass)
+ 225  Polyoxymethylene
+ 226  Polypropylene
+ 227  Polystyrene
+ 228  Polytetrafluoroethylene (teflon)
+ 229  Polytrifluorochloroethylene
+ 230  Polyvinyl acetate
+ 231  Polyvinyl alcohol
+ 232  Polyvinyl butyral
+ 233  Polyvinyl chloride
+ 234  Polyvinylidene chloride (saran)
+ 235  Polyvinylidene fluoride
+ 236  Polyvinyl pyrrolidone
+ 237  Potassium iodide
+ 238  Potassium oxide
+ 239  Propane
+ 240  Propane, liquid
+ 241  N-propyl alcohol
+ 242  Pyridine
+ 243  Rubber, butyl
+ 244  Rubber, natural
+ 245  Rubber, neoprene
+ 246  Silicon dioxide
+ 247  Silver bromide
+ 248  Silver chloride
+ 249  Silver halides in photographic emulsion
+ 250  Silver iodide
+ 251  Skin (ICRP)
+ 252  Sodium carbonate
+ 253  Sodium iodide
+ 254  Sodium monoxide
+ 255  Sodium nitrate
+ 256  Stilbene
+ 257  Sucrose
+ 258  Terphenyl
+ 259  Testes (ICRP)
+ 260  Tetrachloroethylene
+ 261  Thallium chloride
+ 262  Tissue, soft (ICRP)
+ 263  Tissue, soft (ICRU four-component)
+ 264  Tissue-equivalent gas (methane based)
+ 265  Tissue-equivalent gas (propane based)
+ 266  Tissue-equivalent plastic (A-150)
+ 267  Titanium dioxide
+ 268  Toluene
+ 269  Trichloroethylene
+ 270  Triethyl phosphate
+ 271  Tungsten hexafluoride
+ 272  Uranium dicarbide
+ 273  Uranium monocarbide
+ 274  Uranium oxide
+ 275  Urea
+ 276  Valine
+ 277  Viton fluoroelastomer
+ 278  Water, liquid
+ 279  Water vapour
+ 280  Xylene

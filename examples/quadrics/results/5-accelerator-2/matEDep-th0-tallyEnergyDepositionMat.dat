@@ -1,0 +1,9 @@
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# [SECTION REPORT ENERGY DEPOSITION]
+# Units are eV per history
+#
+# Material : Energy (eV/hist) : +-2sigma
+      1        2.42175E-01       1.3E-02
+      2        6.04294E+02       1.1E+00
+      3        1.93150E+01       1.5E-01
+      4        4.43960E+04       8.2E+01

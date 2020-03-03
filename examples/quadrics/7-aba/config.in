@@ -1,0 +1,216 @@
+
+#
+#
+#    Copyright (C) 2019 Universitat de València - UV
+#    Copyright (C) 2019 Universitat Politècnica de València - UPV
+#
+#    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
+#
+#    PenRed is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    PenRed is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with PenRed.  If not, see <https://www.gnu.org/licenses/>. 
+#
+#
+#    contact emails:
+#
+#        vicent.gimenez.alventosa@gmail.com
+#        vicente.gimenez@uv.es
+#    
+#
+
+#########################
+##  SOURCES           ###
+#########################
+
+#------------------------
+#  Source 1
+#########################
+
+sources/generic/source1/nhist __NHISTS__
+sources/generic/source1/kpar "gamma"
+
+# Directional sampling
+#########################
+
+sources/generic/source1/direction/type "CONE"
+
+# Set theta
+sources/generic/source1/direction/theta 0.0
+
+# Set phi
+sources/generic/source1/direction/phi 0.0
+
+# Set oberture (alpha)
+sources/generic/source1/direction/alpha 10.0
+
+
+# Energy sampling
+#########################
+
+sources/generic/source1/energy/type "INTERVALS"
+
+
+# Set intervals
+sources/generic/source1/energy/nintervals 2
+
+
+# Set energies
+sources/generic/source1/energy/lowE [1.17e6,1.33e6]
+sources/generic/source1/energy/topE [1.17e6,1.33e6]
+
+# Set probabilities
+sources/generic/source1/energy/probabilities [50.0,50.0]
+
+# Spatial sampling
+#########################
+
+sources/generic/source1/spatial/type "POINT"
+
+# Set particle origin
+sources/generic/source1/spatial/position/x 0.0
+sources/generic/source1/spatial/position/y 0.0
+sources/generic/source1/spatial/position/z -1.0
+
+
+#########################
+##  TALLIES           ###
+#########################
+
+tallies/second/type "SECONDARY_GEN"
+
+tallies/matEDep/type "EDEP_MAT"
+tallies/matEDep/nmat 3
+
+tallies/bodyEDep/type "EDEP_BODY"
+tallies/bodyEDep/nBody 3
+
+#tallies/track/type "TRACK"
+#tallies/track/nhists 25
+
+tallies/EmergingPartDistrib/type "EMERGING_PART_DISTRIB"
+tallies/EmergingPartDistrib/emin 0.0
+tallies/EmergingPartDistrib/emax 1.41e6 
+tallies/EmergingPartDistrib/nBinsE 140
+tallies/EmergingPartDistrib/nBinsTheta 45
+tallies/EmergingPartDistrib/nBinsPhi 18
+
+tallies/ImpactDetector1/type "IMPACT_DET"
+tallies/ImpactDetector1/detector 1
+tallies/ImpactDetector1/fluence false
+tallies/ImpactDetector1/emin 0.0
+tallies/ImpactDetector1/emax 1.41e6
+tallies/ImpactDetector1/nbin-energy 140
+tallies/ImpactDetector1/energy-dep true
+tallies/ImpactDetector1/linearScale-edep true
+
+
+tallies/ImpactDetector2/type "IMPACT_DET"
+tallies/ImpactDetector2/detector 2
+tallies/ImpactDetector2/fluence false
+tallies/ImpactDetector2/emin 0.0
+tallies/ImpactDetector2/emax 1.41e6
+tallies/ImpactDetector2/nbin-energy 140
+tallies/ImpactDetector2/energy-dep true
+tallies/ImpactDetector2/linearScale-edep true
+
+
+tallies/ImpactDetector3/type "IMPACT_DET"
+tallies/ImpactDetector3/detector 3
+tallies/ImpactDetector3/fluence false
+tallies/ImpactDetector3/emin 0.0
+tallies/ImpactDetector3/emax 1.41e6
+tallies/ImpactDetector3/nbin-energy 140
+tallies/ImpactDetector3/energy-dep true
+tallies/ImpactDetector3/linearScale-edep true
+
+
+tallies/SpatialDoseDistrib/type "SPATIAL_DOSE_DISTRIB"
+tallies/SpatialDoseDistrib/print-xyz true 
+tallies/SpatialDoseDistrib/xmin 0.0
+tallies/SpatialDoseDistrib/xmax 1.0
+tallies/SpatialDoseDistrib/nx 1
+tallies/SpatialDoseDistrib/ymin 0.0
+tallies/SpatialDoseDistrib/ymax 1.0
+tallies/SpatialDoseDistrib/ny 1
+tallies/SpatialDoseDistrib/zmin 0.0
+tallies/SpatialDoseDistrib/zmax 5.0
+tallies/SpatialDoseDistrib/nz 100
+
+
+#########################
+#  GEOMETRY PARAMETERS  #
+#########################
+
+geometry/type "PEN_QUADRIC"
+geometry/input-file "3discs.geo"
+geometry/processed-geo-file "report.geo"
+
+geometry/kdet/1  1
+geometry/kdet/2  2
+geometry/kdet/3  3
+
+
+#########################
+#       MATERIALS       #
+#########################
+
+materials/water/number 1
+
+materials/water/eabs_e- 5.0e4
+materials/water/eabs_e+ 5.0e4
+materials/water/eabs_gamma 1.0e4
+
+materials/water/C1 0.10
+materials/water/C2 0.10
+
+materials/water/WCC 2.0e3 
+materials/water/WCR 2.0e3
+
+materials/water/filename "water.mat"
+
+
+materials/al/number 2
+
+materials/al/eabs_e- 5.0e4
+materials/al/eabs_e+ 5.0e4
+materials/al/eabs_gamma 1.0e4
+
+materials/al/C1 0.10
+materials/al/C2 0.10
+
+materials/al/WCC 2.0e3 
+materials/al/WCR 2.0e3
+
+materials/al/filename "Al.mat"
+
+
+materials/water1/number 3
+
+materials/water1/eabs_e- 5.0e4
+materials/water1/eabs_e+ 5.0e4
+materials/water1/eabs_gamma 1.0e4
+
+materials/water1/C1 0.10
+materials/water1/C2 0.10
+
+materials/water1/WCC 2.0e3 
+materials/water1/WCR 2.0e3
+
+materials/water1/filename "water.mat"
+
+
+#########################
+# SIMULATION PARAMETERS #
+#########################
+
+simulation/threads __NTHREADS__
+simulation/dump-interval __DUMPTIME__

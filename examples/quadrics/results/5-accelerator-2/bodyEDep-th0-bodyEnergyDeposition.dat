@@ -1,0 +1,10 @@
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# [SECTION REPORT ENERGY DEPOSITION]
+# Units are eV per history
+#
+# Body : Energy (eV/hist) : +-2sigma
+   1       2.42175E-01      1.3E-02
+   2       6.04294E+02      1.1E+00
+   3       4.61760E+00      4.2E-02
+   4       4.43960E+04      8.2E+01
+   5       1.46974E+01      1.4E-01

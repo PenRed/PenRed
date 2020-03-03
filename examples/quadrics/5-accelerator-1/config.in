@@ -1,0 +1,220 @@
+
+#
+#
+#    Copyright (C) 2019 Universitat de València - UV
+#    Copyright (C) 2019 Universitat Politècnica de València - UPV
+#
+#    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
+#
+#    PenRed is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    PenRed is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with PenRed.  If not, see <https://www.gnu.org/licenses/>. 
+#
+#
+#    contact emails:
+#
+#        vicent.gimenez.alventosa@gmail.com
+#        vicente.gimenez@uv.es
+#    
+#
+
+#########################
+##  SOURCES           ###
+#########################
+
+#------------------------
+#  Source 1
+#########################
+
+sources/generic/source1/nhist __NHISTS__
+sources/generic/source1/kpar "electron"
+
+
+# Directional sampling
+#########################
+
+sources/generic/source1/direction/type "CONE"
+
+# Set theta
+sources/generic/source1/direction/theta 0.0
+
+# Set phi
+sources/generic/source1/direction/phi 0.0
+
+# Set oberture (alpha)
+sources/generic/source1/direction/alpha 0.0
+
+# Energy sampling
+#########################
+
+sources/generic/source1/energy/type "MONOENERGETIC"
+
+# Set energy
+sources/generic/source1/energy/energy 6.0e6
+
+# Spatial sampling
+#########################
+
+sources/generic/source1/spatial/type "POINT"
+
+# Set particle origin
+sources/generic/source1/spatial/position/x 0.0
+sources/generic/source1/spatial/position/y 0.0
+sources/generic/source1/spatial/position/z -20.0
+
+
+#########################
+##  TALLIES           ###
+#########################
+
+tallies/secondary/type "SECONDARY_GEN"
+
+tallies/matEDep/type "EDEP_MAT"
+tallies/matEDep/nmat 4
+
+tallies/bodyEDep/type "EDEP_BODY"
+tallies/bodyEDep/nBody 5
+
+#tallies/track/type "TRACK"
+#tallies/track/nhists 25 
+
+tallies/EmergingPartDistrib/type "EMERGING_PART_DISTRIB"
+tallies/EmergingPartDistrib/emin 0.0
+tallies/EmergingPartDistrib/emax 6.1e6 
+tallies/EmergingPartDistrib/nBinsE 120
+tallies/EmergingPartDistrib/nBinsTheta 45
+tallies/EmergingPartDistrib/nBinsPhi 24
+
+tallies/ImpactDetector1/type "IMPACT_DET"
+tallies/ImpactDetector1/detector 1
+tallies/ImpactDetector1/emin 0.0
+tallies/ImpactDetector1/emax 6.1e6
+tallies/ImpactDetector1/nbin-energy 120
+tallies/ImpactDetector1/spectrum true
+tallies/ImpactDetector1/linearScale-spc true
+
+tallies/psf/type "PSF"
+tallies/psf/detector 1
+tallies/psf/emin 0.0
+tallies/psf/emax 6.1e6
+
+#########################
+#  VARIANCE REDUCTION   #
+#########################
+
+VR/IForcing/bodies/VR1/body "1"
+VR/IForcing/bodies/VR1/particle "electron"
+VR/IForcing/bodies/VR1/interaction 2
+VR/IForcing/bodies/VR1/factor 10.0
+VR/IForcing/bodies/VR1/min-weight 0.6
+VR/IForcing/bodies/VR1/max-weight 1.1
+
+
+VR/IForcing/bodies/VR2/body "1"
+VR/IForcing/bodies/VR2/particle "electron"
+VR/IForcing/bodies/VR2/interaction 3
+VR/IForcing/bodies/VR2/factor 10.0
+VR/IForcing/bodies/VR2/min-weight 0.6
+VR/IForcing/bodies/VR2/max-weight 1.1
+
+VR/bremss/bodies/1/splitting 5
+
+VR/x-ray/bodies/1/splitting 4
+
+
+#########################
+#  GEOMETRY PARAMETERS  #
+#########################
+
+geometry/type "PEN_QUADRIC"
+geometry/input-file "accel.geo"
+geometry/processed-geo-file "report.geo"
+
+geometry/dsmax/1 2.0e-2
+
+geometry/kdet/3  1
+
+geometry/eabs/3/electron  1.0e35
+geometry/eabs/3/gamma     1.0e35
+geometry/eabs/3/positron  1.0e35
+
+#########################
+#       MATERIALS       #
+#########################
+
+materials/wol/number 1
+
+materials/wol/eabs_e- 1.0e5
+materials/wol/eabs_gamma 1.0e4
+materials/wol/eabs_e+ 1.0e5
+
+materials/wol/C1 0.1
+materials/wol/C2 0.1
+
+materials/wol/WCC 2.0e3 
+materials/wol/WCR 2.0e3
+
+materials/wol/filename "W.mat"
+
+
+materials/wol1/number 2
+
+materials/wol1/eabs_e- 1.0e5
+materials/wol1/eabs_gamma 1.0e4
+materials/wol1/eabs_e+ 1.0e5
+
+materials/wol1/C1 0.2
+materials/wol1/C2 0.2
+
+materials/wol1/WCC 2.0e3 
+materials/wol1/WCR 2.0e3
+
+materials/wol1/filename "W.mat"
+
+
+
+materials/air/number 3
+
+materials/air/eabs_e- 1.0e5
+materials/air/eabs_gamma 1.0e4
+materials/air/eabs_e+ 1.0e5
+
+materials/air/C1 0.2
+materials/air/C2 0.2
+
+materials/air/WCC 2.0e3 
+materials/air/WCR 2.0e3
+
+materials/air/filename "Air.mat"
+
+
+materials/water/number 4
+
+materials/water/eabs_e- 1.0e5
+materials/water/eabs_gamma 1.0e4
+materials/water/eabs_e+ 1.0e5
+
+materials/water/C1 0.2
+materials/water/C2 0.2
+
+materials/water/WCC 2.0e3 
+materials/water/WCR 2.0e3
+
+materials/water/filename "H2O.mat"
+
+
+#########################
+# SIMULATION PARAMETERS #
+#########################
+
+simulation/threads __NTHREADS__
+simulation/dump-interval __DUMPTIME__

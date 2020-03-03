@@ -1,0 +1,198 @@
+Configuration:
+geometry/input-file: box
+geometry/processed-geo-file: report.geo
+geometry/type: PEN_QUADRIC
+materials/water/C1:    5.00000E-02
+materials/water/C2:    5.00000E-02
+materials/water/WCC:    1.00000E+03
+materials/water/WCR:    1.00000E+03
+materials/water/eabs_e+:    1.00000E+04
+materials/water/eabs_e-:    1.00000E+04
+materials/water/eabs_gamma:    5.00000E+03
+materials/water/filename: water.mat
+materials/water/number: 1
+simulation/histories:    1.00000E+07
+simulation/threads: 1
+sources/source1/direction/azimutal-oberture/dphi:    3.60000E+02
+sources/source1/direction/azimutal-oberture/phi0:    0.00000E+00
+sources/source1/direction/direction/u:    1.00000E+00
+sources/source1/direction/direction/v:    0.00000E+00
+sources/source1/direction/direction/w:    0.00000E+00
+sources/source1/direction/polar-oberture/theta0:   -1.00000E+01
+sources/source1/direction/polar-oberture/theta1:    1.00000E+01
+sources/source1/direction/type: SOLID_ANGLE
+sources/source1/energy/lowE: [   3.00000E+04,   4.50000E+04]
+sources/source1/energy/nintervals: 2
+sources/source1/energy/probabilities: [   3.33300E+01,   6.66600E+01]
+sources/source1/energy/topE: [   3.00000E+04,   5.00000E+04]
+sources/source1/energy/type: INTERVALS
+sources/source1/kpar: gamma
+sources/source1/prob:    5.00000E-01
+sources/source1/spatial/position/x:    5.00000E-01
+sources/source1/spatial/position/y:    5.00000E-01
+sources/source1/spatial/position/z:    0.00000E+00
+sources/source1/spatial/size/dx:    1.00000E+00
+sources/source1/spatial/size/dy:    1.00000E+00
+sources/source1/spatial/size/dz:    1.00000E+00
+sources/source1/spatial/type: BOX
+sources/source1/time/halfLife:    5.00000E+02
+sources/source1/time/time/time0:    1.00000E+02
+sources/source1/time/time/time1:    4.00020E+03
+sources/source1/time/type: DECAY
+tallies/doseDistrib/nbin: 500
+tallies/doseDistrib/print-xyz: true
+tallies/doseDistrib/rmax: 2
+tallies/doseDistrib/rmin: 1
+tallies/doseDistrib/type: SPHERICAL_DOSE_DISTRIB
+tallies/matEDep/nmat: 1
+tallies/matEDep/type: EDEP_MAT
+tallies/track/nhists: 100
+tallies/track/type: TRACK
+
+
+Number of simulating threads: 1
+Selected particle: gamma
+
+------------------------------------
+
+ **** Source 'source1'
+
+------------------------------------
+
+
+Spatial sampler 'BOX':
+
+Box center (x,y,z):
+   5.0000E-01   5.0000E-01   0.0000E+00
+Box size (dx,dy,dz):
+   1.0000E+00   1.0000E+00   1.0000E+00
+
+------------------------------------
+
+
+Direction sampler 'SOLID_ANGLE':
+
+Polar interval (deg)   :  -1.7453E-01 -   1.7453E-01
+Azimutal angle (deg)   :   0.0000E+00
+Azimutal oberture (deg):   6.2832E+00
+
+------------------------------------
+
+
+Energy sampler 'INTERVALS':
+
+      Elow          Etop       LowCummul     topCummul
+   3.0000E+04    3.0000E+04    0.0000E+00    3.3333E-01
+   4.5000E+04    5.0000E+04    3.3333E-01    1.0000E+00
+Maximum possible energy:   5.0000E+04 eV
+
+------------------------------------
+
+
+Time sampler 'DECAY':
+
+T1/2 (s):   5.0000E+02
+tau (s) :   7.2135E+02
+
+------------------------------------
+
+Assigned probability: 5.00E-01
+No source body selected
+No source material selected
+
+Generator 'source1' configured with generic samplers:
+Spatial   -> BOX
+Direction -> SOLID_ANGLE
+Energy    -> INTERVALS
+Time      -> DECAY
+
+
+
+------------------------------------
+
+ **** Geometry parameters
+
+pen_quadricGeo:configure:Info: Geometry loaded
+Maximum global energy:       5.00E+04 eV
+
+
+------------------------------------
+
+ **** Materials ****
+ *******************
+
+Number of materials: 1
+	water
+
+
+------------------------------------
+
+ **** Material 'water'
+
+      C1 = 5.0000E-02       C2 = 5.0000E-02
+     WCC = 1.0000E+03 eV,   WCR = 1.0000E+03 eV
+  electron EABS:  1.0000E+04 eV
+     gamma EABS:  5.0000E+03 eV
+  positron EABS:  1.0000E+04 eV
+
+ Material filename: 'water.mat'.
+
+
+------------------------------------
+
+
+------------------------------------
+
+ **** Tally group 'common'
+
+------------------------------------
+
+
+Tally 'doseDistrib':
+
+Tally type: 'SPHERICAL_DOSE_DISTRIB'
+
+pen_SphericalDoseDistrib:configure: print-xyz =  true. Output file print rBinIndex,  rLow(cm) and  rAve(cm)
+Number of radial bins: 500
+Minimum r value (cm):  1.00000E+00
+Bin width (cm):  2.00000E-03
+
+------------------------------------
+
+
+Tally 'matEDep':
+
+Tally type: 'EDEP_MAT'
+
+Detection material: 1
+
+------------------------------------
+
+
+Tally 'track':
+
+Tally type: 'TRACK'
+
+Histories to track: 100
+
+------------------------------------
+
+
+Created common tallies (name and type):
+
+           doseDistrib -> SPHERICAL_DOSE_DISTRIB
+               matEDep ->             EDEP_MAT
+                 track ->                TRACK
+
+3 tallies created for each thread.
+
+
+------------------------------------
+
+ **** Simulation parameters
+
+Histories to simulate:        1E+07
+
+
+Simulation time:   7.3000E+01 s
+Histories per second:   1.3699E+05 s

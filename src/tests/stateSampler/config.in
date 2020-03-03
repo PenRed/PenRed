@@ -1,0 +1,81 @@
+
+#
+#
+#    Copyright (C) 2019 Universitat de València - UV
+#    Copyright (C) 2019 Universitat Politècnica de València - UPV
+#
+#    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
+#
+#    PenRed is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    PenRed is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with PenRed.  If not, see <https://www.gnu.org/licenses/>. 
+#
+#
+#    contact emails:
+#
+#        vicent.gimenez.alventosa@gmail.com
+#        vicente.gimenez@uv.es
+#    
+#
+
+
+# Directional sampling
+#########################
+
+# Set direction
+directionSampling/direction/u 1.0
+directionSampling/direction/v 0.0
+directionSampling/direction/w 0.0
+
+# Set polar oberture
+directionSampling/polar-oberture/theta0 -10.0
+directionSampling/polar-oberture/theta1 10.0
+
+# Set azimutal oberture
+directionSampling/azimutal-oberture/phi0 0.0
+directionSampling/azimutal-oberture/dphi 360.0
+
+
+# Energy sampling
+#########################
+
+# Set intervals
+energySampling/nintervals 2
+
+# Set energies
+energySampling/energies [30.0e3, 45.0e3]
+
+# Set probabilities
+energySampling/probabilities [33.33,66.66]
+
+# Spatial sampling
+#########################
+
+# Set box size
+spatialSampling/size/dx 1.0
+spatialSampling/size/dy 1.0
+spatialSampling/size/dz 1.0
+
+# Set box center position
+spatialSampling/position/x 0.5
+spatialSampling/position/y 0.5
+spatialSampling/position/z 0.0
+
+
+# Time sampling
+#########################
+
+# Set halfLife
+timeSampling/halfLife 3600.0
+timeSampling/time/time0 0.0
+timeSampling/time/time1 5.2e3
+
