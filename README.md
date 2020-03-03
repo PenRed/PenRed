@@ -8,4 +8,8 @@ PenRed package provides a parallel engine for radiation transport Monte-Carlo si
 
 > doc/PenRed_doc.pdf
 
+In addition, users can find a descriptive [academic article](https://arxiv.org/abs/2003.00796) at ArXiv which has been sent to be published.
+
+
+
 ## On construction...
