@@ -30,6 +30,6 @@
 rm -r build
 mkdir build
 cd build
-cmake -DWITH_DICOM="ON" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="ON" -DDEVELOPMENT_WARNINGS="ON" ../
+cmake -DWITH_DICOM="OFF" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DDEVELOPMENT_WARNINGS="OFF" ../
 make install
 cd ..
