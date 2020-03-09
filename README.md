@@ -77,7 +77,7 @@ where *Nprocesses* specify the number of MPI processes to use. Of course, the us
 
 ### Use package managers
 
-Actually, PenRed can be installed via a *rpm* package using the *yum* and *dnf* package managers. A *deb* package is under development and will be provided soon. 
+PenRed can be installed via a *rpm* package using the *yum* and *dnf* package managers. However, the number of supported distributions is very limited, but we will add more packages, including *deb* files, soon. 
 
 All these packages can be found at the repository 
 
@@ -109,3 +109,12 @@ penred path/to/configuration/file
 ```
 
 Also, some utilities will be installed too. They are explained at the package repository.
+
+## Docker containers
+
+Another method to run PenRed is using a docker container. To download the image and execute the simulation, use the following command in the simulation folder,
+
+```
+sudo docker run -v $PWD:/home/penred:z vigial/penred-compiled path/to/configuration/file
+```
+
