@@ -538,7 +538,7 @@ int main(int argc, char** argv){
     printf("Copyright (c) 2019 Universitat de Valencia\n");
     printf("This is free software; see the source for copying conditions. "
 	   " There is NO\n warranty; not even for MERCHANTABILITY or "
-           "FITNESS FOR A PARTICULAR PURPOSE.");
+           "FITNESS FOR A PARTICULAR PURPOSE.\n");
     printf("Please, report bugs and suggestions at our github repository\n"
 	  "     https://github.com/PenRed/PenRed\n");
     return 0;
