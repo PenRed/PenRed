@@ -531,6 +531,18 @@ int main(int argc, char** argv){
     printf("usage: %s config-filename\n",argv[0]);
     return 0;
   }
+	
+  if(strcmp(argv[1],"--version") == 0 || strcmp(argv[1],"-v") == 0){
+    printf("PenRed 1.0.0\n");
+    printf("Copyright (c) 2019 Universitat Politecnica de Valencia\n");
+    printf("Copyright (c) 2019 Universitat de Valencia\n");
+    printf("This is free software; see the source for copying conditions. "
+	   " There is NO\n warranty; not even for MERCHANTABILITY or "
+           "FITNESS FOR A PARTICULAR PURPOSE.");
+    printf("Please, report bugs and suggestions at our github repository\n"
+	  "     https://github.com/PenRed/PenRed\n");
+    return 0;
+  }
 
   unsigned verbose = 3;
 
