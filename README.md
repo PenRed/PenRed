@@ -77,9 +77,7 @@ where *Nprocesses* specify the number of MPI processes to use. Of course, the us
 
 ### Use package managers
 
-PenRed can be installed via a *rpm* package using the *yum* and *dnf* package managers. However, the number of supported distributions is very limited, but we will add more packages, including *deb* files, soon. 
-
-All these packages can be found at the repository 
+PenRed can be installed via a *rpm* or *deb* package using the corresponding package managers. However, not all distributions are supported. For suppoerted distributions, these packages can be found at the repository 
 
 > https://github.com/PenRed/packages
 
@@ -108,7 +106,13 @@ Once the installation has been finished, PenRed can be executed directly using,
 penred path/to/configuration/file
 ```
 
-Also, some utilities will be installed too. They are explained at the package repository.
+Also, the PenRed version can be checked using,
+
+```
+penred -v
+```
+
+In addition, some utilities will be installed with the PenRed package. They are explained at the package repository.
 
 ## Docker containers
 
