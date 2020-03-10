@@ -41,5 +41,6 @@
 #include "tallySpatialDoseDistrib.hh"
 #include "tallyAngularDetector.hh"
 #include "tallyPhaseSpaceFile.hh"
+#include "tallyCTsinogram.hh"
 
 #endif
