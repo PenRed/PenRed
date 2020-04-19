@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2020 Universitat de València - UV
+//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -552,7 +552,17 @@ int main(int argc, char** argv){
   int rank;
   int mpiSize;
 
-  MPI_Init(&argc, &argv);
+  int MThProvided;
+  int MPIinitErr = MPI_Init_thread(nullptr, nullptr, MPI_THREAD_SERIALIZED,&MThProvided);
+  if(MPIinitErr != MPI_SUCCESS){
+    printf("Unable to initialize MPI. Error code: %d\n",MPIinitErr);
+    return -1;
+  }
+  if(MThProvided != MPI_THREAD_SERIALIZED){
+    printf("Warning: The MPI implementation used doesn't provide"
+	   "support for serialized thread communication.\n"
+	   "This could produce unexpected behaviours or performance issues.\n");
+  }
   
   //Get current process "rank" and the total number of processes
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
