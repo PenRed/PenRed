@@ -30,7 +30,7 @@
 #include "tallySphericalDoseDistrib.hh"
 
 void pen_SphericalDoseDistrib::updateEdepCounters(const double dE,
-						  const double nhist,
+						  const unsigned long long nhist,
 						  const double X,
 						  const double Y,
 						  const double Z,
@@ -51,7 +51,7 @@ void pen_SphericalDoseDistrib::updateEdepCounters(const double dE,
             edep2[i] += edptmp[i]*edptmp[i];
             edptmp[i] = dE*WGHT;
             // Add 1/2 to avoid roundoff errors
-            nlast[i]  = nhist+0.5;             
+            nlast[i]  = nhist;             
     }
     else
     {
@@ -79,7 +79,7 @@ void pen_SphericalDoseDistrib::updateEdepCounters(const double dE,
  
  
 
-void pen_SphericalDoseDistrib::tally_localEdep(const double nhist,
+void pen_SphericalDoseDistrib::tally_localEdep(const unsigned long long nhist,
 					       const pen_KPAR /*kpar*/,
 					       const pen_particleState& state,
 					       const double dE){
@@ -90,7 +90,7 @@ void pen_SphericalDoseDistrib::tally_localEdep(const double nhist,
    updateEdepCounters(dE, nhist, state.X, state.Y, state.Z, state.WGHT);
 }
 
-void pen_SphericalDoseDistrib::tally_beginPart(const double nhist,
+void pen_SphericalDoseDistrib::tally_beginPart(const unsigned long long nhist,
 					       const unsigned /*kdet*/,
 					       const pen_KPAR /*kpar*/,
 					       const pen_particleState& state){
@@ -99,7 +99,7 @@ void pen_SphericalDoseDistrib::tally_beginPart(const double nhist,
     updateEdepCounters(-state.E, nhist, state.X, state.Y, state.Z, state.WGHT);
 }
 
-void pen_SphericalDoseDistrib::tally_beginHist(const double nhist,
+void pen_SphericalDoseDistrib::tally_beginHist(const unsigned long long nhist,
 					       const unsigned /*kdet*/,
 					       const pen_KPAR /*kpar*/,
 					       const pen_particleState& state){
@@ -111,7 +111,7 @@ void pen_SphericalDoseDistrib::tally_beginHist(const double nhist,
     }
 }
 
-void pen_SphericalDoseDistrib::tally_step(const double nhist,
+void pen_SphericalDoseDistrib::tally_step(const unsigned long long nhist,
 					  const pen_KPAR /*kpar*/,
 					  const pen_particleState& state,
 					  const tally_StepData& stepData){
@@ -124,7 +124,7 @@ void pen_SphericalDoseDistrib::tally_step(const double nhist,
 }
 
 
-void pen_SphericalDoseDistrib::tally_move2geo(const double nhist,
+void pen_SphericalDoseDistrib::tally_move2geo(const unsigned long long nhist,
 					      const unsigned /*kdet*/,
 					      const pen_KPAR /*kpar*/,
 					      const pen_particleState& state,
@@ -287,12 +287,12 @@ int pen_SphericalDoseDistrib::configure(const wrapper_geometry& geometry,
     
 }
 
-void pen_SphericalDoseDistrib::tally_endSim(const double /*nhist*/){
+void pen_SphericalDoseDistrib::tally_endSim(const unsigned long long /*nhist*/){
         
   flush();
 }
 
-void pen_SphericalDoseDistrib::saveData(const double nhist) const{
+void pen_SphericalDoseDistrib::saveData(const unsigned long long nhist) const{
    
   FILE*out = 0;
   int i;
@@ -334,7 +334,7 @@ void pen_SphericalDoseDistrib::saveData(const double nhist) const{
   fprintf(out,"dose(eV/g) :+-2sigma: edep(eV/cm) :+-2sigma\n");
                 
   // Write data
-  invn = 1.0/nhist;  
+  invn = 1.0/static_cast<double>(nhist);  
     
 
 

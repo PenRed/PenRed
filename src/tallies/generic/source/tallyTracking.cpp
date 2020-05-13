@@ -44,7 +44,7 @@ void pen_tallyTracking::tally_beginSim(){
   active = true;
 }
 
-void pen_tallyTracking::tally_beginPart(const double /*nhist*/,
+void pen_tallyTracking::tally_beginPart(const unsigned long long /*nhist*/,
 					const unsigned /*kdet*/,
 					const pen_KPAR kpar,
 					const pen_particleState& state){
@@ -55,13 +55,13 @@ void pen_tallyTracking::tally_beginPart(const double /*nhist*/,
   }
 }
 
-void pen_tallyTracking::tally_beginHist(const double nhist,
+void pen_tallyTracking::tally_beginHist(const unsigned long long nhist,
 					const unsigned /*kdet*/,
 					const pen_KPAR kpar,
 					const pen_particleState& state){
 
   if(nhist < nhists){
-    fprintf(fout,"#Begin history %20.0f:\n",nhist);
+    fprintf(fout,"#Begin history %llu:\n",nhist);
     fprintf(fout,"#      kpar -> %d\n",kpar);
     fprintf(fout,"#X,Y,Z (cm) -> %12.4E, %12.4E, %12.4E \n",
 	    state.X,state.Y,state.Z);
@@ -72,7 +72,7 @@ void pen_tallyTracking::tally_beginHist(const double nhist,
   }
 }
 
-void pen_tallyTracking::tally_move2geo(const double /*nhist*/,
+void pen_tallyTracking::tally_move2geo(const unsigned long long /*nhist*/,
 				       const unsigned /*kdet*/,
 				       const pen_KPAR /*kpar*/,
 				       const pen_particleState& state,
@@ -85,7 +85,7 @@ void pen_tallyTracking::tally_move2geo(const double /*nhist*/,
   }  
 }
 
-void pen_tallyTracking::tally_endPart(const double /*nhist*/,
+void pen_tallyTracking::tally_endPart(const unsigned long long /*nhist*/,
 				    const pen_KPAR /*kpar*/,
 				    const pen_particleState& state){
   if(active){
@@ -94,7 +94,7 @@ void pen_tallyTracking::tally_endPart(const double /*nhist*/,
   }
 }
 
-void pen_tallyTracking::tally_step(const double /*nhist*/,
+void pen_tallyTracking::tally_step(const unsigned long long /*nhist*/,
 				   const pen_KPAR /*kpar*/,
 				   const pen_particleState& state,
 				   const tally_StepData& stepData){
@@ -109,7 +109,7 @@ void pen_tallyTracking::tally_step(const double /*nhist*/,
 
 }
 
-void pen_tallyTracking::tally_interfCross(const double /*nhist*/,
+void pen_tallyTracking::tally_interfCross(const unsigned long long /*nhist*/,
 					  const unsigned /*kdet*/,
 					  const pen_KPAR /*kpar*/,
 					  const pen_particleState& /*state*/){
@@ -119,7 +119,7 @@ void pen_tallyTracking::tally_interfCross(const double /*nhist*/,
 
 }
 
-void pen_tallyTracking::tally_jump(const double /*nhist*/,
+void pen_tallyTracking::tally_jump(const unsigned long long /*nhist*/,
 				 const pen_KPAR /*kpar*/,
 				 const pen_particleState& state,
 				 const double ds){
@@ -129,7 +129,7 @@ void pen_tallyTracking::tally_jump(const double /*nhist*/,
   }
 }
 
-void pen_tallyTracking::tally_knock(const double /*nhist*/,
+void pen_tallyTracking::tally_knock(const unsigned long long /*nhist*/,
 				  const pen_KPAR /*kpar*/,
 				  const pen_particleState& state,
 				  const int icol){
@@ -144,19 +144,27 @@ int pen_tallyTracking::configure(const wrapper_geometry& /*geometry*/,
 				 const pen_parserSection& config,
 				 const unsigned verbose){
     
-  int err;     
-  err = config.read("nhists", nhists);
+  int err;
+  int nhistsAux;
+  err = config.read("nhists", nhistsAux);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
       printf("Tracking:configure:unable to read 'nhists' in configuration. Integrer expected");
     }
     return -1;
   }
-
   active = true;
 
+  if(nhistsAux <= 0){
+    if(verbose > 0){
+      printf("Tracking:configure: Invalid value to 'nhists', must be greater than 0.\n");
+    }
+    return -2;
+  }
+  
+  nhists = static_cast<unsigned long long>(nhistsAux);
   if(verbose > 1){
-    printf("Histories to track: %d\n",nhists);
+    printf("Histories to track: %llu\n",nhists);
   }  
 
   
@@ -165,7 +173,7 @@ int pen_tallyTracking::configure(const wrapper_geometry& /*geometry*/,
 
 
 
-void pen_tallyTracking::saveData(const double /*nhist*/) const{}
+void pen_tallyTracking::saveData(const unsigned long long /*nhist*/) const{}
 int pen_tallyTracking::sumTally(const pen_tallyTracking& /*tally*/){return 0;}
 
 

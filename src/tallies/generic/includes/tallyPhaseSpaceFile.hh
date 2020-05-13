@@ -75,38 +75,38 @@ public:
 			      inside(false)
   {}
 
-  void tally_lastHist(const double lastHist);
+  void tally_lastHist(const unsigned long long lastHist);
   
-  void tally_interfCross(const double nhist,
+  void tally_interfCross(const unsigned long long nhist,
 			 const unsigned kdet,
 		       const pen_KPAR kpar,
 		       const pen_particleState& state);
 
-  void tally_matChange(const double nhist,
+  void tally_matChange(const unsigned long long nhist,
 		       const pen_KPAR kpar,
 		       const pen_particleState& state,
 		       const unsigned /*prevMat*/);
   
-  void tally_move2geo(const double nhist,
+  void tally_move2geo(const unsigned long long nhist,
 		      const unsigned kdet,
 		      const pen_KPAR kpar,
 		      const pen_particleState& state,
 		      const double /*dsef*/,
 		      const double /*dstot*/);
 
-  void tally_beginPart(const double /*nhist*/,
+  void tally_beginPart(const unsigned long long /*nhist*/,
 		       const unsigned kdet,
 		       const pen_KPAR /*kpar*/,
 		       const pen_particleState& /*state*/);
     
-  void tally_endSim(const double /*nhist*/);
+  void tally_endSim(const unsigned long long /*nhist*/);
   
   int configure(const wrapper_geometry& /*geometry*/,
 		const abc_material* const /*materials*/[constants::MAXMAT],
 		const pen_parserSection& config,
 		const unsigned verbose);
 
-  inline void store(const double nhist,
+  inline void store(const unsigned long long nhist,
 		    const unsigned kpar,
 		    const pen_particleState& state){
 
@@ -140,7 +140,7 @@ public:
     }
   }
   
-  void saveData(const double /*nhist*/) const;
+  void saveData(const unsigned long long /*nhist*/) const;
   void flush();
   int sumTally(const pen_tallyPhaseSpaceFile& /*tally*/);
 

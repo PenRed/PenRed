@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2020 Universitat de València - UV
+//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -116,6 +116,77 @@ pen_genericStateGen::pen_genericStateGen() : spatialSampler(nullptr),
 					     LAGE(false),
 					     kpar(PEN_PHOTON)
 {}
+
+bool pen_genericStateGen::handleFinish(const unsigned iw,
+				       const unsigned long long nDone,
+				       unsigned long long& assigned,
+				       const unsigned verbose){
+  //End of simulation, try to end the task
+
+  //Sleep few seconds to ensure minimum time between reports
+  std::this_thread::sleep_for (std::chrono::seconds(2));
+  //Perform a report
+  int errReport;
+  report(iw,nDone,&errReport,verbose);
+  int why;
+  if(workerFinish(iw,why,verbose)){
+    //This worker can finish
+    return true;
+  }
+  else{
+    //This worker can't finish yet, check the reason
+    switch(why){
+    case 0:
+      {
+	//Update assigned histories
+	const unsigned long long newAssign = toDo(iw);
+	const unsigned long long lastAssign = assigned;
+	assigned = newAssign;
+	if(verbose > 1){
+	  printf("Source '%s': Worker %u: Assigned histories "
+		 "updated from %llu to %llu\n",
+		 name.c_str(),iw,lastAssign,newAssign);
+	}
+      }break;
+    case 1:
+      {
+	//Perform a checkpoint
+	checkPoint(verbose);
+	//Update histories to do
+	const unsigned long long lastAssign = assigned;
+	assigned = toDo(iw);
+	if(lastAssign != assigned && verbose > 1)
+	  printf("Source '%s': Worker %u: Assigned histories "
+		 "updated from %llu to %llu\n",
+		 name.c_str(),iw,lastAssign,assigned);
+	
+      }break;
+    case 2:
+      {
+	//Rank 0 has not sent permission to finish the task
+	std::this_thread::sleep_for (std::chrono::seconds(10));
+	//Add only 10000 iterations and ask again
+	const unsigned long long lastAssign = assigned;
+	assigned += std::min(10000ull,nDone/1000ull);
+	if(verbose > 1){	
+	  printf("Source '%s': Worker %u: Assigned histories "
+		 "updated from %llu to %llu\n",
+		 name.c_str(),iw,lastAssign,assigned);
+	}
+      }break;
+    default:
+      {
+	if(verbose > 1)
+	  printf("Source '%s': Worker %u: Permission denied, "
+		 "unexpected reason: %d\n",
+		 name.c_str(),iw,why);
+	assigned += 10000ull; //Add only 10000 iterations and ask again
+      }
+    }
+    return false;
+  }
+}
+      
 
 std::string pen_genericStateGen::samplersList(){
   std::string aux;

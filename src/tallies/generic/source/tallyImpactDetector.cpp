@@ -291,7 +291,7 @@ void pen_ImpactDetector::ageSpectrum(const pen_particleState& state){
 }
 
 
-void pen_ImpactDetector::tally_step(const double /*nhist*/,
+void pen_ImpactDetector::tally_step(const unsigned long long /*nhist*/,
 				    const pen_KPAR kpar,
 				    const pen_particleState& state,
 				    const tally_StepData& stepData){
@@ -318,7 +318,7 @@ void pen_ImpactDetector::tally_step(const double /*nhist*/,
 }
 
 
-void pen_ImpactDetector::tally_localEdep(const double /*nhist*/,
+void pen_ImpactDetector::tally_localEdep(const unsigned long long /*nhist*/,
 		       const pen_KPAR /*kpar*/,
 		       const pen_particleState& state,
 		       const double dE){
@@ -330,7 +330,7 @@ void pen_ImpactDetector::tally_localEdep(const double /*nhist*/,
     
 }
 
-void pen_ImpactDetector::tally_interfCross(const double /*nhist*/,
+void pen_ImpactDetector::tally_interfCross(const unsigned long long /*nhist*/,
 					       const unsigned kdet,
 					       const pen_KPAR kpar,
 					       const pen_particleState& state){
@@ -356,7 +356,7 @@ void pen_ImpactDetector::tally_interfCross(const double /*nhist*/,
 }
 
 
-void pen_ImpactDetector::tally_move2geo(const double /*nhist*/,
+void pen_ImpactDetector::tally_move2geo(const unsigned long long /*nhist*/,
 					    const unsigned kdet,
 					    const pen_KPAR kpar,
 					    const pen_particleState& state,
@@ -386,7 +386,7 @@ void pen_ImpactDetector::tally_move2geo(const double /*nhist*/,
 }
 
 
-void pen_ImpactDetector::tally_beginPart(const double /*nhist*/,
+void pen_ImpactDetector::tally_beginPart(const unsigned long long /*nhist*/,
 					     const unsigned kdet,
 					     const pen_KPAR /*kpar*/,
 					     const pen_particleState& state){
@@ -408,7 +408,7 @@ void pen_ImpactDetector::tally_beginPart(const double /*nhist*/,
 
 
 
-void pen_ImpactDetector::tally_endHist(const double /*nhist*/){
+void pen_ImpactDetector::tally_endHist(const unsigned long long /*nhist*/){
     
     flush();
 }
@@ -861,7 +861,7 @@ int pen_ImpactDetector::configure(const wrapper_geometry& /*geometry*/,
 
 }
 
-void pen_ImpactDetector::saveData(const double nhist) const{
+void pen_ImpactDetector::saveData(const unsigned long long nhist) const{
 
   char filenameFLU[400];
   char filenameSPC[400];
@@ -880,7 +880,7 @@ void pen_ImpactDetector::saveData(const double nhist) const{
     qEDEP, sigmaEDEP,
     qAGE, sigmaAGE;
     
-  invn = 1.0/(double)nhist;
+  invn = 1.0/static_cast<double>(nhist);
     
 if(fln){
   FILE* outFLU = NULL;

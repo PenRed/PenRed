@@ -33,8 +33,6 @@
 
 int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>>& genericSources,
 			     std::vector<pen_specificStateGen<pen_state_gPol>>& polarisedGammaSources,
-			     std::vector<double>& genericSourceHists,
-			     std::vector<double>& polarisedSourceHists,
 			     const unsigned nthreads,
 			     const pen_parserSection& config,
 			     const unsigned verbose);
@@ -109,17 +107,64 @@ int configureSource(pen_specificStateGen<stateType>& source,
 }
 
 template<class stateType>
+inline void updateHists(unsigned long long& nhists,
+			pen_specificStateGen<stateType>& source,
+			const unsigned ithread,
+			const unsigned verbose){
+  //Update assigned histories
+  unsigned long long newNhists = source.toDo(ithread);
+  if(newNhists != nhists){
+    if(verbose > 1)
+      printf("Thread %u: Source '%s': Number of histories to do "
+	     "updated from %llu to %llu.\n",
+	     ithread,source.name.c_str(),nhists,newNhists);
+    nhists = newNhists;
+  }
+}
+
+template<class stateType>
+inline void checkpoint(pen_specificStateGen<stateType>& source,
+		       const unsigned ithread,
+		       const unsigned verbose){
+  int errCP = source.checkPoint(verbose);
+  if(errCP != 0 && verbose > 0)
+    printf("Thread %u: Source '%s': Error at load balancing "
+	   "checkpoint. Error code: %d\n",
+	   ithread,source.name.c_str(),errCP);
+  else if(errCP == 0 && verbose > 1){
+    printf("Thread %u: Source '%s': Load balance checkpoint "
+	   "done.\n",
+	   ithread,source.name.c_str());
+  }
+}
+
+template<class stateType>
 void simulate(const unsigned ithread,
-	      const double nhists,
-	      const double initHist,
+	      const int lastSource,
 	      const pen_context* pcontext,
 	      pen_specificStateGen<stateType>* psource,
 	      pen_commonTallyCluster* ptallies,
 	      int* seed1, int* seed2,
 	      const double dumpTime,
 	      const std::string dumpFilename,
-	      double* nsimulated){
+	      unsigned long long* nsimulated,
+	      const unsigned verbose){
 
+  // Variables list
+  //
+  // Input:
+  //  ithread     : thread number identifier
+  //  pcontext    : simulation context
+  //  psource     : particle source
+  //  ptallies    : simulation tallies
+  //  dumptime    : time between dumps
+  //  dumpFilename: dump file name
+  //
+  // Input/output:
+  //  seed1       : First random generator seed
+  //  seed2       : Second random generator seed
+  //  nsimulated  : total number of simulated histories (including 'initHist')
+  
   const pen_context& context = *pcontext;
   pen_specificStateGen<stateType>& source = *psource;
   pen_commonTallyCluster& tallies = *ptallies;
@@ -128,33 +173,70 @@ void simulate(const unsigned ithread,
   pen_rand random;
   random.setSeeds(*seed1,*seed2);
   
-  pen_timer timer;
   double time0 = CPUtime();
-  
-  double hist = initHist+(*nsimulated); //Add previously simulated hists
-  double lastHist = initHist+nhists+0.5;
 
-  //Skip already simulated histories
-  double simulated = (*nsimulated);
-  if(simulated > 0){
-    printf("Thread %u: Source '%s': Skip %.0f already simulated histories.\n",ithread,source.name.c_str(),simulated);
-    source.skip(simulated,ithread);
+  //Create a stopwatch for dumps
+  long long int mili2dump;
+  if(dumpTime > 1.0e9){
+    mili2dump = 1000000000000;
   }
+  else{
+    mili2dump = static_cast<long long int>(dumpTime);
+    mili2dump *= 1000; //Convert to ms
+  }
+  pen_stopWatch dumpWatch(mili2dump);
+  //Create a stopWatch to perform checkpoints
+  pen_stopWatch checkPointWatch(source.task.getCheckTime()*1000ll);  
+  //Create a stopWatch to perform speed reports
+  long long int mili2report =
+    static_cast<long long int>(1000*source.task.getCheckTime()/1.5);
+  pen_stopWatch
+    reportWatch(mili2report);
+
+  //Start all stopWatch counts
+  if(ithread == 0)
+    checkPointWatch.start();
+  reportWatch.start();
+  dumpWatch.start();
   
-  //Check if there are histories to simulate
-  if(lastHist - hist < 1.0){
-    printf("Thread %u: Source '%s' has no histories to simulate (initial history %.0f/%.0f). Random seeds (%d,%d), Simulation CPU time: %12.4E s\n",ithread,source.name.c_str(),hist-initHist-1.0,nhists,*seed1,*seed2, CPUtime()-time0);
+  //Copy simulated histories
+  const unsigned long long simulated = (*nsimulated);
+
+  //Register the start of that thread at the source task
+  //to get a history assignation
+  int errStart = source.workerStart(ithread,verbose);
+  if(errStart != 0){
+    if(verbose > 0)
+      printf("Thread %u: Source '%s': Unable to start the worker "
+	     "at source task. Random seeds (%d,%d), Simulation "
+	     "CPU time: %12.4E s\n",
+	     ithread,source.name.c_str(),
+	     *seed1,*seed2, CPUtime()-time0);
     fflush(stdout);
-    
-    //Save simulated histories
-    (*nsimulated) = (hist-initHist);
     return;
   }
   
-  //The function will report the number of simulated particles when the
-  // simulation has been completed at 1/4, 1/2, 3/4 and at finish.
-  const double printInterval = std::max(floor(0.1*nhists),1.0);
-  double nextPrint = printInterval+initHist+0.3;
+  //Get last simulated history
+  unsigned long long hist = simulated;
+  unsigned long long nhists = source.toDo(ithread);
+  
+  //Check if there are histories to simulate
+  if(nhists < 1){
+    printf("Thread %u: Source '%s' has no histories to simulate. "
+	   "Random seeds (%d,%d), Simulation CPU time: %12.4E s\n",
+	   ithread,source.name.c_str(),
+	   *seed1,*seed2, CPUtime()-time0);
+    fflush(stdout);
+    return;
+  }
+
+  //Calculate last history to simulate
+  unsigned long long lastHist = simulated+nhists;  
+  
+  //The function will report the number of simulated particles
+  //every 10% of histories has been completed.
+  const unsigned long long printInterval = std::max(nhists/10,1llu);
+  unsigned long long nextPrint = printInterval;
   
   //Create particle stacks for electrons, positrons and gamma
   pen_particleStack<pen_particleState> stackE;
@@ -170,14 +252,11 @@ void simulate(const unsigned ithread,
   //History bucle
   stateType genState;
   pen_KPAR genKpar;
-  unsigned long dhist;
+  unsigned long long dhist;
 
-  if(hist > initHist){
-    printf("Thread %u: Resuming simulation of source '%s' with initial seeds %d %d at history %.0f\n",ithread,source.name.c_str(),*seed1,*seed2,hist);
-  }
-  else{
-    printf("Thread %u: Starting simulation of source '%s' with initial seeds %d %d at history %.0f\n",ithread,source.name.c_str(),*seed1,*seed2,hist);
-  }
+  printf("Thread %u: Starting simulation of source '%s' with initial "
+	 "seeds %d %d at history %llu (histories to do: %llu)\n",
+	 ithread,source.name.c_str(),*seed1,*seed2,simulated,nhists);
   fflush(stdout);
   
   //Update tallies last hist
@@ -193,14 +272,13 @@ void simulate(const unsigned ithread,
      hist + dhist < lastHist){
     //Invalid kpar or history number reached the limit
     //finish simulation
-    printf("Thread %u: Source '%s' finished with %.0f/%.0f histories simulated\n",ithread,source.name.c_str(),simulated,nhists);
+    printf("Thread %u: Source '%s' finished with %llu/%llu "
+	   "histories simulated\n",
+	   ithread,source.name.c_str(),0llu,nhists);
     fflush(stdout);
 
     //Update seeds for next source
     random.getSeeds(*seed1,*seed2);
-    
-    //Save simulated histories
-    (*nsimulated) = (hist-initHist);
     return;
   }
   
@@ -304,7 +382,9 @@ void simulate(const unsigned ithread,
     }
     else{
       //Unknown particle ID signals end of source
-      printf("Thread %u: Source '%s' reached its end at %.0f/%.0f particles simulated\n",ithread,source.name.c_str(),(hist-initHist)-1.0,nhists);
+      printf("Thread %u: Source '%s' reached its end at %llu/%llu "
+	     "particles simulated\n",
+	     ithread,source.name.c_str(),(hist-simulated)-dhist,nhists);
       //End current hist
       tallies.run_endHist(hist);
       break;
@@ -475,20 +555,62 @@ void simulate(const unsigned ithread,
       //End previous history
       tallies.run_endHist(hist);
 
+      //Get actual time
+      const auto tnow = std::chrono::steady_clock::now();
       //Check if elapsed time reaches dump interval
-      if(timer.timer() > dumpTime){
+      if(dumpWatch.check(tnow)){
 	//Save dump
-	double currentHists = hist-initHist;
-	printf("Dumping simulation with last hist %.0f and seeds %d %d\n",currentHists,lseed1,lseed2);
+	unsigned long long currentHists = hist-simulated;
+	printf("Dumping simulation with last hist %llu and seeds %d %d\n"
+	       "  source '%s' simulated %llu/%llu\n",
+	       hist,lseed1,lseed2,source.name.c_str(),currentHists,nhists);
 	fflush(stdout);
 	tallies.dump2file(dumpFilename.c_str(),
 			  hist,
 			  lseed1,lseed2,
+			  lastSource,
+			  currentHists,
 			  3);
-	tallies.saveData(currentHists,false); //Save data but doesn't repeats flush calls
-	timer.time0();
+	tallies.saveData(hist,false); //Saves data but doesn't repeats flush calls
+	dumpWatch.start(); //Restart watch
       }
-      
+      //Check if is time to make a report
+      if(reportWatch.check(tnow)){
+	
+	//Report simulated histories
+	int errReport;
+	std::chrono::seconds::rep nextReport =
+	  source.report(ithread,hist-simulated,&errReport,verbose);
+
+	if(nextReport < 0){
+	  //Error during report
+	  if(verbose > 0)
+	    printf("Thread %u: Source '%s': Error reporting simulated "
+		   "histories. Error code: %d\n",
+		   ithread,source.name.c_str(),errReport);
+	}
+	else{
+	  //Update wait time until next report
+	  if(verbose > 2)
+	    printf("Thread %u: Source '%s': Schedule next report %lld s\n",
+		   ithread,source.name.c_str(),
+		   static_cast<long long int>(nextReport));
+	  fflush(stdout);
+	  reportWatch.duration(nextReport*1000);
+	}
+
+	//Update assigned histories
+	updateHists(nhists,source,ithread,verbose);
+	lastHist = simulated+nhists;
+	reportWatch.start(); //Restart watch
+      }
+      if(ithread == 0){
+	//Check if is time to make a checkpoint
+	if(checkPointWatch.check(tnow)){
+	  checkpoint(source,ithread,verbose);
+	  checkPointWatch.start(); //Restart watch
+	}
+      }
       //Increment history counter
       hist += dhist;
 
@@ -500,13 +622,22 @@ void simulate(const unsigned ithread,
 	tallies.run_beginHist(hist,kdet,genKpar,genState);
       }
       else{
-	//End of simulation
-	break;
+	//End of simulation, ask permission to finish
+	if(source.handleFinish(ithread,hist-simulated,nhists,verbose)){
+	  //This worker can finish, exit from the simulation loop
+	  hist -= dhist;
+	  break;
+	}
+	//Restart report watch
+	reportWatch.start();
+	lastHist = simulated+nhists;
       }
       
       //Print simulated histories report
       if(hist > nextPrint){
-	printf("Thread %u: Simulated %.0f/%.0f histories from source '%s'\n",ithread,hist-initHist,nhists,source.name.c_str());
+	printf("Thread %u: Simulated %llu/%llu histories "
+	       "from source '%s'\n",
+	       ithread,hist-simulated,nhists,source.name.c_str());
 	fflush(stdout);
 	nextPrint += printInterval;
       }
@@ -517,11 +648,15 @@ void simulate(const unsigned ithread,
   //Update seeds for next source
   random.getSeeds(*seed1,*seed2);
   
-  printf("Thread %u: Source '%s' finished with %.0f/%.0f histories simulated and random seeds (%d,%d)          Simulation CPU time: %12.4E s\n",ithread,source.name.c_str(),hist-initHist-1.0,nhists,*seed1,*seed2, CPUtime()-time0);
+  printf("Thread %u: Source '%s' finished with %llu/%llu histories "
+	 "simulated and random seeds (%d,%d)          Simulation "
+	 "CPU time: %12.4E s\n",
+	 ithread,source.name.c_str(),hist-simulated,nhists,
+	 *seed1,*seed2, CPUtime()-time0);
   fflush(stdout);
   
   //Save simulated histories
-  (*nsimulated) = (hist-initHist)-1.0;
+  (*nsimulated) = hist;
   
 }
 
@@ -544,14 +679,13 @@ int main(int argc, char** argv){
     return 0;
   }
 
-  unsigned verbose = 3;
+  unsigned verbose = 6;
 
   // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_
   //Initialize MPI
   int rank;
   int mpiSize;
-
   int MThProvided;
   int MPIinitErr = MPI_Init_thread(nullptr, nullptr, MPI_THREAD_SERIALIZED,&MThProvided);
   if(MPIinitErr != MPI_SUCCESS){
@@ -594,7 +728,9 @@ int main(int argc, char** argv){
 
   //Parse configuration file
   pen_parserSection config;
-  int err = parseFile(argv[1],config);
+  std::string errorLine;
+  unsigned long errorLineNum;
+  int err = parseFile(argv[1],config,errorLine,errorLineNum);
 
   //printf("Configuration:\n");
   //printf("%s\n", config.stringify().c_str());
@@ -602,6 +738,9 @@ int main(int argc, char** argv){
   if(err != INTDATA_SUCCESS){
     printf("Error parsing configuration.\n");
     printf("Error code: %d\n",err);
+    printf("Error message: %s\n",pen_parserError(err));
+    printf("Error located at line %lu, at text: %s\n",
+	   errorLineNum,errorLine.c_str());
     return -1;
   }
 
@@ -645,7 +784,7 @@ int main(int argc, char** argv){
   int iseed1, iseed2;
   if(config.read("simulation/seed1",iseed1) != INTDATA_SUCCESS){
     iseed1 = 1;
-  }  
+  }
   if(config.read("simulation/seed2",iseed2) != INTDATA_SUCCESS){
     iseed2 = 1;
   }
@@ -684,7 +823,7 @@ int main(int argc, char** argv){
   bool CPUaffinity = false;
   if(config.read("simulation/thread-affinity",CPUaffinity) != INTDATA_SUCCESS){
     CPUaffinity = false;
-  }  
+  }
 
   if(verbose > 1){
     if(CPUaffinity){
@@ -737,6 +876,33 @@ int main(int argc, char** argv){
     }
     return -2;
   }
+
+  // Get load balance configuration
+  //**********************************
+
+  std::chrono::seconds::rep balanceInterval;
+  // ******************************* LB ************************************ //
+  double balanceIntervald = 1.0e9;
+#ifdef _PEN_USE_LB_
+  int errAuxEsp = 99;
+  if((errAuxEsp = config.read("loadBalance/balance-interval",balanceIntervald)) != INTDATA_SUCCESS){
+    if(verbose > 0){
+      printf("\n\nTime between load balances not specified.\n\n");
+    }
+    printf("Error code: %d\n",errAuxEsp);
+  }
+  else{
+    if(balanceIntervald <= 10.0){
+      balanceIntervald = 10.1;
+      if(verbose > 1)
+	printf("Balance interval must be greater than 10s.\n");
+    }
+    if(verbose > 1)
+      printf("Balance interval set to %E.\n",balanceIntervald);
+  }
+  // ***************************** LB END ********************************** //
+#endif
+  balanceInterval = static_cast<std::chrono::seconds::rep>(balanceIntervald);
   
   //*******************************
   // Obtain initial random seeds
@@ -797,14 +963,10 @@ int main(int argc, char** argv){
   //****************************
   std::vector<pen_specificStateGen<pen_particleState>> genericSources;
   std::vector<pen_specificStateGen<pen_state_gPol>> polarisedGammaSources;
-  std::vector<double> genericSourceHists;
-  std::vector<double> polarisedSourceHists;
       
   //Create and configure sources
   err = createParticleGenerators(genericSources,
 				 polarisedGammaSources,
-				 genericSourceHists,
-				 polarisedSourceHists,
 				 nthreads,config,verbose);
 
   if(err != 0){
@@ -819,6 +981,29 @@ int main(int argc, char** argv){
   }
   if(verbose > 0)
     printf("\n");
+
+  //Set interval between checks
+  for(auto& source : genericSources){
+    source.setCheckTime(balanceInterval);
+    source.setLBthreshold(static_cast<unsigned long long>(balanceIntervald/2));
+  }
+  for(auto& source : polarisedGammaSources){
+    source.setCheckTime(balanceInterval);
+    source.setLBthreshold(static_cast<unsigned long long>(balanceIntervald/2));
+  }
+
+  // ******************************* MPI ************************************ //
+#ifdef _PEN_USE_MPI_
+  //Set MPI interval between checks
+  for(auto& source : genericSources){
+    source.setCheckTimeMPI(balanceInterval);
+  }
+  for(auto& source : polarisedGammaSources){
+    source.setCheckTimeMPI(balanceInterval);
+  }
+#endif
+  // ******************************* MPI ************************************ //
+
   
   //****************************
   // Context
@@ -952,7 +1137,9 @@ int main(int argc, char** argv){
   }
 
   // Check if we are restoring a simulation from dumpfile
-  std::vector<double> lastHist(nthreads,0.0);
+  std::vector<unsigned long long> simulated(nthreads,0);  
+  std::vector<int> nextSource(nthreads,0);
+  std::vector<unsigned long long> currentSourceDone(nthreads,0);
   if(dump2read.length() > 0){
 
     if(verbose > 1){
@@ -974,8 +1161,10 @@ int main(int argc, char** argv){
       
       //Read dump file
       int errDump = talliesVect[i].readDumpfile(filenameDump.c_str(),
-						lastHist[i],
+						simulated[i],
 						seeds1[i],seeds2[i],
+						nextSource[i],
+						currentSourceDone[i],
 						verbose);
       if(errDump != 0){
 	if(verbose > 0){
@@ -987,18 +1176,54 @@ int main(int argc, char** argv){
       if(dump2ascii){
 	//Report data in dump file and finish execution
 	printf(" *** Dump information of thread %u:\n\n",i);
-	printf(" Last simulated history: %.0f\n",lastHist[i]);
-	printf("             Last seeds: %9d %9d\n",seeds1[i],seeds2[i]);
+	printf("  Total simulated histories: %llu\n",simulated[i]);
+	printf("                 Last seeds: %9d %9d\n",seeds1[i],seeds2[i]);
+	printf("      Last completed source: %d\n",nextSource[i]);
+	printf(" Source histories simulated: %llu\n",currentSourceDone[i]);
 
 	// Save data of this thread
-	talliesVect[i].saveData(lastHist[0]); //Save data with previous flush call
-      }      
-    }
+	talliesVect[i].saveData(simulated[i]); //Save data with previous flush call
+      }
 
+      nextSource[i] += 1;
+      nextSource[i] = std::max(0,nextSource[i]);
+    }
+    
     if(dump2ascii){
-      printf("Note: Partial data will be normalized to the number of histories simulated by the first thread (%.0lf)\n",lastHist[0]);
       //Finish execution
       return 0;
+    }
+
+    //Skip the required iterations from each source
+    int iSource = 0;
+    std::vector<unsigned long long>toSkip(nthreads);
+    // Generic sources
+    for(auto& source : genericSources){
+
+      //Calculate the iterations per thread to skip for this source
+      for(size_t ithread = 0; ithread < nthreads; ++ithread){
+	if(nextSource[ithread] == iSource){
+	  toSkip[ithread] = currentSourceDone[ithread];
+	}else{
+	  toSkip[ithread] = 0;
+	}
+      }
+      source.skip(toSkip);
+      ++iSource;
+    }
+    // Polarised sources
+    for(auto& source : polarisedGammaSources){
+
+      //Calculate the iterations per thread to skip for this source
+      for(size_t ithread = 0; ithread < nthreads; ++ithread){
+	if(nextSource[ithread] == iSource){
+	  toSkip[ithread] = currentSourceDone[ithread];
+	}else{
+	  toSkip[ithread] = 0.0;
+	}
+      }
+      source.skip(toSkip);
+      ++iSource;
     }
     
   }
@@ -1031,7 +1256,6 @@ int main(int argc, char** argv){
 #endif
   // ************************ MULTI-THREADING END *************************** //
 
-  std::vector<double> nsimulated(nthreads);
   pen_timer timer;
   double time0 = CPUtime();
   
@@ -1039,30 +1263,15 @@ int main(int argc, char** argv){
     talliesVect[i].run_beginSim();
   }
 
-  double totalHists = 0.0;
+  if(nextSource[0] > 0){
+    if(verbose > 1)
+      printf("Skip already simulated sources (%d)\n",nextSource[0]);
+  }
+
   //Iterate over generic sources
-  for(unsigned iSource = 0; iSource < genericSources.size(); ++iSource){
-    
-    //Calculate histories per thread
-    double sourceHists = genericSourceHists[iSource];
-
-    // ******************************* MPI ************************************ //
-#ifdef _PEN_USE_MPI_
-    //Recalculate number of histories to simulate
-    sourceHists = ceil(sourceHists/double(mpiSize));
-
-#endif
-    // ***************************** MPI END ********************************** //
-
-    double histsPerThread = ceil(sourceHists/double(nthreads));
-
-    //Check if this source has been already simulated
-    if(lastHist[0] > totalHists+sourceHists){
-      printf("Source '%s' simulated before checkpoint",genericSources[iSource].name.c_str());
-      totalHists += sourceHists;
-      continue;
-    }
-    
+  for(unsigned iSource = nextSource[0];
+      iSource < genericSources.size(); ++iSource){
+    int lastSource = static_cast<int>(iSource)-1;
 
   // ************************** MULTI-THREADING ***************************** //
 #ifdef _PEN_USE_THREADS_
@@ -1071,23 +1280,18 @@ int main(int argc, char** argv){
       // Multi-thread
       //****************
       for(unsigned ithread = 0; ithread < nthreads; ++ithread){
-	// Initial history
-	double initHist = histsPerThread*ithread + totalHists;
-	// Calculate already simulated histories
-	double offset = lastHist[ithread] - initHist;
-	nsimulated[ithread] = (offset <= 0.0 ? 0.0 : offset);
 	// Simulate
 	simThreads.push_back(std::thread(simulate<pen_particleState>,
 					 ithread,
-					 histsPerThread,
-					 initHist,
+					 lastSource,
 					 &context,
 					 &genericSources[iSource],
 					 &talliesVect[ithread],
 					 &(seeds1[ithread]),&(seeds2[ithread]),
 					 dumpTime,
 					 dump2write,
-					 &nsimulated[ithread]
+					 &simulated[ithread],
+					 verbose
 					 ));
 
 
@@ -1106,9 +1310,7 @@ int main(int argc, char** argv){
 	    printf(" Affinity for thread %d set to CPU %d\n",ithread,ithread);
 	  }
 	}
-#endif
-
-      
+#endif      
       }
     
       //Join threads
@@ -1117,8 +1319,7 @@ int main(int argc, char** argv){
       }
 
       //Clear threads
-      simThreads.clear();
-    
+      simThreads.clear();    
     }
     else{
 
@@ -1128,54 +1329,32 @@ int main(int argc, char** argv){
       // Single thread
       //****************
       
-      //Calculate already simulated histories
-      double offset = lastHist[0] - totalHists;
-      nsimulated[0] = (offset <= 0.0 ? 0.0 : offset);
       // Simulate      
       simulate(0,
-	       histsPerThread,
-	       totalHists,
+	       lastSource,
 	       &context,
 	       &genericSources[iSource],
 	       &talliesVect[0],
 	       &(seeds1[0]),&(seeds2[0]),
 	       dumpTime,
 	       dump2write,
-	       &nsimulated[0]);      
+	       &simulated[0],
+	       verbose);      
 
 #ifdef _PEN_USE_THREADS_
     }
 #endif
     fflush(stdout);
-
-    //Actualize total simulated hists
-    for(unsigned ithread = 0; ithread < nthreads; ++ithread){
-      totalHists += nsimulated[ithread];
-    }
     
   }
 
   //Iterate over polarized sources
-  for(unsigned iSource = 0; iSource < polarisedGammaSources.size(); iSource++){
-
-    //Calculate histories per thread
-    double sourceHists = polarisedSourceHists[iSource];
-
-    // ******************************* MPI ************************************ //
-#ifdef _PEN_USE_MPI_
-    //Recalculate number of histories to simulate
-    sourceHists = ceil(sourceHists/double(mpiSize));
-#endif
-    // ***************************** MPI END ********************************** //
-    
-    double histsPerThread = ceil(sourceHists/double(nthreads));
-
-    //Check if this source has been already simulated
-    if(lastHist[0] > totalHists+sourceHists){
-      printf("Source '%s' simulated before checkpoint, skip.",polarisedGammaSources[iSource].name.c_str());
-      totalHists += sourceHists;
-      continue;
-    }
+  nextSource[0] -= genericSources.size();
+  nextSource[0] = std::max(nextSource[0],0);
+  for(unsigned iSource = nextSource[0];
+      iSource < polarisedGammaSources.size(); iSource++){
+    int lastSource = static_cast<int>(genericSources.size()) +
+      static_cast<int>(iSource)-1;
     
     //Run simulations for each thread
 
@@ -1185,23 +1364,18 @@ int main(int argc, char** argv){
       // Multi-thread
       //***************
       for(unsigned ithread = 0; ithread < nthreads; ++ithread){
-	// Initial history
-	double initHist = histsPerThread*ithread + totalHists;
-	// Calculate already simulated histories
-	double offset = lastHist[ithread] - initHist;
-	nsimulated[ithread] = (offset <= 0.0 ? 0.0 : offset);
 	// Simulate
 	simThreads.push_back(std::thread(simulate<pen_state_gPol>,
 					 ithread,
-					 histsPerThread,
-					 initHist,
+					 lastSource,
 					 &context,
 					 &polarisedGammaSources[iSource],
 					 &talliesVect[ithread],
 					 &(seeds1[ithread]),&(seeds2[ithread]),
 					 dumpTime,
 					 dump2write,
-					 &nsimulated[ithread]
+					 &simulated[ithread],
+					 verbose
 					 ));
 
 #ifdef _PEN_UNIX_
@@ -1239,35 +1413,33 @@ int main(int argc, char** argv){
       // Single thread
       //****************
       
-      //Calculate already simulated histories
-      double offset = lastHist[0] - totalHists;
-      nsimulated[0] = (offset <= 0.0 ? 0.0 : offset);
       // Simulate 
       simulate<pen_state_gPol>(0,
-			       histsPerThread,
-			       totalHists,
+			       lastSource,
 			       &context,
 			       &polarisedGammaSources[iSource],
 			       &talliesVect[0],
 			       &(seeds1[0]),&(seeds2[0]),
 			       dumpTime,
 			       dump2write,
-			       &nsimulated[0]);
+			       &simulated[0],
+			       verbose);
 #ifdef _PEN_USE_THREADS_
     }
 #endif
-
-    //Actualize total simulated hists
-    for(unsigned ithread = 0; ithread < nthreads; ithread++){
-      totalHists += nsimulated[ithread];
-    }
     
   }
 
   
+  //Calculate the total number of simulated hists
+  unsigned long long totalHists = 0.0;
+  for(const unsigned long long done : simulated){
+    totalHists += done;
+  }
+    
   //End simulations
   for(unsigned ithread = 0; ithread < nthreads; ithread++){
-    talliesVect[ithread].run_endSim(totalHists);
+    talliesVect[ithread].run_endSim(simulated[ithread]);
   }
 
   double simtime = timer.timer();
@@ -1291,7 +1463,7 @@ int main(int argc, char** argv){
 
   // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_
-  double localHists = totalHists;
+  unsigned long long localHists = totalHists;
   //Reduce the results stored at the first thread of all ranks
   talliesVect[0].reduceMPI(totalHists,MPI_COMM_WORLD,verbose);
 
@@ -1299,18 +1471,18 @@ int main(int argc, char** argv){
   
   //Save results stored at the first thread of rank 0 process
   if(rank == 0){
-    talliesVect[0].saveData(totalHists);    
+    talliesVect[0].saveData(totalHists);
   }
 
   //Print local report information
 
   printf("\n\n");
   printf("\n*********** Rank %03u *************\n",rank);
-  printf("Simulated histories: %20.0f\n",localHists);
+  printf("Simulated histories: %20llu \n",localHists);
   printf("Simulation real time: %12.4E s\n",simtime);
   printf("Simulation user time: %12.4E s\n",usertime);
-  printf("Histories per second and thread: %12.4E s\n",localHists/usertime);
-  printf("Histories per second: %12.4E s\n",localHists/(usertime/double(nthreads)));
+  printf("Histories per second and thread: %12.4E s\n",static_cast<double>(localHists)/usertime);
+  printf("Histories per second: %12.4E s\n",static_cast<double>(localHists)/(usertime/double(nthreads)));
   printf("Results processing time: %12.4E s\n",postProcessTime);
   printf("\n*********** END REPORT *************\n");
   fflush(stdout);
@@ -1336,11 +1508,11 @@ int main(int argc, char** argv){
     if(rank == ip){
       fprintf( stderr,"\n\n");
       fprintf( stderr,"\n*********** Rank %03u *************\n",rank);
-      fprintf( stderr,"Simulated histories: %20.0f\n",localHists);
+      fprintf( stderr,"Simulated histories: %20llu\n",localHists);
       fprintf( stderr,"Simulation real time: %12.4E s\n",simtime);
       fprintf( stderr,"Simulation user time: %12.4E s\n",usertime);
-      fprintf( stderr,"Histories per second and thread: %12.4E s\n",localHists/usertime);
-      fprintf( stderr,"Histories per second: %12.4E s\n",localHists/(usertime/double(nthreads)));
+      fprintf( stderr,"Histories per second and thread: %12.4E s\n",static_cast<double>(localHists)/usertime);
+      fprintf( stderr,"Histories per second: %12.4E s\n",static_cast<double>(localHists)/(usertime/double(nthreads)));
       fprintf( stderr,"Results processing time: %12.4E s\n",postProcessTime);
       fprintf( stderr,"\n*********** END REPORT *************\n");
       fflush(stderr);
@@ -1353,16 +1525,13 @@ int main(int argc, char** argv){
   if(rank == 0){
     fprintf( stderr,"\n\n");
     fprintf( stderr,"\n*********** Global Report *************\n");
-    fprintf( stderr,"Simulated histories: %20.0f\n",totalHists);
+    fprintf( stderr,"Simulated histories: %20llu\n",totalHists);
     fprintf( stderr,"Simulation real time: %12.4E s\n",globalSimTime);
     fprintf( stderr,"Simulation user time: %12.4E s\n",globalUserTime);
-    fprintf( stderr,"Histories per second and thread: %12.4E s\n",totalHists/globalUserTime);
-    fprintf( stderr,"Histories per second: %12.4E s\n",totalHists/(globalUserTime/double(totalThreads)));
+    fprintf( stderr,"Histories per second and thread: %12.4E s\n",static_cast<double>(totalHists)/globalUserTime);
+    fprintf( stderr,"Histories per second: %12.4E s\n",static_cast<double>(totalHists)/(globalUserTime/double(totalThreads)));
     fprintf( stderr,"Results processing time: %12.4E s\n",postProcessTime);  
   }
-
-  // Finalize the MPI environment.
-  MPI_Finalize();
   
 #else
   // ***************************** MPI END ********************************** //
@@ -1372,15 +1541,88 @@ int main(int argc, char** argv){
   //Save results stored at first thread
   talliesVect[0].saveData(totalHists);
 
-  printf("\n\nSimulated histories: %20.0f\n",totalHists);
+  printf("\n\nSimulated histories: %20llu\n",totalHists);
   printf("Simulation real time: %12.4E s\n",simtime);
   printf("Simulation user time: %12.4E s\n",usertime);
-  printf("Histories per second and thread: %12.4E s\n",totalHists/usertime);
-  printf("Histories per second: %12.4E s\n",totalHists/(usertime/double(nthreads)));
+  printf("Histories per second and thread: %12.4E s\n",static_cast<double>(totalHists)/usertime);
+  printf("Histories per second: %12.4E s\n",static_cast<double>(totalHists)/(usertime/double(nthreads)));
   printf("Results processing time: %12.4E s\n",postProcessTime);
   
 #endif
 
+  // ******************************* LB ************************************ //
+#ifdef _PEN_USE_LB_
+  
+  //Print load balance reports
+  if(genericSources.size() > 0){
+    printf("Printing load balance reports for generic sources...");
+    for(const auto& source : genericSources){
+      FILE* fout = nullptr;
+
+  // ******************************* MPI ************************************ //
+#ifdef _PEN_USE_MPI_
+      char prefix[20];
+      sprintf(prefix,"rank-%03d-",rank);
+      if(rank == 0){
+	std::string filenameLBMPI(prefix);
+	filenameLBMPI += source.name + std::string("-MPI-generic-LBreport.rep");      
+	fout = fopen(filenameLBMPI.c_str(),"w");
+	source.task.printReportMPI(fout);
+	fclose(fout);
+      }
+      std::string filenameLBTh(prefix);
+      filenameLBTh += source.name + std::string("-generic-LBreport.rep");
+#else
+      std::string filenameLBTh(source.name);
+      filenameLBTh += std::string("-generic-LBreport.rep");
+#endif
+  // ***************************** MPI END ********************************** //      
+      
+      fout = fopen(filenameLBTh.c_str(),"w");
+      source.task.printReport(fout);
+      fclose(fout);
+    }
+    printf(" Done!\n");
+  }
+  if(polarisedGammaSources.size() > 0){
+    printf("Printing load balance reports for polarised sources...");
+    for(const auto& source : polarisedGammaSources){
+      FILE* fout = nullptr;
+
+  // ******************************* MPI ************************************ //
+#ifdef _PEN_USE_MPI_
+      char prefix[20];
+      sprintf(prefix,"rank-%03d-",rank);
+      std::string filenameLBMPI(prefix);
+      filenameLBMPI += source.name + std::string("-MPI-polarised-LBreport.rep");      
+      fout = fopen(filenameLBMPI.c_str(),"w");
+      source.task.printReportMPI(fout);
+      fclose(fout);
+
+      std::string filenameLBTh(prefix);
+      filenameLBTh += source.name + std::string("-polarised-LBreport.rep");
+#else
+      std::string filenameLBTh(source.name);
+      filenameLBTh += std::string("-polarised-LBreport.rep");
+#endif
+  // ***************************** MPI END ********************************** //      
+      
+      fout = fopen(filenameLBTh.c_str(),"w");
+      source.task.printReport(fout);
+      fclose(fout);
+    }
+    printf(" Done!\n");
+  }
+#endif
+  // ***************************** LB END ********************************** //
+
+  // ******************************* MPI ************************************ //
+#ifdef _PEN_USE_MPI_
+  // Finalize the MPI environment.
+  MPI_Finalize();
+#endif
+  // ***************************** MPI END ********************************** //
+  
   //Free memory
   delete geometry;
   geometry = nullptr;
@@ -1393,8 +1635,6 @@ int main(int argc, char** argv){
 
 int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>>& genericSources,
 			     std::vector<pen_specificStateGen<pen_state_gPol>>& polarisedGammaSources,
-			     std::vector<double>& genericSourceHists,
-			     std::vector<double>& polarisedSourceHists,
 			     const unsigned nthreads,
 			     const pen_parserSection& config,
 			     const unsigned verbose){
@@ -1434,18 +1674,24 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
 
   //Resize source vectors to store all defined sourceSection
   genericSources.clear();
-  genericSourceHists.clear();
   if(nGenericSources > 0){
-    genericSources.resize(nGenericSources);
-    genericSourceHists.resize(nGenericSources,0.0);
+    //Use swap because soures can't be moved
+    std::vector<pen_specificStateGen<pen_particleState>>
+      aux(nGenericSources);    
+    genericSources.swap(aux);
   }
   
   polarisedGammaSources.clear();
-  polarisedSourceHists.clear();
   if(nPolarizedSources > 0){
-    polarisedGammaSources.resize(nPolarizedSources);
-    polarisedSourceHists.resize(nPolarizedSources,0.0);
+    //Use swap because soures can't be moved
+    std::vector<pen_specificStateGen<pen_state_gPol>>
+      aux(nPolarizedSources);    
+    polarisedGammaSources.swap(aux);
   }
+
+#if (defined _PEN_USE_MPI_ && defined _PEN_USE_LB_ )
+  int nextTag = 5;
+#endif
 
   //Iterate over all generic sources
   for(unsigned i = 0; i < nGenericSources; i++){
@@ -1463,17 +1709,20 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
       genericSources[i].name.assign(genericSourceNames[i]);
 
       //Load history number
-      if(genSection.read("nhist",genericSourceHists[i]) != INTDATA_SUCCESS){
+      double nhists;
+      if(genSection.read("nhist",nhists) != INTDATA_SUCCESS){
 	if(verbose > 0){
-	  printf("createParticleGenerators: Error: Unable to read field 'nhist' for generic source '%s'\n",genericSourceNames[i].c_str());
+	  printf("createParticleGenerators: Error: Unable to read field 'nhist' "
+		 "for generic source '%s'\n",genericSourceNames[i].c_str());
 	}
 	err++;
 	continue;
       }
 
-      if(genericSourceHists[i] <= 0.5){
+      if(nhists <= 0.5){
 	if(verbose > 0){
-	  printf("createParticleGenerators: Error on generic source %s. Number of histories must be greater than zero\n",polarisezSourceNames[i].c_str());
+	  printf("createParticleGenerators: Error on generic source %s. "
+		 "Number of histories must be greater than zero\n",genericSourceNames[i].c_str());
 	}
 	err++;
 	continue;	
@@ -1484,9 +1733,37 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
 			 nthreads,
 			 genSection,verbose) != 0){
 	if(verbose > 0)
-	  printf("createParticleGenerators: Error: Can't create and configure source '%s'.\n",genericSourceNames[i].c_str());	
+	  printf("createParticleGenerators: Error: Can't create and "
+		 "configure source '%s'.\n",genericSourceNames[i].c_str());	
 	err++;
       }
+
+      //Init the source task
+      unsigned long long uihists = static_cast<unsigned long long>(nhists);
+      uihists = std::max(uihists,1llu);
+
+  // ******************************* LB ************************************ //
+#if (defined _PEN_USE_MPI_ && defined _PEN_USE_LB_ )
+      int errTask = genericSources[i].initTask(nthreads,uihists,MPI_COMM_WORLD,
+					       nextTag,nextTag+1,verbose);
+      nextTag += 2;
+#else
+      int errTask = genericSources[i].initTask(nthreads,uihists,verbose);      
+#endif
+  // ***************************** LB END ********************************** //
+      if(errTask != 0){
+	if(verbose > 0)
+	  printf("createParticleGenerators: Error on generic source %s. "
+		 "Unable to init source task\n"
+		 "   Error code: %d\n",
+		 genericSourceNames[i].c_str(),errTask);
+	err++;
+	continue;
+      }
+
+      if(verbose > 1)
+	printf("Histories to simulate at source %s: %llu\n",
+	       genericSources[i].name.c_str(),genericSources[i].toDo());      
     }
   }
 
@@ -1506,7 +1783,8 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
       polarisedGammaSources[i].name.assign(polarisezSourceNames[i]);
 
       //Load history number
-      if(genSection.read("nhist",polarisedSourceHists[i]) != INTDATA_SUCCESS){
+      double nhists;
+      if(genSection.read("nhist",nhists) != INTDATA_SUCCESS){
 	if(verbose > 0){
 	  printf("createParticleGenerators: Error: Unable to read field 'nhist' for polarized gamma source '%s'\n",polarisezSourceNames[i].c_str());
 	}
@@ -1514,7 +1792,7 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
 	continue;
       }
 
-      if(polarisedSourceHists[i] <= 0.5){
+      if(nhists <= 0.5){
 	if(verbose > 0){
 	  printf("createParticleGenerators: Error on polarized gamma source %s. Number of histories must be greater than zero\n",polarisezSourceNames[i].c_str());
 	}
@@ -1530,6 +1808,33 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
 	  printf("createParticleGenerators: Error: Can't create and configure source '%s'.\n",polarisezSourceNames[i].c_str());	
 	err++;
       }
+
+      //Init the source task
+      unsigned long long uihists = static_cast<unsigned long long>(nhists);
+      uihists = std::max(uihists,1llu);
+
+      
+#if defined(_PEN_USE_MPI_) && defined(_PEN_USE_LB_)
+      int errTask = polarisedGammaSources[i].initTask(nthreads,uihists,MPI_COMM_WORLD,
+						      nextTag,nextTag+1,verbose);
+      nextTag += 2;
+#else
+      int errTask = polarisedGammaSources[i].initTask(nthreads,uihists,verbose);      
+#endif
+      if(errTask != 0){
+	if(verbose > 0)
+	  printf("createParticleGenerators: Error on polarised source %s. "
+		 "Unable to init source task\n"
+		 "   Error code: %d\n",
+		 polarisedGammaSources[i].name.c_str(),errTask);
+	err++;
+	continue;
+      }
+
+      if(verbose > 1)
+	printf("Histories to simulate at source %s: %llu\n",
+	       polarisedGammaSources[i].name.c_str(),
+	       polarisedGammaSources[i].toDo());
     }
   }
       

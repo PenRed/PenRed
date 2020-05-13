@@ -85,7 +85,7 @@ void pen_tallySecondary::flush(){
 }
 
 
-void pen_tallySecondary::tally_endPart(const double /*nhist*/,
+void pen_tallySecondary::tally_endPart(const unsigned long long /*nhist*/,
 				       const pen_KPAR kpar,
 				       const pen_particleState& state){
 
@@ -131,7 +131,7 @@ void pen_tallySecondary::tally_endPart(const double /*nhist*/,
 }
 
 
-void pen_tallySecondary::tally_endHist(const double /*nhist*/){
+void pen_tallySecondary::tally_endHist(const unsigned long long /*nhist*/){
     
     flush();
 
@@ -205,7 +205,7 @@ int pen_tallySecondary::configure(const wrapper_geometry& /*geometry*/,
   return 0;
 }
 
-void pen_tallySecondary::saveData(const double nhist) const{
+void pen_tallySecondary::saveData(const unsigned long long nhist) const{
 
   FILE* fout = nullptr;
   fout = fopen("particleGeneration.dat","w");
@@ -214,7 +214,7 @@ void pen_tallySecondary::saveData(const double nhist) const{
     return;
   }
 
-  double invn = 1.0/(double)nhist;
+  double invn = 1.0/static_cast<double>(nhist);
 
   fprintf(fout,"#----------------------------------------------------------\n");
   fprintf(fout,"# PenRed: Particle generation report\n");
