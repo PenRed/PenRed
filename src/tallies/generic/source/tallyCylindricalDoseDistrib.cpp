@@ -30,7 +30,7 @@
 #include "tallyCylindricalDoseDistrib.hh"
 
 void pen_CylindricalDoseDistrib::updateEdepCounters(const double dE,
-						    const double nhist,
+						    const unsigned long long nhist,
 						    const double X,
 						    const double Y,
 						    const double Z,
@@ -61,7 +61,7 @@ void pen_CylindricalDoseDistrib::updateEdepCounters(const double dE,
             edep2[bin] += edptmp[bin]*edptmp[bin];
             edptmp[bin] = dE*WGHT;
             // Add 1/2 to avoid roundoff errors
-            nlast[bin]  = nhist+0.5;
+            nlast[bin]  = nhist;
     }
     else
     {
@@ -94,7 +94,7 @@ void pen_CylindricalDoseDistrib::updateEdepCounters(const double dE,
  
  
 
-void pen_CylindricalDoseDistrib::tally_localEdep(const double nhist,
+void pen_CylindricalDoseDistrib::tally_localEdep(const unsigned long long nhist,
 						 const pen_KPAR /*kpar*/,
 						 const pen_particleState& state,
 						 const double dE){
@@ -105,7 +105,7 @@ void pen_CylindricalDoseDistrib::tally_localEdep(const double nhist,
   updateEdepCounters(dE, nhist, state.X, state.Y, state.Z, state.WGHT);
 }
 
-void pen_CylindricalDoseDistrib::tally_beginPart(const double nhist,
+void pen_CylindricalDoseDistrib::tally_beginPart(const unsigned long long nhist,
 						 const unsigned /*kdet*/,
 						 const pen_KPAR /*kpar*/,
 						 const pen_particleState& state){
@@ -114,7 +114,7 @@ void pen_CylindricalDoseDistrib::tally_beginPart(const double nhist,
     updateEdepCounters(-state.E, nhist, state.X, state.Y, state.Z, state.WGHT);
 }
 
-void pen_CylindricalDoseDistrib::tally_beginHist(const double nhist,
+void pen_CylindricalDoseDistrib::tally_beginHist(const unsigned long long nhist,
 						 const unsigned /*kdet*/,
 						 const pen_KPAR /*kpar*/,
 						 const pen_particleState& state){
@@ -126,7 +126,7 @@ void pen_CylindricalDoseDistrib::tally_beginHist(const double nhist,
     }
 }
 
-void pen_CylindricalDoseDistrib::tally_step(const double nhist,
+void pen_CylindricalDoseDistrib::tally_step(const unsigned long long nhist,
 					    const pen_KPAR /*kpar*/,
 					    const pen_particleState& state,
 					    const tally_StepData& stepData){
@@ -140,7 +140,7 @@ void pen_CylindricalDoseDistrib::tally_step(const double nhist,
 }
 
 
-void pen_CylindricalDoseDistrib::tally_move2geo(const double nhist,
+void pen_CylindricalDoseDistrib::tally_move2geo(const unsigned long long nhist,
 						const unsigned /*kdet*/,
 						const pen_KPAR /*kpar*/,
 						const pen_particleState& state,
@@ -372,12 +372,12 @@ int pen_CylindricalDoseDistrib::configure(const wrapper_geometry& geometry,
     
 }
 
-void pen_CylindricalDoseDistrib::tally_endSim(const double /*nhist*/){
+void pen_CylindricalDoseDistrib::tally_endSim(const unsigned long long /*nhist*/){
         
   flush();
 }
 
-void pen_CylindricalDoseDistrib::saveData(const double nhist) const{
+void pen_CylindricalDoseDistrib::saveData(const unsigned long long nhist) const{
    
   char buffer[81];
   FILE*out = 0;
@@ -448,7 +448,7 @@ void pen_CylindricalDoseDistrib::saveData(const double nhist) const{
   fprintf(out,"   dose   : +-2sigma\n");
                 
   // Write data:    
-  invn = 1.0/nhist;  
+  invn = 1.0/static_cast<double>(nhist);  
     
   for(k = 0; k < nz; k++)
     {

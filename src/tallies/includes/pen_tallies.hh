@@ -220,7 +220,7 @@ public:
     fflush(stdout);
     throw std::bad_function_call();
   }
-  virtual void tally_endSim(const double /*nhist*/){
+  virtual void tally_endSim(const unsigned long long /*nhist*/){
     char error[1000];
     sprintf(error,"Error on tally %s of type %s: \n Trying to call 'tally_endSim' but has not been implemented.\n",readName().c_str(),readID());
     printf("%s\n",error);
@@ -228,7 +228,7 @@ public:
     throw std::bad_function_call();
   }
   
-  virtual void tally_beginHist(const double /*nhist*/,
+  virtual void tally_beginHist(const unsigned long long /*nhist*/,
 			       const unsigned /*kdet*/,
 			       const pen_KPAR /*kpar*/,
 			       const stateType& /*state*/){
@@ -239,7 +239,7 @@ public:
     throw std::bad_function_call();
   }
   
-  virtual void tally_endHist(const double /*nhist*/){
+  virtual void tally_endHist(const unsigned long long /*nhist*/){
     char error[1000];
     sprintf(error,"Error on tally %s of type %s: \n Trying to call 'tally_endHist' but has not been implemented.\n",readName().c_str(),readID());
     printf("%s\n",error);
@@ -247,7 +247,7 @@ public:
     throw std::bad_function_call();
   }
 
-  virtual void tally_move2geo(const double /*nhist*/,
+  virtual void tally_move2geo(const unsigned long long /*nhist*/,
 			      const unsigned /*kdet*/,
 			      const pen_KPAR /*kpar*/,
 			      const stateType& /*state*/,
@@ -260,7 +260,7 @@ public:
     throw std::bad_function_call();
   }
   
-  virtual void tally_beginPart(const double /*nhist*/,
+  virtual void tally_beginPart(const unsigned long long /*nhist*/,
 			       const unsigned /*kdet*/,
 			       const pen_KPAR /*kpar*/,
 			       const stateType& /*state*/){
@@ -271,7 +271,7 @@ public:
     throw std::bad_function_call();
   }
   
-  virtual void tally_endPart(const double /*nhist*/,
+  virtual void tally_endPart(const unsigned long long /*nhist*/,
 			     const pen_KPAR /*kpar*/,
 			     const stateType& /*state*/){
     char error[1000];
@@ -281,7 +281,7 @@ public:
     throw std::bad_function_call();
   }
   
-  virtual void tally_localEdep(const double /*nhist*/,
+  virtual void tally_localEdep(const unsigned long long /*nhist*/,
 			       const pen_KPAR /*kpar*/,
 			       const stateType& /*state*/,
 			       const double /*dE*/){
@@ -292,7 +292,7 @@ public:
     throw std::bad_function_call();
   }
   
-  virtual void tally_step(const double /*nhist*/,
+  virtual void tally_step(const unsigned long long /*nhist*/,
 			  const pen_KPAR /*kpar*/,
 			  const stateType& /*state*/,
 			  const tally_StepData& /*stepData*/){
@@ -303,7 +303,7 @@ public:
     throw std::bad_function_call();
   }
   
-  virtual void tally_interfCross(const double /*nhist*/,
+  virtual void tally_interfCross(const unsigned long long /*nhist*/,
 				 const unsigned /*kdet*/,
 				 const pen_KPAR /*kpar*/,
 				 const stateType& /*state*/){
@@ -314,7 +314,7 @@ public:
     throw std::bad_function_call();
   }
   
-  virtual void tally_matChange(const double /*nhist*/,
+  virtual void tally_matChange(const unsigned long long /*nhist*/,
 			       const pen_KPAR /*kpar*/,
 			       const stateType& /*state*/,
 			       const unsigned /*prevMat*/){
@@ -325,7 +325,7 @@ public:
     throw std::bad_function_call();
   }
   
-  virtual void tally_jump(const double /*nhist*/,
+  virtual void tally_jump(const unsigned long long /*nhist*/,
 			  const pen_KPAR /*kpar*/,
 			  const stateType& /*state*/,
 			  const double /*ds*/){
@@ -336,7 +336,7 @@ public:
     throw std::bad_function_call();
   }
   
-  virtual void tally_knock(const double /*nhist*/,
+  virtual void tally_knock(const unsigned long long /*nhist*/,
 			   const pen_KPAR /*kpar*/,
 			   const stateType& /*state*/,
 			   const int /*icol*/){
@@ -347,7 +347,7 @@ public:
     throw std::bad_function_call();
   }
 
-  virtual void tally_lastHist(const double /*lasthist*/){
+  virtual void tally_lastHist(const unsigned long long /*lasthist*/){
     char error[1000];
     sprintf(error,"Error on tally %s of type %s: \n Trying to call 'tally_lastHist' but has not been implemented.\n",readName().c_str(),readID());
     printf("%s\n",error);
@@ -360,7 +360,7 @@ public:
 			const pen_parserSection& /*config*/,
 			const unsigned /*verbose*/) = 0;
   
-  virtual void saveData(const double /*nhist*/) const = 0;
+  virtual void saveData(const unsigned long long /*nhist*/) const = 0;
   virtual int sum(const pen_genericTally<stateType>&) = 0;
   virtual void flush() = 0;
   
@@ -524,13 +524,13 @@ public:
       (*i)->tally_beginSim();
   }
 
-  inline void run_endSim(const double nhist){
+  inline void run_endSim(const unsigned long long nhist){
     for(tallyIterator i = tallies_endSim.begin();
 	i != tallies_endSim.end(); ++i)
       (*i)->tally_endSim(nhist);
   }
   
-  inline void run_beginHist(const double nhist,
+  inline void run_beginHist(const unsigned long long nhist,
 			    const unsigned kdet,
 			    const pen_KPAR kpar,
 			    const pen_particleState& state){
@@ -540,14 +540,14 @@ public:
       (*i)->tally_beginHist(nhist,kdet,kpar,state);
   }
   
-  inline void run_endHist(const double nhist){
+  inline void run_endHist(const unsigned long long nhist){
 
     for(tallyIterator i = tallies_endHist.begin();
 	i != tallies_endHist.end(); ++i)
       (*i)->tally_endHist(nhist);
   }
 
-  inline void run_move2geo(const double nhist,
+  inline void run_move2geo(const unsigned long long nhist,
 			   const unsigned kdet,
 			   const pen_KPAR kpar,
 			   const pen_particleState& state,
@@ -559,7 +559,7 @@ public:
       (*i)->tally_move2geo(nhist,kdet,kpar,state,dsef,dstot);
   }
   
-  inline void run_beginPart(const double nhist,
+  inline void run_beginPart(const unsigned long long nhist,
 			    const unsigned kdet,
 			    const pen_KPAR kpar,
 			    const pen_particleState& state){
@@ -569,7 +569,7 @@ public:
       (*i)->tally_beginPart(nhist,kdet,kpar,state);
   }
   
-  inline void run_endPart(const double nhist,
+  inline void run_endPart(const unsigned long long nhist,
 			  const pen_KPAR kpar,
 			  const pen_particleState& state){
 
@@ -578,7 +578,7 @@ public:
       (*i)->tally_endPart(nhist,kpar,state);
   }
   
-  inline void run_localEdep(const double nhist,
+  inline void run_localEdep(const unsigned long long nhist,
 			const pen_KPAR kpar,
 			const pen_particleState& state,
 			const double dE){
@@ -588,7 +588,7 @@ public:
       (*i)->tally_localEdep(nhist,kpar,state,dE);
   }
   
-  inline void run_step(const double nhist,
+  inline void run_step(const unsigned long long nhist,
 		       const pen_KPAR kpar,
 		       const pen_particleState& state,
 		       const tally_StepData& stepData){
@@ -598,7 +598,7 @@ public:
       (*i)->tally_step(nhist,kpar,state,stepData);    
   }
   
-  inline void run_interfCross(const double nhist,
+  inline void run_interfCross(const unsigned long long nhist,
 			      const unsigned kdet,
 			      const pen_KPAR kpar,
 			      const pen_particleState& state){
@@ -608,7 +608,7 @@ public:
       (*i)->tally_interfCross(nhist,kdet,kpar,state);
   }
   
-  inline void run_matChange(const double nhist,
+  inline void run_matChange(const unsigned long long nhist,
 			    const pen_KPAR kpar,
 			    const pen_particleState& state,
 			    const unsigned prevMat){
@@ -618,7 +618,7 @@ public:
       (*i)->tally_matChange(nhist,kpar,state,prevMat);
   }
   
-  inline void run_jump(const double nhist,
+  inline void run_jump(const unsigned long long nhist,
 		       const pen_KPAR kpar,
 		       const pen_particleState& state,
 		       const double ds){
@@ -628,7 +628,7 @@ public:
       (*i)->tally_jump(nhist,kpar,state,ds);
   }
   
-  inline void run_knock(const double nhist,
+  inline void run_knock(const unsigned long long nhist,
 			const pen_KPAR kpar,
 			const pen_particleState& state,
 			const int icol){
@@ -638,14 +638,14 @@ public:
       (*i)->tally_knock(nhist,kpar,state,icol);
   }
 
-  inline void run_lastHist(const double lastHist){
+  inline void run_lastHist(const unsigned long long lastHist){
 
     for(tallyIterator i = tallies_lastHist.begin();
 	i != tallies_lastHist.end(); ++i)
       (*i)->tally_lastHist(lastHist);
   }
   
-  inline void saveData(const double nhist, const bool doflush = true){
+  inline void saveData(const unsigned long long nhist, const bool doflush = true){
 
     for(tallyIterator i = tallies.begin();
 	i != tallies.end(); ++i){
@@ -657,30 +657,38 @@ public:
   
   int writeDump(unsigned char*& pdump,
 		size_t& dim,
-		const double nhist,
+		const unsigned long long nhist,
 		const int seed1, const int seed2,
+		const int lastSource,
+		const unsigned long long sourceHists,
 		const unsigned verbose = 0);
   int readDump(const unsigned char* const pdump,
 	       size_t& pos,
-	       double& nhist,
+	       unsigned long long& nhist,
 	       int& seed1, int& seed2,
+	       int& lastSource,
+	       unsigned long long& sourceHists,
 	       const unsigned verbose = 0);
 
   int dump2file(const char* filename,
-		const double nhist,
+		const unsigned long long nhist,
 		const int seed1, const int seed2,
+		const int lastSource,
+		const unsigned long long sourceHists,
 		const unsigned verbose = 0);
 
   int readDumpfile(const char* filename,
-		   double& nhist,
+		   unsigned long long& nhist,
 		   int& seed1, int& seed2,
+		   int& lastSource,
+		   unsigned long long& sourceHists,
 		   const unsigned verbose = 0);
   
   int sum(pen_commonTallyCluster& cluster, const unsigned verbose = 0);
   
   // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_
-  int reduceMPI(double& simulatedHists,
+  int reduceMPI(unsigned long long& simulatedHists,
 		const MPI_Comm comm,
 		const unsigned verbose);
 #endif
@@ -1030,13 +1038,13 @@ public:
       (*i)->tally_beginSim();
   }
 
-  inline void run_endSim(const double nhist){
+  inline void run_endSim(const unsigned long long nhist){
     for(tallyIterator i = tallies_endSim.begin();
 	i != tallies_endSim.end(); ++i)
       (*i)->tally_endSim(nhist);
   }
   
-  inline void run_beginHist(const double nhist,
+  inline void run_beginHist(const unsigned long long nhist,
 			    const unsigned kdet,
 			    const pen_KPAR kpar,
 			    const stateType& state){
@@ -1047,14 +1055,14 @@ public:
   }
   
   
-  inline void run_endHist(const double nhist){
+  inline void run_endHist(const unsigned long long nhist){
 
     for(tallyIterator i = tallies_endHist.begin();
 	i != tallies_endHist.end(); ++i)
       (*i)->tally_endHist(nhist);
   }
 
-  inline void run_move2geo(const double nhist,
+  inline void run_move2geo(const unsigned long long nhist,
 			   const unsigned kdet,
 			   const pen_KPAR kpar,
 			   const stateType& state,
@@ -1066,7 +1074,7 @@ public:
       (*i)->tally_move2geo(nhist,kdet,kpar,state,dsef,dstot);
   }
   
-  inline void run_beginPart(const double nhist,
+  inline void run_beginPart(const unsigned long long nhist,
 			    const unsigned kdet,
 			    const pen_KPAR kpar,
 			    const stateType& state){
@@ -1076,7 +1084,7 @@ public:
       (*i)->tally_beginPart(nhist,kdet,kpar,state);
   }
   
-  inline void run_endPart(const double nhist,
+  inline void run_endPart(const unsigned long long nhist,
 			  const pen_KPAR kpar,
 			  const stateType& state){
 
@@ -1085,7 +1093,7 @@ public:
       (*i)->tally_endPart(nhist,kpar,state);
   }
   
-  inline void run_localEdep(const double nhist,
+  inline void run_localEdep(const unsigned long long nhist,
 			const pen_KPAR kpar,
 			const stateType& state,
 			const double dE){
@@ -1095,7 +1103,7 @@ public:
       (*i)->tally_localEdep(nhist,kpar,state,dE);
   }
   
-  inline void run_step(const double nhist,
+  inline void run_step(const unsigned long long nhist,
 		       const pen_KPAR kpar,
 		       const stateType& state,
 		       const tally_StepData& stepData){
@@ -1105,7 +1113,7 @@ public:
       (*i)->tally_step(nhist,kpar,state,stepData);    
   }
   
-  inline void run_interfCross(const double nhist,
+  inline void run_interfCross(const unsigned long long nhist,
 			      const unsigned kdet,
 			      const pen_KPAR kpar,
 			      const stateType& state){
@@ -1115,7 +1123,7 @@ public:
       (*i)->tally_interfCross(nhist,kdet,kpar,state);
   }
   
-  inline void run_matChange(const double nhist,
+  inline void run_matChange(const unsigned long long nhist,
 			    const pen_KPAR kpar,
 			    const stateType& state,
 			    const unsigned prevMat){
@@ -1125,7 +1133,7 @@ public:
       (*i)->tally_matChange(nhist,kpar,state,prevMat);
   }
   
-  inline void run_jump(const double nhist,
+  inline void run_jump(const unsigned long long nhist,
 		       const pen_KPAR kpar,
 		       const stateType& state,
 		       const double ds){
@@ -1135,7 +1143,7 @@ public:
       (*i)->tally_jump(nhist,kpar,state,ds);
   }
   
-  inline void run_knock(const double nhist,
+  inline void run_knock(const unsigned long long nhist,
 			const pen_KPAR kpar,
 			const stateType& state,
 			const int icol){
@@ -1145,14 +1153,14 @@ public:
       (*i)->tally_knock(nhist,kpar,state,icol);
   }
 
-  inline void run_lastHist(const double lastHist){
+  inline void run_lastHist(const unsigned long long lastHist){
 
     for(tallyIterator i = tallies_lastHist.begin();
 	i != tallies_lastHist.end(); ++i)
       (*i)->tally_lastHist(lastHist);
   }
   
-  inline void saveData(const double nhist, const bool doflush = true){
+  inline void saveData(const unsigned long long nhist, const bool doflush = true){
 
     for(tallyIterator i = tallies.begin();
 	i != tallies.end(); ++i){

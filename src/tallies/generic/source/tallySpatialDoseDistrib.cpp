@@ -30,7 +30,7 @@
 #include "tallySpatialDoseDistrib.hh"
 
 void pen_SpatialDoseDistrib::updateEdepCounters(const double dE,
-						const double nhist,
+						const unsigned long long nhist,
 						const double X,
 						const double Y,
 						const double Z,
@@ -55,7 +55,7 @@ void pen_SpatialDoseDistrib::updateEdepCounters(const double dE,
     edepth2[k] += edepthtmp[k]*edepthtmp[k];
     edepthtmp[k] = dE*WGHT*imatDens[MAT-1];
     // Add 1/2 to avoid roundoff errors
-    nlastdepth[k]  = nhist+0.5;
+    nlastdepth[k]  = nhist;
   }
   else{
     edepthtmp[k] += dE*WGHT*imatDens[MAT-1];
@@ -83,7 +83,7 @@ void pen_SpatialDoseDistrib::updateEdepCounters(const double dE,
       edep2[bin] += edptmp[bin]*edptmp[bin];
       edptmp[bin] = dE*WGHT;
       // Add 1/2 to avoid roundoff errors
-      nlast[bin]  = nhist+0.5;             
+      nlast[bin]  = nhist;             
     }
   else
     {
@@ -98,32 +98,32 @@ void pen_SpatialDoseDistrib::flush(){
   for(long int i = 0; i < nbin; ++i)
     {
       // Skip empty bins
-      if (nlast[i] < 0.5){ continue;}      
+      if (nlast[i] == 0){ continue;}      
       // Transfer temp counter
       edep[i]  += edptmp[i];   
       edep2[i] += edptmp[i]*edptmp[i];
       // Reset counter
       edptmp[i]= 0.0;                  
       // Reset last visited to avoid recounting in next report
-      nlast[i] = 0.0;                  
+      nlast[i] = 0;                  
     }
   
   for(int i = 0; i < nz; ++i)
     {
       // Skip empty bins
-      if (nlastdepth[i] < 0.5){ continue;}      
+      if (nlastdepth[i] == 0){ continue;}      
       // Transfer temp counter
       edepth[i]  += edepthtmp[i];   
       edepth2[i] += edepthtmp[i]*edepthtmp[i];
       // Reset counter
       edepthtmp[i]= 0.0;                  
       // Reset last visited to avoid recounting in next report
-      nlastdepth[i] = 0.0;                  
+      nlastdepth[i] = 0;                  
     }
   
 }
 
-void pen_SpatialDoseDistrib::tally_localEdep(const double nhist,
+void pen_SpatialDoseDistrib::tally_localEdep(const unsigned long long nhist,
 					     const pen_KPAR /*kpar*/,
 					     const pen_particleState& state,
 					     const double dE){
@@ -134,7 +134,7 @@ void pen_SpatialDoseDistrib::tally_localEdep(const double nhist,
   updateEdepCounters(dE, nhist, state.X, state.Y, state.Z, state.WGHT, state.MAT);
 }
 
-void pen_SpatialDoseDistrib::tally_beginPart(const double nhist,
+void pen_SpatialDoseDistrib::tally_beginPart(const unsigned long long nhist,
 					     const unsigned /*kdet*/,
 					     const pen_KPAR /*kpar*/,
 					     const pen_particleState& state){
@@ -143,7 +143,7 @@ void pen_SpatialDoseDistrib::tally_beginPart(const double nhist,
   updateEdepCounters(-state.E, nhist, state.X, state.Y, state.Z, state.WGHT, state.MAT);
 }
 
-void pen_SpatialDoseDistrib::tally_beginHist(const double nhist,
+void pen_SpatialDoseDistrib::tally_beginHist(const unsigned long long nhist,
 					     const unsigned /*kdet*/,
 					     const pen_KPAR /*kpar*/,
 					     const pen_particleState& state){
@@ -155,7 +155,7 @@ void pen_SpatialDoseDistrib::tally_beginHist(const double nhist,
   }
 }
 
-void pen_SpatialDoseDistrib::tally_step(const double nhist,
+void pen_SpatialDoseDistrib::tally_step(const unsigned long long nhist,
 					const pen_KPAR /*kpar*/,
 					const pen_particleState& state,
 					const tally_StepData& stepData){
@@ -168,7 +168,7 @@ void pen_SpatialDoseDistrib::tally_step(const double nhist,
 }
 
 
-void pen_SpatialDoseDistrib::tally_move2geo(const double nhist,
+void pen_SpatialDoseDistrib::tally_move2geo(const unsigned long long nhist,
 					    const unsigned /*kdet*/,
 					    const pen_KPAR /*kpar*/,
 					    const pen_particleState& state,
@@ -422,11 +422,11 @@ int pen_SpatialDoseDistrib::configure(const wrapper_geometry& geometry,
   edptmp    = (double*) calloc(nbin,sizeof(double));
   edep      = (double*) calloc(nbin,sizeof(double));
   edep2     = (double*) calloc(nbin,sizeof(double));
-  nlast     = (double*) calloc(nbin,sizeof(double));
+  nlast     = (unsigned long long*) calloc(nbin,sizeof(unsigned long long));
   ivoxMass  = (double*) calloc(nbin,sizeof(double));
 
   //Allocate memory for depth dose distribution
-  nlastdepth= (double*) calloc(nz,sizeof(double));
+  nlastdepth= (unsigned long long*) calloc(nz,sizeof(unsigned long long));
   edepthtmp = (double*) calloc(nz,sizeof(double));
   edepth    = (double*) calloc(nz,sizeof(double));
   edepth2   = (double*) calloc(nz,sizeof(double));
@@ -536,20 +536,20 @@ int pen_SpatialDoseDistrib::configure(const wrapper_geometry& geometry,
             
 }
 
-void pen_SpatialDoseDistrib::tally_endSim(const double /*nhist*/){        
+void pen_SpatialDoseDistrib::tally_endSim(const unsigned long long /*nhist*/){        
   flush();
 }
     
     
  
-void pen_SpatialDoseDistrib::saveData(const double nhist) const{
+void pen_SpatialDoseDistrib::saveData(const unsigned long long nhist) const{
   
   char buffer[81];
   FILE*out;
   double q, sigma, fact, x, y, z;
   double xmiddle, ymiddle, zmiddle;
 
-  double invn = 1.0/nhist;
+  double invn = 1.0/static_cast<double>(nhist);
 
   //*************************
   //*  3D DOSE DISTRIBUTION *

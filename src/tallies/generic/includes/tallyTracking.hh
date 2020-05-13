@@ -37,7 +37,7 @@ class pen_tallyTracking : public pen_genericTally<pen_particleState> {
 
 private:
   FILE* fout;
-  int nhists;
+  unsigned long long nhists;
   bool active;
 public:
 
@@ -57,37 +57,37 @@ public:
   
   
   void tally_beginSim();
-  void tally_beginPart(const double /*nhist*/,
+  void tally_beginPart(const unsigned long long /*nhist*/,
 		       const unsigned /*kdet*/,
 		       const pen_KPAR kpar,
 		       const pen_particleState& state); 
-  void tally_beginHist(const double nhist,
+  void tally_beginHist(const unsigned long long nhist,
 		       const unsigned /*kdet*/,
 		       const pen_KPAR kpar,
 		       const pen_particleState& state); 
-  void tally_move2geo(const double /*nhist*/,
+  void tally_move2geo(const unsigned long long /*nhist*/,
 		      const unsigned /*kdet*/,
 		      const pen_KPAR /*kpar*/,
 		      const pen_particleState& state,
 		      const double /*dsef*/,
 		      const double /*dstot*/);  
-  void tally_endPart(const double /*nhist*/,
+  void tally_endPart(const unsigned long long /*nhist*/,
 		     const pen_KPAR /*kpar*/,
 		     const pen_particleState& state);  
-  void tally_step(const double /*nhist*/,
+  void tally_step(const unsigned long long /*nhist*/,
 		  const pen_KPAR /*kpar*/,
 		  const pen_particleState& state,
 		  const tally_StepData& stepData);
   
-  void tally_interfCross(const double /*nhist*/,
+  void tally_interfCross(const unsigned long long /*nhist*/,
 			 const unsigned /*kdet*/,
 		       const pen_KPAR /*kpar*/,
 		       const pen_particleState& /*state*/);
-  void tally_jump(const double /*nhist*/,
+  void tally_jump(const unsigned long long /*nhist*/,
 		const pen_KPAR /*kpar*/,
 		const pen_particleState& state,
 		const double ds);
-  void tally_knock(const double /*nhist*/,
+  void tally_knock(const unsigned long long /*nhist*/,
 		 const pen_KPAR /*kpar*/,
 		 const pen_particleState& state,
 		 const int icol);
@@ -96,7 +96,7 @@ public:
 		const abc_material* const /*materials*/[constants::MAXMAT],
 		const pen_parserSection& config,
 		const unsigned verbose);
-  void saveData(const double /*nhist*/) const;
+  void saveData(const unsigned long long /*nhist*/) const;
   void flush();
   int sumTally(const pen_tallyTracking& /*tally*/);
 };

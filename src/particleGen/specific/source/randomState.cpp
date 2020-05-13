@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2020 Universitat de València - UV
+//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -30,7 +30,7 @@
 
 void random_specificSampler::sample(pen_particleState& state,
 				    pen_KPAR& genKpar,
-				    unsigned long& dhist,
+				    unsigned long long& dhist,
 				    pen_rand& random){
     
   state.X = random.rand();

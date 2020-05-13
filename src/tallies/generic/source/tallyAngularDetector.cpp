@@ -101,7 +101,7 @@ void pen_AngularDet::flush(){
     }
 }
 
-void pen_AngularDet::tally_move2geo(const double /*nhist*/,
+void pen_AngularDet::tally_move2geo(const unsigned long long /*nhist*/,
 					    const unsigned /*kdet*/,
 					    const pen_KPAR kpar,
 					    const pen_particleState& state,
@@ -116,7 +116,7 @@ void pen_AngularDet::tally_move2geo(const double /*nhist*/,
     
 }
 
-void pen_AngularDet::tally_matChange(const double /*nhist*/,
+void pen_AngularDet::tally_matChange(const unsigned long long /*nhist*/,
                          const pen_KPAR kpar,
 					     const pen_particleState& state,
 					     const unsigned /*prevMat*/){
@@ -129,7 +129,7 @@ void pen_AngularDet::tally_matChange(const double /*nhist*/,
 }
 
 
-void pen_AngularDet::tally_endHist(const double /*nhist*/){
+void pen_AngularDet::tally_endHist(const unsigned long long /*nhist*/){
     flush();
 }
 
@@ -436,7 +436,7 @@ int pen_AngularDet::configure(const wrapper_geometry& /*geometry*/,
 }
 
 
-void pen_AngularDet::saveData(const double nhist) const{
+void pen_AngularDet::saveData(const unsigned long long nhist) const{
 
   FILE* out = NULL;
 
@@ -445,7 +445,7 @@ void pen_AngularDet::saveData(const double nhist) const{
   char filename[400];
   
   //Prepare output file
-  double invn = 1.0/nhist;
+  double invn = 1.0/static_cast<double>(nhist);
   
   sprintf(filename, "spc-angdet-%u.dat",idet);
   out = fopen(filename, "w");

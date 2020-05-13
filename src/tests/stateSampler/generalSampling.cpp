@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2020 Universitat de València - UV
+//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -46,7 +46,9 @@ int main(int argc, char** argv){
     
   //Read configuration file
   pen_parserSection config;
-  int err = parseFile(argv[1],config);
+  std::string errorLine;
+  unsigned long errorLineNum;
+  int err = parseFile(argv[1],config,errorLine,errorLineNum);
   
   //Print read configuration
   std::string strconfig;
@@ -56,7 +58,10 @@ int main(int argc, char** argv){
 
   if(err != INTDATA_SUCCESS){
     printf("Error parsing configuration.\n");
-    printf("Error code: %d\n", err);
+    printf("Error code: %d\n",err);
+    printf("Error message: %s\n",pen_parserError(err));
+    printf("Error located at line %lu, at text: %s\n",
+	   errorLineNum,errorLine.c_str());
     return -2;
   }
   

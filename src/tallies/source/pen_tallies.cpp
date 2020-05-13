@@ -239,8 +239,10 @@ int pen_commonTallyCluster::createTally(const char* ID,
 
 int pen_commonTallyCluster::writeDump(unsigned char*& pdump,
 				      size_t& dim,
-				      const double nhist,
+				      const unsigned long long nhist,
 				      const int seed1, const int seed2,
+				      const int lastSource,
+				      const unsigned long long sourceHists,
 				      const unsigned verbose) {
 
   if(tallies.size() < 1){
@@ -257,14 +259,24 @@ int pen_commonTallyCluster::writeDump(unsigned char*& pdump,
   dumpsDim.resize(tallies.size());
 
   size_t dumpSize = 0;
-  dumpSize += 2*sizeof(int32_t); //To store last random seeds
-  dumpSize += sizeof(int64_t); //To store number of simulated histories
+  //To store last random seeds
+  dumpSize += 2*sizeof(int32_t);
+  //To store the total number of simulated histories
+  dumpSize += sizeof(uint64_t); 
+  //To store the actual source number identifier
+  dumpSize += sizeof(int32_t);
+  //To store the histories processed at that source
+  dumpSize += sizeof(uint64_t); 
 
   //Get seeds
   const int32_t seeds[2] = {seed1,seed2}; 
   //Get nhist
-  uint64_t nhistUint = uint64_t(nhist+0.5);
-      
+  uint64_t nhistUint = static_cast<uint64_t>(nhist);
+  //Get source ID
+  const int32_t source32 = lastSource; 
+  //Get completed source histories
+  uint64_t nhistSourceUint = static_cast<uint64_t>(sourceHists);
+  
   //Write all dumps and get its size, name and ID size
   for(unsigned i = 0; i < tallies.size(); i++){
     int err;
@@ -312,6 +324,12 @@ int pen_commonTallyCluster::writeDump(unsigned char*& pdump,
   pos += 2*sizeof(int32_t);
   // Write number of simulated histories
   memcpy(&pdump[pos],&nhistUint,sizeof(uint64_t));
+  pos += sizeof(uint64_t);
+  // Write last completed source identifier
+  memcpy(&pdump[pos],&source32,sizeof(int32_t));
+  pos += sizeof(int32_t);
+  // Write number of simulated histories at last source
+  memcpy(&pdump[pos],&nhistSourceUint,sizeof(uint64_t));
   pos += sizeof(uint64_t);
       
   for(unsigned i = 0; i < tallies.size(); i++){
@@ -365,8 +383,10 @@ int pen_commonTallyCluster::writeDump(unsigned char*& pdump,
 
 int pen_commonTallyCluster::readDump(const unsigned char* const pdump,
 				     size_t& pos,
-				     double& nhist,
+				     unsigned long long& nhist,
 				     int& seed1, int& seed2,
+				     int& lastSource,
+				     unsigned long long& sourceHists,
 				     const unsigned verbose){
 
   if(tallies.size() < 1){
@@ -384,12 +404,24 @@ int pen_commonTallyCluster::readDump(const unsigned char* const pdump,
   seed1 = seeds[0];
   seed2 = seeds[1];
 
-  // Read nhist
+  // Read simulated nhistories
   uint64_t nhistUint;
   memcpy(&nhistUint,&pdump[pos],sizeof(uint64_t));
   pos += sizeof(uint64_t);
-  nhist = double(nhistUint);
+  nhist = static_cast<unsigned long long>(nhistUint);
 
+  // Read last used source identifier
+  int32_t source32;
+  memcpy(&source32,&pdump[pos],sizeof(int32_t));
+  pos += sizeof(int32_t);
+  lastSource = source32;
+
+  // Read number of completed nhistories at that source
+  memcpy(&nhistUint,&pdump[pos],sizeof(uint64_t));
+  pos += sizeof(uint64_t);
+  sourceHists = static_cast<unsigned long long>(nhistUint);
+  
+  
   //Read tally dumped data
   for(unsigned i = 0; i < tallies.size(); i++){
     uint32_t nameSize, IDsize;
@@ -448,8 +480,10 @@ int pen_commonTallyCluster::readDump(const unsigned char* const pdump,
 }
 
 int pen_commonTallyCluster::dump2file(const char* filename,
-				      const double nhist,
+				      const unsigned long long nhist,
 				      const int seed1, const int seed2,
+				      const int lastSource,
+				      const unsigned long long sourceHists,
 				      const unsigned verbose){
 
   unsigned char* pdump = nullptr;
@@ -458,7 +492,9 @@ int pen_commonTallyCluster::dump2file(const char* filename,
   int err;
     
   //Create dump
-  err = writeDump(pdump,dumpSize,nhist,seed1,seed2,verbose);
+  err = writeDump(pdump,dumpSize,nhist,
+		  seed1,seed2,lastSource,
+		  sourceHists,verbose);
   if(err != 0){
     if(verbose > 0){
       printf("commontallyCluster: dump2file: Error creating dump.\n");
@@ -510,8 +546,10 @@ int pen_commonTallyCluster::dump2file(const char* filename,
 }
 
 int pen_commonTallyCluster::readDumpfile(const char* filename,
-					 double& nhist,
+					 unsigned long long& nhist,
 					 int& seed1, int& seed2,
+					 int& lastSource,
+					 unsigned long long& sourceHists,
 					 const unsigned verbose){
 
   unsigned char* pdump = nullptr;
@@ -572,7 +610,8 @@ int pen_commonTallyCluster::readDumpfile(const char* filename,
   //***************
 
   nread = 0;
-  err = readDump(pdump,nread,nhist,seed1,seed2,verbose);
+  err = readDump(pdump,nread,nhist,seed1,seed2,
+		 lastSource,sourceHists,verbose);
   if(err != 0){
     if(verbose > 0){
       printf("commontallyCluster: readDumpfile: Failed to extract data.\n");
@@ -658,7 +697,7 @@ int pen_commonTallyCluster::sum(pen_commonTallyCluster& cluster,
 
 // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_
-int pen_commonTallyCluster::reduceMPI(double& simulatedHists,
+int pen_commonTallyCluster::reduceMPI(unsigned long long& simulatedHists,
 				      const MPI_Comm comm,
 				      const unsigned verbose){
 
@@ -783,11 +822,15 @@ int pen_commonTallyCluster::reduceMPI(double& simulatedHists,
 	}
 
 	//To sumup the results, load dump information into MPI buffer cluster
-	double dumpHists;
+	unsigned long long dumpHists;
 	int dummySeed1,dummySeed2;
+	int dummyUint;
+	unsigned long long dummyull;
 	size_t posDump = 0;
 	int err = mpiBuffer->readDump(pdump,posDump,dumpHists,
-				      dummySeed1,dummySeed2,verbose);
+				      dummySeed1,dummySeed2,
+				      dummyUint,dummyull,
+				      verbose);
 	
 	//Free memory
 	free(pdump);
@@ -818,7 +861,8 @@ int pen_commonTallyCluster::reduceMPI(double& simulatedHists,
 	//with dummy data (rank identifier)
 	unsigned char* pdump = nullptr;
 	size_t dim;
-	int err = writeDump(pdump,dim,simulatedHists,rank,rank,verbose);
+	int err = writeDump(pdump,dim,simulatedHists,
+			    rank,rank,0,0,verbose);
 	if(err != 0){
 	  if(verbose > 0){
 	    printf("reduceMPI: Rank %d dump2file: Error creating dump.\n",globalRank);

@@ -38,6 +38,7 @@ option(DEVELOPMENT_WARNINGS "Compile with extra warnings for development " OFF)
 option(WITH_DICOM "Build PenRed DICOM " OFF)
 option(WITH_MULTI_THREADING "Build PenRed with multi-threading " ON)
 option(WITH_MPI "Build PenRed with MPI " OFF)
+option(WITH_LB "Build PenRed with load balancing support" OFF)
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
@@ -78,6 +79,11 @@ endif(WITH_MULTI_THREADING)
 if(WITH_MPI)
   add_definitions(-D_PEN_USE_MPI_=1) #enable MPI
 endif(WITH_MPI)
+
+# Check if load balancing has been enabled
+if(WITH_LB)
+  add_definitions(-D_PEN_USE_LB_=1) #enable LB
+endif(WITH_LB)
 
 # Check platform
 if(UNIX)

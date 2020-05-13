@@ -55,13 +55,13 @@ private:
     eHistTmpDown[constants::nParTypes][nbinmax],
     eHist2Down[constants::nParTypes][nbinmax];
   
-  double enlastUp[constants::nParTypes][nbinmax];
-  double enlastDown[constants::nParTypes][nbinmax];
+  unsigned long long enlastUp[constants::nParTypes][nbinmax];
+  unsigned long long enlastDown[constants::nParTypes][nbinmax];
   
   double* angHist[constants::nParTypes];
   double* angHistTmp[constants::nParTypes];
   double* angHist2[constants::nParTypes];
-  double* angnlast[constants::nParTypes];
+  unsigned long long* angnlast[constants::nParTypes];
     
     
 public:
@@ -87,29 +87,29 @@ public:
     
   }
   
-  void scapedParticle(const double nhist,
+  void scapedParticle(const unsigned long long nhist,
 				 const pen_KPAR /*kpar*/,
 				 const pen_particleState& /*state*/);
   
-  void tally_move2geo(const double nhist,
+  void tally_move2geo(const unsigned long long nhist,
 		      const unsigned /*kdet*/,
 		      const pen_KPAR /*kpar*/,
 		      const pen_particleState& state,
 		      const double /*dsef*/,
 		      const double /*dstot*/);
   
-  void tally_matChange(const double nhist,
+  void tally_matChange(const unsigned long long nhist,
 		       const pen_KPAR kpar,
 		       const pen_particleState& state,
 		       const unsigned /*prevMat*/);
   
-  void tally_endSim(const double /*nhist*/);
+  void tally_endSim(const unsigned long long /*nhist*/);
   
   int configure(const wrapper_geometry& /*geometry*/,
 		const abc_material* const /*materials*/[constants::MAXMAT],     
 		const pen_parserSection& config, const unsigned verbose);
   void flush();
-  void saveData(const double nhist) const;
+  void saveData(const unsigned long long nhist) const;
   int sumTally(const pen_EmergingPartDistrib& tally);
 
   ~pen_EmergingPartDistrib(){

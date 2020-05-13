@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2020 Universitat de València - UV
+//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -66,7 +66,7 @@ private:
   pen_dump ioDump;
 
   //Save last stored history
-  double lastHist;
+  unsigned long long lastHist;
   //Save stored particles of last history
   unsigned long particlesLastHist;
   //Save number of stored particles from concluded histories
@@ -100,13 +100,13 @@ public:
   inline size_t memory() const {return dumpSize;}
   inline unsigned long bufferSize() const {return BUFFERSIZE;}
 
-  inline double last() const {return lastHist;}
+  inline unsigned long long last() const {return lastHist;}
   inline void setLast(const double newLast) {lastHist = newLast;}
   inline unsigned long stored() const {return nStored;}
   inline unsigned long partConcluded() const {return nConcludedPart;}
   inline unsigned long partLastHist() const {return particlesLastHist;}
   
-  long int store(const double nhist,
+  long int store(const unsigned long long nhist,
 		 const unsigned kpar,
 		 const pen_particleState& state);
 
@@ -146,9 +146,9 @@ public:
 
   int clearBuffer();
   inline void clear(){nStored = 0;
-    lastHist = 0.0;
+    lastHist = 0;
     particlesLastHist = 0;
-    nConcludedPart = 0.0;
+    nConcludedPart = 0;
   }
 
   ~pen_psfwriter(){
@@ -207,7 +207,7 @@ public:
   inline unsigned long stored() const {return nStored;}
   inline unsigned long nread() const {return nRead;}
 
-  double skip(const double nHists2Skip);
+  unsigned long long skip(const unsigned long long nHists2Skip);
   
   unsigned long get(unsigned long& dhist,
 		    unsigned& kpar,
