@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2020 Universitat de València - UV
+//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -33,10 +33,13 @@
 
 #include <cmath>
 #include <thread>
+#include <atomic>
+#include <chrono>
 #include "pen_classes.hh"
 #include "pen_math.hh"
 #include "instantiator.hh"
 #include "pen_states.hh"
+#include "loadBalance.hh"
 
   // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_
@@ -75,6 +78,74 @@ enum __usedSamp{
 	      USE_TIME        = 1 << 3,
 	      USE_GENERIC     = 1 << 4,
 	      USE_NONE        = 1 << 5		
+};
+
+struct pen_samplerTask{
+  std::atomic<unsigned long long> iterDone;
+  unsigned nworkers;
+  unsigned long long toDoWorker;
+  unsigned long long toDoMPI;
+  unsigned long long toDo;
+
+  pen_samplerTask() : iterDone(0), nworkers(0),
+		      toDoWorker(0), toDoMPI(0), toDo(0){
+  }
+  
+  inline int init(const size_t nw,
+		  const unsigned long long nIter,
+		  const char* /*logFileName*/ = nullptr,
+		  const unsigned /*verbose*/ = 0){
+    iterDone = 0;
+    nworkers = nw;
+    toDo = nIter;
+
+    toDoMPI = toDo;
+  // ******************************* MPI ************************************ //
+#ifdef _PEN_USE_MPI_
+  int mpiSize;
+  MPI_Comm_size(MPI_COMM_WORLD, &mpiSize);
+  toDoMPI /= static_cast<unsigned long long>(mpiSize);
+  toDoMPI += 1;
+#endif
+  // ******************************* MPI ************************************ //
+    toDoWorker = toDoMPI/nw+1;
+    return 0;
+  }
+  inline void skip(unsigned long long toSkip){
+    unsigned long long auxIterDone = iterDone;
+    if(toDo > toSkip)
+      init(nworkers,toDo-toSkip);
+    else
+      init(nworkers,0);
+    iterDone = auxIterDone;
+  }
+  inline unsigned long long done() const {return iterDone;}
+  inline void reset(){
+    iterDone = toDoWorker = toDoMPI = toDo = 0;
+    nworkers = 0;
+  }
+  inline unsigned long long int assigned(const size_t /*iw*/){return toDoWorker;}
+  inline unsigned long long int assigned(){return toDoMPI;}
+  inline int workerStart(const size_t /*iw*/,
+			 const unsigned /*verbose*/){return 0;}
+  inline bool workerFinish(const size_t /*iw*/, int& /*why*/,
+			   const unsigned /*verbose*/) const {
+    return true;
+  }
+  inline std::chrono::seconds::rep 
+  report(const size_t /*iw*/,
+	 const unsigned long long nIter,
+	 int* /*errRet*/,
+	 const unsigned /*verbose*/) {
+    iterDone += nIter;
+    return std::chrono::seconds::rep(1000000000);
+  }
+  inline int checkPoint(const unsigned /*verbose*/) const {return 0;}
+  inline std::chrono::seconds::rep
+  getCheckTime() const {return std::chrono::seconds::rep(1000000000);}
+  inline void setCheckTime(const std::chrono::seconds::rep) const {}
+  inline void setCheckTimeMPI(const std::chrono::seconds::rep) const {}
+  inline void minTime(const unsigned long long) const {}
 };
 
 template<class particleState>
@@ -151,10 +222,10 @@ public:
   
   virtual void sample(particleState& state,
 		      pen_KPAR& genKpar,
-		      unsigned long& dhist,
+		      unsigned long long& dhist,
 		      pen_rand& random) = 0;  
   
-  virtual void skip(const double /*dhists*/){}
+  virtual void skip(const unsigned long long /*dhists*/){}
   
   virtual int configure(double&,
 			const abc_spatialSampler*,
@@ -294,8 +365,85 @@ public:
   bool LAGE; //Age recording status
   pen_KPAR kpar; //Generated particles kpar
 
+// **************************** LB ********************************* //
+#ifdef _PEN_USE_LB_
+  typedef LB::task taskType;
+#else
+  typedef pen_samplerTask taskType;
+#endif
+// **************************** LB ********************************* //
+
+  taskType task;
+
   pen_genericStateGen();
 
+  inline int initTask(const size_t nw,
+		      const unsigned long long nIter,
+		      const unsigned verbose){
+    return task.init(nw,nIter,name.c_str(),verbose);
+  }
+
+  
+  // ******************************* MPI ************************************ //
+#if defined(_PEN_USE_MPI_) && defined(_PEN_USE_LB_)
+  inline int initTask(const size_t nw,
+		      const unsigned long long nIter,
+		      const MPI_Comm commIn,
+		      const int tagReqests,
+		      const int tagProcess,
+		      const unsigned verbose){
+    return task.init(nw,nIter,commIn,tagReqests,tagProcess,
+		     name.c_str(),verbose);
+  }
+#endif
+  // ***************************** MPI END ********************************** //
+
+  inline void skip(const unsigned long long nIter){task.skip(nIter);}
+
+  inline unsigned long long toDo(unsigned ithread){
+    return task.assigned(ithread);
+  }
+  inline unsigned long long toDo(){
+    return task.assigned();
+  }
+
+  inline std::chrono::seconds::rep 
+  report(const size_t iw,
+	 const unsigned long long nIter,
+	 int* errRet,
+	 const unsigned verbose){
+    return task.report(iw,nIter,errRet,verbose);
+  }
+
+  inline int checkPoint(const unsigned verbose){
+    return task.checkPoint(verbose);
+  }
+  inline int workerStart(const size_t iw,
+			 const unsigned verbose){
+    return task.workerStart(iw,verbose);
+  }
+  inline bool workerFinish(const size_t iw, int& why, const unsigned verbose){
+    return task.workerFinish(iw,why,verbose);
+  }
+
+  bool handleFinish(const unsigned iw,
+		    const unsigned long long nDone,
+		    unsigned long long& assigned,
+		    const unsigned verbose);  
+  inline void setCheckTime(const std::chrono::seconds::rep t){
+    task.setCheckTime(t);
+  }
+  inline void setLBthreshold(const unsigned long long t) {
+    task.minTime(t);
+  }
+  // ******************************* MPI ************************************ //
+#ifdef _PEN_USE_MPI_
+  inline void setCheckTimeMPI(const std::chrono::seconds::rep t){
+    task.setCheckTimeMPI(t);
+  }
+#endif
+  // ***************************** MPI END ********************************** //
+  
   inline const abc_spatialSampler* spatial() const {
     return spatialSampler;}
   inline const abc_directionSampler* direction() const {
@@ -672,12 +820,16 @@ private:
   
 public:
 
+  typedef pen_genericStateGen::taskType taskType;
+  
   int& sourceBody; //Body index source
   unsigned& sourceMat;  //Body material source
   
   std::string& name; //Source name
   bool& LAGE; //Age recording status
   pen_KPAR& kpar; //Generated particles kpar
+
+  taskType& task;
   
   pen_specificStateGen() : useGeneric(false),
 			   useSpecific(false),
@@ -688,9 +840,80 @@ public:
 			   sourceMat(genericGen.sourceMat),
 			   name(genericGen.name),
 			   LAGE(genericGen.LAGE),
-  			   kpar(genericGen.kpar)
+  			   kpar(genericGen.kpar),
+			   task(genericGen.task)
 {}
 
+  inline int initTask(const size_t nw,
+		      const unsigned long long nIter,
+		      const unsigned verbose){
+    return genericGen.initTask(nw,nIter,verbose);
+  }
+
+  
+  // ******************************* MPI ************************************ //
+#if defined(_PEN_USE_MPI_) && defined(_PEN_USE_LB_)
+  inline int initTask(const size_t nw,
+		      const unsigned long long nIter,
+		      const MPI_Comm commIn,
+		      const int tagReqests,
+		      const int tagProcess,
+		      const unsigned verbose){
+    return genericGen.initTask(nw,nIter,commIn,tagReqests,tagProcess,verbose);
+  }
+#endif
+  // ***************************** MPI END ********************************** //
+
+  inline void skip(const unsigned long long nIter){
+    genericGen.skip(nIter);
+  }
+
+  inline unsigned long long toDo(unsigned ithread){
+    return genericGen.toDo(ithread);
+  }
+  inline unsigned long long toDo(){
+    return genericGen.toDo();
+  }
+
+  inline std::chrono::seconds::rep 
+  report(const size_t iw,
+	 const unsigned long long nIter,
+	 int* errRet,
+	 const unsigned verbose){
+    return genericGen.report(iw,nIter,errRet,verbose);
+  }
+
+  inline int checkPoint(const unsigned verbose){
+    return genericGen.checkPoint(verbose);
+  }
+  inline int workerStart(const size_t iw,
+			 const unsigned verbose){
+    return genericGen.workerStart(iw,verbose);
+  }  
+  inline bool workerFinish(const size_t iw, int& why, const unsigned verbose){
+    return genericGen.workerFinish(iw,why,verbose);
+  }
+
+  inline bool handleFinish(const unsigned iw,
+			   const unsigned long long nDone,
+			   unsigned long long& assigned,
+			   const unsigned verbose){
+    return genericGen.handleFinish(iw,nDone,assigned,verbose);
+  }
+  inline void setCheckTime(const std::chrono::seconds::rep t){
+    genericGen.setCheckTime(t);
+  }
+  inline void setLBthreshold(const unsigned long long t) {
+    genericGen.setLBthreshold(t);
+  }
+  // ******************************* MPI ************************************ //
+#ifdef _PEN_USE_MPI_
+  inline void setCheckTimeMPI(const std::chrono::seconds::rep t){
+    genericGen.setCheckTimeMPI(t);
+  }
+#endif
+  // ***************************** MPI END ********************************** //
+  
   inline double maxEnergy(){return Emax;}
   inline const abc_spatialSampler* spatial() const {
     return genericGen.spatialSampler;}
@@ -945,7 +1168,7 @@ public:
 
   void sample(particleState& state,
 	      pen_KPAR& genKpar,
-	      unsigned long& dhist,
+	      unsigned long long& dhist,
 	      const unsigned thread, 
 	      pen_rand& random){
 
@@ -977,17 +1200,31 @@ public:
 	genKpar = ALWAYS_AT_END;
 	dhist = 0;	
       }
-    }
-    
-
+    }    
   }
 
-  void skip(const double dhists, const unsigned thread){
+  void skip(const unsigned long long dhists, const unsigned thread){
     //Only specific samplers can skip histories.
     //Notice that the history skip will not change the random seeds
     if(useSpecific){
       specificSamplerVect[thread]->skip(dhists);
     }
+    skip(dhists);
+  }
+
+  void skip(const std::vector<unsigned long long> dhists){
+
+    const size_t nthreads = specificSamplerVect.size();
+    if(dhists.size() < nthreads)
+      return;
+    unsigned long long totalHists = 0.0;
+    for(size_t ithread = 0; ithread < nthreads; ++ithread){
+      totalHists += dhists[ithread];
+      if(useSpecific){
+	specificSamplerVect[ithread]->skip(dhists[ithread]);
+      }
+    }
+    skip(totalHists);
   }
   
   void clear(){

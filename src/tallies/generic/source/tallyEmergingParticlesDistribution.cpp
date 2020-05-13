@@ -30,7 +30,7 @@
 #include "tallyEmergingParticlesDistribution.hh"
 
 
-void pen_EmergingPartDistrib::scapedParticle(const double nhist,
+void pen_EmergingPartDistrib::scapedParticle(const unsigned long long nhist,
 					    const pen_KPAR kpar,
 					    const pen_particleState& state){
 
@@ -108,7 +108,7 @@ void pen_EmergingPartDistrib::scapedParticle(const double nhist,
 	      eHist2Down[kpar][particleEbin] += eHistTmpDown[kpar][particleEbin]*eHistTmpDown[kpar][particleEbin];
 	      eHistTmpDown[kpar][particleEbin] = state.WGHT;
 	      // Add 1/2 to avoid roundoff errors
-          enlastDown[kpar][particleEbin] = nhist + 0.5;    
+          enlastDown[kpar][particleEbin] = nhist;    
             }
 	  else
             {
@@ -126,7 +126,7 @@ void pen_EmergingPartDistrib::scapedParticle(const double nhist,
                 eHist2Up[kpar][particleEbin] += eHistTmpUp[kpar][particleEbin]*eHistTmpUp[kpar][particleEbin];
                 eHistTmpUp[kpar][particleEbin] = state.WGHT;
                 // Add 1/2 to avoid roundoff errors
-                enlastUp[kpar][particleEbin] = nhist + 0.5;    
+                enlastUp[kpar][particleEbin] = nhist;    
             }
 	  else
             {      
@@ -146,7 +146,7 @@ void pen_EmergingPartDistrib::scapedParticle(const double nhist,
         angHist2[kpar][angularBin] += angHistTmp[kpar][angularBin]*angHistTmp[kpar][angularBin];
         angHistTmp[kpar][angularBin] = state.WGHT;
         // Add 1/2 to avoid roundoff errors
-        angnlast[kpar][angularBin] = nhist + 0.5;   
+        angnlast[kpar][angularBin] = nhist;   
     }
   else
     {        
@@ -155,7 +155,7 @@ void pen_EmergingPartDistrib::scapedParticle(const double nhist,
 }
 
 
-void pen_EmergingPartDistrib::tally_move2geo(const double nhist,
+void pen_EmergingPartDistrib::tally_move2geo(const unsigned long long nhist,
 					    const unsigned /*kdet*/,
 					    const pen_KPAR kpar,
 					    const pen_particleState& state,
@@ -171,7 +171,7 @@ void pen_EmergingPartDistrib::tally_move2geo(const double nhist,
 }
  
  
-void pen_EmergingPartDistrib::tally_matChange(const double nhist,
+void pen_EmergingPartDistrib::tally_matChange(const unsigned long long nhist,
 					     const pen_KPAR kpar,
 					     const pen_particleState& state,
 					     const unsigned /*prevMat*/){
@@ -195,14 +195,14 @@ void pen_EmergingPartDistrib::flush(){
 	  //*************
             
 	  // Skip empty bins
-	  if (enlastUp[k][i] < 0.5){ continue;}
+	  if (enlastUp[k][i] == 0){ continue;}
 	  // Transfer temp counter
 	  eHistUp[k][i]  += eHistTmpUp[k][i];
 	  eHist2Up[k][i] += eHistTmpUp[k][i]*eHistTmpUp[k][i];
 	  // Reset counter
 	  eHistTmpUp[k][i] = 0.0;
 	  // Reset last visited to avoid recounting in next report
-	  enlastUp[k][i] = 0.0;
+	  enlastUp[k][i] = 0;
 	}
 
       for(int i = 0; i < nBinsE; i++)
@@ -211,14 +211,14 @@ void pen_EmergingPartDistrib::flush(){
 	  //*************
             
 	  // Skip empty bins
-	  if (enlastDown[k][i] < 0.5){ continue;}
+	  if (enlastDown[k][i] == 0){ continue;}
 	  // Transfer temp counter
 	  eHistDown[k][i]  += eHistTmpDown[k][i];
 	  eHist2Down[k][i] += eHistTmpDown[k][i]*eHistTmpDown[k][i];
 	  // Reset counter
 	  eHistTmpDown[k][i] = 0.0;
 	  // Reset last visited to avoid recounting in next report
-	  enlastDown[k][i] = 0.0;
+	  enlastDown[k][i] = 0;
 	}
         
       for(int j = 0; j < nAngBins; j++)
@@ -227,21 +227,21 @@ void pen_EmergingPartDistrib::flush(){
 	  //*************
             
 	  // Skip empty bins
-	  if (angnlast[k][j] < 0.5){ continue;}
+	  if (angnlast[k][j] == 0){ continue;}
 	  // Transfer temp counter
 	  angHist[k][j]  += angHistTmp[k][j];
 	  angHist2[k][j] += angHistTmp[k][j]*angHistTmp[k][j];
 	  // Reset counter
 	  angHistTmp[k][j] = 0.0;
 	  // Reset last visited to avoid recounting in next report
-	  angnlast[k][j] = 0.0;
+	  angnlast[k][j] = 0;
         }
     }
     
 }
 
 
-void pen_EmergingPartDistrib::tally_endSim(const double /*nhist*/){        
+void pen_EmergingPartDistrib::tally_endSim(const unsigned long long /*nhist*/){        
   flush();
 }
 
@@ -452,19 +452,34 @@ int pen_EmergingPartDistrib::configure(const wrapper_geometry& /*geometry*/,
 	  eHistUp[i][j]    = 0.0;
 	  eHistTmpUp[i][j] = 0.0;
 	  eHist2Up[i][j]   = 0.0;
-	  enlastUp[i][j]   = 0.0;
+	  enlastUp[i][j]   = 0;
 
 	  //Energy down
 	  eHistDown[i][j]    = 0.0;
 	  eHistTmpDown[i][j] = 0.0;
 	  eHist2Down[i][j]   = 0.0;	  
-	  enlastDown[i][j]   = 0.0;
+	  enlastDown[i][j]   = 0;
         }
 
       angHist[i] = (double*) calloc(nAngBins,sizeof(double));
       angHistTmp[i] = (double*) calloc(nAngBins,sizeof(double));
       angHist2[i] = (double*) calloc(nAngBins,sizeof(double));
-      angnlast[i] = (double*) calloc(nAngBins,sizeof(double));
+      angnlast[i] = (unsigned long long*)
+	calloc(nAngBins,sizeof(unsigned long long));
+
+      double* p = angHist[i];
+      for(int j = 0; j < nAngBins; ++j)
+	p[j] = 0.0;
+      p = angHistTmp[i];
+      for(int j = 0; j < nAngBins; ++j)
+	p[j] = 0.0;
+      p = angHist2[i];
+      for(int j = 0; j < nAngBins; ++j)
+	p[j] = 0.0;
+      unsigned long long* p2 = angnlast[i];
+      for(int j = 0; j < nAngBins; ++j)
+	p2[j] = 0ull;
+      
     }
     
     
@@ -487,7 +502,7 @@ int pen_EmergingPartDistrib::configure(const wrapper_geometry& /*geometry*/,
                
 
 
-void pen_EmergingPartDistrib::saveData(const double nhist) const{
+void pen_EmergingPartDistrib::saveData(const unsigned long long nhist) const{
 
   FILE* outUp = 0;
   FILE* outDown = 0;
@@ -497,42 +512,7 @@ void pen_EmergingPartDistrib::saveData(const double nhist) const{
   double invn;
   const double rad2deg = 180.0/constants::PI;
 
-  //PREGUNTAR SANDRA
-  /*
-  for(unsigned int k = 0; k < constants::nParTypes; k++)
-    {
-      //Energy up
-      for(int j = 0; j < nBinsE; j++)
-	{
-	  if(enlastUp[k][j] < 0.5){continue;}
-	  eHistUp[k][j]  += eHistTmpUp[k][j];
-	  eHist2Up[k][j] += eHistTmpUp[k][j]*eHistTmpUp[k][j];
-	  eHistTmpUp[k][j] = 0.0;
-	  enlastUp[k][j] = 0.0;
-	}
-      //Energy down
-      for(int j = 0; j < nBinsE; j++)
-	{
-	  if(enlastDown[k][j] < 0.5){continue;}
-	  eHistDown[k][j]  += eHistTmpDown[k][j];
-	  eHist2Down[k][j] += eHistTmpDown[k][j]*eHistTmpDown[k][j];
-	  eHistTmpDown[k][j] = 0.0;
-	  enlastDown[k][j] = 0.0;
-	}
-      //Angular
-      for(int j = 0; j < nAngBins; j++)
-	{
-	  if(angnlast[k][j] < 0.5){continue;}
-	  angHist[k][j]  += angHistTmp[k][j];
-	  angHist2[k][j] += angHistTmp[k][j]*angHistTmp[k][j];
-	  angHistTmp[k][j] = 0.0;
-	  angnlast[k][j] = 0.0;
-	}
-    }
-  */
- 
-  //Prepare output files
-  invn = 1.0/nhist;
+  invn = 1.0/static_cast<double>(nhist);
      
   outUp   = fopen("emerging-upbound.dat", "w");
   outDown = fopen("emerging-downbound.dat", "w");

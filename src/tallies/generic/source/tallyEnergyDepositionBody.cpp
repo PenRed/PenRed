@@ -41,7 +41,7 @@ void pen_EdepBody::flush()
 }
 
  
-void pen_EdepBody::tally_localEdep(const double /*nhist*/,
+void pen_EdepBody::tally_localEdep(const unsigned long long /*nhist*/,
 				  const pen_KPAR /*kpar*/,
 				  const pen_particleState& state,
 				  const double dE){
@@ -50,7 +50,7 @@ void pen_EdepBody::tally_localEdep(const double /*nhist*/,
   edptmp[state.IBODY] += dE*state.WGHT; 
 }
 
-void pen_EdepBody::tally_beginPart(const double /*nhist*/,
+void pen_EdepBody::tally_beginPart(const unsigned long long /*nhist*/,
 				  const unsigned /*kdet*/,
 				  const pen_KPAR /*kpar*/,
 				  const pen_particleState& state){
@@ -60,7 +60,7 @@ void pen_EdepBody::tally_beginPart(const double /*nhist*/,
 
 }
 
-void pen_EdepBody::tally_beginHist(const double /*nhist*/,
+void pen_EdepBody::tally_beginHist(const unsigned long long /*nhist*/,
 				  const unsigned /*kdet*/,
 				  const pen_KPAR /*kpar*/,
 				  const pen_particleState& state){
@@ -74,7 +74,7 @@ void pen_EdepBody::tally_beginHist(const double /*nhist*/,
   }
 }
 
-void pen_EdepBody::tally_step(const double /*nhist*/,
+void pen_EdepBody::tally_step(const unsigned long long /*nhist*/,
 			      const pen_KPAR /*kpar*/,
 			      const pen_particleState& state,
 			      const tally_StepData& stepData){
@@ -84,7 +84,7 @@ void pen_EdepBody::tally_step(const double /*nhist*/,
   edptmp[stepData.originIBODY] += stepData.softDE*state.WGHT;
 }
 
-void pen_EdepBody::tally_move2geo(const double /*nhist*/,
+void pen_EdepBody::tally_move2geo(const unsigned long long /*nhist*/,
 				 const unsigned /*kdet*/,
 				 const pen_KPAR /*kpar*/,
 				 const pen_particleState& state,
@@ -101,7 +101,7 @@ void pen_EdepBody::tally_move2geo(const double /*nhist*/,
 
 
 
-void pen_EdepBody::tally_endHist(const double /*nhist*/){
+void pen_EdepBody::tally_endHist(const unsigned long long /*nhist*/){
 
     flush();
 }
@@ -140,7 +140,7 @@ int pen_EdepBody::configure(const wrapper_geometry& /*geometry*/,
   return 0;
 }
 
-void pen_EdepBody::saveData(const double nhist) const{
+void pen_EdepBody::saveData(const unsigned long long nhist) const{
     
   FILE* out;
   double q, q2, sigma, invn;
@@ -160,7 +160,7 @@ void pen_EdepBody::saveData(const double nhist) const{
   fprintf(out, "#\n");
   fprintf(out, "# Body : Energy (eV/hist) : +-2sigma\n");  
   
-  invn = 1.0/nhist;
+  invn = 1.0/static_cast<double>(nhist);
   for(int i = 0; i < nBody; i++)
     {
       q  = edep[i]*invn;

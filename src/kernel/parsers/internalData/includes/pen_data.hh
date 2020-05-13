@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2020 Universitat de València - UV
+//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -69,6 +69,8 @@ enum pen_parserErrors{INTDATA_SUCCESS = 0,
 		      INTDATA_OPEN_FILE = -28,
 		      INTDATA_UNKNOWN_ERROR = -99
 };
+
+const char* pen_parserError(const int err);
 
 enum pen_parserDataTypes {CHAR, INT, DOUBLE, BOOL};
 enum pen_parserElementTypes {SCALAR,ARRAY,STRING};
@@ -791,8 +793,14 @@ inline std::string trim(const std::string& strin){
 }
 
 //Auxiliar functions
-int parseFile(const char*, pen_parserSection&);
+int parseFile(const char* filename,
+	      pen_parserSection& section,
+	      std::string& errorString,
+	      long unsigned& errorLine);
 
-int pen_getLine(FILE*, const unsigned, char[]);
+int pen_getLine(FILE* fin,
+		const unsigned size,
+		char* line,
+		unsigned long& nlines);
 
 #endif

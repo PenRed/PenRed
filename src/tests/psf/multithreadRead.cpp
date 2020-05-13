@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2020 Universitat de València - UV
+//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -35,7 +35,7 @@ void processPSF(pen_splittedFile* splittedFile, const unsigned ID, psf_specificS
 
   pen_particleState state;
   pen_KPAR genKpar = PEN_ELECTRON;
-  unsigned long dhist;
+  unsigned long long dhist;
   pen_rand random;
 
   char buffer[2000];
@@ -43,7 +43,7 @@ void processPSF(pen_splittedFile* splittedFile, const unsigned ID, psf_specificS
   sampler->sample(state,genKpar,dhist,random);
   while(genKpar != ALWAYS_AT_END){
     snprintf(buffer,2000,
-	     "  %5lu  %4u %s\n",
+	     "  %5llu  %4u %s\n",
 	     dhist,genKpar,state.stringifyBaseNoGeo().c_str());
     splittedFile->write(ID,buffer,strlen(buffer));
     sampler->sample(state,genKpar,dhist,random);

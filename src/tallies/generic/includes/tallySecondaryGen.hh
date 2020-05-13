@@ -65,11 +65,11 @@ public:
 					  USE_ENDHIST)
   {}
 
-  void tally_endPart(const double /*nhist*/,
+  void tally_endPart(const unsigned long long /*nhist*/,
 		     const pen_KPAR kpar,
 		     const pen_particleState& state);  
   
-  void tally_endHist(const double /*nhist*/);
+  void tally_endHist(const unsigned long long /*nhist*/);
 
   
   int configure(const wrapper_geometry& /*geometry*/,
@@ -77,7 +77,7 @@ public:
 		const pen_parserSection& /*config*/,
 		const unsigned verbose);
   
-  void saveData(const double nhist) const;
+  void saveData(const unsigned long long nhist) const;
   void flush();
   int sumTally(const pen_tallySecondary& tally);
 };

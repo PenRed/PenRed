@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2020 Universitat de València - UV
+//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -28,6 +28,44 @@
 
 
 #include "pen_data.hh"
+
+const char* pen_parserError(const int err){
+  switch(err){
+  case INTDATA_SUCCESS: return "Success";break;
+  case INTDATA_INVALID_KEY: return "Invalid key";break;
+  case INTDATA_NOT_A_SCALAR: return "Scalar expected";break;
+  case INTDATA_NOT_A_ARRAY: return "Array expected";break;
+  case INTDATA_NOT_A_STRING: return "String expected";break;
+  case INTDATA_NOT_A_SECTION: return "Section expected";break;
+  case INTDATA_KEY_IS_NOT_PATH: return "Key is not a path";break;
+  case INTDATA_NOT_A_CHAR: return "Character expected";break;
+  case INTDATA_NOT_A_INT: return "Integer expected";break;
+  case INTDATA_NOT_A_DOUBLE: return "Double expected";break;
+  case INTDATA_NOT_A_BOOL: return "Boolean expected";break;
+  case INTDATA_OUT_OF_RANGE: return "Out of range";break;
+  case INTDATA_BAD_ALLOCATION: return "Bad allocation";break;
+  case INTDATA_USED_KEY: return "Used key";break;
+  case INTDATA_UNUSED_KEY: return "Unused key";break;
+  case INTDATA_EMPTY_KEY: return "Empty key";break;
+  case INTDATA_NOT_A_ELEMENT: return "Is not an element";break;
+  case INTDATA_INVALID_PREFIX: return "Invalid prefix";break;
+  case INTDATA_KEY_NO_EXIST: return "Key doesn't exists";break;
+  case INTDATA_PARSE_STRING_EMPTY: return "Empty string";break;
+  case INTDATA_PARSE_STRING_PARTIAL_UNUSED:
+    return "Parsed string partially unused";break;
+  case INTDATA_PARSE_STRING_INVALID_CHARACTER:
+    return "Invalid parsed character";break;
+  case INTDATA_PARSE_STRING_INVALID_DATA: return "Invalid parsed data";break;
+  case INTDATA_PARSE_STRING_INVALID_ARRAY: return "Invalid parsed array";break;
+  case INTDATA_PARSE_STRING_INVALID_STRING: return "Invalid parsed string";break;
+  case INTDATA_PARSE_STRING_INVALID_ELEMENT: return "Invalid parsed element";break;
+  case INTDATA_PARSE_STRING_INVALID_VALUE: return "Invalid parsed value";break;
+  case INTDATA_NULL_STRING: return "Null string";break;
+  case INTDATA_OPEN_FILE: return "Null file pointer";break;
+  case INTDATA_UNKNOWN_ERROR: return "Unknown error";break;
+  default: return "Non tabulated error";
+  }
+}
 
 
 pen_parserData::pen_parserData(){
@@ -663,9 +701,9 @@ bool pen_parserSection::isSection(const std::string& key) const{
   return false;
 }
 bool pen_parserSection::isElement(const std::string& key) const{
-  if(elements.find(key) != elements.end())
+  if(elements.count(key) > 0)
     return true;
-  return false;  
+  return false;
 }
 int pen_parserSection::trusted_sectionRange(const std::string& key, elementMap::const_iterator& itlow, elementMap::const_iterator& itup) const{
 
@@ -997,7 +1035,10 @@ pen_parserSection::~pen_parserSection(){
 
 
 //Auxiliar functions
-int parseFile(const char* filename, pen_parserSection& section){
+int parseFile(const char* filename,
+	      pen_parserSection& section,
+	      std::string& errorString,
+	      long unsigned& errorLine){
 
   if(filename == nullptr){
     return INTDATA_NULL_STRING;
@@ -1015,30 +1056,41 @@ int parseFile(const char* filename, pen_parserSection& section){
 
   //Read and parse file lines
   char line[50000];
-  while(pen_getLine(fin,50000,line) == 0){
-
+  long unsigned lineNum = 0;
+  unsigned long read;
+  while(pen_getLine(fin,50000,line,read) == 0){
+    lineNum += read;
     int err = section.parse(line);
     if(err != INTDATA_SUCCESS)
-      if(err != INTDATA_PARSE_STRING_EMPTY)
+      if(err != INTDATA_PARSE_STRING_EMPTY){
+	errorLine = lineNum;
+	errorString.assign(line);
 	return err;
+      }
   }
 
   return INTDATA_SUCCESS;
 }
 
-int pen_getLine(FILE* fin, const unsigned size, char* line){
+int pen_getLine(FILE* fin,
+		const unsigned size,
+		char* line,
+		unsigned long& nlines){
 
-  //line will be filled with the next non comment line.
-  //The number of read lines will be returned or a negative
-  //value on error.
+  //'line' will be filled with the next non comment line.
+  //The number of read lines will be stored at 'nlines'
+  //The function will return 0 on success or a
+  //negative value on error.
 
+  nlines = 0;
+  
   //Check if input file is a null pointer
   if(fin == nullptr || line == nullptr){
     return -1;
   }
 
   while(fgets(line,size,fin) != nullptr){
-
+    nlines++;
     //Get pointer to \n if exists
     char* pn = strchr(line,'\n');
 

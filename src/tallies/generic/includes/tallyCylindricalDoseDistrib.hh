@@ -46,7 +46,7 @@ private:
   double edep[nbinmax];
   double edep2[nbinmax];
   double idens[nbinmax];
-  double nlast[nbinmax];
+  unsigned long long nlast[nbinmax];
   double dr,dz,idr,idz;
   double rmin,zmin,r2min,r2max; 
 
@@ -66,34 +66,34 @@ public:
   {}
   
   void updateEdepCounters(const double dE,
-                          const double nhist,
+                          const unsigned long long nhist,
                           const double X,
 			  const double Y,
 			  const double Z,
 			  const double WGHT);
  
   
-  void tally_localEdep(const double nhist,
+  void tally_localEdep(const unsigned long long nhist,
 		       const pen_KPAR /*kpar*/,
 		       const pen_particleState& state,
 		       const double dE);
   
-  void tally_beginPart(const double nhist,
+  void tally_beginPart(const unsigned long long nhist,
 		       const unsigned /*kdet*/,
 		       const pen_KPAR /*kpar*/,
 		       const pen_particleState& state);
   
-  void tally_beginHist(const double nhist,
+  void tally_beginHist(const unsigned long long nhist,
 		       const unsigned /*kdet*/,
 		       const pen_KPAR /*kpar*/,
 		       const pen_particleState& state);
 
-  void tally_step(const double nhist,
+  void tally_step(const unsigned long long nhist,
 		  const pen_KPAR /*kpar*/,
 		  const pen_particleState& state,
 		  const tally_StepData& stepData);
   
-  void tally_move2geo(const double nhist,
+  void tally_move2geo(const unsigned long long nhist,
 		      const unsigned /*kdet*/,
 		      const pen_KPAR /*kpar*/,
 		      const pen_particleState& state,
@@ -101,14 +101,14 @@ public:
 		      const double /*dstot*/);
   
   
-  void tally_endSim(const double /*nhist*/);
+  void tally_endSim(const unsigned long long /*nhist*/);
     
   int configure(const wrapper_geometry& geometry,
 		const abc_material* const materials[constants::MAXMAT],
 		const pen_parserSection& config,
 		const unsigned verbose);
   void flush();
-  void saveData(const double nhist) const;
+  void saveData(const unsigned long long nhist) const;
   int sumTally(const pen_CylindricalDoseDistrib& tally);
 };
 

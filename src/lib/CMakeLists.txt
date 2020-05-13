@@ -55,3 +55,6 @@ add_subdirectory(sharedFile)
 
 # auxiliar folder
 add_subdirectory(auxiliar)
+
+# load balance folder
+add_subdirectory(loadBalance)

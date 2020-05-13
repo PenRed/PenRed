@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2020 Universitat de València - UV
+//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -29,7 +29,7 @@
 
 #include "pen_phaseSpaceFile.hh"
 
-long int pen_psfwriter::store(const double nhist,
+long int pen_psfwriter::store(const unsigned long long nhist,
 			      const unsigned kpar,
 			      const pen_particleState& state){
   
@@ -55,7 +55,7 @@ long int pen_psfwriter::store(const double nhist,
   bufferDoubles[indexD+7] = state.WGHT;
   bufferDoubles[indexD+8] = state.PAGE;
 
-  long int increment = (unsigned long)(nhist-lastHist+0.5);
+  long int increment = (nhist-lastHist);
   bufferInts[indexI  ] = increment;
   bufferInts[indexI+1] = kpar;
   bufferInts[indexI+2] = state.LAGE;
@@ -125,22 +125,22 @@ int pen_psfwriter::write(FILE* fout,
   return PEN_PSF_SUCCESS;
 }
 
-double pen_psfreader::skip(const double nHists2Skip){
+unsigned long long pen_psfreader::skip(const unsigned long long nHists2Skip){
 
-  double toSkip = floor(nHists2Skip);
-  if(toSkip < 0.5)
-    return 0.0; //Nothing to do
+  unsigned long long toSkip = nHists2Skip;
+  if(toSkip == 0)
+    return 0; //Nothing to do
 
   //Iterate until specified number of histories or
   //the entire buffer have been skipped
-  double skipped = -0.5; // -0.5 to avoid rounding errors
+  unsigned long long skipped = 0;
   while(nRead < nStored){
 
     unsigned long indexI = baseStateInts*nRead;
     unsigned long dhist = (unsigned long)bufferInts[indexI];
 
-    skipped += (double)dhist;
-    if(skipped > toSkip){
+    skipped += dhist;
+    if(skipped >= toSkip){
       //Objective reached, doesn't skip current particle
       return toSkip;
     }
@@ -149,7 +149,7 @@ double pen_psfreader::skip(const double nHists2Skip){
   }
 
   //End of buffer
-  return ceil(skipped);  
+  return skipped;  
   
 }
 

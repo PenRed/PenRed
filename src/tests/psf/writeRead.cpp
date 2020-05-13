@@ -100,10 +100,10 @@ int main(int argc, char** argv){
   double probe = 0.4;
   double probg = 0.9;
 
-  double nhist = 1; //Ensure non zero history number
+  unsigned long long nhist = 1; //Ensure non zero history number
   for(size_t i = 0; i < dimBuffer1; i++){
     pen_KPAR kpar;
-    unsigned long dhist;
+    unsigned long long dhist;
     sampler.sample(states1[i],kpar,dhist,random);
 
     double rand = random.rand();

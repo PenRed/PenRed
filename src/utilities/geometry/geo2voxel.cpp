@@ -50,11 +50,16 @@ int main(int argc, char** argv){
 
   //Parse configuration file
   pen_parserSection config;
-  int err = parseFile(argv[1],config);
+  std::string errorLine;
+  long unsigned errorLineNum;
+  int err = parseFile(argv[1],config,errorLine,errorLineNum);
   
   if(err != INTDATA_SUCCESS){
     printf("Error parsing configuration.\n");
     printf("Error code: %d\n",err);
+    printf("Error message: %s\n",pen_parserError(err));
+    printf("Error located at line %lu, at text: %s\n",
+	   errorLineNum,errorLine.c_str());
     return -1;
   }
   

@@ -41,7 +41,7 @@ void pen_EdepMat::flush()
 }
 
  
-void pen_EdepMat::tally_localEdep(const double /*nhist*/,
+void pen_EdepMat::tally_localEdep(const unsigned long long /*nhist*/,
 				  const pen_KPAR /*kpar*/,
 				  const pen_particleState& state,
 				  const double dE){
@@ -50,7 +50,7 @@ void pen_EdepMat::tally_localEdep(const double /*nhist*/,
   edptmp[state.MAT-1] += dE*state.WGHT; 
 }
 
-void pen_EdepMat::tally_beginPart(const double /*nhist*/,
+void pen_EdepMat::tally_beginPart(const unsigned long long /*nhist*/,
 				  const unsigned /*kdet*/,
 				  const pen_KPAR /*kpar*/,
 				  const pen_particleState& state){
@@ -60,7 +60,7 @@ void pen_EdepMat::tally_beginPart(const double /*nhist*/,
 
 }
 
-void pen_EdepMat::tally_beginHist(const double /*nhist*/,
+void pen_EdepMat::tally_beginHist(const unsigned long long /*nhist*/,
 				  const unsigned /*kdet*/,
 				  const pen_KPAR /*kpar*/,
 				  const pen_particleState& state){
@@ -74,7 +74,7 @@ void pen_EdepMat::tally_beginHist(const double /*nhist*/,
   }
 }
 
-void pen_EdepMat::tally_step(const double /*nhist*/,
+void pen_EdepMat::tally_step(const unsigned long long /*nhist*/,
 			     const pen_KPAR /*kpar*/,
 			     const pen_particleState& state,
 			     const tally_StepData& stepData){
@@ -84,7 +84,7 @@ void pen_EdepMat::tally_step(const double /*nhist*/,
   edptmp[stepData.originMAT-1] += stepData.softDE*state.WGHT;
 }
 
-void pen_EdepMat::tally_move2geo(const double /*nhist*/,
+void pen_EdepMat::tally_move2geo(const unsigned long long /*nhist*/,
 				 const unsigned /*kdet*/,
 				 const pen_KPAR /*kpar*/,
 				 const pen_particleState& state,
@@ -101,7 +101,7 @@ void pen_EdepMat::tally_move2geo(const double /*nhist*/,
 
 
 
-void pen_EdepMat::tally_endHist(const double /*nhist*/){
+void pen_EdepMat::tally_endHist(const unsigned long long /*nhist*/){
 
     flush();
 }
@@ -140,7 +140,7 @@ int pen_EdepMat::configure(const wrapper_geometry& /*geometry*/,
   return 0;
 }
 
-void pen_EdepMat::saveData(const double nhist) const{
+void pen_EdepMat::saveData(const unsigned long long nhist) const{
     
   FILE* out;
   int i;
@@ -161,7 +161,7 @@ void pen_EdepMat::saveData(const double nhist) const{
   fprintf(out, "#\n");
   fprintf(out, "# Material : Energy (eV/hist) : +-2sigma\n");  
   
-  invn = 1.0/nhist;
+  invn = 1.0/static_cast<double>(nhist);
   for(i = 0; i < nmat; i++)
     {
       q  = edep[i]*invn;

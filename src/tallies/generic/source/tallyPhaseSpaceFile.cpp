@@ -39,12 +39,12 @@ std::mutex pen_tallyPhaseSpaceFile::SFlock;
 void pen_tallyPhaseSpaceFile::flush(){
 }
 
-void pen_tallyPhaseSpaceFile::tally_lastHist(const double lastHist){
+void pen_tallyPhaseSpaceFile::tally_lastHist(const unsigned long long lastHist){
   //Set last hist to phase space file
   psf.setLast(lastHist);
 }
 
-void pen_tallyPhaseSpaceFile::tally_interfCross(const double nhist,
+void pen_tallyPhaseSpaceFile::tally_interfCross(const unsigned long long nhist,
 						const unsigned kdet,
 						const pen_KPAR kpar,
 						const pen_particleState& state){
@@ -60,7 +60,7 @@ void pen_tallyPhaseSpaceFile::tally_interfCross(const double nhist,
   }
 }
 
-void pen_tallyPhaseSpaceFile::tally_matChange(const double nhist,
+void pen_tallyPhaseSpaceFile::tally_matChange(const unsigned long long nhist,
 					      const pen_KPAR kpar,
 					      const pen_particleState& state,
 					      const unsigned /*prevMat*/){
@@ -70,7 +70,7 @@ void pen_tallyPhaseSpaceFile::tally_matChange(const double nhist,
   }
 }
 
-void pen_tallyPhaseSpaceFile::tally_move2geo(const double nhist,
+void pen_tallyPhaseSpaceFile::tally_move2geo(const unsigned long long nhist,
 					     const unsigned kdet,
 					     const pen_KPAR kpar,
 					     const pen_particleState& state,
@@ -87,7 +87,7 @@ void pen_tallyPhaseSpaceFile::tally_move2geo(const double nhist,
   
 }
 
-void pen_tallyPhaseSpaceFile::tally_beginPart(const double /*nhist*/,
+void pen_tallyPhaseSpaceFile::tally_beginPart(const unsigned long long /*nhist*/,
 					      const unsigned kdet,
 					      const pen_KPAR /*kpar*/,
 					      const pen_particleState& /*state*/){
@@ -98,7 +98,7 @@ void pen_tallyPhaseSpaceFile::tally_beginPart(const double /*nhist*/,
   }
 }
 
-void pen_tallyPhaseSpaceFile::tally_endSim(const double /*nhist*/){
+void pen_tallyPhaseSpaceFile::tally_endSim(const unsigned long long /*nhist*/){
   //Dump residual states
   dump(true);
   pSF.get()->flush(getThread());
@@ -273,7 +273,7 @@ int pen_tallyPhaseSpaceFile::configure(const wrapper_geometry& /*geometry*/,
 }
 
 
-void pen_tallyPhaseSpaceFile::saveData(const double /*nhist*/) const{
+void pen_tallyPhaseSpaceFile::saveData(const unsigned long long /*nhist*/) const{
   
 }
 int pen_tallyPhaseSpaceFile::sumTally(const pen_tallyPhaseSpaceFile& /*tally*/){return 0;}
