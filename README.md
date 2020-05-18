@@ -54,7 +54,7 @@ make install
 With *ccmake* you can configure the optional PenRed features with a more friendly interface. But, of course, you can use directly *cmake* defining the appropriate flags like,
 
 ```
-cmake -DWITH_DICOM="ON" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DDEVELOPMENT_WARNINGS="OFF" ../
+cmake -DWITH_DICOM="ON" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DWITH_LB="OFF" -DDEVELOPMENT_WARNINGS="OFF" ../
 ```
 
 Once the code has been compiled, the user can found the executable of our provided main program ready to simulate at,
