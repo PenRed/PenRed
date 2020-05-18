@@ -48,6 +48,7 @@ class psf_specificSampler : public abc_specificSampler<pen_particleState>{
   std::shared_ptr<pen_sharedFile> pSF;
 
   pen_psfreader psf;
+  int npartitions;
   size_t nChunks;
   size_t chunksPerPart;
   size_t offsetChunks;
@@ -98,7 +99,9 @@ class psf_specificSampler : public abc_specificSampler<pen_particleState>{
     }
   }
 
-  void skip(const double dhists);
+  inline int partitions() const {return npartitions;}
+  
+  void skip(const unsigned long long dhists);
   
   void sample(pen_particleState& state,
 	      pen_KPAR& genKpar,

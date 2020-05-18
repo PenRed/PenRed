@@ -668,9 +668,9 @@ int main(int argc, char** argv){
   }
 	
   if(strcmp(argv[1],"--version") == 0 || strcmp(argv[1],"-v") == 0){
-    printf("PenRed 1.0.0\n");
-    printf("Copyright (c) 2019 Universitat Politecnica de Valencia\n");
-    printf("Copyright (c) 2019 Universitat de Valencia\n");
+    printf("PenRed 1.1.0\n");
+    printf("Copyright (c) 2019-2020 Universitat Politecnica de Valencia\n");
+    printf("Copyright (c) 2019-2020 Universitat de Valencia\n");
     printf("This is free software; see the source for copying conditions. "
 	   " There is NO\n warranty; not even for MERCHANTABILITY or "
            "FITNESS FOR A PARTICULAR PURPOSE.\n");

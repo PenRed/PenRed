@@ -38,3 +38,4 @@
 #include "tallySpatialDoseDistrib.cpp"
 #include "tallyAngularDetector.cpp"
 #include "tallyPhaseSpaceFile.cpp"
+#include "tallyKermaTrackLength.cpp"

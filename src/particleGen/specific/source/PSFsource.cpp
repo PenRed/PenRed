@@ -34,14 +34,14 @@ std::vector<
 
 std::mutex psf_specificSampler::SFlock;
 
-void psf_specificSampler::skip(const double dhists){
+void psf_specificSampler::skip(const unsigned long long  dhists){
 
-  double remaining = floor(dhists);
+  unsigned long long remaining = dhists;
 
   // Iterate until all histories has been skipped
-  while(remaining > 0.5){
+  while(remaining > 0){
 
-    double skipped = psf.skip(remaining);    
+    unsigned long long skipped = psf.skip(remaining);    
 
     // Check if end of particles chunk has been reached 
     if(skipped == 0){
@@ -110,7 +110,7 @@ void psf_specificSampler::sample(pen_particleState& state,
 	dhist = sumDHist;
 	splitted = 0;
 	requiredSplits = 0;      
-	return;
+    return;
       }
       
       //Read next chunk
@@ -126,7 +126,7 @@ void psf_specificSampler::sample(pen_particleState& state,
 	remainingChunks = 0;
 	splitted = 0;
 	requiredSplits = 0;      
-	return;      
+    return;      
       }
 
       //Substract remaining chunks
@@ -143,7 +143,7 @@ void psf_specificSampler::sample(pen_particleState& state,
 	dhist = sumDHist;
 	remainingChunks = 0;
 	splitted = 0;
-	requiredSplits = 0;            
+	requiredSplits = 0;  
 	return;            
       }
 
@@ -156,7 +156,7 @@ void psf_specificSampler::sample(pen_particleState& state,
 	dhist = sumDHist;
 	remainingChunks = 0;
 	splitted = 0;
-	requiredSplits = 0;      
+	requiredSplits = 0; 
 	return;
       }
     }
@@ -179,6 +179,10 @@ void psf_specificSampler::sample(pen_particleState& state,
     //Add history increment
     sumDHist += localDHist;
 
+    //Reset splitted particles
+    splitted = 1;
+    requiredSplits = 1;
+    
     //Check if russian roulette or splitting technics must be applied
     if(state.WGHT < WGHTL){
       // Russian roulette
@@ -199,12 +203,9 @@ void psf_specificSampler::sample(pen_particleState& state,
       //Calculate number of required splits
       requiredSplits = std::min(MAXsplit,unsigned(state.WGHT*RWGHTL));
       requiredSplits = std::min(NSPLIT,requiredSplits);
-
+      
       //If required, store current state for future copies 
       if(requiredSplits > 1){
-
-	//Reset splitted particles
-	splitted = 1;
 
 	//Store kpar
 	lastKpar = genKpar;
@@ -390,7 +391,6 @@ int psf_specificSampler::configure(double& Emax,
   
   // Read Number of partitions
   //***************************
-  int npartitions;
   err = config.read("npartitions", npartitions);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){

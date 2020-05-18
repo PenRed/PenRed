@@ -133,7 +133,7 @@ public:
     return bodies[ibody].KDET;
   }  
   
-  inline unsigned getElements() const{
+  inline unsigned long getElements() const{
     return NBODYS;
   }
 
@@ -186,8 +186,8 @@ private:
 
 protected:
   meshElement* mesh;
-  unsigned meshDim;
-  unsigned nElements;
+  unsigned long meshDim;
+  unsigned long nElements;
 
   double DSMAX[constants::MAXMAT];
   unsigned KDET[constants::MAXMAT];
@@ -245,7 +245,7 @@ public:
   inline const char* getType() const {return "MESH";}
   
   inline pen_meshStates getStatus() const {return meshStatus;}
-  inline unsigned getElements() const {
+  inline unsigned long getElements() const {
     return nElements;
   }
 
@@ -287,11 +287,11 @@ public:
     return 1.0e-15;
   };
 
-  inline const meshElement& readElement(const unsigned index) const{
+  inline const meshElement& readElement(const unsigned long index) const{
     if(index >= nElements)
       {
 	char error[300];
-	sprintf(error,"readElement: Ordered element (%u) out of range (%d)",index,nElements);
+	sprintf(error,"readElement: Ordered element (%lu) out of range (%lu)",index,nElements);
 	throw std::out_of_range(error);	
       }
     return mesh[index];    

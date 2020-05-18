@@ -227,13 +227,15 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
 
 void pen_voxelGeo::locate(pen_particleState& state) const{
 
-  int ix, iy, iz;
+  long int ix, iy, iz;
 
   ix = state.X/dx;
   iy = state.Y/dy;
   iz = state.Z/dz;
 
-  if(ix < 0 || ix >= (int)nx || iy < 0 || iy >= (int)ny || iz < 0 || iz >= (int)nz){
+  if(ix < 0 || (long unsigned)ix >= nx ||
+     iy < 0 || (long unsigned)iy >= ny ||
+     iz < 0 || (long unsigned)iz >= nz){
     //Particle scapes from geometry mesh
     state.IBODY = constants::MAXMAT;
     state.MAT = 0;
@@ -241,7 +243,7 @@ void pen_voxelGeo::locate(pen_particleState& state) const{
   else{
     //Particle is into geometry mesh, calculate vox
     //index and its material
-    unsigned index = iz*nxy + iy*nx + ix;
+    long int index = iz*nxy + iy*nx + ix;
     state.MAT = mesh[index].MATER;
     state.IBODY = state.MAT-1;
   }
@@ -259,10 +261,11 @@ void pen_voxelGeo::step(pen_particleState& state,
     
     //Check if the particle reaches the mesh in
     //each axis
-    double dsx, dsy, dsz;
-    if(!moveIn(state.X, state.U, dsx, Mdx) ||
-       !moveIn(state.Y, state.V, dsy, Mdy) ||
-       !moveIn(state.Z, state.W, dsz, Mdz)){
+    double dsxIn, dsyIn, dszIn;
+    double dsxOut, dsyOut, dszOut;
+    if(!moveIn(state.X, state.U, dsxIn, dsxOut, Mdx) ||
+       !moveIn(state.Y, state.V, dsyIn, dsyOut, Mdy) ||
+       !moveIn(state.Z, state.W, dszIn, dszOut, Mdz)){
     
       state.IBODY = constants::MAXMAT;
       state.MAT = 0;
@@ -276,9 +279,23 @@ void pen_voxelGeo::step(pen_particleState& state,
 
     //Move the particle the required distance to reach
     //geometry mesh on all axis.
+    double ds2allIn = std::max(std::max(dsxIn,dsyIn),dszIn);
+    //Check if the particle go out of the mesh when this distance is traveled
+    if(ds2allIn > 0.0){
+      double ds2someOut = std::min(std::min(dsxOut,dsyOut),dszOut);
+      if(ds2allIn >= ds2someOut){
+	//The particle doesn't reaches the mesh
+	state.IBODY = constants::MAXMAT;
+	state.MAT = 0;
+	DSEF = 1.0e35;
+	DSTOT = 1.0e35;
+	NCROSS = 0; //No interface crossed
 
-    double dsmax = std::max(std::max(dsx,dsy),dsz);
-    move(dsmax,state);
+	move(inf,state);	
+	return;
+      }
+    }    
+    move(ds2allIn,state);
 
     //Get voxel index and material 
     locate(state);
@@ -292,26 +309,21 @@ void pen_voxelGeo::step(pen_particleState& state,
     }
     
     NCROSS = 1; //Interface crossed
-    DSEF = dsmax; //Distance traveled in void
-    DSTOT = dsmax; //Total distance traveled
+    DSEF = ds2allIn; //Distance traveled in void
+    DSTOT = ds2allIn; //Total distance traveled
     
     return;
   }
   
   //Get voxel index for x, y and z axis
-  int ix, iy, iz;
-  size_t ivox;
+  long int ix, iy, iz;
+  unsigned long ivox;
 
   ix = state.X/dx;
   iy = state.Y/dy;
   iz = state.Z/dz;
 
   ivox = iz*nxy + iy*nx + ix;
-  
-  // ix Calculus
-  //ivox = iz*nxy + iy*nx + ix
-  //ivox % nx = iz*nxy % nx + iy*nx % nx + ix % nx
-  //ivox % nx =      0      +      0     +   ix
   
   //Particle direction cosinus inverse
   double invU, invV, invW;
@@ -399,7 +411,7 @@ void pen_voxelGeo::step(pen_particleState& state,
   for(;;){
     if(ds_x < ds_y && ds_x < ds_z){
 
-      ds_x = std::max(ds_x,0.0);      
+      ds_x = std::max(ds_x,0.0);
       if(crossVox(ds_x,imat,nx,voxInc_x,voxIncGlob_x,
 		  DS,ivox,ix,DSEF,DSTOT,NCROSS,state)){
 	//Particle cross an interface or consumed the step
@@ -469,7 +481,10 @@ int pen_voxelGeo::setVoxels(const unsigned nvox[3],
   if(err > 0) return err;
 
   //Resize mesh
-  resizeMesh(nvox[0]*nvox[1]*nvox[2]);
+  long unsigned ntvox = 
+  static_cast<long unsigned>(nvox[0])*static_cast<long unsigned>(nvox[1])*
+  static_cast<long unsigned>(nvox[2]);
+  resizeMesh(ntvox);
   if(getStatus() != PEN_MESH_INITIALIZED){
     if(verbose > 0){
       printf("pen_voxelGeo:setVoxels:Error: Unable to initialize the mesh with %u voxels.\n",nvox[0]*nvox[1]*nvox[2]);
@@ -480,8 +495,8 @@ int pen_voxelGeo::setVoxels(const unsigned nvox[3],
 
   //Store voxel number and size
   nx = nvox[0]; ny = nvox[1]; nz = nvox[2];
-  nxy = nx*ny;
-  nElements = nxy*nz;
+  nxy = static_cast<unsigned long>(nx)*static_cast<unsigned long>(ny);
+  nElements = nxy*static_cast<unsigned long>(nz);
     
   dx = size[0]; dy = size[1]; dz = size[2];
 
@@ -491,20 +506,20 @@ int pen_voxelGeo::setVoxels(const unsigned nvox[3],
   idz = 1.0/dz;
 
   //Calculate mesh size
-  Mdx = nx*dx;
-  Mdy = ny*dy;
-  Mdz = nz*dz;
+  Mdx = static_cast<double>(nx)*dx;
+  Mdy = static_cast<double>(ny)*dy;
+  Mdz = static_cast<double>(nz)*dz;
   
   
   //Fill the mesh
-  for(unsigned i = 0; i < getElements(); i++){
+  for(unsigned long i = 0; i < getElements(); i++){
     if(mats[i] == 0 || mats[i] >= constants::MAXMAT|| dens[i] <= 0.0){
       if(verbose > 0){
 	unsigned ix, iy, iz;
 	iz = i / nxy;
 	iy = (i-iz*nxy)/nx;
 	ix = i % nx;	
-	printf("pen_voxelGeo:setVoxels:Error: Voxels can't be filled with Void nor null density material: voxel %u (%u,%u,%u).\n",i, ix, iy, iz);
+	printf("pen_voxelGeo:setVoxels:Error: Voxels can't be filled with Void nor null density material: voxel %lu (%u,%u,%u).\n",i, ix, iy, iz);
 	printf("                             mat: %u\n",mats[i]);
 	printf("        density factor (vox/mat): %12.4E\n",dens[i]);
       }
@@ -611,7 +626,7 @@ int pen_voxelGeo::dump(unsigned char*& data,
 		       size_t& pos,
 		       const unsigned verbose) const {
 
-  if(getElements() == 0){
+  if(getElements() == 0lu){
     if(verbose > 0){
       printf("pen_voxelGeo:dump: Error: No elements to dump\n");
     }
@@ -625,7 +640,7 @@ int pen_voxelGeo::dump(unsigned char*& data,
   //Allocate memory to write data
   double sizes[3] = {dx,dy,dz};
   uint32_t nvox[3] = {nx,ny,nz};
-  unsigned totalVox = getElements();
+  unsigned long totalVox = getElements();
   unsigned* materials = nullptr;
   double* densityFacts = nullptr;
   materials    = (unsigned*) malloc(sizeof(unsigned)*totalVox);
@@ -643,7 +658,7 @@ int pen_voxelGeo::dump(unsigned char*& data,
   }
 
   //Fill materials and densities
-  for(unsigned i = 0; i < totalVox; i++){
+  for(unsigned long i = 0; i < totalVox; i++){
     materials[i]    = mesh[i].MATER;
     densityFacts[i] = mesh[i].densityFact;
   }
@@ -835,9 +850,10 @@ int pen_voxelGeo::printImage(const char* filename) const{
 }
 
 
-bool moveIn(const double pos,
+bool moveIn(double pos,
 	    const double dir,
-	    double& ds,
+	    double& ds2in,
+	    double& ds2out,
 	    const double max){
 
   //Check if a particle at position 'pos' and direction 'dir'
@@ -846,38 +862,46 @@ bool moveIn(const double pos,
   // This function asumes that geometry is in the interval [0,max)
   // Also, stores in 'ds' the distance until geometry is reached
 
-  const double fact = 0.9999999999999; 
-  
+  const double inf = 1.0e35;
+  const double eps = 1.0e-8;
+
   if(std::signbit(pos) || pos >= max){
-    const double inMax = max*fact;
-    const double eps = 1.0e-8;
     // position component is out of geometry,
     // check if is moving to it
     if(dir == 0.0){
-      //Particle is not moving on this axy, so never will reaches
-      //geometry mesh
-      ds = pen_voxelGeo::inf;
+      //Particle is not moving on this axy, so never will reaches the mesh
+      ds2in = ds2out = inf;	 
       return false;
     }
 
     if(std::signbit(dir) == std::signbit(pos)){
       //Particle is moving away from geometry
-      ds = pen_voxelGeo::inf;
+      ds2in = ds2out = inf;	 
       return false;	
     }
 
     //Particle will reach the geometry
     if(std::signbit(dir)){
       //Is moving on negative direction
-      ds = (inMax-pos)/dir+eps;
+      ds2in  = (max-pos)/dir+eps;
+      ds2out = pos/fabs(dir)-eps;
     }
     else{
       //Particle is moving on positive direction
-      ds = fabs(pos)/dir+eps;
+      ds2in  = fabs(pos)/dir+eps;
+      ds2out = (max-pos)/dir-eps;
     }
     return true;
   }
-  ds = 0.0;
+  ds2in = 0.0;
+  if(std::signbit(dir)){
+    //Negative direction
+    ds2out = pos/fabs(dir)-eps;
+  }
+  else{
+    //Positive direction
+    ds2out = (max-pos)/dir-eps;
+  }
   return true; //Particle is in geometry limits
 }
 
