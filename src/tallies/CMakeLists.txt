@@ -76,6 +76,7 @@ target_link_libraries(tallies pen_aux)
 target_link_libraries(tallies pen_internalData)
 target_link_libraries(tallies pen_splittedFile)
 target_link_libraries(tallies pen_psf)
+target_link_libraries(tallies pen_grids)
 
 if(WITH_MULTI_THREADING)
     #Link thread libs

@@ -81,7 +81,9 @@ int pen_logGrid::init(double EMINu, double EMAXu)
   return 0;
 }
 
-void pen_logGrid::getInterval(const double E, int& KE, double& XEL, double& XE, double& XEK) const
+void pen_logGrid::getInterval(const double E, int& KE,
+				     double& XEL, double& XE,
+				     double& XEK) const
 {
   XEL = log(E);
   XE = (XEL-DLEMP1)*DLFC;

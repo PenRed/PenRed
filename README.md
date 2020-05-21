@@ -29,6 +29,7 @@ The code must be compiled in the *src* folder. Thus, move into this folder. To s
 1. DICOMs: If it is enabled, PenRed capabilities to read and simulate DICOM images will be active. This option requires the library dicom toolkit (dcmtk).
 2. Multi-threading: This option enables multi-threading capabilities. PenRed implements multi-threading via the standard thread library specified in the C++11 standard. Thus, it is not required any extra library to enable this option.
 3. MPI: This option enables MPI simulations. It requires a library with an implementation of the MPI standard, such as openmpi or mpich.
+4. Load balance: Enables load balancing system between threads and MPI processes. This option requires, as least, multi-threading capabilities, because uses threads to handle MPI communications.
 
 Notice that all previous dependencies are optional. The corresponding libraries can be found at most linux package repositories. For example, to compile PenRed with DICOM support in Fedora, you can use the *dnf* command to install the dependencies,
 
@@ -54,7 +55,7 @@ make install
 With *ccmake* you can configure the optional PenRed features with a more friendly interface. But, of course, you can use directly *cmake* defining the appropriate flags like,
 
 ```
-cmake -DWITH_DICOM="ON" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DDEVELOPMENT_WARNINGS="OFF" ../
+cmake -DWITH_DICOM="ON" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DWITH_LB="OFF" -DDEVELOPMENT_WARNINGS="OFF" ../
 ```
 
 Once the code has been compiled, the user can found the executable of our provided main program ready to simulate at,
