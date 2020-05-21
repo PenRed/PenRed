@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2020 Universitat de València - UV
+//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -34,21 +34,26 @@
 #include "pen_constants.hh"
 
 class pen_SphericalDoseDistrib: public pen_genericTally<pen_particleState> {
-    DECLARE_TALLY(pen_SphericalDoseDistrib,pen_particleState)
-    
-private:
-    double r2min;
-    double r2max;
-    double rmin;
-    double idr,dr;
-    bool prtxyz;
-    int nbin;
-    static const int nbinmax=32000;
-    unsigned long long nlast[nbinmax];
-    double edptmp[nbinmax];
-    double edep[nbinmax];
-    double edep2[nbinmax];
-    double idens[nbinmax];
+  DECLARE_TALLY(pen_SphericalDoseDistrib,pen_particleState)
+  
+  private:
+  double r2min;
+  double r2max;
+  double rmin;
+  double idr,dr;
+  long int nr;
+  double idtheta,dtheta;
+  long int ntheta;
+  double idphi,dphi;
+  long int nphi;
+  bool prtxyz;
+  long unsigned nbins;
+  static const long unsigned nbinmax=100000;
+  double nlast[nbinmax];
+  double edptmp[nbinmax];
+  double edep[nbinmax];
+  double edep2[nbinmax];
+  double imass[nbinmax];
     
 public:
     
@@ -58,7 +63,7 @@ public:
 						 USE_STEP |
 						 USE_ENDSIM |
 						 USE_MOVE2GEO),
-			       nbin(0)
+			       nbins(0)
 
   {}
   

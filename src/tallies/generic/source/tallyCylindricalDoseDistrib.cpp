@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2020 Universitat de València - UV
+//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -39,56 +39,60 @@ void pen_CylindricalDoseDistrib::updateEdepCounters(const double dE,
   //Avoid count range (zmin-dz,zmin)
   if(Z < zmin) return;
   
-    int i,k;
+    long int i,k;
     double r2;
-    int bin = 0;
     
     k = (Z - zmin)*idz;
     if(k < 0 || k >= nz){return;}
 
     r2 = X*X + Y*Y;
     if (r2 < r2min || r2 >= r2max){return;}
-
+    
     // Bin index where score will be added
-    i = (int)((sqrt(r2) - rmin)*idr);
+    i = static_cast<long int>((sqrt(r2) - rmin)*idr);
+
+    long int phiBin = 0;
+    if(nphi > 1){
+      if(fabs(X) > 1.0e-10 || fabs(Y) > 1.0e-10){
+	double phi = atan2(Y,X);
+	if(std::signbit(phi))
+	  phi += 2.0*M_PI;
+	phiBin = phi*idphi;
+	if(phiBin >= nphi) --phiBin;
+      }
+    }
+    
     // Maps i,k into a single index
-    bin = i + k*nr;
+    long int bin = nr*(k*nphi + phiBin) + i;
     
     //Transfer partial to totals when a new history visits
-    if (nhist > nlast[bin])
-    {
-            edep[bin]  += edptmp[bin];
-            edep2[bin] += edptmp[bin]*edptmp[bin];
-            edptmp[bin] = dE*WGHT;
-            // Add 1/2 to avoid roundoff errors
-            nlast[bin]  = nhist;
+    if (nhist > nlast[bin]){
+      edep[bin]  += edptmp[bin];
+      edep2[bin] += edptmp[bin]*edptmp[bin];
+      edptmp[bin] = dE*WGHT;
+      // Add 1/2 to avoid roundoff errors
+      nlast[bin]  = nhist;
     }
-    else
-    {
-        //Same history as before, keep adding to temp counter
-        edptmp[bin] += dE*WGHT;
+    else{
+      //Same history as before, keep adding to temp counter
+      edptmp[bin] += dE*WGHT;
     }
 }
 
  void pen_CylindricalDoseDistrib::flush(){
     // Dump temp counters and obtain max score:
-    for(int k = 0; k < nz; k++)
-    {
-        for(int i = 0; i < nr; i++)
-        {
-            //Maps i,k into a single index
-            int bin = i + k*nr;  
-            // Skip empty bins
-            if (nlast[bin] < 0.5){ continue;}
-            // Transfer temp counter
-            edep[bin]  += edptmp[bin];   
-            edep2[bin] += edptmp[bin]*edptmp[bin];
-            // Reset counter
-            edptmp[bin]= 0.0;                  
-            // Reset last visited to avoid recounting in next report
-            nlast[bin] = 0.0;                  
-        }
-    }
+   for(long int bin = 0; bin < nbins; ++bin)
+     {
+       // Skip empty bins
+       if (nlast[bin] == 0){ continue;}
+       // Transfer temp counter
+       edep[bin]  += edptmp[bin];   
+       edep2[bin] += edptmp[bin]*edptmp[bin];
+       // Reset counter
+       edptmp[bin]= 0.0;                  
+       // Reset last visited to avoid recounting in next report
+       nlast[bin] = 0;                  
+     }    
  }
  
  
@@ -159,17 +163,16 @@ void pen_CylindricalDoseDistrib::tally_move2geo(const unsigned long long nhist,
 
 
 int pen_CylindricalDoseDistrib::configure(const wrapper_geometry& geometry,
-					const abc_material* const materials[constants::MAXMAT],
-					const pen_parserSection& config,
-                    const unsigned verbose
+					  const abc_material* const materials[constants::MAXMAT],
+					  const pen_parserSection& config,
+					  const unsigned verbose
 ){
-    int k;
     double rmax, zmax;
     // A bit more than one
     const double oneplus = 1.0+1.0E-12;  
     // A bit less than one
     const double oneminus= 1.0-1.0E-12;  
-    int i, err; 
+    int err; 
     
     err = config.read("rmin", rmin);
     if(err != INTDATA_SUCCESS){
@@ -186,13 +189,15 @@ int pen_CylindricalDoseDistrib::configure(const wrapper_geometry& geometry,
         }
         return -2;
     }
-    err = config.read("nbinsr", nr);
+    int auxInt;
+    err = config.read("nbinsr", auxInt);
     if(err != INTDATA_SUCCESS){
         if(verbose > 0){
             printf("pen_CylindricalDoseDistrib:configure:unable to read 'nr', number of r bins, in configuration. Integrer expected\n");
         }
         return -3;
     }
+    nr = auxInt;
     
 
     
@@ -260,14 +265,14 @@ int pen_CylindricalDoseDistrib::configure(const wrapper_geometry& geometry,
         }
         return -9;
     }
-    err = config.read("nbinsz", nz);
+    err = config.read("nbinsz", auxInt);
     if(err != INTDATA_SUCCESS){
         if(verbose > 0){
             printf("pen_CylindricalDoseDistrib:configure:unable to read 'nz', number of z bins, in configuration. Integrer expected\n");
         }
         return -10;
     }
-    
+    nz = auxInt; 
 
     
     if(zmin > zmax){
@@ -302,13 +307,32 @@ int pen_CylindricalDoseDistrib::configure(const wrapper_geometry& geometry,
         dz = (zmax - zmin)/nz;
         idz = 1.0/dz;
     }
+
+    err = config.read("nbinsPhi", auxInt);
+    if(err != INTDATA_SUCCESS){
+      nphi = 1;
+    }
+    else{
+      if(auxInt <= 0 || auxInt >= nbinmax){
+        if(verbose > 0){
+	  printf("pen_CylindricalDoseDistrib:configure: Number of phi bins "
+		 "must be greater than zero and lesser than %ld\n"
+		 "    Specified phi bins: %d\n", nbinmax,auxInt);
+        }
+        return -14;
+      }
+      nphi = auxInt;
+    }
+    dphi = 2.0*M_PI/static_cast<double>(nphi);
+    idphi = 1.0/dphi;
     
-    rnbin = nr*nz; 
+    nbins = nr*nphi*nz; 
    
-    if(rnbin > nbinmax)
+    if(nbins > nbinmax)
     {
         if(verbose > 0){
-        printf("pen_CylindricalDoseDistrib:configure:Too many bins. Max no.bins is %d\n", nbinmax);
+        printf("pen_CylindricalDoseDistrib:configure:Too many bins. "
+	       "Max no.bins is %ld\n", nbinmax);
         }
         return -14;
     }
@@ -316,13 +340,13 @@ int pen_CylindricalDoseDistrib::configure(const wrapper_geometry& geometry,
  
     
      // Init arrays:
-    for(int unsigned j = 0; j < nbinmax; j++)
+    for(unsigned long j = 0; j < nbinmax; j++)
     {
       edptmp[j] = 0.0;
       edep[j]   = 0.0;
       edep2[j]  = 0.0;
-      nlast[j]  = 0.0;
-      idens[j]  = 0.0;
+      nlast[j]  = 0;
+      imass[j]  = 0.0;
     }
     
     pen_particleState state;
@@ -333,39 +357,57 @@ int pen_CylindricalDoseDistrib::configure(const wrapper_geometry& geometry,
     state.W = 1.0;
     state.X = 0.0;
     state.Y = 0.0;
-    
-    for(k = 0; k < nz; k++)
+
+    double dphiz;
+    if(idz == 0.0)
+      dphiz = dphi;
+    else
+      dphiz = dphi*dz;
+    for(long int k = 0; k < nz; ++k)
     {
-        state.Z = zmin + dz*(k + 0.5);
-        for(i = 0; i < nr; i++)
-        {
+      state.Z = zmin + dz*(static_cast<double>(k) + 0.5);
+      for(long int j = 0; j < nphi; ++j){
+	double phi = (static_cast<double>(j)+0.5)*dphi;
+	double sphi = sin(phi);
+	double cphi = cos(phi);
+        for(long int i = 0; i < nr; ++i)
+	  {
+	    double rho1 = rmin + dr*static_cast<double>(i);
+	    double rho  = rho1 + dr*0.5;
             //This is to locate a point and find its material
-            state.X = rmin + dr*(i+0.5);  
-            int bin = i + k*nr;
+            state.X = rho*cphi;
+            state.Y = rho*sphi;
+            long int bin = nr*(k*nphi + j) + i;
             geometry.locate(state);
             if(state.MAT > 0)
-            {
+	      {
                 //Local mass density
-                double localdens = materials[state.MAT-1]->readDens(); 
-                if (localdens > 0.0){idens[bin] = 1.0/localdens;}
-            }
-        }
+                double localdens = materials[state.MAT-1]->readDens();
+		double rho2 = rho1+dr;
+		double volume = 0.5*(rho2*rho2-rho1*rho1)*dphiz;
+		double mass = volume*localdens;
+                if (mass > 0.0){imass[bin] = 1.0/mass;}
+	      }
+	  }
+      }
     }
 
    if(verbose > 1){
-    printf("Number of radial bins: %d\n",nr);
+    printf("Number of radial bins: %ld\n",nr);
     printf("Minimum r value (cm): %12.5E\n",rmin);
     printf("Bin width radial (cm): %12.5E\n",dr);
-    printf("Number of depth bins: %d\n",nz);
+    printf("Number of depth bins: %ld\n",nz);
     printf("Minimum z value (cm): %12.5E\n",zmin);
     printf("Bin width depth (cm): %12.5E\n",dz);
+    printf("Number of angular bins: %ld\n",nphi);
+    printf("Bin width angular (rad): %12.5E\n",dphi);
   }  
     
   //Register data to dump
-  dump.toDump(idens,rnbin);
-  dump.toDump(edep,rnbin);
-  dump.toDump(edep2,rnbin);
-  dump.toDump(&rnbin,1);    
+  dump.toDump(imass,nbins);
+  dump.toDump(edep,nbins);
+  dump.toDump(edep2,nbins);
+  dump.toDump(&nbins,1);    
     
   return 0;   
     
@@ -381,24 +423,18 @@ void pen_CylindricalDoseDistrib::saveData(const unsigned long long nhist) const{
    
   char buffer[81];
   FILE*out = 0;
-  int i,k,nzef;
-  double q,sigma,fact,r,z,rave,zmiddle;
-  double invdr2,invn,factidz;
+  int nzef;
   const double twothird=2.0/3.0;
-  const double invpi=1.0/constants::PI;
 
-  int bin = 0;
   //Prepare z factors and filename
   if(idz == 0.0)   // No z bins
     {
       nzef = 0;
-      factidz = 1.0;
       strcpy(buffer,"radialDoseDistrib.dat");
     }
   else
     {
       nzef = nz;
-      factidz = idz;
       strcpy(buffer,"cylindricalDoseDistrib.dat");
     }
      
@@ -425,9 +461,11 @@ void pen_CylindricalDoseDistrib::saveData(const unsigned long long nhist) const{
     }
   fprintf(out,"#\n");
   fprintf(out,"# Radial (r) info -> Number of bins, minimum value, bin width (cm):\n");
-  fprintf(out,"# %4d %12.5E %12.5E\n",nr,rmin,dr);
+  fprintf(out,"# %4ld %12.5E %12.5E\n",nr,rmin,dr);
   fprintf(out,"# Depth (z) info -> Number of bins, minimum value, bin width (cm):\n");
-  fprintf(out,"# %4d %12.5E %12.5E\n",nz,zmin,dz);
+  fprintf(out,"# %4ld %12.5E %12.5E\n",nz,zmin,dz);
+  fprintf(out,"# Angular (phi) info -> Number of bins, bin width (rad):\n");
+  fprintf(out,"# %4ld %12.5E\n",nphi,dphi);
     
   if (prtxyz == 1){
     fprintf(out,"#\n");
@@ -440,53 +478,58 @@ void pen_CylindricalDoseDistrib::saveData(const unsigned long long nhist) const{
   fprintf(out,"# ");
   if (prtxyz == 1){
     fprintf(out,"rBinIndex :  rLow(cm)  :  rAve(cm)  : ");
+    fprintf(out,"phiBinIndex : phiLow(DEG) : phiMiddle(DEG) : ");
     if (nzef != 0)
       {
 	fprintf(out,"zBinIndex : zLow(cm) : zMiddle(cm) : ");
       }
   }
-  fprintf(out,"   dose   : +-2sigma\n");
+  fprintf(out,"   dose   : +-2sigma : energy(eV) : +-2sigma :\n");
                 
   // Write data:    
-  invn = 1.0/static_cast<double>(nhist);  
-    
-  for(k = 0; k < nz; k++)
-    {
-      z = zmin + dz*k;
-      zmiddle = z + dz*0.5;
-      // Since z is not written, give at least a summary
-      if(nzef != 0 && prtxyz != 1)    
-        {
-	  fprintf(out,"# zBinIndex=%-3d zMiddle(cm)=%12.5E\n",k,zmiddle);
-        }
-      for( i = 0; i < nr; i++)
-        {
-	  r = rmin + dr*i;
-	  // Note: dr2 = (r+dr)^2-r^2
-	  invdr2 = 1.0/(dr*(dr+2.0*r));   
-	  if (prtxyz == 1)
-            {
-	      // Average with weight(r)~r
-	      rave = twothird*((r+dr)*(r+dr)*(r+dr)-r*r*r)*invdr2; 
-	      fprintf(out,"   %5d    %12.5E %12.5E",i,r,rave);
-            }
-	  if (nzef != 0 && prtxyz == 1)
-            {
-	      fprintf(out,"   %5d    %12.5E %12.5E",k,z,zmiddle);
-            }
-	  bin = i+k*nr;
-	  fact = factidz*idens[bin]*invpi*invdr2;
-	  q = edep[bin]*invn;
-	  sigma = sqrt((edep2[bin]*invn-q*q)*invn > 0.0 ? (edep2[bin]*invn-q*q)*invn : 0.0)*fact;
-	  q = q*fact;
-	  fprintf(out," %12.5E  %8.1E\n",q,2.0*sigma);
-
-        }
-
-      // Separate data blocks
-      if (nr > 1){ fprintf(out,"  \n");}                  
-
+  double invn = 1.0/static_cast<double>(nhist);  
+  const double rad2deg = 180.0/M_PI;
+  for(long int k = 0; k < nz; ++k){
+    double z = zmin + dz*static_cast<double>(k);
+    double zmiddle = z + dz*0.5;
+    // Since z is not written, give at least a summary
+    if(nzef != 0 && prtxyz != 1){
+      fprintf(out,"# zBinIndex=%-3ld zMiddle(cm)=%12.5E\n",k,zmiddle);
     }
+    for(long int j = 0; j < nphi; ++j){
+      double phi       = dphi*(static_cast<double>(j));
+      double phimiddle = phi + dphi*0.5;
+      if(nphi > 1 && prtxyz != 1){
+	fprintf(out,"# phiBinIndex=%-3ld phiMiddle(DEG)=%12.5E\n",j,phimiddle);
+      }
+      for(long int i = 0; i < nr; ++i){
+	double r = rmin + dr*static_cast<double>(i);
+	double rave;
+	// Note: dr2 = (r+dr)^2-r^2
+	double invdr2 = 1.0/(dr*(dr+2.0*r));   
+	if(prtxyz == 1){
+	  // Average with weight(r)~r
+	  rave = twothird*((r+dr)*(r+dr)*(r+dr)-r*r*r)*invdr2; 
+	  fprintf(out,"   %5ld    %12.5E %12.5E"
+		  "    %5ld       %12.5E     %12.5E ",
+		  i,r,rave,j,phi*rad2deg,phimiddle*rad2deg);
+	}
+	if(nzef != 0 && prtxyz == 1){
+	  fprintf(out,"  %5ld    %12.5E %12.5E",k,z,zmiddle);
+	}
+	long int bin = nr*(k*nphi + j) + i;
+	double fact = imass[bin];
+	double q = edep[bin]*invn;
+	double sigma = sqrt((edep2[bin]*invn-q*q)*invn > 0.0 ? (edep2[bin]*invn-q*q)*invn : 0.0);
+	fprintf(out," %12.5E  %8.1E %12.5E  %8.1E\n",
+		q*fact,2.0*sigma*fact,q,2.0*sigma);
+      }
+      // Separate data blocks
+      if (nphi > 1){ fprintf(out,"  \n");}	
+    }
+    // Separate data blocks
+    if (nr > 1){ fprintf(out,"  \n");}
+  }
         
   fclose(out); 
 }
@@ -494,13 +537,13 @@ void pen_CylindricalDoseDistrib::saveData(const unsigned long long nhist) const{
 int pen_CylindricalDoseDistrib::sumTally(const pen_CylindricalDoseDistrib& tally){
     
     
-    if(rnbin != tally.rnbin)
+    if(nbins != tally.nbins)
         return -1;
     
-    for(int i = 0; i < rnbin; ++i){
+    for(int i = 0; i < nbins; ++i){
         edep[i] += tally.edep[i];
     }
-    for(int i = 0; i < rnbin; ++i){
+    for(int i = 0; i < nbins; ++i){
         edep2[i] += tally.edep2[i];
     }
 

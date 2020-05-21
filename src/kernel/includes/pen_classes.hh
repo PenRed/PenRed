@@ -120,7 +120,7 @@ public:
   virtual double getDSMAX(const unsigned ibody) const = 0;
   virtual unsigned getDET(const unsigned ibody) const = 0;
   virtual unsigned getMat(const unsigned ibody) const = 0;
-  virtual unsigned getElements() const = 0;
+  virtual unsigned long getElements() const = 0;
   virtual unsigned getBodies() const = 0;
   virtual unsigned getIBody(const char* elementName) const = 0;
   virtual ~wrapper_geometry(){}
@@ -824,6 +824,22 @@ public:
   virtual void getInterval(const double E, int& KE, double& XEL, double& XE, double& XEK) const = 0;
   
   virtual ~abc_grid(){};
+};
+
+template<size_t dim>
+class abc_genericGrid{
+public:
+  static const size_t size = dim;
+  double EMIN, EL, EU, ET[size], DLEMP[size], DLEMP1, DLFC;
+
+  bool initialized;
+
+  abc_genericGrid() : initialized(false){}
+  
+  virtual int init(double EMINu, double EMAXu) = 0;
+  virtual void getInterval(const double E, long int& KE,
+			   double& XEL, double& XE, double& XEK) const = 0;  
+  virtual ~abc_genericGrid(){};
 };
 
 #endif

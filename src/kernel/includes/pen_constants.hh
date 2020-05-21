@@ -58,7 +58,7 @@ const unsigned int NEX = 1024;
  
 const unsigned int NTP = 12000; //  ****  Photoelectric cross sections.
 
-const unsigned int NRX = 60000; // RELAX
+const unsigned long int NRX = 60000; // RELAX
 
 const unsigned int NMS = 5000; //Secondary stack size
 

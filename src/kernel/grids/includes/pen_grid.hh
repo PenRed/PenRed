@@ -57,6 +57,60 @@ public:
   
 };
 
+template<size_t gridSize>
+class pen_genericLogGrid : public abc_genericGrid<gridSize>{
+  using baseType = abc_genericGrid<gridSize>;
+public:
+  //  NOTE: To determine the interval KE where the energy E is located, we
+  //  do the following,
+  //     XEL=LOG(E)
+  //     XE=(XEL-DLEMP1)*DLFC
+  //     KE=XE
+  //     XEK=XE-KE  ! 'fractional' part of XE (used for interpolation).
+  //
+
+  pen_genericLogGrid() : abc_genericGrid<gridSize>() {}
+
+  int init(double EMINu, double EMAXu){
+
+    //  ****  Consistency of the interval end-points.
+  
+    if(EMINu >= EMAXu)
+      {
+	return 1;
+      }
+
+    //  ****  Energy grid points.
+
+    baseType::EMIN = EMINu;
+    baseType::EL = 0.99999*EMINu;
+    baseType::EU = 1.00001*EMAXu;
+    baseType::DLFC = log(baseType::EU/baseType::EL)/double(baseType::size-1);
+    baseType::DLEMP1 = log(baseType::EL);
+    baseType::DLEMP[0] = baseType::DLEMP1;
+    baseType::ET[0] = baseType::EL;
+    for(unsigned int I = 1; I < baseType::size; I++)
+      {
+	baseType::DLEMP[I] = baseType::DLEMP[I-1]+baseType::DLFC;
+	baseType::ET[I] = exp(baseType::DLEMP[I]);
+      }
+    baseType::DLFC = (double)1.0/baseType::DLFC;
+
+    baseType::initialized = true;
+    return 0;
+  }
+  void getInterval(const double E, long int& KE,
+		   double& XEL,double& XE,
+		   double& XEK) const{
+
+    XEL = log(E);
+    XE = (XEL-baseType::DLEMP1)*baseType::DLFC;
+    KE = (int)XE;
+    XEK = XE-KE;
+  }
+  
+};
+
 void SPLINE(double* X,
 	    double* Y,
 	    double* A,

@@ -47,11 +47,12 @@ struct pen_voxel : pen_baseMesh{
 };
 
 class pen_voxelGeo : public abc_mesh<pen_voxel>{
-DECLARE_GEOMETRY(pen_voxelGeo)
+  DECLARE_GEOMETRY(pen_voxelGeo)
   
-protected:
+  protected:
   //Number of voxels
-  unsigned nx, ny, nz, nxy;
+  unsigned nx, ny, nz;
+  unsigned long nxy;
   //Voxels size
   double dx, dy, dz;
   double idx, idy, idz;
@@ -65,8 +66,8 @@ protected:
 		const int dvox1D,
 		const int dvox3D,
 		double& remaining,
-		size_t& ivox,
-		int& iaxis,
+		unsigned long& ivox,
+		long int& iaxis,
 		double& DSEF,
 		double& DSTOT,
 		int& NCROSS,
@@ -139,8 +140,8 @@ inline bool pen_voxelGeo::crossVox(const double ds,
 				   const int dvox1D,
 				   const int dvox3D,
 				   double& remaining,
-				   size_t& ivox,
-				   int& iaxis,
+				   unsigned long& ivox,
+				   long int& iaxis,
 				   double& DSEF,
 				   double& DSTOT,
 				   int& NCROSS,
@@ -183,7 +184,7 @@ inline bool pen_voxelGeo::crossVox(const double ds,
   }
 
   iaxis += dvox1D;  // Update axis voxel index
-  if(iaxis < 0 || iaxis >= (int)nvoxAxis){ // Particle scapes from geometry	
+  if(iaxis < 0 || iaxis >=(long int)nvoxAxis){ // Particle scapes from geometry	
     NCROSS = 1;
     state.IBODY = constants::MAXMAT;
     state.MAT = 0;
@@ -214,8 +215,9 @@ inline bool pen_voxelGeo::crossVox(const double ds,
 }
 
 
-bool moveIn(const double pos,
+bool moveIn(double pos,
 	    const double dir,
-	    double& ds,
+	    double& ds2in,
+	    double& ds2out,
 	    const double max);
 #endif
