@@ -235,6 +235,10 @@ void pen_tallyKermaTrackLength::kermaTrackLengthCyl(const unsigned long long nhi
   //   z = z
   
   using namespace pen_tally_KTL;
+
+  //Check if both points are inside the minimus radius
+  if(p1cyl.x <= radCylmin && p2cyl.x <= radCylmin)
+    return; //Nothing to score
   
   //Precalculate some values
   double dx2 = dp.x*dp.x;
@@ -397,13 +401,25 @@ void pen_tallyKermaTrackLength::kermaTrackLengthCyl(const unsigned long long nhi
   
   //Get the corresponding bin index for each "in" coordinate
   vect3i ibin;
-  ibin.x = in.x/dbinCyl.x;
+  if(radCylmin > 1.0e-9)
+    if(in.x < radCylmin)
+      ibin.x = 0;
+    else
+      ibin.x = 1+static_cast<long int>((in.x-radCylmin)/dbinCyl.x);
+  else
+    ibin.x = in.x/dbinCyl.x;
   ibin.y = in.y/dbinCyl.y;
   ibin.z = (in.z-zminCyl)/dbinCyl.z;
 
   //Get the corresponding bin index for each "out" coordinate
   vect3i obin;
-  obin.x = out.x/dbinCyl.x;
+  if(radCylmin > 1.0e-9)
+    if(out.x < radCylmin)
+      obin.x = 0;
+    else
+      obin.x = 1+(out.x-radCylmin)/dbinCyl.x;
+  else
+    obin.x = out.x/dbinCyl.x;
   obin.y = out.y/dbinCyl.y;
   obin.z = (out.z-zminCyl)/dbinCyl.z;
   
@@ -828,6 +844,10 @@ void pen_tallyKermaTrackLength::kermaTrackLengthSph(const unsigned long long nhi
   // theta = atan2(sqrt(x*x+y*y),z)
   
   using namespace pen_tally_KTL;
+
+  //Check if both points are inside the minimus radius
+  if(p1sph.x <= radSphmin && p2sph.x <= radSphmin)
+    return; //Nothing to score
   
   //Precalculate some values
   double dx2 = dp.x*dp.x;
@@ -1018,13 +1038,25 @@ void pen_tallyKermaTrackLength::kermaTrackLengthSph(const unsigned long long nhi
   
   //Get the corresponding bin index for each "in" coordinate
   vect3i ibin;
-  ibin.x = in.x/dbinSph.x;
+  if(radSphmin > 1.0e-9)
+    if(in.x < radSphmin)
+      ibin.x = 0;
+    else
+      ibin.x = 1+static_cast<long int>((in.x-radSphmin)/dbinSph.x);
+  else  
+    ibin.x = in.x/dbinSph.x;
   ibin.y = in.y/dbinSph.y;
   ibin.z = in.z/dbinSph.z;
 
   //Get the corresponding bin index for each "out" coordinate
   vect3i obin;
-  obin.x = out.x/dbinSph.x;
+  if(radSphmin > 1.0e-9)
+    if(out.x < radSphmin)
+      obin.x = 0;
+    else
+      obin.x = 1+(out.x-radSphmin)/dbinSph.x;
+  else
+    obin.x = out.x/dbinSph.x;
   obin.y = out.y/dbinSph.y;
   obin.z = out.z/dbinSph.z;
 
@@ -1569,6 +1601,8 @@ void pen_tallyKermaTrackLength::tally_step(const unsigned long long nhist,
 
   if(kpar != kparTrig)
     return;
+  if(!activeMat[stepData.originMAT])
+    return;
   //Check energy to avoid count energies in the range (emin-ebin,emin)
   if(state.E < grid.EL || state.E >= grid.EU){
     return;
@@ -1686,7 +1720,8 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& /*geometry*/,
   C.reserve(nbinmax);  D.reserve(nbinmax);
 
   bool someMat = false;
-  for(unsigned imat = 0; imat < constants::MAXMAT; ++imat){
+  activeMat[0] = false;
+  for(unsigned imat = 1; imat < constants::MAXMAT; ++imat){
 
     activeMat[imat] = false;
     
@@ -2007,15 +2042,26 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& /*geometry*/,
     }
 
     //Limits
-    err = config.read("cylindrical/radius", radCyl);
+    err = config.read("cylindrical/rmax", radCyl);
     if(err != INTDATA_SUCCESS){
       if(verbose > 0){
 	printf("pen_tallyKermaTrackLength:configure: Error: Unable to read "
-	       "'cylindrical/radius' in configuration. Double expected\n");
+	       "'cylindrical/rmax' in configuration. Double expected\n");
       }
       return -14;
     }
 
+    err = config.read("cylindrical/rmin", radCylmin);
+    if(err != INTDATA_SUCCESS){
+      radCylmin = 0.0;
+    }
+    long int effrbins = nbinsCyl.x;
+    if(radCylmin < 1.0e-8)
+      radCylmin = 0.0;
+    else
+      ++nbinsCyl.x; //Use an extra fake bin for the interval [0.0,radmin)
+
+    
     err = config.read("cylindrical/zmin", zminCyl);
     if(err != INTDATA_SUCCESS){
       if(verbose > 0){
@@ -2038,10 +2084,10 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& /*geometry*/,
 	     "    r: %14.4E - %14.4E (cm)\n"
 	     "  phi: %14f - %14f (DEG)\n"
 	     "    z: %14.4E - %14.4E (cm)\n",
-	     0.0,radCyl,0.0,360.0,zminCyl,zmaxCyl);
+	     radCylmin,radCyl,0.0,360.0,zminCyl,zmaxCyl);
     }
 
-    if(radCyl < 1.0e-8 ||
+    if(radCyl < 1.0e-8 || radCylmin >= radCyl ||
        zminCyl >= zmaxCyl){
       if(verbose > 0){
 	printf("pen_tallyKermaTrackLength:configure: Error: Cylindrical mesh "
@@ -2052,7 +2098,7 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& /*geometry*/,
 
     heightCyl = zmaxCyl - zminCyl;
     
-    dbinCyl.x = radCyl/static_cast<double>(nbinsCyl.x);
+    dbinCyl.x = (radCyl-radCylmin)/static_cast<double>(effrbins);
     dbinCyl.y = 2.0*M_PI/static_cast<double>(nbinsCyl.y);
     dbinCyl.z = heightCyl/static_cast<double>(nbinsCyl.z);
 
@@ -2063,10 +2109,17 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& /*geometry*/,
 	     "   z: %14.4E (cm)\n",
 	     dbinCyl.x,dbinCyl.y,dbinCyl.z);
     }
-    
-    for(long int i = 0; i < nbinsCyl.x; ++i)      
-      rPlanesCyl[i] = static_cast<double>(i+1)*dbinCyl.x;
-    for(long int i = 0; i < nbinsCyl.y+1; ++i)      
+
+    if(radCylmin > 1.0e-9){
+      rPlanesCyl[0] = radCylmin;
+    }
+    else{
+      rPlanesCyl[0] = dbinCyl.x;
+    }
+    double rhomin = rPlanesCyl[0];
+    for(long int i = 1; i < nbinsCyl.x; ++i)
+      rPlanesCyl[i] = rhomin+static_cast<double>(i)*dbinCyl.x;
+    for(long int i = 0; i < nbinsCyl.y+1; ++i)
       phiPlanesCyl[i] = static_cast<double>(i)*dbinCyl.y;
     for(long int i = 0; i < nbinsCyl.z+1; ++i)
       zPlanesCyl[i] = zminCyl + static_cast<double>(i)*dbinCyl.z;
@@ -2126,32 +2179,42 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& /*geometry*/,
     }
 
     //Limits
-    err = config.read("spherical/radius", radSph);
+    err = config.read("spherical/rmax", radSph);
     if(err != INTDATA_SUCCESS){
       if(verbose > 0){
 	printf("pen_tallyKermaTrackLength:configure: Error: Unable to read "
-	       "'spherical/radius' in configuration. Double expected\n");
+	       "'spherical/rmax' in configuration. Double expected\n");
       }
       return -14;
     }
-    
+    err = config.read("spherical/rmin", radSphmin);
+    if(err != INTDATA_SUCCESS){
+      radSphmin = 0.0;
+    }
+
+    long int effrbins = nbinsSph.x;
+    if(radSphmin < 1.0e-8)
+      radSphmin = 0.0;
+    else
+      ++nbinsSph.x; //Use an extra fake bin for the interval [0.0,radmin)
+
     if(verbose > 1){
       printf("Spherical ranges:\n"
 	     "    r: %14.4E - %14.4E (cm)\n"
 	     "theta: %14f - %14f (DEG)\n"
 	     "  phi: %14f - %14f (DEG)\n",
-	     0.0,radSph,0.0,180.0,0.0,360.0);
+	     radSphmin,radSph,0.0,180.0,0.0,360.0);
     }
 
-    if(radSph < 1.0e-8){
+    if(radSph < 1.0e-8 || radSphmin >= radSph){
       if(verbose > 0){
 	printf("pen_tallyKermaTrackLength:configure: Error: Spherical mesh "
-	       "radius must be greater than zero.\n");
+	       "radius must be greater than zero and range positive.\n");
       }
       return -14;      
     }
 
-    dbinSph.x = radSph/static_cast<double>(nbinsSph.x);
+    dbinSph.x = (radSph-radSphmin)/static_cast<double>(effrbins);
     dbinSph.y = M_PI/static_cast<double>(nbinsSph.y);
     dbinSph.z = 2.0*M_PI/static_cast<double>(nbinsSph.z);
 
@@ -2162,9 +2225,16 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& /*geometry*/,
 	     "  phi: %14.4E (RAD)\n",
 	     dbinSph.x,dbinSph.y,dbinSph.z);
     }
-    
-    for(long int i = 0; i < nbinsSph.x; ++i)      
-      rPlanesSph[i] = static_cast<double>(i+1)*dbinSph.x;
+
+    if(radSphmin > 1.0e-9){
+      rPlanesSph[0] = radSphmin;
+    }
+    else{
+      rPlanesSph[0] = dbinSph.x;
+    }
+    double radmin = rPlanesSph[0];
+    for(long int i = 1; i < nbinsSph.x; ++i)
+      rPlanesSph[i] = radmin+static_cast<double>(i)*dbinSph.x;
     for(long int i = 0; i < nbinsSph.y; ++i)      
       thetaPlanesSph[i] = static_cast<double>(i+1)*dbinSph.y;
     for(long int i = 0; i < nbinsSph.z+1; ++i)
@@ -2240,8 +2310,12 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& /*geometry*/,
     //Precalculate elements volumes
     double dyz = dbinCyl.y*dbinCyl.z;
     for(long int i = 0; i < nbinsCyl.x; ++i){
-      double rho1 = static_cast<double>(i)*dbinCyl.x;
-      double rho2 = rho1 + dbinCyl.x;
+      double rho1;
+      if(i == 0)
+	rho1 = 0.0;
+      else
+	rho1 = rPlanesCyl[i-1];
+      double rho2 = rPlanesCyl[i];
 
       pvolumesCyl[i] = (rho2*rho2 - rho1*rho1)/2.0 * dyz;
     }
@@ -2275,8 +2349,12 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& /*geometry*/,
       double theta1 = static_cast<double>(j)*dbinSph.y;
       double theta2 = theta1 + dbinSph.y;    
       for(long int i = 0; i < nbinsSph.x; ++i){
-	double rad1 = static_cast<double>(i)*dbinSph.x;
-	double rad2 = rad1 + dbinSph.x;      
+	double rad1;
+	if(i == 0)
+	  rad1 = 0.0;
+	else
+	  rad1 = rPlanesSph[i-1];
+	double rad2 = rPlanesSph[i];
 	pvolumesSph[t++] =
 	  dbinSph.z*(cos(theta1)-cos(theta2))*(pow(rad2,3)-pow(rad1,3))/3.0;
       }
@@ -2373,23 +2451,41 @@ void pen_tallyKermaTrackLength::saveData(const unsigned long long nhist) const{
       printf(" *********************************************\n");
       return;      
     }
-
+    
+    long int modI = 0;
+    if(radCylmin > 1.0e-9){
+      modI = -1;
+    }
+    
     fprintf(fout,"#------------------------------------------------------------\n");
     fprintf(fout,"# PenRed: Cylindrical kerma track length\n");
     fprintf(fout,"#\n");
     fprintf(fout,"# Its units are eV/(g*history).\n");
     fprintf(fout,"#\n");
     fprintf(fout,"# Number of bins (r,phi,z):\n");
-    fprintf(fout,"#  %ld %ld %ld\n",nbinsCyl.x,nbinsCyl.y,nbinsCyl.z);
+    fprintf(fout,"#  %ld %ld %ld\n",nbinsCyl.x+modI,nbinsCyl.y,nbinsCyl.z);
     fprintf(fout,"# Bin sizes (dr,dphi,dz):\n");
     fprintf(fout,"#  %14.4E %14.4E %14.4E\n",dbinCyl.x,dbinCyl.y,dbinCyl.z);
+    fprintf(fout,"# Radius range (rmin,rmax):\n");
+    fprintf(fout,"#  %14.4E %14.4E\n",radCylmin,radCyl);
     fprintf(fout,"#\n");
-    fprintf(fout,"#  rho  |  phi  |   z   |    value    |   2*sigma  \n");
+    fprintf(fout,"#  rho  |   rlow(cm)   |  phi  |  philow(DEG) "
+	    "|   z   |   zlow(cm)   |    Dose     |   2*sigma  \n");
 
     unsigned long t = 0;
     for(long int k = 0; k < nbinsCyl.z; ++k){
       for(long int j = 0; j < nbinsCyl.y; ++j){
 	for(long int i = 0; i < nbinsCyl.x; ++i){
+	  double rlow;
+	  if(i == 0){
+	    if(radCylmin > 1.0e-9){
+	      ++t;
+	      continue; //Skip [0.0,rmin) bin
+	    }
+	    rlow = 0.0;
+	  }else{
+	    rlow = rPlanesCyl[i-1];
+	  }	  
 	  double q = cylindrical[t]*invn;
 	  double sigma = (cylindrical2[t]*invn - q*q)*invn;
 	  sigma = sqrt((sigma > 0.0 ? sigma : 0.0));
@@ -2398,8 +2494,10 @@ void pen_tallyKermaTrackLength::saveData(const unsigned long long nhist) const{
 	  q /= volume;
 	  sigma /= volume;
 	  
-	  fprintf(fout," %6ld  %6ld  %6ld  %12.5E %12.5E\n",
-		  i,j,k,q,2.0*sigma);
+	  fprintf(fout," %6ld  %12.4E  %6ld   %12.4E  %6ld   %12.4E  "
+		  "%12.5E %12.5E\n",
+		  i+modI,rlow,j,phiPlanesCyl[j],k,zPlanesCyl[k],
+		  q,2.0*sigma);
 	  ++t;
 	}
 	if(nbinsCyl.y > 1)fprintf(fout,"\n");
@@ -2421,19 +2519,33 @@ void pen_tallyKermaTrackLength::saveData(const unsigned long long nhist) const{
       return;      
     }
 
+    long int modI = 0;
+    if(radSphmin > 1.0e-9){
+      modI = -1;
+    }    
+    
     fprintf(fout,"#------------------------------------------------------------\n");
     fprintf(fout,"# PenRed: Spherical kerma track length\n");
     fprintf(fout,"#\n");
     fprintf(fout,"# Its units are eV/(g*history).\n");
     fprintf(fout,"#\n");
     fprintf(fout,"# Number of bins (r,theta,phi):\n");
-    fprintf(fout,"#  %ld %ld %ld\n",nbinsSph.x,nbinsSph.y,nbinsSph.z);
+    fprintf(fout,"#  %ld %ld %ld\n",nbinsSph.x+modI,nbinsSph.y,nbinsSph.z);
     fprintf(fout,"# Bin sizes (dr,dtheta,dphi):\n");
     fprintf(fout,"#  %14.4E %14.4E %14.4E\n",dbinSph.x,dbinSph.y,dbinSph.z);
     fprintf(fout,"#\n");
-    fprintf(fout,"#  rho  | theta |  phi  |    value    |   2*sigma  \n");
+    fprintf(fout,"#  rho  |   rlow(cm)   | theta | thetalow(DEG) "
+	    "|  phi  |  philow(DEG) |    Dose     |   2*sigma  \n");
 
     for(long int i = 0; i < nbinsSph.x; ++i){
+      double rlow;
+      if(i == 0){
+	if(radSphmin > 1.0e-9)
+	  continue; //Skip [0.0,rmin) bin
+	rlow = 0.0;
+      }else{
+	rlow = rPlanesSph[i-1];
+      }
       for(long int j = 0; j < nbinsSph.y; ++j){
 	long int itheta = j*nbinsSph.x;
 	for(long int k = 0; k < nbinsSph.z; ++k){
@@ -2446,8 +2558,10 @@ void pen_tallyKermaTrackLength::saveData(const unsigned long long nhist) const{
 	  q /= volume;
 	  sigma /= volume;
       
-	  fprintf(fout," %6ld  %6ld  %6ld  %12.5E %12.5E\n",
-		  i,j,k,q,2.0*sigma);
+	  fprintf(fout," %6ld  %12.4E  %6ld   %12.4E   %6ld   %12.4E  "
+		  "%12.5E %12.5E\n",
+		  i+modI,rlow,j,thetaPlanesSph[j],k,phiPlanesSph[k],
+		  q,2.0*sigma);
 	}
 	fprintf(fout,"\n");
       }
