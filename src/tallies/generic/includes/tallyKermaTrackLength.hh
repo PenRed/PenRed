@@ -272,11 +272,11 @@ class pen_tallyKermaTrackLength: public pen_genericTally<pen_particleState> {
   //Cylindrical
   pen_tally_KTL::vect3i nbinsCyl;
   unsigned long nrphiCyl;
-  double radCyl;
+  double radCyl,radCylmin;
   double zminCyl,zmaxCyl, heightCyl;
   pen_tally_KTL::vect3d dbinCyl;
 
-  double rPlanesCyl[meshAxeMax];
+  double rPlanesCyl[meshAxeMax+1];
   double phiPlanesCyl[meshAxeMax+1];
   double zPlanesCyl[meshAxeMax+1];
   
@@ -292,10 +292,10 @@ class pen_tallyKermaTrackLength: public pen_genericTally<pen_particleState> {
   long int halfnThetaCones; //Number of cones in one Z hemisphere
   long int planeThetaConeIndex; //Cone index whith z=0
   unsigned long nrthetaSph;
-  double radSph;
+  double radSph,radSphmin;
   pen_tally_KTL::vect3d dbinSph;
 
-  double rPlanesSph[meshAxeMax];
+  double rPlanesSph[meshAxeMax+1];
   double thetaPlanesSph[meshAxeMax+1];
   double phiPlanesSph[meshAxeMax+1];
   
@@ -331,7 +331,7 @@ public:
   void kermaTrackLengthCart(const unsigned long long nhist,
 			    const double wght,
 			    const double E,
-			    const double muen,
+			    const double muenVal,
 			    const double dsef,
 			    const pen_tally_KTL::vect3d p1,
 			    const pen_tally_KTL::vect3d dir);
@@ -339,7 +339,7 @@ public:
   void kermaTrackLengthCyl(const unsigned long long nhist,
 			   const double wght,
 			   const double E,
-			   const double muen,
+			   const double muenVal,
 			   const double dsef,
 			   const pen_tally_KTL::vect3d p1,
 			   const pen_tally_KTL::vect3d dp,
@@ -349,7 +349,7 @@ public:
   void kermaTrackLengthSph(const unsigned long long nhist,
 			   const double wght,
 			   const double E,
-			   const double muen,
+			   const double muenVal,
 			   const double dsef,
 			   const pen_tally_KTL::vect3d p1,
 			   const pen_tally_KTL::vect3d dp,
