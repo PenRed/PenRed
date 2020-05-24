@@ -117,9 +117,27 @@ In addition, some utilities will be installed with the PenRed package. They are 
 
 ## Docker containers
 
-Another method to run PenRed is using a docker container. To download the image and execute the simulation, use the following command in the simulation folder,
+Another method to run PenRed is using a docker container. We provide several docker images with different characteristics. The first one **vigial/penred-compiled** contains the whole github package and all the required dependencies to compile the source code, including the dcmtk library for DICOM suport. To download the image and execute the simulation, use the following command in the simulation folder,
 
 ```
 sudo docker run -v $PWD:/home/penred:z vigial/penred-compiled path/to/configuration/file
 ```
 
+For size optimized containers, we provide two Alpine based images with only the compiled executable and the runtime libraries. The first one has not DICOM support enabled and has a compressed size lesser than 5 MB. Can be downloaded using the instruction,
+
+```
+sudo docker push vigial/penred-alpine
+```
+
+The second one has DICOM support enabled and its compressed size is lesser than 20 MB. Can be downloaded using
+
+```
+sudo docker pull vigial/penred-alpine-dicom
+```
+
+To execute a simulation with that images, use the corresponding instruction on the simulation folder,
+
+```
+sudo docker run -v $PWD:/home:z vigial/penred-alpine path/to/configuration/file
+sudo docker run -v $PWD:/home:z vigial/penred-alpine-dicom path/to/configuration/file
+```
