@@ -26,7 +26,6 @@
 
 FROM alpine
 
-USER root
 WORKDIR /home
 
 #Install, compile and remove all packages
