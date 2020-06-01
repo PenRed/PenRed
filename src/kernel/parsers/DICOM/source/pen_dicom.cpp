@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2020 Universitat de València - UV
+//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -21,8 +21,8 @@
 //
 //    contact emails:
 //
-//        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
+//        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
+//        vicente.gimenez@uv.es (Vicente Giménez Gómez)
 //    
 //
 
@@ -54,7 +54,7 @@ pen_contour::pen_contour(const pen_contour& c){
   setPlanes(c.NPlanes());
   //Copy points of each plane
   for(unsigned i = 0; i < nPlanes; i++){
-    unsigned npoints = c.nPoints(i);
+    unsigned long npoints = c.nPoints(i);
     const double* ppoints = c.readPoints(i);
     setPoints(i,npoints,ppoints);      
   }
@@ -73,7 +73,7 @@ void pen_contour::setPlanes(const unsigned np){
     return;
   
   //Allocate memory for "np" planes and init to zero
-  nPlanePoints = (unsigned*) calloc(np,sizeof(unsigned));
+  nPlanePoints = (unsigned long *) calloc(np,sizeof(unsigned long));
   if(nPlanePoints == nullptr){
     throw std::bad_alloc();
   }
@@ -93,7 +93,7 @@ void pen_contour::setPlanes(const unsigned np){
 }
 
 void pen_contour::setPoints(const unsigned nplane,
-			    const unsigned npoints,
+			    const unsigned long npoints,
 			    const double* points){
 
     
@@ -127,8 +127,8 @@ void pen_contour::setPoints(const unsigned nplane,
 }
 
 void pen_contour::updatePoints(const unsigned nplane,
-			       const unsigned init,
-			       const unsigned npoints,
+			       const unsigned long init,
+			       const unsigned long npoints,
 			       const double* points){
   if(npoints == 0)
     return;
@@ -147,15 +147,15 @@ void pen_contour::updatePoints(const unsigned nplane,
 
 void pen_contour::convertPoints(const double factor){
   for(unsigned i = 0; i < nPlanes; i++){
-    unsigned ncomponents = 3*nPlanePoints[i];
-    for(unsigned j = 0; j < ncomponents; j++)
+    unsigned long ncomponents = 3l*nPlanePoints[i];
+    for(unsigned long j = 0; j < ncomponents; j++)
       contourPoints[i][j] *= factor;
   }
 }
 
 bool pen_contour::hasPoints() const {
   for(unsigned i = 0; i < nPlanes; i++)
-    if(nPoints(i) > 0)
+    if(nPoints(i) > 0l)
       return true;
   return false;
 }
@@ -167,7 +167,7 @@ pen_contour& pen_contour::operator=(const pen_contour& c){
     setPlanes(c.NPlanes());
     //Copy points of each plane
     for(unsigned i = 0; i < nPlanes; i++){
-      unsigned npoints = c.nPoints(i);
+      unsigned long npoints = c.nPoints(i);
       const double* ppoints = c.readPoints(i);
       setPoints(i,npoints,ppoints);      
     }
@@ -225,7 +225,7 @@ pen_seed::pen_seed(const pen_seed& c){
   time = 0.0;
   
   //Get number of control points
-  unsigned nCP = c.nPoints();
+  unsigned long nCP = c.nPoints();
   setCP(nCP);
 
   //Get control positions pointer
@@ -258,7 +258,7 @@ pen_seed& pen_seed::operator=(const pen_seed& c){
     //Clear previous configuration
     clear();
     //Get number of control points
-    unsigned nCP = c.nPoints();
+    unsigned long nCP = c.nPoints();
     setCP(nCP);
 
     //Get control positions pointer
@@ -307,7 +307,7 @@ void pen_seed::clear(){
   size = 0;
 }
 
-void pen_seed::setCP(unsigned n){
+void pen_seed::setCP(unsigned long n){
 
   //Check if n CPs fits in the existing arrays
   if(n <= size){
@@ -338,12 +338,12 @@ void pen_seed::setCP(unsigned n){
   
 }
 
-void pen_seed::setPositions(const double* pos, const unsigned ni){
+void pen_seed::setPositions(const double* pos, const unsigned long ni){
   setPositions(pos,ni,1);
 }
 void pen_seed::setPositions(const double* pos,
-			   const unsigned ni,
-			   const unsigned npos){
+			    const unsigned long ni,
+			    const unsigned long npos){
 
   if(npos == 0)
     return;
@@ -357,12 +357,12 @@ void pen_seed::setPositions(const double* pos,
   memcpy(&positions[3*ni],pos,3*npos*sizeof(double));
 }
 
-void pen_seed::setWeights(const double wght, const unsigned ni){
+void pen_seed::setWeights(const double wght, const unsigned long ni){
   setWeights(&wght,ni,1);
 }
 void pen_seed::setWeights(const double* wght,
-			  const unsigned ni,
-			  const unsigned npos){
+			  const unsigned long ni,
+			  const unsigned long npos){
 
   if(npos == 0)
     return;
@@ -377,12 +377,12 @@ void pen_seed::setWeights(const double* wght,
   memcpy(&weights[ni],wght,npos*sizeof(double));
 }
 
-void pen_seed::setDistances(const double ds, const unsigned ni){
+void pen_seed::setDistances(const double ds, const unsigned long ni){
   setDistances(&ds,ni,1);
 }
 void pen_seed::setDistances(const double* ds,
-			    const unsigned ni,
-			    const unsigned npos){
+			    const unsigned long ni,
+			    const unsigned long npos){
 
   if(npos == 0)
     return;  
@@ -397,12 +397,12 @@ void pen_seed::setDistances(const double* ds,
   memcpy(&distances[ni],ds,npos*sizeof(double));
 }
 
-void pen_seed::setDirections(const double* dir, const unsigned ni){
+void pen_seed::setDirections(const double* dir, const unsigned long ni){
   setDirections(dir,ni,1);
 }
 void pen_seed::setDirections(const double* dir,
-			    const unsigned ni,
-			    const unsigned npos){
+			    const unsigned long ni,
+			    const unsigned long npos){
 
   if(npos == 0)
     return;
@@ -505,7 +505,7 @@ int pen_dicom::loadDicom(const char* dirName,
   std::string Dicomrtplan("");
   //Create a vector to store pairs Z-plane/npixels
   //for each dicom image
-  std::vector<std::pair<double,unsigned>> pairs_ZNpix;
+  std::vector<std::pair<double,unsigned long>> pairs_ZNpix;
   //Store image dicom filenames
   std::vector<std::string> filenamesDicom;
   //Store bottom plane dicom filename position
@@ -557,7 +557,9 @@ int pen_dicom::loadDicom(const char* dirName,
 		      if(imageModality.compare(dicomModality) != 0)
 			{
 			  if(verbose > 0){
-			    printf("pen_dicom:loadDicom:Error: multiple image modality detected: %s %s\n", imageModality.c_str(), dicomModality.c_str());
+			    printf("pen_dicom:loadDicom:Error: multiple image "
+				   "modality detected: %s %s\n",
+				   imageModality.c_str(), dicomModality.c_str());
 			  }
 			  metainfo->clear();
 			  fileformat.clear();
@@ -578,7 +580,9 @@ int pen_dicom::loadDicom(const char* dirName,
 		    AuxZ = 0.0;
 		    if(filenamesDicom.size() > 0){
 		      if(verbose > 0){
-			printf("pen_dicom:loadDicom:Error: Can't access 'ImagePositionPatient' data from dicom:\n '%s'\n",filename.c_str());
+			printf("pen_dicom:loadDicom:Error: Can't access "
+			       "'ImagePositionPatient' data from dicom:\n "
+			       "'%s'\n",filename.c_str());
 		      }
 		      metainfo->clear();
 		      fileformat.clear();
@@ -589,7 +593,10 @@ int pen_dicom::loadDicom(const char* dirName,
 		  }
 		  else if(onlyOne){
 		    if(verbose > 0){
-		      printf("pen_dicom:loadDicom:Error: Loading multiple dicom image files when previous dicom ('%s') has not 'ImagePositionPatient' field.\n",bottomDicomFilename.c_str());
+		      printf("pen_dicom:loadDicom:Error: Loading multiple dicom "
+			     "image files when previous dicom ('%s') has not "
+			     "'ImagePositionPatient' field.\n",
+			     bottomDicomFilename.c_str());
 		    }
 		    metainfo->clear();
 		    fileformat.clear();
@@ -604,7 +611,8 @@ int pen_dicom::loadDicom(const char* dirName,
 		  if(status.bad())
 		    {
 		      if(verbose > 0){
-			printf("pen_dicom:loadDicom:Error: Can't extract 'Columns' fom\n   %s\n",filename.c_str());
+			printf("pen_dicom:loadDicom:Error: Can't extract "
+			       "'Columns' fom\n   %s\n",filename.c_str());
 			printf("   Error: %s\n",status.text());
 		      }
 		      metainfo->clear();
@@ -617,7 +625,8 @@ int pen_dicom::loadDicom(const char* dirName,
 		  if(status.bad())
 		    {
 		      if(verbose > 0){
-			printf("loadDicom:Error: can't extract 'Rows' fom\n   %s\n",filename.c_str());
+			printf("loadDicom:Error: can't extract "
+			       "'Rows' fom\n   %s\n",filename.c_str());
 			printf("   Error: %s\n",status.text());
 		      }
 		      metainfo->clear();
@@ -625,27 +634,30 @@ int pen_dicom::loadDicom(const char* dirName,
 		      clear();
 		      return PEN_DICOM_BAD_READ_ROWS;
 		    }
-		  unsigned int nframes;  //Planes in the image
-		  int auxFrames;
+		  unsigned long nframes;  //Planes in the image
+		  Sint32 auxFrames;
 		  // - Frames
-		  status = metainfo->findAndGetSint32(DCM_NumberOfFrames,auxFrames);
+		  status = metainfo->findAndGetSint32(DCM_NumberOfFrames,
+						      auxFrames);
 		  if(status.bad())
 		    {
 		      //Assume single frame
 		      auxFrames = 1;
 		    }
-		  nframes = (unsigned) abs(auxFrames);
+		  nframes = static_cast<unsigned long>(abs(auxFrames));
 		      
 		  // - Store number of pixels in this file
-		  unsigned npixelsFile = width*height*nframes;
+		  unsigned long npixelsFile =
+		    static_cast<unsigned long>(width)*
+		    static_cast<unsigned long>(height)*nframes;
 		  pairs_ZNpix.push_back(std::make_pair(AuxZ,npixelsFile));
 
 		  //Check actual lowest z plane
-		  if(AuxZ < zmin) 
+		  if(AuxZ < zmin)
 		    {
 		      zmin = AuxZ;
 		      bottomDicomFilename.assign(filename);
-		    }		      
+		    }
 		      
 		  // - Add the number of frames
 		  nvox_z += nframes;
@@ -677,7 +689,8 @@ int pen_dicom::loadDicom(const char* dirName,
 	      else
 		{
 		  if(verbose > 0)
-		    printf("pen_dicom:loadDicom:Warning: Invalid modality (%s) found in dicom:\n   %s\n",
+		    printf("pen_dicom:loadDicom:Warning: Invalid modality (%s) "
+			   "found in dicom:\n   %s\n",
 			   dicomModality.c_str(), filename.c_str());
 		}
 	      metainfo->clear();
@@ -732,13 +745,15 @@ int pen_dicom::loadDicom(const char* dirName,
       //Control if there are more contours to load
       bool remainingContours=true;
       //Store next contour to read
-      int dicomContour = -1;
+      long int dicomContour = -1;
       while(remainingContours)
 	{
 	  dicomContour++;
 	  //Take contour number "dicomContour" from "Structure Set Roi Sequence"
 	  DcmItem *Item_Contour = nullptr;
-	  if(metainfo_dfrtss->findAndGetSequenceItem(DCM_StructureSetROISequence,Item_Contour,dicomContour).good())
+	  if(metainfo_dfrtss->findAndGetSequenceItem(DCM_StructureSetROISequence,
+						     Item_Contour,
+						     dicomContour).good())
 	    {
 	      //Create a new empty contour
 	      pen_contour dummyCont;
@@ -758,29 +773,38 @@ int pen_dicom::loadDicom(const char* dirName,
 			     contourRef.name.begin(), ::tolower);
 
 	      if(verbose > 1){
-		printf(" Contour %d: %s\n",dicomContour,contourRef.name.c_str());
+		printf(" Contour %ld: %s\n",
+		       dicomContour,contourRef.name.c_str());
 	      }
 	      
 	      Item_Contour = nullptr;
 	      
 	      //Read member number "dicomContour" from "Roi Contour Sequence"
-	      if(metainfo_dfrtss->findAndGetSequenceItem(DCM_ROIContourSequence,Item_Contour,dicomContour).good())
+	      if(metainfo_dfrtss->findAndGetSequenceItem(DCM_ROIContourSequence,
+							 Item_Contour,
+							 dicomContour).good())
 		{
 		  //read points from "Contour Sequence", ordered by planes.
 		  //first, count number of planes
 		  DcmItem *Item_CPlane = nullptr;
-		  int contPlanes = 0;
+		  long int contPlanes = 0;
 		  bool validContour = true;
-		  while(Item_Contour->findAndGetSequenceItem(DCM_ContourSequence,Item_CPlane,contPlanes).good())
+		  while(Item_Contour->findAndGetSequenceItem(DCM_ContourSequence,
+							     Item_CPlane,
+							     contPlanes).good())
 		    {
 		      contPlanes++;
 		      //Check if this contour plane geometry is "CLOSED_PLANAR"
 		      const char* geoType;
-		      Item_CPlane->findAndGetString(DCM_ContourGeometricType,geoType);
+		      Item_CPlane->findAndGetString(DCM_ContourGeometricType,
+						    geoType);
 		      if(strcmp(geoType,"CLOSED_PLANAR") != 0)
 			{
 			  if(verbose > 0)
-			    printf("pen_dicom:loadDicom:Warning: Invalid contour (%s) type. Countours must be 'CLOSED_PLANAR'\n",contourRef.name.c_str());
+			    printf("pen_dicom:loadDicom:Warning: Invalid "
+				   "contour (%s) type. Countours must be"
+				   " 'CLOSED_PLANAR'\n",
+				   contourRef.name.c_str());
 			  validContour = false;
 			  break;
 			}
@@ -797,81 +821,91 @@ int pen_dicom::loadDicom(const char* dirName,
 		  }
 		  
 		  if(verbose > 1)
-		    printf("  Number of Planes: %4d\n",contPlanes);
+		    printf("  Number of Planes: %4ld\n",contPlanes);
 
-		  //Create a array with the number of planes			     
+		  //Allocate memory fot these planes
 		  if(contPlanes>0)
 		    {
 		      contourRef.setPlanes((unsigned)contPlanes);
-
 		      contPlanes=0;
-		      while(Item_Contour->findAndGetSequenceItem(DCM_ContourSequence,Item_CPlane,contPlanes).good())
-			{
-			  //Count the number of points in 'ContourData'
-			  //All contour planes are 'CLOSED_PLANAR'
-			  contPlanes++;
+		      while(Item_Contour->
+			    findAndGetSequenceItem(DCM_ContourSequence,
+						   Item_CPlane,
+						   contPlanes).good()){
+			//Count the number of points in 'ContourData'
+			//All contour planes are 'CLOSED_PLANAR'
+			contPlanes++;
 			  
-			  unsigned long nPoints = 0;
-			  double dummyPoint;
-			  while(Item_CPlane->findAndGetFloat64(DCM_ContourData,dummyPoint,3*nPoints).good()){
-			    nPoints++;
-			  }
-			  
-			  if(nPoints <= 0)
-			    {
-			      if(verbose > 0)
-				printf("pen_dicom:loadDicom:Warning: Plane %d of contour '%s' is empty.'\n",contPlanes-1,contourRef.name.c_str());
-			      Item_CPlane = nullptr;
-			      continue;
-			    }
-
-			  //Allocate memory for contour plane points
-			  contourRef.setPoints(contPlanes-1,nPoints);
-
-			  //Store points
-			  for(unsigned contPoint = 0; contPoint < nPoints; contPoint++){
-			    double p[3];
-			    unsigned long index = 3*contPoint; 
-			    Item_CPlane->findAndGetFloat64(DCM_ContourData,p[0],index  );
-			    Item_CPlane->findAndGetFloat64(DCM_ContourData,p[1],index+1);
-			    Item_CPlane->findAndGetFloat64(DCM_ContourData,p[2],index+2);
-
-			    //Convert from mm to cm
-			    p[0] *= 0.1;
-			    p[1] *= 0.1;
-			    p[2] *= 0.1;
-			    
-			    contourRef.updatePoints(contPlanes-1,contPoint,1,p);
-			    double p_aux[3];
-			    contourRef.getPoint(p_aux,contPlanes-1,contPoint);
-			    
-			  }
-			  
-			    Item_CPlane = nullptr;		      
+			unsigned long nPoints = 0;
+			double dummyPoint;
+			while(Item_CPlane->findAndGetFloat64(DCM_ContourData,
+							     dummyPoint,
+							     3*nPoints).good()){
+			  nPoints++;
 			}
+			  
+			if(nPoints <= 0)
+			  {
+			    if(verbose > 0)
+			      printf("pen_dicom:loadDicom:Warning: Plane %ld "
+				     "of contour '%s' is empty.'\n",
+				     contPlanes-1,contourRef.name.c_str());
+			    Item_CPlane = nullptr;
+			    continue;
+			  }
+
+			//Allocate memory for contour plane points
+			contourRef.setPoints(contPlanes-1,nPoints);
+
+			//Store points
+			for(unsigned long contPoint = 0; contPoint < nPoints; ++contPoint){
+			  double p[3];
+			  unsigned long index = 3l*contPoint; 
+			  Item_CPlane->findAndGetFloat64(DCM_ContourData,p[0],
+							 index  );
+			  Item_CPlane->findAndGetFloat64(DCM_ContourData,p[1],
+							 index+1);
+			  Item_CPlane->findAndGetFloat64(DCM_ContourData,p[2],
+							 index+2);
+
+			  //Convert from mm to cm
+			  p[0] *= 0.1;
+			  p[1] *= 0.1;
+			  p[2] *= 0.1;
+			    
+			  contourRef.updatePoints(contPlanes-1,contPoint,1,p);
+			}
+			  
+			Item_CPlane = nullptr;		      
+		      }
 
 		      if(contourRef.hasPoints())
 			{
 			  if(verbose > 1)
-			    printf("Contour %s loaded\n",contourRef.name.c_str());
+			    printf("Contour %s loaded\n",
+				   contourRef.name.c_str());
 			}
 		      else
 			{
 			  if(verbose > 1)
-			    printf("Contour %s has not any point\n",contourRef.name.c_str());
+			    printf("Contour %s has not any point\n",
+				   contourRef.name.c_str());
 			}
 		    }
 		  else
 		    {
 		      if(verbose > 1)
-			printf("Contour %s has not any plane\n",contourRef.name.c_str());
+			printf("Contour %s has not any plane\n",
+			       contourRef.name.c_str());
 		    }
 
 		  Item_Contour = nullptr;
 		}
 	      else
 		{
-		  printf("loadDicom:warning: can't read element 'Roi Contour Sequence' from dicom:\n   %s\n",Dicomrtss.c_str());
+		  printf("loadDicom:warning: can't read element "
+			 "'Roi Contour Sequence' from dicom:\n   %s\n",
+			 Dicomrtss.c_str());
 		  contours.pop_back();
 		  nVoxContour.pop_back();
 		}
@@ -905,14 +939,16 @@ int pen_dicom::loadDicom(const char* dirName,
 
       //control when all seed types was loaded
       bool remainingSeedTypes=true;
-      int nSeeds = 0;
+      long int nSeeds = 0;
       while(remainingSeedTypes)
 	{
 	  //read number "dicomPenelope::numSeedTypes" of sequence
 	  //"Application Setup Sequence". Check existence of seed
 	  //type number "dicomPenelope::numSeedTypes"
 	  DcmItem *Item_Seeds = 0;
-	  if(metainfo_dfrtplan->findAndGetSequenceItem(DCM_ApplicationSetupSequence,Item_Seeds,nSeeds).good())
+	  if(metainfo_dfrtplan->
+	     findAndGetSequenceItem(DCM_ApplicationSetupSequence,
+				    Item_Seeds,nSeeds).good())
 	    {
 	      //Create new seed
 	      size_t nseed = seeds.size();
@@ -920,24 +956,29 @@ int pen_dicom::loadDicom(const char* dirName,
 	      seeds.push_back(dummySeed);
 	      seeds[nseed].ID = nSeeds;
 	      
-	      int channelNumber=0;
+	      long int channelNumber=0;
 	      //read channel number (cateters) from "Channel Sequence"
 	      DcmItem *Item_Channel = nullptr;
-	      unsigned nPoints = 0;
+	      unsigned long nPoints = 0;
 	      for(;;)
 		{
 		  //read member number "channelNumber" from "Channel Sequence"
-		  if(Item_Seeds->findAndGetSequenceItem(DCM_ChannelSequence,Item_Channel,channelNumber).good()) //check existence of channel "channelNumber"
+		  if(Item_Seeds->findAndGetSequenceItem(DCM_ChannelSequence,
+							Item_Channel,
+							channelNumber).good()) //check existence of channel "channelNumber"
 		    {
 		      channelNumber++;
 		      //Read the number of checkpoints in this channel
-		      int nCheckPoints = 0;
-		      status = Item_Channel->findAndGetSint32(DCM_NumberOfControlPoints,nCheckPoints);
+		      Sint32 nCheckPoints = 0;
+		      status = Item_Channel->
+			findAndGetSint32(DCM_NumberOfControlPoints,nCheckPoints);
 
 		      if(status.bad())
 			{
 			  if(verbose > 0){
-			    printf("loadDicom:Error: Can't obtain 'NumberOfControlPoints' for channel %d.\n",channelNumber+1);
+			    printf("loadDicom:Error: Can't obtain "
+				   "'NumberOfControlPoints' for channel "
+				   "%ld.\n",channelNumber+1);
 			    printf("                 Error: %s\n",status.text());
 			  }
 			  //Remove new seed
@@ -948,8 +989,11 @@ int pen_dicom::loadDicom(const char* dirName,
 		      if(nCheckPoints <= 0)
 			{
 			  if(verbose > 0){
-			    printf("loadDicom:Error: Expected positive value for 'NumberOfControlPoints' in channel %d.\n",channelNumber+1);
-			    printf("                 NumberOfControlPoints: %d\n",nCheckPoints);
+			    printf("loadDicom:Error: Expected positive value "
+				   "for 'NumberOfControlPoints' in channel"
+				   " %ld.\n",channelNumber+1);
+			    printf("                 NumberOfControlPoints: "
+				   "%ld\n",static_cast<long int>(nCheckPoints));
 			  }
 			  //Remove new seed
 			  seeds.pop_back();
@@ -975,38 +1019,46 @@ int pen_dicom::loadDicom(const char* dirName,
 	      //Now we know the number of positions. Set number of control
 	      //points to seed.
 	      seeds[nseed].setCP(nPoints);
-	      
-	      int seedCont = 0;  
-	      int seedChannelCont = 0;
-	      //Store the total number of checkpoint
-	      //in all Application settup channels
-	      int totalCheckPoints = 0;
+
+	      //Global seed checkpoint conter
+	      unsigned long seedCont = 0;
+	      //Channel checkpoint conter
+	      long int seedChannelCont = 0;
 	      seeds[nseed].time = 0.0;
 	      while(seedChannelCont<channelNumber)
 		{						    
 		  //read member number "seedChannelCont" from "Channel Sequence"
-		  if(Item_Seeds->findAndGetSequenceItem(DCM_ChannelSequence,Item_Channel,seedChannelCont).good())
+		  if(Item_Seeds->findAndGetSequenceItem(DCM_ChannelSequence,
+							Item_Channel,
+							seedChannelCont).good())
 		    {
 		      //Get the 'Final Cumulative Time Weight' and 'Channel Total Time'
 		      double finalCumulativeTimeWeight;
 		      double ChannelTotalTime;
 
-		      status = Item_Channel->findAndGetFloat64(DCM_FinalCumulativeTimeWeight,finalCumulativeTimeWeight);
+		      status = Item_Channel->
+			findAndGetFloat64(DCM_FinalCumulativeTimeWeight,
+					  finalCumulativeTimeWeight);
 		      if(status.bad())
 			{
 			  if(verbose > 0){
-			    printf("loadDicom:Error: Can't get 'Final Cumulative Time Weight' from channel %d.\n",seedChannelCont+1);
+			    printf("loadDicom:Error: Can't get "
+				   "'Final Cumulative Time Weight' from "
+				   "channel %ld.\n",seedChannelCont+1);
 			    printf("                Error: %s\n",status.text());
 			  }
 			  seeds.pop_back();
 			  break;
 			}
 
-		      status = Item_Channel->findAndGetFloat64(DCM_ChannelTotalTime,ChannelTotalTime);
+		      status = Item_Channel->
+			findAndGetFloat64(DCM_ChannelTotalTime,ChannelTotalTime);
 		      if(status.bad())
 			{
 			  if(verbose > 0){
-			    printf("loadDicom:Error: Can't get 'Final Cumulative Time Weight' from channel %d.\n",seedChannelCont+1);
+			    printf("loadDicom:Error: Can't get 'Final "
+				   "Cumulative Time Weight' from channel "
+				   "%ld.\n",seedChannelCont+1);
 			    printf("                Error: %s\n",status.text());
 			  }
 			  seeds.pop_back();
@@ -1015,35 +1067,48 @@ int pen_dicom::loadDicom(const char* dirName,
 		      
 		      seeds[nseed].time += ChannelTotalTime;
 
-		      //store "Cumulative Time Weight".
-		      //Is the timestamp of each checkpoint.
 		      double previousTime = -1.0; 
 		      double previousRelativePosition = -1.0;
 		      
 		      DcmItem *Item_ControlPoint = 0;
 		      bool remainingCheckPoints=true;
-		      int contCheckPoints=0;
+		      //Check point conter for specific channel
+		      long int contCheckPoints=0;
 		      while(remainingCheckPoints)
 			{
 			  //read member number "contCheckPoints" from
 			  //"Brachy Control Point Sequence"
-			  if(Item_Channel->findAndGetSequenceItem(DCM_BrachyControlPointSequence,Item_ControlPoint,contCheckPoints).good())
+			  if(Item_Channel->
+			     findAndGetSequenceItem(DCM_BrachyControlPointSequence,
+						    Item_ControlPoint,
+						    contCheckPoints).good())
 			    {
 
 			      //Store 3D position
 			      double AuxPosicio[3];
-			      status = Item_ControlPoint->findAndGetFloat64(DCM_ControlPoint3DPosition,AuxPosicio[0],0);
+			      status = Item_ControlPoint->
+				findAndGetFloat64(DCM_ControlPoint3DPosition,
+						  AuxPosicio[0],0);
 			      if(status.bad())
 				{
 				  if(verbose > 0){
-				    printf("loadDicom:Error: Can't get 'ControlPoint3DPosition' from checkpoint %d in channel %d of seed %lu in dicom:\n   %s\n",contCheckPoints,seedChannelCont,nseed+1,Dicomrtplan.c_str());
+				    printf("loadDicom:Error: Can't get "
+					   "'ControlPoint3DPosition' from "
+					   "checkpoint %ld in channel %ld of "
+					   "seed %lu in dicom:\n   %s\n",
+					   contCheckPoints,seedChannelCont,
+					   nseed+1,Dicomrtplan.c_str());
 				    printf("   Error: %s\n",status.text());
 				  }
 				  seeds.pop_back();
 				  break;
 				}
-			      Item_ControlPoint->findAndGetFloat64(DCM_ControlPoint3DPosition,AuxPosicio[1],1);
-			      Item_ControlPoint->findAndGetFloat64(DCM_ControlPoint3DPosition,AuxPosicio[2],2);
+			      Item_ControlPoint->
+				findAndGetFloat64(DCM_ControlPoint3DPosition,
+						  AuxPosicio[1],1);
+			      Item_ControlPoint->
+				findAndGetFloat64(DCM_ControlPoint3DPosition,
+						  AuxPosicio[2],2);
 
 			      double auxPos[3];
 			      
@@ -1055,10 +1120,15 @@ int pen_dicom::loadDicom(const char* dirName,
 			      seeds[nseed].setPositions(auxPos,seedCont);
 
 			      //Check if this is the first checkpoint
-			      if(previousTime == -1 && previousRelativePosition == -1)
+			      if(previousTime == -1 &&
+				 previousRelativePosition == -1)
 				{
-				  Item_ControlPoint->findAndGetFloat64(DCM_CumulativeTimeWeight,previousTime);
-				  Item_ControlPoint->findAndGetFloat64(DCM_ControlPointRelativePosition,previousRelativePosition);
+				  Item_ControlPoint->
+				    findAndGetFloat64(DCM_CumulativeTimeWeight,
+						      previousTime);
+				  Item_ControlPoint->
+				    findAndGetFloat64(DCM_ControlPointRelativePosition,
+						      previousRelativePosition);
 				  //Channel init
 				  double auxDirection[3] = {0.0,0.0,1.0};
 				  seeds[nseed].setDistances(-1.0,seedCont);
@@ -1069,8 +1139,12 @@ int pen_dicom::loadDicom(const char* dirName,
 				{
 				  double actualTime;
 				  double actualRelativePosition;
-				  Item_ControlPoint->findAndGetFloat64(DCM_CumulativeTimeWeight,actualTime);
-				  Item_ControlPoint->findAndGetFloat64(DCM_ControlPointRelativePosition,actualRelativePosition);
+				  Item_ControlPoint->
+				    findAndGetFloat64(DCM_CumulativeTimeWeight,
+						      actualTime);
+				  Item_ControlPoint->
+				    findAndGetFloat64(DCM_ControlPointRelativePosition,
+						      actualRelativePosition);
 				  
 				  if(actualTime < previousTime)
 				    {
@@ -1078,8 +1152,14 @@ int pen_dicom::loadDicom(const char* dirName,
 				      Item_ControlPoint = 0;
 				      //no sense.
 				      if(verbose > 0){
-					printf("loadDicom:Warning: in seed type %lu, channel %d checkpoint %d has cumulative time weight smaller than previous one.\n",seeds.size()+1,seedChannelCont+1,contCheckPoints);
-					printf("                   Skipping all next checkpoints.\n");
+					printf("loadDicom:Warning: in seed type "
+					       "%lu, channel %ld checkpoint %ld "
+					       "has cumulative time weight "
+					       "smaller than previous one.\n",
+					       seeds.size()+1,seedChannelCont+1,
+					       contCheckPoints);
+					printf("                   Skipping all "
+					       "next checkpoints.\n");
 				      }
 				      break;
 				    }
@@ -1097,14 +1177,16 @@ int pen_dicom::loadDicom(const char* dirName,
 				      seeds[nseed].getDirection(auxDirect,seedCont-1);
 				      seeds[nseed].setDirections(auxDirect,seedCont);
 				      //Store time weight at this position
-				      double time = ChannelTotalTime*(actualTime-previousTime)/finalCumulativeTimeWeight;
+				      double time = ChannelTotalTime*(actualTime-previousTime)/
+					finalCumulativeTimeWeight;
 				      
 				      seeds[nseed].setWeights(time,seedCont);
 				    }
 				  else if(previousTime != actualTime &&
 					  previousRelativePosition != actualRelativePosition)
 				    {
-				      //Seed moves between consecutive points with not null time interval
+				      //Seed moves between consecutive points with not null
+				      //time interval
 
 				      //Get previous position
 				      double prevPos[3];
@@ -1122,7 +1204,8 @@ int pen_dicom::loadDicom(const char* dirName,
 				      //Store direction
 				      seeds[nseed].setDirections(u,seedCont);
 				      //Store time weight at this step
-				      double time = ChannelTotalTime*(actualTime-previousTime)/finalCumulativeTimeWeight;
+				      double time = ChannelTotalTime*(actualTime-previousTime)/
+					finalCumulativeTimeWeight;
 				      
 				      seeds[nseed].setWeights(time,seedCont);
 				    }
@@ -1155,15 +1238,21 @@ int pen_dicom::loadDicom(const char* dirName,
 				    {
 				      //no sense.
 				      if(verbose > 0){
-					printf("pen_dicom:loadDicom:Warning: in seed type %lu, channel %d checkpoints %d and %d are the same checkpoint.\n",nseed+1,seedChannelCont+1,contCheckPoints-1,contCheckPoints);
+					printf("pen_dicom:loadDicom:Warning: in "
+					       "seed type %lu, channel %ld "
+					       "checkpoints %ld and %ld are the "
+					       "same checkpoint.\n",
+					       nseed+1,seedChannelCont+1,
+					       contCheckPoints-1,
+					       contCheckPoints);
 				      }
 				      seedCont--;
-				    }   
+				    }
 				  previousTime = actualTime;
 				  previousRelativePosition = actualRelativePosition;
 
-				  //Check if is last point
-				  if(actualTime - finalCumulativeTimeWeight >= -1.0e-18)
+				  //Check if this is the last point
+				  if(actualTime - finalCumulativeTimeWeight >= -1.0e-12)
 				    {
 				      remainingCheckPoints = false;
 				    }
@@ -1177,7 +1266,6 @@ int pen_dicom::loadDicom(const char* dirName,
 			      remainingCheckPoints=false;
 			    }			  
 			}
-		      totalCheckPoints += contCheckPoints;
 		      Item_Channel = 0;
 
 		      //Check if new seed has been removed
@@ -1195,22 +1283,24 @@ int pen_dicom::loadDicom(const char* dirName,
 		continue;
 	      }
 
-	      //Set number of control points
+	      //Update number of control points
 	      seeds[nseed].setCP(seedCont);
 
 	      //Renormalize positions/movements time weights
 	      double sumW = seeds[nseed].normWeights();
 
 	      if(verbose > 1)
-		printf("%d control points of seed type %d loaded. Time weights sum: %12.4E/%12.4E\n",seeds[nseed].nPoints(),seeds[nseed].ID+1,sumW,seeds[nseed].time);
+		printf("%ld control points of seed type %lu loaded. "
+		       "Time weights sum: %12.4E/%12.4E\n",
+		       seeds[nseed].nPoints(),seeds[nseed].ID+1,
+		       sumW,seeds[nseed].time);
 	      Item_Seeds = 0;
 	      nSeeds++;
 	    }
 	  else
 	    {
 	      remainingSeedTypes=false;
-	    }
-					    
+	    }					    
 	}
       metainfo_dfrtplan->clear();
       fileformat.clear();      
@@ -1222,6 +1312,9 @@ int pen_dicom::loadDicom(const char* dirName,
   
   //Seeds read.
 
+  //Sort dicom Z values
+  std::sort(pairs_ZNpix.begin(),pairs_ZNpix.end());
+  
   /////////////////////////
   //  Read image data  ////
   /////////////////////////
@@ -1232,7 +1325,6 @@ int pen_dicom::loadDicom(const char* dirName,
   status = fileformat.loadFile(bottomDicomFilename.c_str()); //load dicom
 
   DcmDataset* metainfo_bottomDicom = fileformat.getDataset();
-  
   if(status.bad())
     {
       if(verbose > 0)
@@ -1277,14 +1369,35 @@ int pen_dicom::loadDicom(const char* dirName,
       nvox_y = height;
       nvox_xy = nvox_x*nvox_y;
 
+      // - Frames
+      Sint32 bottomFrames;
+      status = metainfo_bottomDicom->findAndGetSint32(DCM_NumberOfFrames,
+						      bottomFrames);
+      if(status.bad())
+	{
+	  //Assume single frame
+	  bottomFrames = 1;
+	}
+      bottomFrames = abs(bottomFrames);
+
+      //Get z spacing between first and second DICOM
+      double zspacing = -1.0;
+      if(pairs_ZNpix.size() > 1){
+	zspacing = (pairs_ZNpix[1].first - pairs_ZNpix[0].first)/
+	  static_cast<double>(bottomFrames);
+      }
+      
       ///////////////////////////////////////////////////
       //take the origin of the lower plane of the image//
       double AuxOrigenDicom[3];
-      status = metainfo_bottomDicom->findAndGetFloat64(DCM_ImagePositionPatient,AuxOrigenDicom[0],0);
+      status = metainfo_bottomDicom->findAndGetFloat64(DCM_ImagePositionPatient,
+						       AuxOrigenDicom[0],0);
       if(status.bad())
 	{
 	  if(verbose > 1){
-	    printf("pen_dicom:loadDicom:Warning: can't extract 'Image Position Patient' fom\n   %s\n",bottomDicomFilename.c_str());
+	    printf("pen_dicom:loadDicom:Warning: can't extract "
+		   "'Image Position Patient' fom\n   %s\n",
+		   bottomDicomFilename.c_str());
 	    printf("     Origin will be set to (0,0,0)\n");
 	  }
 	  AuxOrigenDicom[0] = 0.0;
@@ -1296,8 +1409,10 @@ int pen_dicom::loadDicom(const char* dirName,
 	  //return PEN_DICOM_BAD_READ_ORIGIN;
 	}
       else{
-	metainfo_bottomDicom->findAndGetFloat64(DCM_ImagePositionPatient,AuxOrigenDicom[1],1); 
-	metainfo_bottomDicom->findAndGetFloat64(DCM_ImagePositionPatient,AuxOrigenDicom[2],2); 
+	metainfo_bottomDicom->findAndGetFloat64(DCM_ImagePositionPatient,
+						AuxOrigenDicom[1],1); 
+	metainfo_bottomDicom->findAndGetFloat64(DCM_ImagePositionPatient,
+						AuxOrigenDicom[2],2); 
       }
       
       dicomOrigin[0]=AuxOrigenDicom[0]*0.1; //transform to cm
@@ -1310,7 +1425,8 @@ int pen_dicom::loadDicom(const char* dirName,
       
       if(verbose > 1){
 	printf("Dicom origin x,y,z(cm):\n");
-	printf(" %10.5e %10.5e %10.5e \n",dicomOrigin[0],dicomOrigin[1],dicomOrigin[2]);
+	printf(" %10.5e %10.5e %10.5e \n",
+	       dicomOrigin[0],dicomOrigin[1],dicomOrigin[2]);
       }
       
       /////////////////////////////////////////////////
@@ -1318,11 +1434,14 @@ int pen_dicom::loadDicom(const char* dirName,
       double DimYPixel;
       double DimXPixel;
       double DimZPixel;
-      status = metainfo_bottomDicom->findAndGetFloat64(DCM_PixelSpacing,DimYPixel,0);
+      status = metainfo_bottomDicom->findAndGetFloat64(DCM_PixelSpacing,
+						       DimYPixel,0);
       if(status.bad())
 	{
 	  if(verbose > 0){
-	    printf("pen_dicom:loadDicom:Error: can't extract 'PixelSpacing' from\n   %s\n",bottomDicomFilename.c_str());
+	    printf("pen_dicom:loadDicom:Error: can't extract "
+		   "'PixelSpacing' from\n   %s\n",
+		   bottomDicomFilename.c_str());
 	    printf("   Error: %s\n",status.text());
 	  }
 	  metainfo_bottomDicom->clear();
@@ -1330,11 +1449,14 @@ int pen_dicom::loadDicom(const char* dirName,
 	  clear();
 	  return PEN_DICOM_BAD_READ_PIXEL_SPACING;
 	}
-      status = metainfo_bottomDicom->findAndGetFloat64(DCM_PixelSpacing,DimXPixel,1);
+      status = metainfo_bottomDicom->findAndGetFloat64(DCM_PixelSpacing,
+						       DimXPixel,1);
       if(status.bad())
 	{
 	  if(verbose > 0){
-	    printf("pen_dicom:loadDicom:Error: can't extract 'PixelSpacing' from\n   %s\n",bottomDicomFilename.c_str());
+	    printf("pen_dicom:loadDicom:Error: can't extract "
+		   "'PixelSpacing' from\n   %s\n",
+		   bottomDicomFilename.c_str());
 	    printf("   Error: %s\n",status.text());
 	  }
 	  metainfo_bottomDicom->clear();
@@ -1342,25 +1464,59 @@ int pen_dicom::loadDicom(const char* dirName,
 	  clear();
 	  return PEN_DICOM_BAD_READ_PIXEL_SPACING;
 	}
-      status = metainfo_bottomDicom->findAndGetFloat64(DCM_SliceThickness,DimZPixel);
+      status = metainfo_bottomDicom->findAndGetFloat64(DCM_SliceThickness,
+						       DimZPixel);
       if(status.bad())
 	{
-	  if(verbose > 0){
-	    printf("pen_dicom:loadDicom:Error: can't extract 'SliceThickness' from\n   %s\n",bottomDicomFilename.c_str());
-	    printf("   Error: %s\n",status.text());
+	  if(std::signbit(zspacing)){
+	    if(verbose > 0){
+	      printf("pen_dicom:loadDicom:Error: can't extract "
+		     "'SliceThickness' from\n   %s\n",
+		     bottomDicomFilename.c_str());
+	      printf("   Error: %s\n",status.text());
+	    }
+	    metainfo_bottomDicom->clear();
+	    fileformat.clear();      
+	    clear();
+	    return PEN_DICOM_BAD_READ_SLICE_THICKNESS;
 	  }
-	  metainfo_bottomDicom->clear();
-	  fileformat.clear();      
-	  clear();
-	  return PEN_DICOM_BAD_READ_SLICE_THICKNESS;
+	  else{
+	    if(verbose > 1){
+	      printf("pen_dicom:loadDicom:Warning: can't extract "
+		     "'SliceThickness' from\n   %s\n",
+		     bottomDicomFilename.c_str());
+	      printf("   Error: %s\n",status.text());
+	      printf(" The calculated z spacing between first and second "
+		     "DICOM will be used.\n");
+	    }
+	    DimZPixel = zspacing;
+	  }
 	}
+
+      //Check if spacings coincide
+      if(!std::signbit(zspacing)){
+	if(fabs(zspacing-DimZPixel) > 1.0e-8){
+	  if(verbose > 1){
+	    printf("pen_dicom:loadDicom:Warning: Read slice thickness and "
+		   "the calculated spacing between first and "
+		   "second DICOM mismatch.\n"
+		   "             slice thickness: %12.4E mm\n"
+		   "            calculated space: %12.4E mm\n"
+		   " The calculated z spacing between first and second "
+		   "DICOM will be used.\n"		   
+		   ,DimZPixel,zspacing);
+	  }
+	  DimZPixel = zspacing;
+	}
+      }
 
       //Obtain image orientation
       const double* imageOrientation;
       const double defaultOrientation[6] = {1.0,0.0,0.0,
 					    0.0,1.0,0.0};
       
-      status = metainfo_bottomDicom->findAndGetFloat64Array(DCM_ImageOrientationPatient,imageOrientation);
+      status = metainfo_bottomDicom->findAndGetFloat64Array(DCM_ImageOrientationPatient,
+							    imageOrientation);
       if(status.bad())
 	{
 	  //If image orientation information is not stored in dicom file
@@ -1370,15 +1526,17 @@ int pen_dicom::loadDicom(const char* dirName,
 
       if(verbose > 1){
 	printf("Image orientation:\n");
-	printf(" x:(%4.2f,%4.2f,%4.2f) y:(%4.2f,%4.2f,%4.2f)\n",imageOrientation[0],imageOrientation[1],imageOrientation[2],imageOrientation[3],imageOrientation[4],imageOrientation[5]);
+	printf(" x:(%4.2f,%4.2f,%4.2f) y:(%4.2f,%4.2f,%4.2f)\n",
+	       imageOrientation[0],imageOrientation[1],imageOrientation[2],
+	       imageOrientation[3],imageOrientation[4],imageOrientation[5]);
       }
 	
       dvox_x=DimXPixel/10.0; //transform to cm
       dvox_y=DimYPixel/10.0; //transform to cm
       dvox_z=DimZPixel/10.0; //transform to cm
-      dimDicom[0] = nvox_x*dvox_x;
-      dimDicom[1] = nvox_y*dvox_y;
-      dimDicom[2] = nvox_z*dvox_z;
+      dimDicom[0] = static_cast<double>(nvox_x)*dvox_x;
+      dimDicom[1] = static_cast<double>(nvox_y)*dvox_y;
+      dimDicom[2] = static_cast<double>(nvox_z)*dvox_z;
 
       //Move dicom origin
       dicomOrigin[0] -= 0.5*dvox_x;
@@ -1440,18 +1598,29 @@ int pen_dicom::loadDicom(const char* dirName,
   if(verbose > 0)
     printf("\n");
       
-  //Order dicom Z values
-  std::sort(pairs_ZNpix.begin(),pairs_ZNpix.end());
-      
-  int loadedDicoms = 0;
+  //Check if spacing is consistent between all DICOMs
+  double dvox_zmm = dvox_z*10.0;
+  for(size_t k = 0; k < pairs_ZNpix.size()-1; ++k){
+    long int nframes = pairs_ZNpix[k].second/nvox_xy;
+    double spacing = (pairs_ZNpix[k+1].first - pairs_ZNpix[k].first)/
+      static_cast<double>(nframes);
+    if(fabs(spacing-dvox_zmm) > 1.0e-8){
+      clear();
+      if(verbose > 0)
+	printf("pen_dicom:loadDicom: Error: Spacing between images mismatch.\n");
+      return PEN_DICOM_ERROR_SPACING_MISMATCH;
+    }
+  }
+  
+  unsigned long loadedDicoms = 0;
 
   //Read one file data in each iteration
-  for(unsigned k = 0; k < filenamesDicom.size(); k++)           
+  for(size_t k = 0; k < filenamesDicom.size(); k++)           
     {
       AuxChar.assign(filenamesDicom[k]); // extract filename
 
-      int imagePos = -1; //Save image position
-      int firstPixelPos = 0; //stores first pixel to be filled
+      long int imagePos = -1; //Save image position
+      unsigned long firstPixelPos = 0; //stores first pixel to be filled
 
       //check if it's a dicom image
       status = fileformat.loadFile(AuxChar.c_str()); //load dicom
@@ -1473,7 +1642,7 @@ int pen_dicom::loadDicom(const char* dirName,
 		AuxZPos = 0.0;
 	      //Search the position of this file
 	      imagePos = -1;
-	      for(unsigned i = 0; i < pairs_ZNpix.size(); i++)
+	      for(long unsigned i = 0; i < pairs_ZNpix.size(); i++)
 		if(AuxZPos == pairs_ZNpix[i].first){
 		  imagePos = i;
 		  break;
@@ -1495,7 +1664,8 @@ int pen_dicom::loadDicom(const char* dirName,
 	      //this dicom has not image data and there are more
 	      //than single image file to load
 	      if(verbose > 1){
-		printf("pen_dicom:loadDicom: Error: Dicom file %s doesn't contain Z plane position information.\n",AuxChar.c_str());
+		printf("pen_dicom:loadDicom: Error: Dicom file %s doesn't contain "
+		       "Z plane position information.\n",AuxChar.c_str());
 	      }	      
 	      metainfo_Dicom->clear();
 	      fileformat.clear();
@@ -1507,7 +1677,8 @@ int pen_dicom::loadDicom(const char* dirName,
 	{
 	  //Dicom is corrupted
 	  if(verbose > 1){
-	    printf("pen_dicom:loadDicom: Error: Unable to read previous read dicom file %s.\n",AuxChar.c_str());
+	    printf("pen_dicom:loadDicom: Error: Unable to read previous "
+		   "read dicom file %s.\n",AuxChar.c_str());
 	  }
 	  metainfo_bottomDicom->clear();
 	  fileformat.clear();
@@ -1517,7 +1688,7 @@ int pen_dicom::loadDicom(const char* dirName,
       
       
       //Calculate first pixel position for this dicom
-      for(int k2 = 0; k2 < imagePos; k2++)
+      for(int long k2 = 0; k2 < imagePos; k2++)
 	{
 	  firstPixelPos += pairs_ZNpix[k2].second;
 	}
@@ -1525,11 +1696,12 @@ int pen_dicom::loadDicom(const char* dirName,
       //get dicom image
       DicomImage *image = new DicomImage(AuxChar.c_str());
       if(image->getStatus() == EIS_Normal && image != 0)
-	{	  
-	  if(!(image->isMonochrome())) 	      //Check if this image uses monochromatic format ("SamplesPerPixel" = 1)
+	{
+	  if(!(image->isMonochrome())) //Check if this image uses monochromatic format ("SamplesPerPixel" = 1)
 	    {
 	      if(verbose > 0)
-		printf("pen_dicom:load_dicom: Error: Image format is not grayscale:\n   %s\n",AuxChar.c_str());
+		printf("pen_dicom:load_dicom: Error: Image format is not grayscale:\n   %s\n",
+		       AuxChar.c_str());
 	      delete image;
 	      clear();
 	      return PEN_DICOM_NON_MONOCHROME_IMAGE;
@@ -1540,7 +1712,8 @@ int pen_dicom::loadDicom(const char* dirName,
 	  if(status.bad())
 	    {
 	      if(verbose > 0){
-		printf("pen_dicom:loadDicom:Error: Can't extract 'Columns' fom\n   %s\n",AuxChar.c_str());
+		printf("pen_dicom:loadDicom:Error: Can't extract 'Columns' fom\n   %s\n",
+		       AuxChar.c_str());
 		printf("   Error: %s\n",status.text());
 	      }
 	      delete image;
@@ -1551,7 +1724,8 @@ int pen_dicom::loadDicom(const char* dirName,
 	  if(status.bad())
 	    {
 	      if(verbose > 0){
-		printf("pen_dicom:loadDicom: Error: can't extract 'Rows' fom\n   %s\n",AuxChar.c_str());
+		printf("pen_dicom:loadDicom: Error: can't extract 'Rows' fom\n   %s\n",
+		       AuxChar.c_str());
 		printf("   Error: %s\n",status.text());
 	      }
 	      delete image;
@@ -1571,37 +1745,40 @@ int pen_dicom::loadDicom(const char* dirName,
 	    }
 
 	  //Get planes in image file
-	  unsigned nframes;
-	  int auxFrames;
+	  unsigned long nframes;
+	  Sint32 auxFrames;
 	  status = metainfo_Dicom->findAndGetSint32(DCM_NumberOfFrames,auxFrames);
 	  if(status.bad())
 	    {
 	      //Assume only 1 frame
 	      auxFrames = 1;
 	    }
-	  nframes = (unsigned) abs(auxFrames);
+	  nframes = static_cast<unsigned long>(abs(auxFrames));
 
-	  unsigned int totalDicomVoxels = width*height*nframes;
+	  unsigned long totalDicomVoxels =
+	    static_cast<unsigned long>(width)*
+	    static_cast<unsigned long>(height)*nframes;
 	  if(totalDicomVoxels != pairs_ZNpix[imagePos].second){
 	    if(verbose > 0){
-	      printf("pen_dicom:loadDicom: Error: Number of voxels mismatch into dicom file %s\n",AuxChar.c_str());
+	      printf("pen_dicom:loadDicom: Error: Number of voxels mismatch into "
+		     "dicom file %s\n",AuxChar.c_str());
 	    }
 	    delete image;
 	    clear();
 	    return PEN_DICOM_NVOXELS_MISMATCH;
 	  }
 	  
-	  //RescaleIntercept and RescaleSlope, are used to transform each pixel value with the formula:  RescaleSlope*pixelValue+RescaleIntercept
-	  double RescaleIntercept;
-	  status = metainfo_Dicom->findAndGetFloat64(DCM_RescaleIntercept,RescaleIntercept);
-	  double RescaleSlope;
-	  status = metainfo_Dicom->findAndGetFloat64(DCM_RescaleSlope,RescaleSlope);
-	  if(RescaleSlope==0.0){RescaleSlope=1.0;}
-
+	  //RescaleIntercept and RescaleSlope, are used to transform each pixel
+	  //value with the formula:  RescaleSlope*pixelValue+RescaleIntercept
+	  //double RescaleIntercept;
+	  //status = metainfo_Dicom->findAndGetFloat64(DCM_RescaleIntercept,RescaleIntercept);
+	  //double RescaleSlope;
+	  //status = metainfo_Dicom->findAndGetFloat64(DCM_RescaleSlope,RescaleSlope);
+	  //if(RescaleSlope==0.0){RescaleSlope=1.0;}
 
 	  //read if pixel data is signed (1) or unsigned (0)
 	  short unsigned int PixelRep;
-	  status = metainfo_Dicom->findAndGetUint16(DCM_PixelRepresentation,PixelRep);				      
+	  status = metainfo_Dicom->findAndGetUint16(DCM_PixelRepresentation,PixelRep);
 	  if(status.bad())
 	    {
 	      if(verbose > 0){
@@ -1618,275 +1795,91 @@ int pen_dicom::loadDicom(const char* dirName,
 	  if(inter == nullptr)
 	    {
 	      if(verbose > 0){
-		printf("pen_dicom:load_dicom: Error: Can't extract pixel data form dicom:\n   %s\n",AuxChar.c_str());
+		printf("pen_dicom:load_dicom: Error: Can't extract pixel data"
+		       " form dicom:\n   %s\n",AuxChar.c_str());
 	      }
 	      delete image;
 	      clear();
 	      return PEN_DICOM_BAD_READ_PIXEL_DATA;
 	    }
 
+	  //Check number of pixels
+	  if(inter->getCount() != totalDicomVoxels){
+	    if(verbose > 0){
+	      printf("pen_dicom:load_dicom: Error: Image pixel count and"
+		     " expected number of pixels mismatch"
+		     " form dicom:\n   %s\n"
+		     "     Read: %lu\n"
+		     " Expected: %lu\n",
+		     AuxChar.c_str(),inter->getCount(),totalDicomVoxels);
+	    }
+	    delete image;
+	    clear();
+	    return PEN_DICOM_BAD_READ_PIXEL_DATA;	    
+	  }
+
+	  //Get pixel representation
 	  EP_Representation rep = inter->getRepresentation();
 
-	  const Uint8* pixeldataU8 = 0;
-	  const Uint16* pixeldataU16 = 0;
-	  const Uint32* pixeldataU32 = 0;
-
-	  // Get bits per sample
-	  Uint16 bitsSample;
-	  metainfo_Dicom->findAndGetUint16(DCM_BitsAllocated,bitsSample);
-
-	  // Get bits stored in each sample
-	  Uint16 bitsStored;
-	  metainfo_Dicom->findAndGetUint16(DCM_BitsStored,bitsStored);
-
-	  // Get endianess
-	  Uint16 highBit;
-	  metainfo_Dicom->findAndGetUint16(DCM_HighBit,highBit);
-
-	  unsigned long nImageChunks;
-	  unsigned usedChunks = 0;
-	  if(rep == EPR_Uint8)
-	    {
-	      status = metainfo_Dicom->findAndGetUint8Array(DCM_PixelData,
-							    pixeldataU8,
-							    &nImageChunks);
-	      if(status.bad()){
-		if(verbose > 0){
-		  printf("pen_dicom:load_dicom: Error: Can't extract pixel data\n");
-		  printf("   Error: %s\n",status.text());
-		}
-		delete image;
-		clear();
-		return PEN_DICOM_BAD_READ_PIXEL_DATA;
-	      }
-
-	      for(unsigned int ii = 0; ii < totalDicomVoxels; ii++)
-		{
-		  Uint32 value = 0;
-		  int errTrans = bytes2int(&pixeldataU8[usedChunks], 8, bitsSample, bitsStored, 0, highBit, value, &usedChunks);
-		  if(errTrans != 0)
-		    {
-		      if(verbose > 0){
-			printf("pen_dicom:load_dicom: Error:  Can't convert pixels to data.\n");
-			printf("       Error code : %d\n",errTrans);
-		      }
-		      delete image;
-		      clear();
-		      return PEN_DICOM_BAD_PIXEL_CONVERSION;
-		    }
-		  //apply calibration line on pixel value
-		  dicomImage[firstPixelPos + ii] =
-		    RescaleSlope*double(value)+RescaleIntercept;
-		}
-
-	    }
-	  else if(rep == EPR_Sint8)
-	    {
-	      status = metainfo_Dicom->findAndGetUint8Array(DCM_PixelData,
-							    pixeldataU8,
-							    &nImageChunks);
-	      if(status.bad()){
-		if(verbose > 0){
-		  printf("pen_dicom:load_dicom: Error: Can't extract pixel data\n");
-		  printf("   Error: %s\n",status.text());
-		}
-		delete image;
-		clear();
-		return PEN_DICOM_BAD_READ_PIXEL_DATA;
-	      }
-
-	      for(unsigned int ii = 0; ii < totalDicomVoxels; ii++)
-		{
-		  Uint32 value = 0;
-		  int errTrans = bytes2int(&pixeldataU8[usedChunks], 8, bitsSample, bitsStored, 0, highBit, value, &usedChunks);
-		  if(errTrans != 0)
-		    {
-		      if(verbose > 0){
-			printf("pen_dicom:load_dicom: Error:  Can't convert pixels to data.\n");
-			printf("       Error code : %d\n",errTrans);
-		      }
-		      delete image;
-		      clear();
-		      return PEN_DICOM_BAD_PIXEL_CONVERSION;
-		    }
-		  //apply calibration line on pixel value
-		  Sint32 value2 = value < 128 ? value : value - 256;
-		  dicomImage[firstPixelPos + ii] =
-					  RescaleSlope*double(value2)+
-					  RescaleIntercept;
-		}
-	    }
-	  else if(rep == EPR_Uint16)
-	    {
-	      status = metainfo_Dicom->findAndGetUint16Array(DCM_PixelData,
-							     pixeldataU16,
-							     &nImageChunks);
-	      if(status.bad()){
-		if(verbose > 0){
-		  printf("pen_dicom:load_dicom: Error: Can't extract pixel data\n");
-		  printf("   Error: %s\n",status.text());
-		}
-		delete image;
-		clear();
-		return PEN_DICOM_BAD_READ_PIXEL_DATA;
-	      }
-
-	      for(unsigned int ii = 0; ii < totalDicomVoxels; ii++)
-		{
-		  Uint32 value = 0;
-		  int errTrans = bytes2int(&pixeldataU16[usedChunks], 16, bitsSample, bitsStored, 0, highBit, value, &usedChunks);
-		  if(errTrans != 0)
-		    {
-		      if(verbose > 0){
-			printf("pen_dicom:load_dicom: Error:  Can't convert pixels to data.\n");
-			printf("       Error code : %d\n",errTrans);
-		      }
-		      delete image;
-		      clear();
-		      return PEN_DICOM_BAD_PIXEL_CONVERSION;
-		    }
-		  //apply calibration line on pixel value
-		  dicomImage[firstPixelPos + ii] =
-		    RescaleSlope*double(value)+RescaleIntercept;
-		}
-	    }
-	  else if(rep == EPR_Sint16)
-	    {
-	      status = metainfo_Dicom->findAndGetUint16Array(DCM_PixelData,pixeldataU16,&nImageChunks);
-	      if(status.bad()){
-		if(verbose > 0){
-		  printf("pen_dicom:load_dicom: Error: Can't extract pixel data\n");
-		  printf("   Error: %s\n",status.text());
-		}
-		delete image;
-		clear();
-		return PEN_DICOM_BAD_READ_PIXEL_DATA;
-	      }
-
-	      for(unsigned int ii = 0; ii < totalDicomVoxels; ii++)
-		{
-		  Uint32 value = 0;
-		  int errTrans = bytes2int(&pixeldataU16[usedChunks], 16, bitsSample, bitsStored, 0, highBit, value, &usedChunks);
-		  if(errTrans != 0)
-		    {
-		      if(verbose > 0){
-			printf("pen_dicom:load_dicom: Error:  Can't convert pixels to data.\n");
-			printf("       Error code : %d\n",errTrans);
-		      }
-		      delete image;
-		      clear();
-		      return PEN_DICOM_BAD_PIXEL_CONVERSION;
-		    }
-
-		  //apply calibration line on pixel value
-		  Sint32 value2 = value < 32768 ? value : value - 65536;
-		  dicomImage[firstPixelPos + ii] =
-					  RescaleSlope*double(value2)+
-					  RescaleIntercept;
-		}
-	    }
-	  else if(rep == EPR_Uint32)
-	    {
-	      status = metainfo_Dicom->findAndGetUint32Array(DCM_PixelData,
-							     pixeldataU32,
-							     &nImageChunks);
-	      if(status.bad()){
-		if(verbose > 0){
-		  printf("pen_dicom:load_dicom: Error: Can't extract pixel data\n");
-		  printf("   Error: %s\n",status.text());
-		}
-		delete image;
-		clear();
-		return PEN_DICOM_BAD_READ_PIXEL_DATA;
-	      }
-	      for(unsigned int ii = 0; ii < totalDicomVoxels; ii++)
-		{
-		  Uint32 value = 0;
-		  int errTrans = bytes2int(&pixeldataU32[usedChunks], 32, bitsSample, bitsStored, 0, highBit, value, &usedChunks);
-		  if(errTrans != 0)
-		    {
-		      if(verbose > 0){
-			printf("pen_dicom:load_dicom: Error:  Can't convert pixels to data.\n");
-			printf("       Error code : %d\n",errTrans);
-		      }
-		      delete image;
-		      clear();
-		      return PEN_DICOM_BAD_PIXEL_CONVERSION;
-		    }
-
-		  //apply calibration line on pixel value
-		  dicomImage[firstPixelPos + ii] =
-		    RescaleSlope*double(value)+RescaleIntercept;
-		}
-	    }
-	  else if(rep == EPR_Sint32)
-	    {
-	      status = metainfo_Dicom->findAndGetUint32Array(DCM_PixelData,pixeldataU32,&nImageChunks);
-	      if(status.bad()){
-		if(verbose > 0){
-		  printf("pen_dicom:load_dicom: Error: Can't extract pixel data\n");
-		  printf("   Error: %s\n",status.text());
-		}
-		delete image;
-		clear();
-		return PEN_DICOM_BAD_READ_PIXEL_DATA;
-	      }
-
-	      for(unsigned int ii = 0; ii < totalDicomVoxels; ii++)
-		{
-		  Uint32 value = 0;
-		  int errTrans = bytes2int(&pixeldataU32[usedChunks], 32, bitsSample, bitsStored, 0, highBit, value, &usedChunks);
-		  if(errTrans != 0)
-		    {
-		      if(verbose > 0){
-			printf("pen_dicom:load_dicom: Error:  Can't convert pixels to data.\n");
-			printf("       Error code : %d\n",errTrans);
-		      }
-		      delete image;
-		      clear();
-		      return PEN_DICOM_BAD_PIXEL_CONVERSION;
-		    }
-
-		  //apply calibration line on pixel value
-		  Sint32 value2 = value < 2147483648 ? value : value - 4294967296;
-		  dicomImage[firstPixelPos + ii] =
-					  RescaleSlope*double(value2)+
-					  RescaleIntercept;
-		}
-	    }
+	  if(rep == EPR_Uint8){
+	    const Uint8* pixeldata =
+	      static_cast<const Uint8*>(inter->getData());
+	    for(unsigned long int ii = 0; ii < totalDicomVoxels; ii++)
+	      dicomImage[firstPixelPos + ii] =
+		static_cast<double>(pixeldata[ii]);
+	  }
+	  else if(rep == EPR_Sint8){
+	    const Sint8* pixeldata =
+	      static_cast<const Sint8*>(inter->getData());
+	    for(unsigned long int ii = 0; ii < totalDicomVoxels; ii++)
+	      dicomImage[firstPixelPos + ii] =
+		static_cast<double>(pixeldata[ii]);	    
+	  }
+	  else if(rep == EPR_Uint16){
+	    const Uint16* pixeldata =
+	      static_cast<const Uint16*>(inter->getData());
+	    for(unsigned long int ii = 0; ii < totalDicomVoxels; ii++)
+	      dicomImage[firstPixelPos + ii] =
+		static_cast<double>(pixeldata[ii]);	    	    
+	  }
+	  else if(rep == EPR_Sint16){
+	    const Sint16* pixeldata =
+	      static_cast<const Sint16*>(inter->getData());
+	    for(unsigned long int ii = 0; ii < totalDicomVoxels; ii++)
+	      dicomImage[firstPixelPos + ii] =
+		static_cast<double>(pixeldata[ii]);	    
+	  }
+	  else if(rep == EPR_Uint32){
+	    const Uint32* pixeldata =
+	      static_cast<const Uint32*>(inter->getData());
+	    for(unsigned long int ii = 0; ii < totalDicomVoxels; ii++)
+	      dicomImage[firstPixelPos + ii] =
+		static_cast<double>(pixeldata[ii]);	    	    
+	  }
+	  else if(rep == EPR_Sint32){
+	    const Sint32* pixeldata =
+	      static_cast<const Sint32*>(inter->getData());
+	    for(unsigned long int ii = 0; ii < totalDicomVoxels; ii++)
+	      dicomImage[firstPixelPos + ii] =
+		static_cast<double>(pixeldata[ii]);	    	    
+	  }
 	  else
 	    {
 	      if(verbose > 0){
-		printf("pen_dicom:load_dicom: Error: Invalid pixel representation (%d) form dicom:\n   %s\n",rep,AuxChar.c_str());
+		printf("pen_dicom:load_dicom: Error: Invalid pixel "
+		       "representation (%d) form dicom:\n   %s\n",
+		       rep,AuxChar.c_str());
 	      }
 	      delete image;
 	      clear();
 	      return PEN_DICOM_BAD_PIXEL_REPRESENTATION;
-	    }
-
-	  if(nImageChunks != usedChunks)
-	    {
-
-	      if(verbose > 0){
-		printf("pen_dicom:load_dicom: Error: Number of pixel values mismatch:\n");
-		printf("       expected  : %lu\n",nImageChunks);
-		printf("       read      : %u\n",usedChunks);
-		printf("       frames    : %u\n",nframes);
-		printf("       rows      : %u\n",height);
-		printf("       columns   : %u\n",width);		
-		printf("       N pixels  : %u\n",width*height*nframes);		
-		printf("       Z position: %12.5E\n",pairs_ZNpix[imagePos].first);		
-	      }
-	      delete image;
-	      clear();
-	      return PEN_DICOM_MISMATCH_EXPECTED_READ;
-	    }	  
-	  
+	    } 
 	}
       else
 	{
 	  if(verbose > 0){
-	    printf("pen_dicom:load_dicom: Error: Can't open image from dicom:\n   %s\n",AuxChar.c_str());
+	    printf("pen_dicom:load_dicom: Error: Can't open image "
+		   "from dicom:\n   %s\n",AuxChar.c_str());
 	  }
 	  delete image;
 	  clear();
@@ -1900,7 +1893,7 @@ int pen_dicom::loadDicom(const char* dirName,
     }
 
   if(verbose > 1){
-    printf(" Loaded image DICOMs: %u\n",loadedDicoms);
+    printf(" Loaded image DICOMs: %lu\n",loadedDicoms);
   }
   return PEN_DICOM_SUCCESS;
 }
@@ -1949,14 +1942,14 @@ int pen_dicom::assignContours(){
       }
 
       //Clear voxels contour
-      for(unsigned i = 0; i < tnvox; i++){
+      for(unsigned long i = 0; i < tnvox; i++){
 	voxelContour[i] = -1;
       }
       //Clear auxiliar array
       memcpy(voxelContour2,voxelContour,sizeof(int)*tnvox);
       
       //Now, assign a contour to each voxel      
-      for(unsigned ipair = 0; ipair < contours.size(); ipair++){
+      for(unsigned long ipair = 0; ipair < contours.size(); ipair++){
 
 	//Get the corresponding contour index
 	unsigned icontour = pairs[ipair].second;
@@ -1973,21 +1966,21 @@ int pen_dicom::assignContours(){
 	  //Calculate Z plane
 	  double p0[3];
 	  refCont.getPoint(p0,nplane,0);
-	  int zPlane = p0[2]/dvox_z;
+	  long int zPlane = p0[2]/dvox_z;
 	  
 	  if(zPlane < 0 || zPlane >= (int)nvox_z)
 	    continue;
 
-	  int zIndex = nvox_xy*zPlane;
+	  long int zIndex = nvox_xy*zPlane;
 	  //Iterate over all rows (y axis)
-	  for(unsigned i = 0; i < nvox_y; i++)
+	  for(unsigned long i = 0; i < nvox_y; i++)
 	    {
 	      //Calculate row index in this plane
-	      unsigned rowIndex = i*nvox_x;
+	      unsigned long rowIndex = i*nvox_x;
 	      //Calculate central point of row 'i'
 	      double yCenter = ((double)i+0.5)*dvox_y;
 	      //Check all pair of contour points
-	      int previousPointCut = -6;
+	      long int previousPointCut = -6;
 	      //Stores if the first pair has been cutted
 	      bool firstPairCutted = false;
 
@@ -1996,10 +1989,10 @@ int pen_dicom::assignContours(){
 	      std::vector<double> cutsX;
 	      
 	      //Iterate over all contour plane segments
-	      for(unsigned npoint = 0; npoint < refCont.nPoints(nplane); npoint++)
+	      for(unsigned long npoint = 0; npoint < refCont.nPoints(nplane); npoint++)
 		{
 		  //Calculate nex point index
-		  unsigned nextPoint = npoint+1;
+		  unsigned long nextPoint = npoint+1;
 		  if(npoint == refCont.nPoints(nplane)-1){
 		    //Final point must be connected with initial one
 		    nextPoint = 0; 
@@ -2166,16 +2159,16 @@ int pen_dicom::assignContours(){
 	      std::sort(cutsX.begin(),cutsX.end());
 
 	      //Iterate over contour cut pairs (0-1,2-3,4-5...)
-	      for(unsigned ncut = 1; ncut < cutsX.size(); ncut += 2) 
+	      for(size_t ncut = 1; ncut < cutsX.size(); ncut += 2) 
 		{
 		  //Get the voxel index corrsponding to first cut
-		  unsigned j = (unsigned)(cutsX[ncut-1]/dvox_x); 
+		  unsigned long j = (unsigned long)(cutsX[ncut-1]/dvox_x); 
 		  //Calculate last voxel between actual cut and next cut
-		  unsigned nextJ = (unsigned)(cutsX[ncut]/dvox_x);
+		  unsigned long nextJ = (unsigned long)(cutsX[ncut]/dvox_x);
 		  nextJ = nextJ >= nvox_x ? nvox_x-1 : nextJ;
-		  for(unsigned n = j; n <= nextJ; n++)
+		  for(unsigned long n = j; n <= nextJ; n++)
 		    {
-		      unsigned index = zIndex + rowIndex + n;
+		      unsigned long index = zIndex + rowIndex + n;
 		      //Check if this voxel is already in this contour
 		      if(voxelContour[index] == (int)icontour)
 			{
@@ -2203,7 +2196,7 @@ int pen_dicom::assignContours(){
       free(voxelContour2);
       
       //Calculate number of voxels in each contour
-      for(unsigned i = 0; i < tnvox; i++)
+      for(unsigned long i = 0; i < tnvox; i++)
 	if(voxelContour[i] > -1)
 	  nVoxContour[voxelContour[i]]++;
     }
@@ -2395,11 +2388,11 @@ int pen_dicom::transformContoursAndSeeds(const double* imageOrientation,
       //Apply rotation and translation to contours points and seeds positions
 
       printf(" *Rotate and translate contour points* \n");
-      for(unsigned j = 0; j<contours.size(); j++)
+      for(size_t j = 0; j<contours.size(); j++)
 	{
 	  for(unsigned i = 0; i < contours[j].NPlanes(); i++)
 	    {
-	      for(unsigned k = 0; k < contours[j].nPoints(i); k++)
+	      for(unsigned long k = 0; k < contours[j].nPoints(i); k++)
 		{
 		  double p[3];
 		  contours[j].getPoint(p,i,k);
@@ -2414,9 +2407,9 @@ int pen_dicom::transformContoursAndSeeds(const double* imageOrientation,
 
       if(verbose > 1)
 	printf(" *Rotate and translate seed positions and directions* \n");
-      for(unsigned j = 0; j < seeds.size(); j++)
+      for(size_t j = 0; j < seeds.size(); j++)
 	{
-	  for(unsigned i = 0; i < seeds[j].nPoints(); i++) 
+	  for(unsigned long i = 0; i < seeds[j].nPoints(); i++) 
 	    {
 	      double p[3];
 	      seeds[j].getPos(p,i);
@@ -2448,11 +2441,11 @@ int pen_dicom::transformContoursAndSeeds(const double* imageOrientation,
     
 	if(verbose > 1)
 	  printf(" *Translate contour points* \n");
-      for(unsigned j = 0; j<contours.size(); j++)
+      for(size_t j = 0; j<contours.size(); j++)
 	{
 	  for(unsigned i = 0; i < contours[j].NPlanes(); i++)
 	    {
-	      for(unsigned k = 0; k < contours[j].nPoints(i); k++)
+	      for(unsigned long k = 0; k < contours[j].nPoints(i); k++)
 		{
 		  double p[3];
 		  contours[j].getPoint(p,i,k);
@@ -2468,9 +2461,9 @@ int pen_dicom::transformContoursAndSeeds(const double* imageOrientation,
 
       if(verbose > 1)
 	printf(" *Translate seed positions* \n");
-      for(unsigned j = 0; j < seeds.size(); j++)
+      for(size_t j = 0; j < seeds.size(); j++)
 	{
-	  for(unsigned i = 0; i < seeds[j].nPoints(); i++) 
+	  for(unsigned long i = 0; i < seeds[j].nPoints(); i++) 
 	    {
 	      double p[3];
 	      seeds[j].getPos(p,i);
@@ -2504,16 +2497,16 @@ int pen_dicom::printContours(const char* filename) const{
   fprintf(OutContorns,"#\n");
   fprintf(OutContorns,"# Name, number of voxels in contour, volume of each contour (cm^3), number of contour points\n");
   fprintf(OutContorns,"#\n");
-  for(unsigned i = 0; i < contours.size(); i++)
+  for(size_t i = 0; i < contours.size(); i++)
     {
       //Count number of contour points
-      unsigned nPoints = 0;
+      unsigned long nPoints = 0;
       for(unsigned j = 0; j < contours[i].NPlanes(); j++)
 	{
 	  nPoints += contours[i].nPoints(j);
 	}
       
-      fprintf(OutContorns,"#    Contour %i: %s %u %.5E %d\n",
+      fprintf(OutContorns,"#    Contour %li: %s %lu %.5E %ld\n",
 	      i, contours[i].name.c_str(), nVoxContour[i],
 	      nVoxContour[i]*voxVol,nPoints);
     }
@@ -2521,17 +2514,17 @@ int pen_dicom::printContours(const char* filename) const{
   fprintf(OutContorns,"# contour points data\n");
   fprintf(OutContorns,"# contour number | sequence number | Z Position | X Position | Y Position |\n");
 
-  for(unsigned i = 0; i < contours.size(); i++)
+  for(size_t i = 0; i < contours.size(); i++)
     {
       for(unsigned j = 0; j < contours[i].NPlanes(); j++)
 	{
-	  unsigned planePoints = contours[i].nPoints(j);
-	  for(unsigned k = 0; k < planePoints; k++)
+	  unsigned long planePoints = contours[i].nPoints(j);
+	  for(unsigned long k = 0; k < planePoints; k++)
 	    {
 	      //Get point
 	      double p[3];
 	      contours[i].getPoint(p,j,k);
-	      fprintf(OutContorns," %7i          %8i          %.5E  %.5E  %.5E\n",
+	      fprintf(OutContorns," %7lu          %8u          %.5E  %.5E  %.5E\n",
 		      i+1,j+1,p[2],p[0],p[1]);
 	    }
 	}
@@ -2561,16 +2554,17 @@ int pen_dicom::printSeeds(const char* filename) const{
   fprintf(OutSeeds,"# Seeds positions/movements (x,y,z) weight:\n");
   fprintf(OutSeeds,"# \n");
 
-  for(unsigned i = 0; i < seeds.size(); i++)
+  for(unsigned long i = 0; i < seeds.size(); i++)
     {
-      fprintf(OutSeeds,"#   Type %d: %d control points (only points with no null weight will be printed)\n", i+1,seeds[i].nPoints());
+      fprintf(OutSeeds,"#   Type %ld: %ld control points (only points with no "
+	      "null weight will be printed)\n", i+1,seeds[i].nPoints());
       fprintf(OutSeeds,"#\n");
       
       //Stores mass center of seeds positions and steps
       double CM[3] = {0.0,0.0,0.0};  
-      int contChannel = 0;
-      unsigned nCP = seeds[i].nPoints();
-      for(unsigned j = 0; j < nCP; j++)
+      long int contChannel = 0;
+      unsigned long nCP = seeds[i].nPoints();
+      for(unsigned long j = 0; j < nCP; j++)
 	{
 	  double wght = seeds[i].getWeight(j);
 	  double pos[3];
@@ -2581,7 +2575,8 @@ int pen_dicom::printSeeds(const char* filename) const{
 	  if(d == -1.0)
 	    {
 	      contChannel++;
-	      fprintf(OutSeeds,"#     Channel %d, first position: (%9.5e,%9.5e,%9.5e)\n",
+	      fprintf(OutSeeds,"#     Channel %ld, first position: "
+		      "(%9.5e,%9.5e,%9.5e)\n",
 		      contChannel,pos[0],pos[1],pos[2]);
 	    }
 	  else
@@ -2643,25 +2638,25 @@ int pen_dicom::printImage(const char* filename) const{
   }
 
   fprintf(OutImage,"# \n");
-  fprintf(OutImage,"# DICOM processed with PenelopeC\n");
+  fprintf(OutImage,"# DICOM processed with PenRed\n");
   fprintf(OutImage,"# Nº of voxels (nx,ny,nz):\n");  
-  fprintf(OutImage,"# %5u %5u %5u\n",nvox_x,nvox_y,nvox_z);
+  fprintf(OutImage,"# %5lu %5lu %5lu\n",nvox_x,nvox_y,nvox_z);
   fprintf(OutImage,"# %8.5E %8.5E %8.5E\n",dvox_x,dvox_y,dvox_z);
   fprintf(OutImage,"# DICOM image data:\n");
 
   //Iterate over Z planes
-  for(unsigned k = 0; k < nvox_z; k++){
-    unsigned indexZ = nvox_xy*k;
-    fprintf(OutImage,"# Index Z = %4d\n",k);
+  for(unsigned long k = 0; k < nvox_z; k++){
+    unsigned long indexZ = nvox_xy*k;
+    fprintf(OutImage,"# Index Z = %4lu\n",k);
 
     //Iterate over rows
-    for(unsigned j = 0; j < nvox_y; j++){
-      unsigned indexYZ = indexZ + j*nvox_x;
-      fprintf(OutImage,"# Index Y = %4d\n",j);
+    for(unsigned long j = 0; j < nvox_y; j++){
+      unsigned long indexYZ = indexZ + j*nvox_x;
+      fprintf(OutImage,"# Index Y = %4lu\n",j);
 
       //Iterate over columns
-      for(unsigned i = 0; i < nvox_x; i++){
-	unsigned ivoxel = indexYZ + i;
+      for(unsigned long i = 0; i < nvox_x; i++){
+	unsigned long ivoxel = indexYZ + i;
 
 	//Save voxel X Y and intensity
 	fprintf(OutImage,"%12.5E %12.5E %12.5E\n", i*dvox_x, j*dvox_y, dicomImage[ivoxel]);
@@ -2688,28 +2683,29 @@ int pen_dicom::printContourVox(const char* filename) const{
   }
 
   fprintf(OutImage,"# \n");
-  fprintf(OutImage,"# DICOM processed with PenelopeC\n");
+  fprintf(OutImage,"# DICOM processed with PenRed\n");
   fprintf(OutImage,"# Nº of voxels (nx,ny,nz):\n");  
-  fprintf(OutImage,"# %5u %5u %5u\n",nvox_x,nvox_y,nvox_z);
+  fprintf(OutImage,"# %5lu %5lu %5lu\n",nvox_x,nvox_y,nvox_z);
   fprintf(OutImage,"# %8.5E %8.5E %8.5E\n",dvox_x,dvox_y,dvox_z);
-  fprintf(OutImage,"# DICOM image data:\n");
+  fprintf(OutImage,"# DICOM contour mask image:\n");
 
   //Iterate over Z planes
-  for(unsigned k = 0; k < nvox_z; k++){
-    unsigned indexZ = nvox_xy*k;
-    fprintf(OutImage,"# Index Z = %4d\n",k);
+  for(unsigned long k = 0; k < nvox_z; k++){
+    unsigned long indexZ = nvox_xy*k;
+    fprintf(OutImage,"# Index Z = %4lu\n",k);
 
     //Iterate over rows
-    for(unsigned j = 0; j < nvox_y; j++){
-      unsigned indexYZ = indexZ + j*nvox_x;
-      fprintf(OutImage,"# Index Y = %4d\n",j);
+    for(unsigned long j = 0; j < nvox_y; j++){
+      unsigned long indexYZ = indexZ + j*nvox_x;
+      fprintf(OutImage,"# Index Y = %4lu\n",j);
 
       //Iterate over columns
-      for(unsigned i = 0; i < nvox_x; i++){
-	unsigned ivoxel = indexYZ + i;
+      for(unsigned long i = 0; i < nvox_x; i++){
+	unsigned long ivoxel = indexYZ + i;
 
 	//Save voxel X Y and intensity
-	fprintf(OutImage,"%12.5E %12.5E %3d\n", i*dvox_x, j*dvox_y, voxelContour[ivoxel]);
+	fprintf(OutImage,"%12.5E %12.5E %3d\n",
+		i*dvox_x, j*dvox_y, voxelContour[ivoxel]);
       }
       
     }
@@ -2768,18 +2764,4 @@ void matmul3(double* A, double* B, double* C)
     for(k = 0; k < 3; k++)	
       for(j = 0; j < 3; j++)	
 	C[i*3+j] += A[i*3+k]*B[k*3+j];	
-}
-
-bool checkEndian()
-{
-  //Return 0 if computer is little endian
-  //Return 1 if computer is big endian
-  
-  int16_t i = 1;  // [0000 0000][0000 0001]
-  int8_t *p = (int8_t *) &i;
-  
-  if (p[0] == 1) return 0;
-  else           return 1;
-  
-  return 0;
 }
