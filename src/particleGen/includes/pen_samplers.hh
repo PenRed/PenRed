@@ -21,8 +21,8 @@
 //
 //    contact emails:
 //
-//        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
+//        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
+//        vicente.gimenez@uv.es (Vicente Giménez Gómez)
 //    
 //
 
