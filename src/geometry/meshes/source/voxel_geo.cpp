@@ -333,7 +333,7 @@ void pen_voxelGeo::step(pen_particleState& state,
   double ds_x, ds_y, ds_z;
   //Voxel index increment
   int voxInc_x, voxInc_y, voxInc_z;
-  int voxIncGlob_x, voxIncGlob_y, voxIncGlob_z;
+  long int voxIncGlob_x, voxIncGlob_y, voxIncGlob_z;
   //Get initial material from actual voxel
   unsigned imat = state.MAT;
   

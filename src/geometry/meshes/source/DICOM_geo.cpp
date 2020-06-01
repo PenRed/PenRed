@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2020 Universitat de València - UV
+//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -21,8 +21,8 @@
 //
 //    contact emails:
 //
-//        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
+//        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
+//        vicente.gimenez@uv.es (Vicente Giménez Gómez)
 //    
 //
 
@@ -107,7 +107,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   if(intensityRangesNames.size() > 0){
     if(verbose > 1)
       printf("\nRange name  | MAT ID | density (g/cm^3) | Intensity range\n");
-    for(unsigned i = 0; i < intensityRangesNames.size(); i++){
+    for(unsigned long i = 0; i < intensityRangesNames.size(); i++){
       //Read material assigned to this contour
       int auxMat;
       double auxIntensityLow;
@@ -522,13 +522,26 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
     return 7;
   }
 
-  unsigned nvox[3] = {dicom.getNX(),dicom.getNY(),dicom.getNZ()};
+  if(std::numeric_limits<unsigned>::max() < dicom.getNZ()){
+    if(verbose > 0){
+      printf("pen_dicomGeo:configure: Error: DICOM '%s' is too large\n"
+	     ,directoryPath.c_str());
+      printf("                Maximum z planes: %u\n"
+	     "                   Read z planes: %lu\n",
+	     std::numeric_limits<unsigned>::max(),dicom.getNZ());
+    }
+    return 8;
+  }
+
+  unsigned nvox[3] = {static_cast<unsigned>(dicom.getNX()),
+		      static_cast<unsigned>(dicom.getNY()),
+		      static_cast<unsigned>(dicom.getNZ())};
   double dvox[3] = {dicom.getDX(),dicom.getDY(),dicom.getDZ()};
 
   unsigned* mats = nullptr;
   double*   dens = nullptr;
 
-  unsigned tnvox = dicom.getNVox();
+  unsigned long tnvox = dicom.getNVox();
   
   mats = (unsigned*) malloc(sizeof(unsigned)*tnvox);
   dens = (double*)   malloc(sizeof(double)*tnvox);
@@ -538,8 +551,8 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   }
 
   //Set materials and densities to default values
-  for(unsigned ivox = 0; ivox <= tnvox; ivox++){mats[ivox] = defMat;}
-  for(unsigned ivox = 0; ivox <= tnvox; ivox++){dens[ivox] = defDens;}
+  for(unsigned long ivox = 0; ivox < tnvox; ivox++){mats[ivox] = defMat;}
+  for(unsigned long ivox = 0; ivox < tnvox; ivox++){dens[ivox] = defDens;}
   
   //Get contour and image information from loaded DICOM
   const double* image = dicom.readImage();
@@ -553,8 +566,8 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
     if(verbose > 1)
       printf("Using voxel intensities to assign densities and materials\n");
 
-    for(unsigned ivox = 0; ivox < tnvox; ++ivox){
-      for(unsigned irange = 0; irange < intensityRangesTop.size(); ++irange)
+    for(unsigned long ivox = 0; ivox < tnvox; ++ivox){
+      for(unsigned long irange = 0; irange < intensityRangesTop.size(); ++irange)
 	if(image[ivox] >= intensityRangesLow[irange] && image[ivox] < intensityRangesTop[irange]){
 	  //Voxel in range, assign material and density
 	  dens[ivox] = intensityRangesDens[irange];
@@ -578,12 +591,13 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
     //Extract calibration
     std::vector<double> calibrationVect;
     calibrationVect.resize(calibration.size());
-    for(unsigned i = 0; i < calibration.size(); i++){
+    for(unsigned long i = 0; i < calibration.size(); i++){
       double aux;
       err = calibration.read(aux,i);
       if(err != INTDATA_SUCCESS){
 	if(verbose > 0){
-	  printf("pen_dicomGeo:configure: Error on calibration coefficient %u. Number expected.\n",i);
+	  printf("pen_dicomGeo:configure: Error on calibration coefficient "
+		 "%lu. Number expected.\n",i);
 	  printf("                        Error code: %d\n",err);
 	}
       }
@@ -591,17 +605,17 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
     }
 
     //Convert intensity to density
-    for(unsigned ivox = 0; ivox < tnvox; ivox++){
+    for(unsigned long ivox = 0; ivox < tnvox; ivox++){
       dens[ivox] = 0.0;
-      for(unsigned i = calibrationVect.size()-1; i > 0; i--){
+      for(unsigned long i = calibrationVect.size()-1; i > 0; i--){
 	dens[ivox] = image[ivox]*(calibrationVect[i] + dens[ivox]);
       }
       dens[ivox] += calibrationVect[0];
     }
 
     //Assign materials using density ranges
-    for(unsigned ivox = 0; ivox < tnvox; ivox++){
-      for(unsigned irange = 0; irange < rangesMat.size(); irange++){
+    for(unsigned long ivox = 0; ivox < tnvox; ivox++){
+      for(unsigned long irange = 0; irange < rangesMat.size(); irange++){
 	if(dens[ivox] >= rangesDensLow[irange] &&
 	   dens[ivox] < rangesDensTop[irange]){
 	  mats[ivox] = rangesMat[irange];
@@ -619,7 +633,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   
   //Assign materials and indexes using contours
   if(contourNames.size() > 0){
-    for(unsigned ivox = 0; ivox < tnvox; ivox++){
+    for(unsigned long ivox = 0; ivox < tnvox; ivox++){
       if(contours[ivox] >= 0){
 	int index = contourIndexes[contours[ivox]];
 	if(index >= 0){
@@ -631,7 +645,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   }
 
   //Convert densities to density factor: density(voxel)/density(material)
-  for(unsigned ivox = 0; ivox < tnvox; ivox++){
+  for(unsigned long ivox = 0; ivox < tnvox; ivox++){
     if(densities[mats[ivox]-1] < 0.0){
       if(verbose > 0){
 	printf("pen_dicomGeo:configure: Error: Nominal density not provided for material index %d, which is used in the provided DICOM image.\n",mats[ivox]);
@@ -660,7 +674,12 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   }
 
   if(toASCII){
-    printImage("dicomASCII.rep");    
+    printImage("dicomASCII.rep");
+    dicom.printSeeds("dicomSeeds.dat");
+    if(dicom.nContours() > 0){
+      dicom.printContours("dicomContours.dat");
+      dicom.printContourVox("dicomContourMask.dat");
+    }
   }
   
   
@@ -690,20 +709,23 @@ int pen_dicomGeo::printImage(const char* filename) const{
 
   //Iterate over Z planes
   for(unsigned k = 0; k < nz; k++){
-    unsigned indexZ = nxy*k;
+    unsigned long indexZ = nxy*static_cast<unsigned long>(k);
     fprintf(OutVox,"# Index Z = %4d\n",k);
 
     //Iterate over rows
     for(unsigned j = 0; j < ny; j++){
-      unsigned indexYZ = indexZ + j*nx;
+      unsigned long indexYZ = indexZ +
+	static_cast<unsigned long>(j)*static_cast<unsigned long>(nx);
       fprintf(OutVox,"# Index Y = %4d\n",j);
 
       //Iterate over columns
       for(unsigned i = 0; i < nx; i++){
-	unsigned ivoxel = indexYZ + i;
+	unsigned long ivoxel = indexYZ + static_cast<unsigned long>(i);
 
 	//Save voxel X Y and intensity
-	fprintf(OutVox," %12.5E %12.5E %4u   %12.5E\n", i*dx, j*dy, mesh[ivoxel].MATER, densities[mesh[ivoxel].MATER-1]*mesh[ivoxel].densityFact);
+	fprintf(OutVox," %12.5E %12.5E %4u   %12.5E\n",
+		i*dx, j*dy, mesh[ivoxel].MATER,
+		densities[mesh[ivoxel].MATER-1]*mesh[ivoxel].densityFact);
       }
       
     }
