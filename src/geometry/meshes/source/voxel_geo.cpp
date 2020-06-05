@@ -383,26 +383,26 @@ void pen_voxelGeo::step(pen_particleState& state,
     // Moves backward on Y
     ds_y = (iy*dy-state.Y)*invV;
     voxInc_y = -1;    
-    voxIncGlob_y = -nx;    
+    voxIncGlob_y = -static_cast<long int>(nx);    
   }
   else{
     //Moves forward on Y
     ds_y = ((iy+1)*dy-state.Y)*invV;
     voxInc_y = +1;
-    voxIncGlob_y = +nx;    
+    voxIncGlob_y = +static_cast<long int>(nx);    
   }
 
   if(std::signbit(invW)){
     // Moves backward on Z
     ds_z = (iz*dz-state.Z)*invW;
     voxInc_z = -1;    
-    voxIncGlob_z = -nxy;    
+    voxIncGlob_z = -static_cast<long int>(nxy);
   }
   else{
     //Moves forward on Z
     ds_z = ((iz+1)*dz-state.Z)*invW;
     voxInc_z = +1;
-    voxIncGlob_z = +nxy;    
+    voxIncGlob_z = +static_cast<long int>(nxy);
   }
   
   NCROSS = 0;
