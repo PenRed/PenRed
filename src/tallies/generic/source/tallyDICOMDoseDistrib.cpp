@@ -75,7 +75,8 @@ void pen_DICOMDoseDistrib::updateEdepCounters(const double dE,
   if(ncontours > 0){
     int icont = contourVox[bin];
     if(icont >= 0){
-      contEdptmp[icont] += wde*ivoxMass[bin];
+      //  contEdptmp[icont] += wde*ivoxMass[bin];
+      contEdptmp[icont] += wde;
     }
   }
 }
@@ -212,6 +213,16 @@ void pen_DICOMDoseDistrib::clear()
     contEdep2 = nullptr;
   }  
 
+  if(contMass != nullptr){
+    free(contMass);
+    contMass = nullptr;
+  }
+     
+  if(contVol != nullptr){
+    free(contVol);
+    contVol = nullptr;
+  }  
+
   nx = ny = nz = nxy = nbin = 0;
   dx = dy = dz = 0.0;
   idx = idy = idz = 1.0e35;
@@ -291,6 +302,9 @@ int pen_DICOMDoseDistrib::configure(const wrapper_geometry& geometry,
     contEdptmp    = static_cast<double*>(malloc(sizeof(double)*ncontours));
     contEdep      = static_cast<double*>(malloc(sizeof(double)*ncontours));
     contEdep2     = static_cast<double*>(malloc(sizeof(double)*ncontours));
+    contMass      = static_cast<double*>(malloc(sizeof(double)*ncontours));
+    contVol       = static_cast<double*>(malloc(sizeof(double)*ncontours));
+
 
     //Get voxel contour information
     contourVox = dicom.readContour();
@@ -301,6 +315,10 @@ int pen_DICOMDoseDistrib::configure(const wrapper_geometry& geometry,
       contEdep[i] = 0.0;
     for(long int i = 0; i < ncontours; ++i)
       contEdep2[i] = 0.0;
+    for(long int i = 0; i < ncontours; ++i)
+      contMass[i]  = 0.0;
+    for(long int i = 0; i < ncontours; ++i)
+      contVol[i]   = 0.0;
 
     //Save contour names
     for(long int i = 0; i < ncontours; ++i){
@@ -327,6 +345,19 @@ int pen_DICOMDoseDistrib::configure(const wrapper_geometry& geometry,
       ivoxMass[i] = 1.0/(voxVol*matDens[element.MATER-1]*element.densityFact);
   }
     
+  //Get contour masses and volumes
+  
+  if(ncontours > 0){
+    for(long int i = 0; i < nbin; ++i){
+      int icont = contourVox[i];
+      if(icont >= 0){
+        if(ivoxMass[i] > 0.0) contMass[icont] += 1.0/ivoxMass[i];
+        contVol[icont] += voxVol;
+      }
+    }    
+  }
+
+
   if(verbose > 1){
     printf("Number of x bins: %ld\n",nx);
     printf("x Bin width (cm): %12.5E\n",dx);
@@ -341,6 +372,12 @@ int pen_DICOMDoseDistrib::configure(const wrapper_geometry& geometry,
       printf("Contour names:\n");
       for(const std::string& contName : contNames)
 	printf(" %s\n",contName.c_str());
+      printf("Contour masses (g), volumes (cm^3) and average density (g/cm^3):\n");
+      for(long int icont = 0; icont < ncontours; icont++){
+
+        printf(" %15s: %12.5E  %12.5E  %12.5E\n",contNames[icont].c_str(),
+          contMass[icont],contVol[icont],contMass[icont]/contVol[icont]);
+      }
     }
   }
     
@@ -371,7 +408,8 @@ void pen_DICOMDoseDistrib::saveData(const unsigned long long nhist) const{
   FILE* out;
   double invn = 1.0/static_cast<double>(nhist);
 
-  const double ev2Gy = 1.0/1.60217662E-16;
+  //const double ev2Gy = 1.0/1.60217662E-16;
+  const double ev2Gy = 1.60217662E-16;
   
   strcpy(buffer,"dicomDoseDistrib.dat");
      
@@ -477,7 +515,8 @@ void pen_DICOMDoseDistrib::saveData(const unsigned long long nhist) const{
       {
 	sigma = 0.0;
       }
-    fprintf(out," %12.5E %7.1E\n",q*ev2Gy,2.0*sigma*ev2Gy);
+    //fprintf(out," %12.5E %7.1E\n",q*ev2Gy,2.0*sigma*ev2Gy);
+    fprintf(out," %12.5E %7.1E\n",q/contMass[icont]*ev2Gy,2.0*sigma/contMass[icont]*ev2Gy);
   }
 
   fclose(out);

@@ -2741,7 +2741,7 @@ long int IRND(const double* FA,
   //  Other subprograms needed: function RAND and subroutine IRND0.
   //
 
-  double RN = random.rand()*N;
+  double RN = random.rand()*N+1.0;
   long int IRND_RETURN = static_cast<long int>(RN);
   double TST = RN-IRND_RETURN;
   if(TST > FA[IRND_RETURN-1]){ IRND_RETURN = IA[IRND_RETURN-1];}

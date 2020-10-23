@@ -44,9 +44,10 @@ private:
   long int nvox;
   double dx, dy, dz;
   double imageCx,imageCy,imageCz;
+  double Ox,Oy,Oz;
   double* F;
   long int* K;
-  
+  double isocenter[3];
 public:
 
   image_spatialSampling() : nx(0), ny(0), nz(0),

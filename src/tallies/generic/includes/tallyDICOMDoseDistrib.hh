@@ -55,6 +55,9 @@ class pen_DICOMDoseDistrib: public pen_genericTally<pen_particleState> {
   double* contEdptmp;
   double* contEdep;
   double* contEdep2;
+
+  double* contMass;
+  double* contVol;
   
   double matDens[constants::MAXMAT];
 
@@ -85,6 +88,9 @@ public:
       contEdptmp = nullptr;
       contEdep = nullptr;
       contEdep2 = nullptr;
+ 
+      contMass = nullptr;
+      contVol  = nullptr;
 
       contourVox = nullptr;
       ncontours = 0;

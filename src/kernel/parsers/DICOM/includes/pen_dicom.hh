@@ -353,7 +353,11 @@ public:
   inline double getDY() const {return dvox_y;}
   inline double getDZ() const {return dvox_z;}
   inline double getVoxVol() const {return voxVol;}
-  
+
+  inline double getOriginX() const {return dicomOrigin[0];}
+  inline double getOriginY() const {return dicomOrigin[1];}
+  inline double getOriginZ() const {return dicomOrigin[2];}
+
   inline const pen_contour& contour(unsigned long icont) const {
       return contours[icont];
   }
