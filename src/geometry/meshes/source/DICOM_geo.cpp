@@ -314,19 +314,17 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	
       //Read material ID
       if(contourSec.read(matField.c_str(),auxMat) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  printf("pen_dicomGeo:configure: Error: Unable to read material ID for specified contour '%s'. Integer expected.\n",contourNames[i].c_str());
+	auxMat = 0;
+      }else{
+	//Check material ID
+	if(auxMat < 1 || auxMat > (int)constants::MAXMAT){
+	  if(verbose > 0){
+	    printf("pen_dicomGeo:configure: Error: Invalid material ID assigned to contour '%s'.\n",contourNames[i].c_str());
+	    printf("                         ID: %d\n",auxMat);
+	    printf("Maximum number of materials: %d\n",constants::MAXMAT);
+	  }
+	  return -2;
 	}
-	return -1;
-      }
-      //Check material ID
-      if(auxMat < 1 || auxMat > (int)constants::MAXMAT){
-	if(verbose > 0){
-	  printf("pen_dicomGeo:configure: Error: Invalid material ID assigned to contour '%s'.\n",contourNames[i].c_str());
-	  printf("                         ID: %d\n",auxMat);
-	  printf("Maximum number of materials: %d\n",constants::MAXMAT);
-	}
-	return -2;
       }
 
       // Density
@@ -334,24 +332,21 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	
       //Read density
       if(contourSec.read(densField.c_str(),auxDens) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  printf("pen_dicomGeo:configure: Error: Unable to read material density for specified contour '%s'. Double expected.\n",contourNames[i].c_str());
+	auxDens = -1.0;
+      }else{
+	//Check density
+	if(auxDens <= 0.0){
+	  if(verbose > 0){
+	    printf("pen_dicomGeo:configure: Error: Invalid material density specified for contour '%s'. Must be greater than zero.\n",contourNames[i].c_str());
+	    printf("                        density: %12.4E\n",auxDens);
+	  }
+	  return -4;
 	}
-	return -3;
       }
-      //Check density
-      if(auxDens <= 0.0){
-	if(verbose > 0){
-	  printf("pen_dicomGeo:configure: Error: Invalid material density specified for contour '%s'. Must be greater than zero.\n",contourNames[i].c_str());
-	  printf("                        density: %12.4E\n",auxDens);
-	}
-	return -4;
-      }
-
       // Priority
       //**********
 	
-      //Read density
+      //Read priority
       if(contourSec.read(prioField.c_str(),auxPrio) != INTDATA_SUCCESS){
 	if(verbose > 0){
 	  printf("pen_dicomGeo:configure: Error: Unable to read priority for contour '%s'. Double expected.\n",contourNames[i].c_str());
@@ -359,9 +354,26 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	return -5;
       }
       
-      if(verbose > 1)
-	printf("%13.13s -> %4d %12.4E %12.4E\n",contourNames[i].c_str(),auxMat,auxDens,auxPrio);
+      if(verbose > 1){
+	//Print contour name
+	printf("%13.13s -> ",contourNames[i].c_str());
 
+	//Print contour material
+	if(auxMat == 0)
+	  printf("none ");
+	else
+	  printf("%4d ",auxMat);
+
+	//Print contour density
+	if(std::signbit(auxDens))
+	  printf("none ");
+	else
+	  printf("%12.4E ",auxDens);
+
+	//Print priority
+	printf("%12.4E\n",auxPrio);	
+      }
+      
       contourMat.push_back(unsigned(auxMat));
       contourDens.push_back(auxDens);
       contourPrio.push_back(auxPrio);
@@ -403,7 +415,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
     if(verbose > 1)
       printf("\nRange name  | MAT ID | density range (g/cm^3)\n");
     for(unsigned i = 0; i < rangesNames.size(); i++){
-      //Read material assigned to this contour
+      //Read material assigned to this range
       int auxMat;
       double auxDensLow;
       double auxDensTop;
@@ -637,8 +649,12 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
       if(contours[ivox] >= 0){
 	int index = contourIndexes[contours[ivox]];
 	if(index >= 0){
-	  mats[ivox] = contourMat[index];
-	  dens[ivox] = contourDens[index];
+	  unsigned cmat = contourMat[index];
+	  if(cmat > 0)
+	    mats[ivox] = cmat;
+	  double cdens = contourDens[index];
+	  if(!std::signbit(cdens))
+	    dens[ivox] = cdens;
 	}
       }
     }

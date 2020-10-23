@@ -30,22 +30,52 @@
  
 #----------------------------------------------------------------------------
 # Check CMake version
-cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
+include(CMakeDependentOption)
+
 option(DEVELOPMENT_WARNINGS "Compile with extra warnings for development " OFF)
 option(WITH_DICOM "Build PenRed DICOM " OFF)
 option(WITH_MULTI_THREADING "Build PenRed with multi-threading " ON)
 option(WITH_MPI "Build PenRed with MPI " OFF)
-option(WITH_LB "Build PenRed with load balancing support" OFF)
+
 option(WITH_NATIVE "Compile PenRed with native architecture optimizations" ON)
+
+CMAKE_DEPENDENT_OPTION(WITH_LB "Build PenRed with load balancing support" OFF
+                       "WITH_MULTI_THREADING" OFF)
+
+CMAKE_DEPENDENT_OPTION(WITH_SSL "Build TCP with SSL support" OFF
+                       "WITH_LB" OFF)
+                       
+CMAKE_DEPENDENT_OPTION(WITH_HTTP "Build LB with HTTP support" OFF
+                       "WITH_LB" OFF)
+
+option(BUILD_TESTS "Compile PenRed tests" OFF)
+option(BUILD_UTILITIES "Compile PenRed utilities" ON)
+option(BUILD_STATIC "Enable static compilation" OFF)
+mark_as_advanced(FORCE BUILD_STATIC)
+option(BUILD_C_BINDS "Compile C binds" OFF)
+mark_as_advanced(FORCE BUILD_C_BINDS)
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
 # Project name
 project(PenRed LANGUAGES CXX)
 #-----------------------------------------------------------------------------
+
+if(BUILD_STATIC)
+    #SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+    #SET(BUILD_SHARED_LIBS OFF)
+    SET(CMAKE_EXE_LINKER_FLAGS "-static")
+    #SET(CMAKE_MODULE_LINKER_FLAGS "-static")
+    #SET(CMAKE_SHARED_LINKER_FLAGS "-static")
+    SET(CMAKE_LINK_SEARCH_START_STATIC ON)
+    SET(CMAKE_LINK_SEARCH_END_STATIC ON)
+    add_definitions(-D_PEN_BUILD_STATIC_=1) #Set Static build
+else(BUILD_STATIC)
+endif(BUILD_STATIC)
 
 # Compilation options
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -92,6 +122,16 @@ if(WITH_LB)
   add_definitions(-D_PEN_USE_LB_=1) #enable LB
 endif(WITH_LB)
 
+# Check if SSL support has been enabled
+if(WITH_SSL)
+    add_definitions(-D_PEN_USE_SSL_=1) #enable SSL
+endif(WITH_SSL)
+
+# Check if HTTP support has been enabled
+if(WITH_HTTP)
+    add_definitions(-D_PEN_USE_LB_HTTP_=1) #enable HTTP
+endif(WITH_HTTP)
+
 # Check platform
 if(UNIX)
   add_definitions(-D_PEN_UNIX_=1) #enable DICOM
@@ -116,7 +156,7 @@ add_custom_target(
   DEPENDS ${PROJECT_SOURCE_DIR}/config/errors/eenum.h
   DEPENDS ${PROJECT_SOURCE_DIR}/config/errors/emess.h  
   )
-
+  
 #-----------------------------------------------------------------------------
 #############################
 #  ADD SUB-FOLDERS
@@ -144,6 +184,12 @@ add_subdirectory(tallies)
 add_subdirectory(mains)
 
 # tests folder
-add_subdirectory(tests)
+if(BUILD_TESTS)
+    add_subdirectory(tests)
+endif(BUILD_TESTS)
 
+# bindings folder
+if(BUILD_C_BINDS)
+    add_subdirectory(bindings/C)
+endif(BUILD_C_BINDS)
 #-----------------------------------------------------------------------------

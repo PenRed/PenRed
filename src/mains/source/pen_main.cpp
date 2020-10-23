@@ -148,6 +148,7 @@ void simulate(const unsigned ithread,
 	      const double dumpTime,
 	      const std::string dumpFilename,
 	      unsigned long long* nsimulated,
+	      const bool writePartial,
 	      const unsigned verbose){
 
   // Variables list
@@ -172,12 +173,14 @@ void simulate(const unsigned ithread,
   //Create random generator
   pen_rand random;
   random.setSeeds(*seed1,*seed2);
-  
+
+  //Get current times
   double time0 = CPUtime();
+  auto start = std::chrono::steady_clock::now();
 
   //Create a stopwatch for dumps
   long long int mili2dump;
-  if(dumpTime > 1.0e9){
+  if(dumpTime <= 0.0 || dumpTime > 1.0e9){
     mili2dump = 1000000000000;
   }
   else{
@@ -571,7 +574,8 @@ void simulate(const unsigned ithread,
 			  lastSource,
 			  currentHists,
 			  3);
-	tallies.saveData(hist,false); //Saves data but doesn't repeats flush calls
+	if(writePartial)
+	  tallies.saveData(hist,false); //Saves data but doesn't repeats flush calls
 	dumpWatch.start(); //Restart watch
       }
       //Check if is time to make a report
@@ -647,12 +651,17 @@ void simulate(const unsigned ithread,
 
   //Update seeds for next source
   random.getSeeds(*seed1,*seed2);
+
+  //Get elapsed real time
+  auto end = std::chrono::steady_clock::now();
+  const double elapsed =
+    static_cast<double>(std::chrono::duration_cast<std::chrono::seconds>(end-start).count());
   
   printf("Thread %u: Source '%s' finished with %llu/%llu histories "
 	 "simulated and random seeds (%d,%d)          Simulation "
-	 "CPU time: %12.4E s\n",
+	 "CPU time: %12.4E s. Elapsed time: %12.4E s\n",
 	 ithread,source.name.c_str(),hist-simulated,nhists,
-	 *seed1,*seed2, CPUtime()-time0);
+	 *seed1,*seed2, CPUtime()-time0,elapsed);
   fflush(stdout);
   
   //Save simulated histories
@@ -679,7 +688,7 @@ int main(int argc, char** argv){
     return 0;
   }
 
-  unsigned verbose = 6;
+  unsigned verbose = 2;
 
   // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_
@@ -744,6 +753,17 @@ int main(int argc, char** argv){
     return -1;
   }
 
+  // Get verbose level
+  //********************
+  int auxVerbose;
+  if(config.read("simulation/verbose",auxVerbose) == INTDATA_SUCCESS){
+    auxVerbose = std::max(0,auxVerbose);
+    verbose = static_cast<unsigned>(auxVerbose);
+    if(verbose > 1){
+      printf("Verbose level set to %u\n",verbose);
+    }
+  }
+  
   // Get number of threads to use
   //*******************************
   int auxThreads;
@@ -777,7 +797,6 @@ int main(int argc, char** argv){
       printf("Initial random seeds will be selected using \"rand0\" function to ensure truly independent sequences of random numbers.\n");
     }
   }
-
 
   // Get initial seeds
   //*******************************
@@ -834,6 +853,24 @@ int main(int argc, char** argv){
       printf("    Enable it with: 'simulation/thread-affinity true'\n");
     }
   }
+
+  // Get output options
+  //*******************************
+  bool ASCIIResults = true;
+  bool partialResults = false;
+  if(config.read("simulation/ascii-results",ASCIIResults) != INTDATA_SUCCESS){
+    ASCIIResults = true;
+  }
+  if(ASCIIResults){
+    if(config.read("simulation/partial-results",partialResults) != INTDATA_SUCCESS){
+      partialResults = false;
+    }
+    if(verbose > 1)
+      printf("Writing partial results %s\n",partialResults ? "enabled" : "disabled");
+  }
+  else{
+    printf("ASCII results write disabled\n");
+  }
   
   // Get time between dumps
   //*******************************
@@ -883,6 +920,15 @@ int main(int argc, char** argv){
   std::chrono::seconds::rep balanceInterval;
   // ******************************* LB ************************************ //
   double balanceIntervald = 1.0e9;
+  std::string LBhost;
+  std::string LBurl;
+
+#ifdef _PEN_USE_LB_HTTP_
+  bool LBhttp = false;
+#endif
+  int LBport = -1;
+  int LBworker;
+  std::string CAfile, certFile, keyFile, password, hostname;  
 #ifdef _PEN_USE_LB_
   int errAuxEsp = 99;
   if((errAuxEsp = config.read("loadBalance/balance-interval",balanceIntervald)) != INTDATA_SUCCESS){
@@ -900,6 +946,62 @@ int main(int argc, char** argv){
     if(verbose > 1)
       printf("Balance interval set to %E.\n",balanceIntervald);
   }
+  
+  if(config.read("loadBalance/host",LBhost) == INTDATA_SUCCESS){
+    if(config.read("loadBalance/port",LBport) != INTDATA_SUCCESS){
+      if(verbose > 0){
+	printf("Unable to read external balance port. Integer expected\n");
+	return -2;
+      }
+    }
+    if(config.read("loadBalance/worker",LBworker) != INTDATA_SUCCESS){
+      if(verbose > 0){
+	printf("Unable to read external balance worker ID. Integer expected\n");
+	return -2;
+      }
+    }
+    //Try to read CA cert, client cert, client key, key password and expected hostname
+    config.read("loadBalance/CA-cert",CAfile);
+    config.read("loadBalance/cert-file",certFile);
+    config.read("loadBalance/key-file",keyFile);
+    config.read("loadBalance/key-password",password);
+    config.read("loadBalance/hostname",hostname);
+    
+    if(verbose > 1){
+      printf("Configured external load balance server at %s:%d\n",LBhost.c_str(),LBport);
+      printf(" SSL configuraiton:\n"
+	     "       CA: %s\n"
+	     "     cert: %s\n"
+	     "      key: %s\n"
+	     " password: %s\n"
+	     " hostname: %s\n",
+	     CAfile.c_str(),certFile.c_str(),keyFile.c_str(),
+	     password.c_str(),hostname.c_str());
+    }
+    
+  }
+// ********************** HTTP SUPPORT **********************
+#ifdef _PEN_USE_LB_HTTP_
+  else if(config.read("loadBalance/url",LBurl) == INTDATA_SUCCESS){
+    if(verbose > 1)
+      printf("Enabled external HTTP load balance server at url: %s\n",LBurl.c_str());
+    if(config.read("loadBalance/worker",LBworker) != INTDATA_SUCCESS){
+      if(verbose > 0){
+	printf("Unable to read external balance worker ID. Integer expected\n");
+	return -2;
+      }
+    }    
+    LBhttp = true;
+  }
+#endif
+// **********************   HTTP END   **********************
+  else{
+    if(verbose > 1){
+      printf("External load balance host has not been specifeid\n");
+    }
+  }
+  
+  
   // ***************************** LB END ********************************** //
 #endif
   balanceInterval = static_cast<std::chrono::seconds::rep>(balanceIntervald);
@@ -986,10 +1088,84 @@ int main(int argc, char** argv){
   for(auto& source : genericSources){
     source.setCheckTime(balanceInterval);
     source.setLBthreshold(static_cast<unsigned long long>(balanceIntervald/2));
+    //Check if external balance has been configured
+    // ********************** HTTP SUPPORT **********************
+#ifdef _PEN_USE_LB_HTTP_
+    if(LBhttp){
+      int ec;
+      ec=source.setLBserver(LBworker,LBurl.c_str(),verbose);
+      if(ec != 0){
+	if(verbose > 0){
+	  printf("Unable to configure load balance HTTP server\n"
+		 "    Error code: %d\n",ec);
+	  return -3;
+	}
+      }      
+    }
+    else
+#endif
+// **********************   HTTP END   **********************
+    if(LBhost.length() > 0){
+      int ec;
+      ec=source.setLBserver(LBworker,
+			    LBhost.c_str(),
+			    std::to_string(LBport++).c_str(),
+			    CAfile.length() == 0 ? nullptr : CAfile.c_str(),
+			    certFile.length() == 0 ? nullptr : certFile.c_str(),
+			    keyFile.length() == 0 ? nullptr : keyFile.c_str(),
+			    password.length() == 0 ? nullptr : password.c_str(),
+			    hostname.length() == 0 ? nullptr : hostname.c_str(),
+			    verbose);
+      if(ec != 0){
+	if(verbose > 0){
+	  printf("Unable to configure load balance server\n"
+		 "    Error code: %d\n",ec);
+	  return -3;
+	}
+      }
+    //Notice that each source uses a unique port
+    }
   }
   for(auto& source : polarisedGammaSources){
     source.setCheckTime(balanceInterval);
     source.setLBthreshold(static_cast<unsigned long long>(balanceIntervald/2));
+    //Check if external balance has been configured
+    // ********************** HTTP SUPPORT **********************
+#ifdef _PEN_USE_LB_HTTP_
+    if(LBhttp){
+      int ec;
+      ec=source.setLBserver(LBworker,LBurl.c_str(),verbose);
+      if(ec != 0){
+	if(verbose > 0){
+	  printf("Unable to configure load balance HTTP server\n"
+		 "    Error code: %d\n",ec);
+	  return -3;
+	}
+      }      
+    }
+    else
+#endif
+// **********************   HTTP END   **********************    
+    if(LBhost.length() > 0){
+      int ec;
+      ec=source.setLBserver(LBworker,
+			    LBhost.c_str(),
+			    std::to_string(LBport++).c_str(),
+			    CAfile.length() == 0 ? nullptr : CAfile.c_str(),
+			    certFile.length() == 0 ? nullptr : certFile.c_str(),
+			    keyFile.length() == 0 ? nullptr : keyFile.c_str(),
+			    password.length() == 0 ? nullptr : password.c_str(),
+			    hostname.length() == 0 ? nullptr : hostname.c_str(),
+			    verbose);
+      if(ec != 0){
+	if(verbose > 0){
+	  printf("Unable to configure load balance server\n"
+		 "    Error code: %d\n",ec);
+	  return -3;
+	}
+      }
+    //Notice that each source uses a unique port
+    }
   }
 
   // ******************************* MPI ************************************ //
@@ -1291,6 +1467,7 @@ int main(int argc, char** argv){
 					 dumpTime,
 					 dump2write,
 					 &simulated[ithread],
+					 partialResults,
 					 verbose
 					 ));
 
@@ -1339,7 +1516,8 @@ int main(int argc, char** argv){
 	       dumpTime,
 	       dump2write,
 	       &simulated[0],
-	       verbose);      
+	       partialResults,
+	       verbose);
 
 #ifdef _PEN_USE_THREADS_
     }
@@ -1375,6 +1553,7 @@ int main(int argc, char** argv){
 					 dumpTime,
 					 dump2write,
 					 &simulated[ithread],
+					 partialResults,
 					 verbose
 					 ));
 
@@ -1423,6 +1602,7 @@ int main(int argc, char** argv){
 			       dumpTime,
 			       dump2write,
 			       &simulated[0],
+			       partialResults,
 			       verbose);
 #ifdef _PEN_USE_THREADS_
     }
@@ -1471,7 +1651,10 @@ int main(int argc, char** argv){
   
   //Save results stored at the first thread of rank 0 process
   if(rank == 0){
-    talliesVect[0].saveData(totalHists);
+    if(ASCIIResults)
+      talliesVect[0].saveData(totalHists);
+    else
+      talliesVect[0].dump2file("results.dump",totalHists,-1,-1,0,0ull,verbose);
   }
 
   //Print local report information
@@ -1539,8 +1722,11 @@ int main(int argc, char** argv){
   double postProcessTime = CPUtime() - CPUendSim;
   
   //Save results stored at first thread
-  talliesVect[0].saveData(totalHists);
-
+  if(ASCIIResults)
+    talliesVect[0].saveData(totalHists);
+  else
+    talliesVect[0].dump2file("results.dump",totalHists,-1,-1,0,0ull,verbose);
+  
   printf("\n\nSimulated histories: %20llu\n",totalHists);
   printf("Simulation real time: %12.4E s\n",simtime);
   printf("Simulation user time: %12.4E s\n",usertime);

@@ -39,7 +39,12 @@
 #include "pen_math.hh"
 #include "instantiator.hh"
 #include "pen_states.hh"
+
+// **************************** LB ********************************* //
+#ifdef _PEN_USE_LB_
 #include "loadBalance.hh"
+#endif
+// **************************** LB ********************************* //
 
   // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_
@@ -146,6 +151,18 @@ struct pen_samplerTask{
   inline void setCheckTime(const std::chrono::seconds::rep) const {}
   inline void setCheckTimeMPI(const std::chrono::seconds::rep) const {}
   inline void minTime(const unsigned long long) const {}
+  inline int extLBserver(const unsigned /*extern_iw*/,
+			 const char* /*url*/,
+			 const unsigned /*verbose*/){return -1;}
+  inline int extLBserver(const unsigned /*extern_iw*/,
+			 const char* /*host*/,
+			 const char* /*port*/,
+			 const char* /*CAfilename*/,
+			 const char* /*certFilename*/,
+			 const char* /*keyFilename*/,
+			 const char* /*password*/,
+			 const char* /*hostname*/,
+			 const unsigned /*verbose*/){return -1;}
 };
 
 template<class particleState>
@@ -436,6 +453,31 @@ public:
   inline void setLBthreshold(const unsigned long long t) {
     task.minTime(t);
   }
+  
+  // ********************** HTTP SUPPORT **********************
+#ifdef _PEN_USE_LB_HTTP_
+  inline int setLBserver(const unsigned extern_iw,
+			 const char* url,
+			 const unsigned verbose){
+    return task.extHTTPserver(extern_iw,url,verbose);
+  }
+#endif
+// **********************   HTTP END   **********************
+  
+  inline int setLBserver(const unsigned extern_iw,
+			 const char* host,
+			 const char* port,
+			 const char* CAfilename,
+			 const char* certFilename,
+			 const char* keyFilename,
+			 const char* password,
+			 const char* hostname,
+			 const unsigned verbose){
+    return task.extLBserver(extern_iw,host,port,CAfilename,
+			    certFilename,keyFilename,password,
+			    hostname,verbose);
+  }
+  
   // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_
   inline void setCheckTimeMPI(const std::chrono::seconds::rep t){
@@ -905,6 +947,30 @@ public:
   }
   inline void setLBthreshold(const unsigned long long t) {
     genericGen.setLBthreshold(t);
+  }
+
+  // ********************** HTTP SUPPORT **********************
+#ifdef _PEN_USE_LB_HTTP_
+  inline int setLBserver(const unsigned extern_iw,
+			 const char* url,
+			 const unsigned verbose){
+    return genericGen.setLBserver(extern_iw,url,verbose);
+  }
+#endif
+// **********************   HTTP END   **********************
+  
+  inline int setLBserver(const unsigned extern_iw,
+			 const char* host,
+			 const char* port,
+			 const char* CAfilename,
+			 const char* certFilename,
+			 const char* keyFilename,
+			 const char* password,
+			 const char* hostname,
+			 const unsigned verbose){
+    return genericGen.setLBserver(extern_iw,host,port,CAfilename,
+				  certFilename,keyFilename,password,
+				  hostname,verbose);
   }
   // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_

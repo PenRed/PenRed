@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019 Universitat de València - UV
-#    Copyright (C) 2019 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2020 Universitat de València - UV
+#    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -22,8 +22,8 @@
 #
 #    contact emails:
 #
-#        vicent.gimenez.alventosa@gmail.com
-#        vicente.gimenez@uv.es
+#        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
+#        vicente.gimenez@uv.es (Vicente Giménez Gómez)
 #    
 #
 
@@ -36,10 +36,12 @@
 if(WITH_MPI)
     #Find MPI package
     find_package(MPI REQUIRED)
-    #Find threads package
-    find_package (Threads REQUIRED)    
 endif(WITH_MPI)
 
+if(WITH_HTTP)
+    #Find curl package
+    find_package(CURL REQUIRED)
+endif(WITH_HTTP)
 
 # Create lib
 add_library(pen_LB STATIC ${PROJECT_SOURCE_DIR}/lib/loadBalance/loadBalance.cpp)
@@ -49,6 +51,12 @@ target_include_directories(pen_LB PUBLIC ${PROJECT_SOURCE_DIR}/lib/loadBalance/)
 if(WITH_MPI)
     target_include_directories(pen_LB PUBLIC ${MPI_INCLUDE_PATH})
     target_link_libraries(pen_LB ${MPI_LIBRARIES})
-    #Link thread libs
-    target_link_libraries (pen_LB ${CMAKE_THREAD_LIBS_INIT})
 endif(WITH_MPI)
+
+if(WITH_HTTP)
+    target_include_directories(pen_LB PUBLIC ${CURL_INCLUDE_DIR})
+    target_link_libraries(pen_LB ${CURL_LIBRARIES})
+endif(WITH_HTTP)
+
+#Link tcp lib
+target_link_libraries(pen_LB pen_tcp)
