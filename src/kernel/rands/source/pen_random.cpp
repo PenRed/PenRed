@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2020 Universitat de València - UV
+//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -21,8 +21,8 @@
 //
 //    contact emails:
 //
-//        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
+//        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
+//        vicente.gimenez@uv.es (Vicente Giménez Gómez)
 //    
 //
 
@@ -2717,6 +2717,40 @@ int IRND(double* FA, int* IA, int &N, pen_rand& random)
 }
 
 //  *********************************************************************
+//                       FUNCTION IRND
+//  *********************************************************************
+long int IRND(const double* FA, 
+              const long int* IA, 
+              const long int N, 
+              pen_rand& random)
+{
+  //  Random sampling from a discrete probability distribution using
+  //  Walker's aliasing algorithm.
+  //
+  //  The arrays F and IA are determined by the initialisation routine
+  //  IRND0, which must be invoked before using function IRND.
+  //
+  //  Input arguments:
+  //    FA(1:N) ... cutoff values.
+  //    IA(1:N) ... alias values.
+  //    N ......... number of different values of the random variable.
+  //
+  //  Output argument:
+  //    IRND ...... sampled value.
+  //
+  //  Other subprograms needed: function RAND and subroutine IRND0.
+  //
+
+  double RN = random.rand()*N+1.0;
+  long int IRND_RETURN = static_cast<long int>(RN);
+  double TST = RN-IRND_RETURN;
+  if(TST > FA[IRND_RETURN-1]){ IRND_RETURN = IA[IRND_RETURN-1];}
+
+  return IRND_RETURN-1;
+}
+
+
+//  *********************************************************************
 //                       SUBROUTINE IRND0
 //  *********************************************************************
 void IRND0(double* W, double* F, int* K, int &N)
@@ -2756,6 +2790,67 @@ void IRND0(double* W, double* F, int* K, int &N)
     int ILOW = 0;
     int IHIGH = 0;
     for(int J = 0; J < N; J++)
+    {
+      if(K[J] == J+1)
+      {
+        if(F[J] < HLOW)
+        {
+          HLOW = F[J];
+          ILOW = J+1;
+        }
+        else if(F[J] > HIGH)
+        {
+          HIGH = F[J];
+          IHIGH = J+1;
+        }
+      }
+    }
+    if(ILOW == 0 || IHIGH == 0){ return;}
+    K[ILOW-1] = IHIGH;
+    F[IHIGH-1] = HIGH+HLOW-1.0;
+  }
+}
+
+//  *********************************************************************
+//                       SUBROUTINE IRND0
+//  *********************************************************************
+void IRND0(const double* W, double* F, long int* K, const long int N)
+{
+  //  Initialisation of Walker's aliasing algorithm for random sampling
+  //  from discrete probability distributions.
+  //
+  //  Input arguments:
+  //    N ........ number of different values of the random variable.
+  //    W(1:N) ... corresponding point probabilities (not necessarily
+  //               normalised to unity).
+  //  Output arguments:
+  //    F(1:N) ... cutoff values.
+  //    K(1:N) ... alias values.
+
+
+  //  ****  Renormalisation.
+  double CNORM = 0.0;
+  for(long int I = 0; I < N; I++)
+  {
+    if(W[I] > 0.0){ CNORM = CNORM+W[I];}   
+  }
+  CNORM = 1.0/CNORM;
+  double FACT = double(N)*CNORM;
+  for(long int I = 0; I < N; I++)
+  {
+    K[I] = I+1;
+    F[I]=0.0;
+    if(W[I] > 0.0){F[I] = W[I]*FACT;};
+  }
+  if(N == 1){return;}
+  //  ****  Cutoff and alias values.
+  for(long int I = 0; I < N-1; I++)
+  {
+    double HLOW = 1.0;
+    double HIGH = 1.0;
+    long int ILOW = 0;
+    long int IHIGH = 0;
+    for(long int J = 0; J < N; J++)
     {
       if(K[J] == J+1)
       {

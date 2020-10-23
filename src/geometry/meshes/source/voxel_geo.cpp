@@ -333,7 +333,7 @@ void pen_voxelGeo::step(pen_particleState& state,
   double ds_x, ds_y, ds_z;
   //Voxel index increment
   int voxInc_x, voxInc_y, voxInc_z;
-  int voxIncGlob_x, voxIncGlob_y, voxIncGlob_z;
+  long int voxIncGlob_x, voxIncGlob_y, voxIncGlob_z;
   //Get initial material from actual voxel
   unsigned imat = state.MAT;
   
@@ -396,13 +396,13 @@ void pen_voxelGeo::step(pen_particleState& state,
     // Moves backward on Z
     ds_z = (iz*dz-state.Z)*invW;
     voxInc_z = -1;    
-    voxIncGlob_z = -static_cast<long int>(nxy);
+    voxIncGlob_z = -static_cast<long int>(nxy);    
   }
   else{
     //Moves forward on Z
     ds_z = ((iz+1)*dz-state.Z)*invW;
     voxInc_z = +1;
-    voxIncGlob_z = +static_cast<long int>(nxy);
+    voxIncGlob_z = +static_cast<long int>(nxy);    
   }
   
   NCROSS = 0;

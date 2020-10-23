@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2020 Universitat de València - UV
+//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -21,8 +21,8 @@
 //
 //    contact emails:
 //
-//        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
+//        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
+//        vicente.gimenez@uv.es (Vicente Giménez Gómez)
 //    
 //
 
@@ -73,6 +73,7 @@ enum pen_dicom_status{
 		      PEN_DICOM_INVALID_ORIENTATION,
 		      PEN_DICOM_ERROR_CREATING_FILE,
 		      PEN_DICOM_ERROR_NULL_FILENAME,
+		      PEN_DICOM_ERROR_SPACING_MISMATCH,
 		      PEN_DICOM_IMPOSSIBLE_ERROR
 };
 
@@ -82,7 +83,7 @@ private:
   //Store the nummber of Zplanes
   unsigned nPlanes; 
   //Store number of points of each plane
-  unsigned* nPlanePoints;
+  unsigned long* nPlanePoints;
   //Store contours points (x,y,z) of each plane of
   //[nplane][x1,y1,z1,x2,y2,z2...]  
   double** contourPoints;
@@ -98,24 +99,24 @@ public:
   pen_contour(const pen_contour& c);
   void setPlanes(const unsigned np);
   void setPoints(const unsigned nplane,
-		 const unsigned npoints,
+		 const unsigned long npoints,
 		 const double* points = nullptr);
   void updatePoints(const unsigned nplane,
-		    const unsigned init,
-		    const unsigned npoints,
+		    const unsigned long init,
+		    const unsigned long npoints,
 		    const double* points);  
   void convertPoints(const double factor);
   bool hasPoints() const;
   
   inline unsigned NPlanes() const {return nPlanes;}
-  inline unsigned nPoints(const unsigned np) const {
+  inline unsigned long nPoints(const unsigned np) const {
     if(np >= nPlanes)
       throw std::out_of_range("pen_contour:nPoints: Out of range");
     return nPlanePoints[np];
   }
   inline void getPoint(double* p,
 		       const unsigned nplane,
-		       const unsigned npoint) const {
+		       const unsigned long npoint) const {
     if(nplane >= nPlanes){
       char err[300];
       sprintf(err,"pen_contour:getPoint: Plane out of range (%u/%u)",nplane,nPlanes);
@@ -124,11 +125,12 @@ public:
 
     if(npoint >= nPlanePoints[nplane]){
       char err[300];
-      sprintf(err,"pen_contour:getPoint: Point out of range (%u/%u)",npoint,nPlanePoints[nplane]);
+      sprintf(err,"pen_contour:getPoint: Point out of range (%lu/%lu)",
+	      npoint,nPlanePoints[nplane]);
       throw std::out_of_range(err);
     }
 
-    unsigned np3 = npoint*3;
+    unsigned long np3 = npoint*3;
     p[0] = contourPoints[nplane][np3];
     p[1] = contourPoints[nplane][np3+1];
     p[2] = contourPoints[nplane][np3+2];
@@ -165,14 +167,14 @@ private:
   //Store directions on each control point
   double* directions;
   //Store number of control points
-  unsigned controlPoints;
+  unsigned long controlPoints;
   //Store array size
-  unsigned size;
+  unsigned long size;
 
 public:
   //Store the sum of sequence time events
   double time;
-  int ID;
+  long int ID;
     
   pen_seed();
   pen_seed(const pen_seed& c);
@@ -180,50 +182,58 @@ public:
   pen_seed& operator=(const pen_seed& c);
   
   void clear();
-  void setCP(unsigned n);
-  void setPositions(const double* pos, const unsigned ni);
-  void setPositions(const double* pos, const unsigned ni, const unsigned npos);
-  void setWeights(const double wght, const unsigned ni);
-  void setWeights(const double* wght, const unsigned ni, const unsigned npos);
-  void setDistances(const double ds, const unsigned ni);
-  void setDistances(const double* ds, const unsigned ni, const unsigned npos);
-  void setDirections(const double* dir, const unsigned ni);
-  void setDirections(const double* dir, const unsigned ni, const unsigned npos);
+  void setCP(unsigned long n);
+  void setPositions(const double* pos, const unsigned long ni);
+  void setPositions(const double* pos,
+		    const unsigned long ni,
+		    const unsigned long npos);
+  void setWeights(const double wght, const unsigned long ni);
+  void setWeights(const double* wght,
+		  const unsigned long ni,
+		  const unsigned long npos);
+  void setDistances(const double ds, const unsigned long ni);
+  void setDistances(const double* ds,
+		    const unsigned long ni,
+		    const unsigned long npos);
+  void setDirections(const double* dir, const unsigned long ni);
+  void setDirections(const double* dir,
+		     const unsigned long ni,
+		     const unsigned long npos);
 
   inline double normWeights(){
     double sum = 0.0;
-    for(unsigned i = 0; i < controlPoints; i++)
+    for(unsigned long i = 0; i < controlPoints; i++)
       if(weights[i] > 0.0)
 	sum += weights[i];
-    for(unsigned i = 0; i < controlPoints; i++)
+    for(unsigned long i = 0; i < controlPoints; i++)
       if(weights[i] > 0.0)
 	weights[i] /= sum;
     return sum;
   }
 
-  inline unsigned nPoints() const {return controlPoints;}
-  inline void getPos(double* pos, const unsigned n) const {
+  inline unsigned long nPoints() const {return controlPoints;}
+  inline void getPos(double* pos, const unsigned long n) const {
     if(n >= controlPoints)
       throw std::out_of_range("pen_seedSequence:getPos: Out of range");
-    unsigned n3 = 3*n;
+    unsigned long n3 = 3*n;
     pos[0] = positions[n3];
     pos[1] = positions[n3+1];
     pos[2] = positions[n3+2];
   }
-  inline double getWeight(const unsigned n) const {
+  inline double getWeight(const unsigned long n) const {
     if(n >= controlPoints)
       throw std::out_of_range("pen_seedSequence:getPos: Out of range");
     return weights[n];
   }
-  inline double getDistance(const unsigned n) const {
+  inline double getDistance(const unsigned long n) const {
     if(n >= controlPoints)
       throw std::out_of_range("pen_seedSequence:getPos: Out of range");
     return distances[n];
   }
-  inline void getDirection(double* dir, const unsigned n) const {
+  inline void getDirection(double* dir, const unsigned long n) const {
     if(n >= controlPoints)
       throw std::out_of_range("pen_seedSequence:getPos: Out of range");
-    unsigned n3 = 3*n;
+    unsigned long n3 = 3*n;
     dir[0] = directions[n3];
     dir[1] = directions[n3+1];
     dir[2] = directions[n3+2];
@@ -258,8 +268,8 @@ private:
   double dvox_x, dvox_y, dvox_z;
   double voxVol;
   //Number of voxels
-  unsigned nvox_x, nvox_y, nvox_z;
-  unsigned nvox_xy, tnvox;
+  unsigned long nvox_x, nvox_y, nvox_z;
+  unsigned long nvox_xy, tnvox;
   double dimDicom[3];
         
   ////////////////
@@ -270,7 +280,7 @@ private:
   std::vector<pen_contour> contours;
 
   //Store number of voxels in each contour
-  std::vector<unsigned> nVoxContour;
+  std::vector<unsigned long> nVoxContour;
     
   //Save container contour for each voxel (-1 for non contour)
   int* voxelContour;
@@ -316,7 +326,7 @@ public:
   }
   
   inline unsigned getContourIndex(const char* name) const {
-    for(unsigned i = 0; i < contours.size(); i++)
+    for(unsigned long i = 0; i < contours.size(); i++)
       if(contours[i].name.compare(name) == 0)
 	return i;
     return contours.size();
@@ -331,18 +341,26 @@ public:
   inline const double* readImage() const {return dicomImage;}
   inline const int* readContour() const {return voxelContour;}
 
-  inline unsigned nContours() const {return contours.size();}
-  inline unsigned nSeeds() const {return seeds.size();}
+  inline unsigned long nContours() const {return contours.size();}
+  inline unsigned long nSeeds() const {return seeds.size();}
   
-  inline unsigned getNX() const {return nvox_x;}
-  inline unsigned getNY() const {return nvox_y;}
-  inline unsigned getNZ() const {return nvox_z;}
-  inline unsigned getNVox() const {return tnvox;}
+  inline unsigned long getNX() const {return nvox_x;}
+  inline unsigned long getNY() const {return nvox_y;}
+  inline unsigned long getNZ() const {return nvox_z;}
+  inline unsigned long getNVox() const {return tnvox;}
 
   inline double getDX() const {return dvox_x;}
   inline double getDY() const {return dvox_y;}
   inline double getDZ() const {return dvox_z;}
   inline double getVoxVol() const {return voxVol;}
+
+  inline double getOriginX() const {return dicomOrigin[0];}
+  inline double getOriginY() const {return dicomOrigin[1];}
+  inline double getOriginZ() const {return dicomOrigin[2];}
+
+  inline const pen_contour& contour(unsigned long icont) const {
+      return contours[icont];
+  }
 
   int printContours(const char* filename) const;
   int printSeeds(const char* filename) const;
@@ -357,138 +375,6 @@ public:
 //----------------------
 // Auxiliar functions
 //----------------------
-
-
-
-bool checkEndian();
-
-inline Uint32 U32bitSwap(Uint32 x)
-{
-  return (((x>>24) & 0x000000ff) | ((x>>8) & 0x0000ff00) | ((x<<8) & 0x00ff0000) | ((x<<24) & 0xff000000));
-}
-
-template <class store> int bytes2int(const store* chunks, unsigned int chunkSize, unsigned int outputSize, unsigned int bitsStored, bool endianness, unsigned int highBit, Uint32& output, unsigned* usedChunks)
-{
-
-  // chunks -> Array with data to join
-  // chunkSize -> size in bites of each element in chunks
-  // outputSize -> size in bits of output integer (maximum 32 bits)
-  // bitsStored -> number of bits used to construct the number
-  // endianness ->  Specifies how the data in chunks is stored: 0 if is little-endian or 1 for big-endian
-  // output -> output integer
-  // usedChunks -> counter where the number of chunks used will be added
-
-  //   1  2  3  4  5  
-  //  [0][1][2][3][4]    big-endian, la primera posició (0) va més a l'esquerra. L'agafarem la primera
-
-  //   1  2  3  4  5  
-  //  [4][3][2][1][0]    little-endian, l'última posició (4) va més a l'esquerra. L'agafarem la primera
-     
-  if(outputSize > 32)
-    return -1;
-
-  if(outputSize < chunkSize)
-    return -2;
-
-  if(outputSize == 0 || chunkSize == 0)
-    return -3;
-  
-  unsigned int chunks2add = outputSize/chunkSize;
-  output = 0;
-
-  if(endianness == 0)
-    {
-      for(int i = chunks2add-1; i >= 0; i--)
-	{
-	  output = (output << chunkSize) | chunks[i];
-	}
-    }
-  else
-    {
-      for(unsigned i = 0; i < chunks2add; i++)
-	{
-	  output = (output << chunkSize) | chunks[i];
-	}
-    }
-      
-  //Check if stored endianness coincide with
-  //machine ones.
-  bool localEndianness = checkEndian();
-  if(localEndianness != endianness)
-    {
-      //Convert stored number endianess
-      output = U32bitSwap(output);
-    }
-
-  //Remove unused bits
-  Uint32 unusedBits = outputSize-bitsStored;
-
-  if(unusedBits > 0)
-    {
-      if(highBit == bitsStored-1)
-	{
-	  if(localEndianness == 0) //Little endian
-	    {
-	      //Remove x: [xxxxxfffffffff]
-	      output = (output << unusedBits);
-	      output = (output >> unusedBits);
-	    }
-	  else //Big endian
-	    {
-	      //Remove x: [fffffffffxxxxx]
-	      output = (output >> unusedBits);	  
-	      output = (output << unusedBits);	  
-	    }
-	}
-      else if(highBit == outputSize-1)
-	{
-	  if(localEndianness == 0) //Little endian
-	    {
-	      //Remove x: [fffffffffxxxxx]
-	      output = (output >> unusedBits);
-	      output = (output << unusedBits);
-	    }
-	  else //Big endian
-	    {
-	      //Remove x: [xxxxxfffffffff]
-	      output = (output << unusedBits);
-	      output = (output >> unusedBits);
-	    }
-	}
-      else{
-	// No valid high bit value
-	return -4;
-      }
-    }
-  
-  if(usedChunks != 0)
-    *usedChunks += chunks2add;
-  
-  return 0;
-}
-
-template <typename type> int searchArray(int n, type* v, type element)
-{
-  //search "element" in array "v" of size "n" and return its position if exists.
-  //If doesn't exist, return -1
-
-  for(int i = 0; i < n; i++)
-    {
-      if(element == v[i])
-	{
-	  return i;
-	}
-    }
-  return -1;
-  
-}
-
-inline char* stringToLow(char* text)
-{
-  int c = 0;
-  while(text[c]){text[c]=tolower(text[c]); c++;} //convert to lowecase
-  return text;
-}
 
 void matvect3(const double* A, const double* V, double* C);
 
