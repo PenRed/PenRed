@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2020 Universitat de València - UV
+//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -21,8 +21,8 @@
 //
 //    contact emails:
 //
-//        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
+//        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
+//        vicente.gimenez@uv.es (Vicente Giménez Gómez)
 //    
 //
 
@@ -154,11 +154,20 @@ int IRND(double* FA,
 	 int &N,
 	 pen_rand& random);
 
+long int IRND(const double* FA,
+            const long int* IA,
+            const long int  N,
+            pen_rand& random);
+
 void IRND0(double* W,
 	   double* F,
 	   int* K,
 	   int &N);
 
+void IRND0(const double* W,
+	   double* F,
+	   long int* K,
+	   const long int  N);
 
 void RITAM(double XD,
 	   double XU,

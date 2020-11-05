@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### To add
 - CT based source
 - CT detector tally
-- DICOM based source
+
+## [1.1.2] - YYYY-MM-DD
+
+### Added
+- DICOM based spatial source
+- DICOM dose distribution tally
+
+### Fix
+- DICOM read bugs on selected data representation
 
 ## [1.1.1] - 2020-05-18
 

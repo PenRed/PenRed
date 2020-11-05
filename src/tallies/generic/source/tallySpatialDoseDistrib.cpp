@@ -37,13 +37,13 @@ void pen_SpatialDoseDistrib::updateEdepCounters(const double dE,
 						const double WGHT,
 						const unsigned MAT){
     
-  int bin;
+  long int bin;
 
   //Avoid count energy deposition in range (zmin-dz,zmin)
   if(Z < zmin) return;
   
   // Check if particle is inside tally region:
-  int k = (Z - zmin)*idz;
+  long int k = (Z - zmin)*idz;
   if(k < 0 || k >= nz){return;}
 
   //***************************
@@ -68,13 +68,13 @@ void pen_SpatialDoseDistrib::updateEdepCounters(const double dE,
   //Avoid count energy deposition in ranges (xmin-dx,xmin) and (ymin-dy,ymin)
   if(X < xmin || Y < ymin) return;
   
-  int i = (X - xmin)*idx;
+  long int i = (X - xmin)*idx;
   if(i < 0 || i >= nx){return;}
-  int j = (Y - ymin)*idy;
+  long int j = (Y - ymin)*idy;
   if(j < 0 || j >= ny){return;}
 
   //Map i,j,k into a single index
-  bin = i + j*nx + k*nxy;
+  bin = i + j*static_cast<long int>(nx) + k*nxy;
   
   //Transfer partial to totals when a new history visits
   if(nhist > nlast[bin])
@@ -441,22 +441,22 @@ int pen_SpatialDoseDistrib::configure(const wrapper_geometry& geometry,
   double subVoxVol = ddx*ddy*ddz;
     
     
-  for(int k = 0; k < nz; k++)
+  for(long int k = 0; k < nz; k++)
     {
       //This is to locate a point and find its material
-      double binZpos = zmin + dz*k;
-      int ibinZ = k*nxy;
+      double binZpos = zmin + dz*static_cast<double>(k);
+      long int ibinZ = k*nxy;
 	
-      for(int j = 0; j < ny; j++)
+      for(long int j = 0; j < ny; j++)
 	{
-	  double binYpos = ymin + dy*j;
-	  int ibinY = ibinZ + j*nx;
+	  double binYpos = ymin + dy*static_cast<double>(j);
+	  long int ibinY = ibinZ + j*static_cast<long int>(nx);
 	    
-	  for(int i = 0; i < nx; i++)
+	  for(long int i = 0; i < nx; i++)
             {
 
-	      double binXpos = xmin + dx*i;
-	      int bin = ibinY + i;
+	      double binXpos = xmin + dx*static_cast<double>(i);
+	      long int bin = ibinY + i;
 	                      
 	      double localdens = 0.0;
                
@@ -523,7 +523,6 @@ int pen_SpatialDoseDistrib::configure(const wrapper_geometry& geometry,
   }
     
   //Register data to dump
-  dump.toDump(ivoxMass,nbin);
   dump.toDump(edep,nbin);
   dump.toDump(edep2,nbin);
   dump.toDump(edepth,nz);
@@ -592,31 +591,31 @@ void pen_SpatialDoseDistrib::saveData(const unsigned long long nhist) const{
     
   //Write data
     
-  for(int k = 0; k < nz; k++)
+  for(long int k = 0; k < nz; k++)
     {
-      z = zmin + dz*k;
+      z = zmin + dz*static_cast<double>(k);
       zmiddle = z + dz*0.5;
-      int kbin = k*nxy;
+      long int kbin = k*nxy;
       
-      fprintf(out,"# zBinIndex=%d zMiddle(cm)=%12.5E\n",k,zmiddle);
+      fprintf(out,"# zBinIndex=%ld zMiddle(cm)=%12.5E\n",k,zmiddle);
 
-      for(int j = 0; j < ny; j++)
+      for(long int j = 0; j < ny; j++)
         {
-	  y = ymin+dy*j;
+	  y = ymin+dy*static_cast<double>(j);
 	  ymiddle = y+dy*0.5;
-	  int jkbin = j*nx+kbin;
+	  long int jkbin = j*static_cast<long int>(nx)+kbin;
 
-	  fprintf(out,"# yBinIndex=%d yMiddle(cm)=%12.5E\n",j,ymiddle);
+	  fprintf(out,"# yBinIndex=%ld yMiddle(cm)=%12.5E\n",j,ymiddle);
         
-	  for(int i = 0; i < nx; i++)
+	  for(long int i = 0; i < nx; i++)
             {
-	      x = xmin+dx*i;
+	      x = xmin+dx*static_cast<double>(i);
 	      xmiddle = x+dx*0.5;
-	      fprintf(out," %5d %12.5E %12.5E",i,x,xmiddle);
-	      fprintf(out," %5d %12.5E %12.5E",j,y,ymiddle);
-	      fprintf(out," %5d %12.5E %12.5E",k,z,zmiddle);
+	      fprintf(out," %5ld %12.5E %12.5E",i,x,xmiddle);
+	      fprintf(out," %5ld %12.5E %12.5E",j,y,ymiddle);
+	      fprintf(out," %5ld %12.5E %12.5E",k,z,zmiddle);
 	      // Map i,j,k into a single index
-	      int bin = i + jkbin; 
+	      long int bin = i + jkbin; 
                 
 	      fact = ivoxMass[bin];
 	      q = edep[bin]*invn;
@@ -664,7 +663,7 @@ void pen_SpatialDoseDistrib::saveData(const unsigned long long nhist) const{
   
   for(int k = 0; k < nz; k++){
     
-    z = zmin+dz*k;
+    z = zmin+dz*static_cast<double>(k);
     zmiddle = z+dz*0.5;
     fprintf(out," %5d %12.5E %12.5E",k,z,zmiddle);
     

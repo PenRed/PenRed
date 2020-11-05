@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019 Universitat de València - UV
-#    Copyright (C) 2019 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2020 Universitat de València - UV
+#    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -22,8 +22,8 @@
 #
 #    contact emails:
 #
-#        vicent.gimenez.alventosa@gmail.com
-#        vicente.gimenez@uv.es
+#        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
+#        vicente.gimenez@uv.es (Vicente Giménez Gómez)
 #    
 #
 
@@ -32,143 +32,223 @@
 #############################
 #  UTILITIES
 #############################
+include(CMakeDependentOption)
 
+#         OPTIONS           #
+#############################
 
+CMAKE_DEPENDENT_OPTION(READ_MAT  "Compile read material utility" ON 
+                       "BUILD_UTILITIES" OFF)
+CMAKE_DEPENDENT_OPTION(MAT_RANGE "Compile material range utility" OFF
+                       "BUILD_UTILITIES" OFF)
+CMAKE_DEPENDENT_OPTION(TALLIES_REGISTER "Compile tallies register" ON
+                       "BUILD_UTILITIES" OFF)
+CMAKE_DEPENDENT_OPTION(SAMPLE_REGISTER "Compile samplers register" ON
+                       "BUILD_UTILITIES" OFF)
+CMAKE_DEPENDENT_OPTION(GEOMETRY_REGISTER "Compile geometries register" ON
+                       "BUILD_UTILITIES" OFF)
+CMAKE_DEPENDENT_OPTION(PSF_SPECTRE "Compile PSF spectrum generator" ON
+                       "BUILD_UTILITIES" OFF)
+CMAKE_DEPENDENT_OPTION(PSF_2_ASCII "Compile PSF to ASCII conversor" ON
+                       "BUILD_UTILITIES" OFF)
+CMAKE_DEPENDENT_OPTION(GEO_2_VOXEL "Compile conversor to voxelized geometry" ON
+                       "BUILD_UTILITIES" OFF)
+CMAKE_DEPENDENT_OPTION(LB_SERVER "Compile RUPER_LB basic server program" ON
+                       "BUILD_UTILITIES;WITH_LB" OFF)                       
 
 #       EXECUTABLES         #
 #############################
 
-
 #  Error list generator
 #############################
-add_executable(createErrors ${PROJECT_SOURCE_DIR}/utilities/errors/createErrors.cpp)
-
+add_executable(createErrors ${PROJECT_SOURCE_DIR}/utilities/errors/createErrors.cpp)  
 
 #-----------------------------------------------------------------------------
 #  Read material
 #############################
 
-# Create read material executable
-add_executable(readMat ${PROJECT_SOURCE_DIR}/utilities/penMats/readMat.cpp)
+if(READ_MAT)
+    # Create read material executable
+    add_executable(readMat ${PROJECT_SOURCE_DIR}/utilities/penMats/readMat.cpp)
 
-#target libs
-target_link_libraries(readMat pen_materials)
+    #target libs
+    target_link_libraries(readMat pen_materials)
 
-# Install readMat executable
-install(
-  TARGETS readMat
-  DESTINATION ${PROJECT_SOURCE_DIR}/compiled/penMats
-  )
-
+    # Install readMat executable
+    install(
+    TARGETS readMat
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/penMats
+    )
+endif(READ_MAT)
 
 #-----------------------------------------------------------------------------
 #  Pen material ranges
 #############################
 
-# Create read material executable
-add_executable(range ${PROJECT_SOURCE_DIR}/utilities/penMats/range.cpp)
+if(MAT_RANGE)
+    # Create read material executable
+    add_executable(range ${PROJECT_SOURCE_DIR}/utilities/penMats/range.cpp)
+
+    #target libs
+    target_link_libraries(range pen_materials)
+
+    # Install readMat executable
+    install(
+    TARGETS range
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/penMats
+    )
+endif(MAT_RANGE)
+  
+#-----------------------------------------------------------------------------
+#  psampler
+#############################
+
+# Create psampler executable
+add_executable(psampler ${PROJECT_SOURCE_DIR}/utilities/psampler/psampler.cpp)
 
 #target libs
-target_link_libraries(range pen_materials)
+target_link_libraries(psampler pen_particles)
+target_link_libraries(psampler pen_timer)
 
-# Install readMat executable
+# Install psampler executable
 install(
-  TARGETS range
-  DESTINATION ${PROJECT_SOURCE_DIR}/compiled/penMats
+  TARGETS psampler
+  DESTINATION ${PROJECT_SOURCE_DIR}/compiled/psampler
   )
-
+  
 #-----------------------------------------------------------------------------
 #  registered tallies
 #############################
 
-# Create registered tallies executable
-add_executable(regTallies ${PROJECT_SOURCE_DIR}/utilities/registers/registeredTallies.cpp)
+if(TALLIES_REGISTER)
+    # Create registered tallies executable
+    add_executable(regTallies ${PROJECT_SOURCE_DIR}/utilities/registers/registeredTallies.cpp)
 
-#target libs
-target_link_libraries(regTallies tallies)
+    #target libs
+    target_link_libraries(regTallies tallies)
 
-# Install registered tallies executable
-install(
-  TARGETS regTallies
-  DESTINATION ${PROJECT_SOURCE_DIR}/compiled/registers
-  )
+    # Install registered tallies executable
+    install(
+    TARGETS regTallies
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/registers
+    )
+endif(TALLIES_REGISTER)
 #-----------------------------------------------------------------------------
 #  registered samplers
 #############################
 
-# Create registered tallies executable
-add_executable(regSamplers ${PROJECT_SOURCE_DIR}/utilities/registers/registeredSamplers.cpp)
+if(SAMPLE_REGISTER)
+    # Create registered tallies executable
+    add_executable(regSamplers ${PROJECT_SOURCE_DIR}/utilities/registers/registeredSamplers.cpp)
 
-#target libs
-target_link_libraries(regSamplers samplers)
+    #target libs
+    target_link_libraries(regSamplers samplers)
 
-# Install registered samplers executable
-install(
-  TARGETS regSamplers
-  DESTINATION ${PROJECT_SOURCE_DIR}/compiled/registers
-  )
+    # Install registered samplers executable
+    install(
+    TARGETS regSamplers
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/registers
+    )
+endif(SAMPLE_REGISTER)
 #-----------------------------------------------------------------------------
 #  registered geometries
 #############################
 
-# Create registered tallies executable
-add_executable(regGeometries ${PROJECT_SOURCE_DIR}/utilities/registers/registeredGeometries.cpp)
+if(GEOMETRY_REGISTER)
+    # Create registered tallies executable
+    add_executable(regGeometries ${PROJECT_SOURCE_DIR}/utilities/registers/registeredGeometries.cpp)
 
-#target libs
-target_link_libraries(regGeometries pen_geos)
+    #target libs
+    target_link_libraries(regGeometries pen_geos)
 
 
-# Install registered geometries executable
-install(
-  TARGETS regGeometries
-  DESTINATION ${PROJECT_SOURCE_DIR}/compiled/registers
-  )
+    # Install registered geometries executable
+    install(
+    TARGETS regGeometries
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/registers
+    )
+endif(GEOMETRY_REGISTER)
 #-----------------------------------------------------------------------------
 #  PSF spectrum
 #############################
 
-# Create PSF spectrum executable
-add_executable(psfSpect ${PROJECT_SOURCE_DIR}/utilities/psf/psf_spectre.cpp)
+if(PSF_SPECTRE)
+    # Create PSF spectrum executable
+    add_executable(psfSpect ${PROJECT_SOURCE_DIR}/utilities/psf/psf_spectre.cpp)
 
-#target libs
-target_link_libraries(psfSpect pen_psf)
+    #target libs
+    target_link_libraries(psfSpect pen_psf)
 
 
-# Install registered geometries executable
-install(
-  TARGETS psfSpect
-  DESTINATION ${PROJECT_SOURCE_DIR}/compiled/psf
-  )
+    # Install registered geometries executable
+    install(
+    TARGETS psfSpect
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/psf
+    )
+endif(PSF_SPECTRE)
 #-----------------------------------------------------------------------------
 #  PSF 2 ASCII
 #############################
 
-# Create PSF spectrum executable
-add_executable(psf2ascii ${PROJECT_SOURCE_DIR}/utilities/psf/psf2ascii.cpp)
+if(PSF_2_ASCII)
+    # Create PSF spectrum executable
+    add_executable(psf2ascii ${PROJECT_SOURCE_DIR}/utilities/psf/psf2ascii.cpp)
 
-#target libs
-target_link_libraries(psf2ascii pen_psf)
+    #target libs
+    target_link_libraries(psf2ascii pen_psf)
 
 
-# Install registered geometries executable
-install(
-  TARGETS psf2ascii
-  DESTINATION ${PROJECT_SOURCE_DIR}/compiled/psf
-  )
+    # Install registered geometries executable
+    install(
+    TARGETS psf2ascii
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/psf
+    )
+endif(PSF_2_ASCII)
 #-----------------------------------------------------------------------------
 #  geo to voxel
 #############################
 
-# Create registered tallies executable
-add_executable(geo2voxel ${PROJECT_SOURCE_DIR}/utilities/geometry/geo2voxel.cpp)
+if(GEO_2_VOXEL)
+    # Create registered tallies executable
+    add_executable(geo2voxel ${PROJECT_SOURCE_DIR}/utilities/geometry/geo2voxel.cpp)
 
-#target libs
-target_link_libraries(geo2voxel pen_geos)
+    #target libs
+    target_link_libraries(geo2voxel pen_geos)
 
 
-# Install registered geometries executable
-install(
-  TARGETS geo2voxel
-  DESTINATION ${PROJECT_SOURCE_DIR}/compiled/geometry/voxels
-  )
+    # Install registered geometries executable
+    install(
+    TARGETS geo2voxel
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/geometry/voxels
+    )
+endif(GEO_2_VOXEL)
+#-----------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------
+#  LB server
+#############################
+
+if(LB_SERVER AND WITH_LB)
+    # Create LB server executable
+    add_executable(LBserver ${PROJECT_SOURCE_DIR}/utilities/LB/LBserver.cpp)
+
+    #target libs
+    target_link_libraries(LBserver pen_LB)
+
+    # Create stdin LB server executable
+    add_executable(stdinServer ${PROJECT_SOURCE_DIR}/utilities/LB/stdinServer.cpp)
+
+    #target libs
+    target_link_libraries(stdinServer pen_LB)
+
+    # Install load balance executables
+    install(
+    TARGETS LBserver
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/LB/server
+    )
+    install(
+    TARGETS stdinServer
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/LB/server
+    )    
+endif(LB_SERVER AND WITH_LB)
 #-----------------------------------------------------------------------------

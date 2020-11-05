@@ -22,8 +22,8 @@
 #
 #    contact emails:
 #
-#        vicent.gimenez.alventosa@gmail.com
-#        vicente.gimenez@uv.es
+#        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
+#        vicente.gimenez@uv.es (Vicente Giménez Gómez)
 #    
 #
 
@@ -80,7 +80,16 @@ target_link_libraries(samplers pen_contexts)
 target_link_libraries(samplers pen_internalData)
 target_link_libraries(samplers pen_psf)
 target_link_libraries(samplers pen_sharedFile)
-target_link_libraries(samplers pen_LB)
+
+if(WITH_LB)
+    target_link_libraries(samplers pen_LB)
+endif(WITH_LB)
+
+#Check if DICOM option has been enabled
+if(WITH_DICOM)
+  #dcmtk libs
+  target_link_libraries(samplers pen_dicom)
+endif()
 
 if(WITH_MPI)
     target_link_libraries(samplers ${MPI_LIBRARIES})
