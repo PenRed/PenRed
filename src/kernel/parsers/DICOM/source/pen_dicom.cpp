@@ -1628,7 +1628,9 @@ int pen_dicom::loadDicom(const char* dirName,
     {
       AuxChar.assign(filenamesDicom[k]); // extract filename
 
-    printf("Processing dicomfile %s\n",AuxChar.c_str());
+      if(verbose > 1)
+	printf("Processing dicomfile %s\n",AuxChar.c_str());
+      
       long int imagePos = -1; //Save image position
       unsigned long firstPixelPos = 0; //stores first pixel to be filled
 
@@ -1694,8 +1696,9 @@ int pen_dicom::loadDicom(const char* dirName,
 	  fileformat.clear();
 	  clear();
 	  return PEN_DICOM_ERROR_REOPENING_DICOM;
-	}      
-    printf("Dicom loaded\n");
+	}
+      if(verbose > 2)
+	printf("Dicom loaded\n");
       
       
       //Calculate first pixel position for this dicom
@@ -1732,7 +1735,9 @@ int pen_dicom::loadDicom(const char* dirName,
 	      clear();
 	      return PEN_DICOM_BAD_READ_COLUMNS;
 	    }
-    printf("Width: %d\n",width);
+      if(verbose > 2)
+	printf("Width: %d\n",width);
+      
 	  status = metainfo_Dicom->findAndGetUint16(DCM_Rows,height);
 	  if(status.bad())
 	    {
@@ -1745,7 +1750,9 @@ int pen_dicom::loadDicom(const char* dirName,
 	      clear();
 	      return PEN_DICOM_BAD_READ_ROWS;
 	    }
-    printf("Height: %d\n",height);
+	  
+	  if(verbose > 2)
+	    printf("Height: %d\n",height);
 
 	  //Check dimensions
 	  if(nvox_x != width || nvox_y != height)
@@ -1768,7 +1775,9 @@ int pen_dicom::loadDicom(const char* dirName,
 	      auxFrames = 1;
 	    }
 	  nframes = static_cast<unsigned long>(abs(auxFrames));
-    printf("Nframes: %ld\n",nframes);
+	  
+	  if(verbose > 2)
+	    printf("Nframes: %ld\n",nframes);
 
 	  unsigned long totalDicomVoxels =
 	    static_cast<unsigned long>(width)*
@@ -1782,9 +1791,11 @@ int pen_dicom::loadDicom(const char* dirName,
 	    clear();
 	    return PEN_DICOM_NVOXELS_MISMATCH;
 	  }
-    printf("TotalDicomVoxels: %ld\n",totalDicomVoxels);
-	  
-    printf("Reading Intercept and Slope ... \n");fflush(stdout);
+
+	  if(verbose > 2){
+	    printf("TotalDicomVoxels: %ld\n",totalDicomVoxels);
+	    printf("Reading Intercept and Slope ... \n");fflush(stdout);
+	  }
 	  //RescaleIntercept and RescaleSlope, are used to transform each pixel
 	  //value with the formula:  RescaleSlope*pixelValue+RescaleIntercept
 	  double RescaleIntercept;
@@ -1792,10 +1803,15 @@ int pen_dicom::loadDicom(const char* dirName,
 	  double RescaleSlope;
 	  status = metainfo_Dicom->findAndGetFloat64(DCM_RescaleSlope,RescaleSlope);
 	  if(RescaleSlope==0.0){RescaleSlope=1.0;}
-    printf("RescaleIntercept: %15.8E\n RescaleSlope: %15.8E\n",RescaleIntercept,RescaleSlope);fflush(stdout);
+	  
+	  if(verbose > 2){
+	    printf("RescaleIntercept: %15.8E\n RescaleSlope: %15.8E\n",
+		   RescaleIntercept,RescaleSlope);
+	    fflush(stdout);
+	  }
     //RescaleIntercept=0.0;
     //RescaleSlope=1.0;
-    printf("but RescaleIntercept: %15.8E\n RescaleSlope: %15.8E will be used instead.\n",RescaleIntercept,RescaleSlope);fflush(stdout);
+    //printf("but RescaleIntercept: %15.8E\n RescaleSlope: %15.8E will be used instead.\n",RescaleIntercept,RescaleSlope);fflush(stdout);
 
 	  //read if pixel data is signed (1) or unsigned (0)
 	  short unsigned int PixelRep;
@@ -1810,10 +1826,14 @@ int pen_dicom::loadDicom(const char* dirName,
 	      clear();
 	      return PEN_DICOM_BAD_READ_PIXEL_REPRESENTATION;
 	    }
-    printf("Pixel representation: %u\n",PixelRep);fflush(stdout);
+	  
+	  if(verbose > 2){
+	    printf("Pixel representation: %u\n",PixelRep);
+	    printf("Getting data ...\n");
+	    fflush(stdout);
+	  }
 	  
 	  //load pixels
-    printf("Getting data ...\n");fflush(stdout);
 	  const DiPixel *inter = image->getInterData();
 	  if(inter == nullptr)
 	    {
