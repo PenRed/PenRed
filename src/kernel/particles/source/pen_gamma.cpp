@@ -35,7 +35,7 @@ pen_gamma::pen_gamma(const pen_context& contextIn,
 	    pen_particleStack<pen_particleState>& stackPin,
 	    pen_particleStack<pen_state_gPol>& stackGin)
 
-  : abc_particle(contextIn,PEN_PHOTON,4,0.0E0),
+  : abc_particle(contextIn,PEN_PHOTON,4,0.0E0,stackGin),
     compton(stackEin,stackGin),
     photoelectric(stackEin,stackGin),
     pairProduct(stackEin,stackPin,stackGin)

@@ -297,6 +297,10 @@ public:
     return mesh[index];    
   }
   
+  inline const meshElement* readMesh() const{
+      return mesh;
+  }
+  
   virtual ~abc_mesh(){clearMesh();}
 };
 

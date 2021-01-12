@@ -36,7 +36,7 @@ pen_betaE::pen_betaE(const pen_context& contextIn,
 		     pen_particleStack<pen_particleState>& stackEin,
 		     pen_particleStack<pen_state_gPol>& stackGin)
   
-  : abc_particle(contextIn,PEN_ELECTRON,4,0.0E0),
+  : abc_particle(contextIn,PEN_ELECTRON,4,0.0E0,stackEin),
     HinelastCol(stackEin),
     Hbremsstrahlung(stackGin),
     HinnerShell(stackEin,stackGin),

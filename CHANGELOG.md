@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CT based source
 - CT detector tally
 
+## [Working on]
+
+### Fix
+- Main program prints Bremsstrahlung splitting number (IBRSPL) instead of x-ray splitting number (IXRSPL)
+
+### Added
+- VR modules to implement custom variance reduction techniques
+
 ## [1.1.3] - 2020-11-27
 
 ### Fix

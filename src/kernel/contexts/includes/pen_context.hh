@@ -66,9 +66,6 @@ public:
   double WRANGES[NBV][2*constants::nParTypes];
   //  ----  Bremsstrahlung splitting numbers, IBRSPL(IBODY).
   unsigned int IBRSPL[NBV];
-  //  ----  x-ray splitting numbers, IXRSPL(IBODY).
-  unsigned int IXRSPL[NBV];
-  bool         LXRSPL[NBV];
   
   pen_context(pen_elementDataBase& inElements) : elements(inElements){
     
@@ -88,11 +85,6 @@ public:
     for(unsigned int i = 0; i < NBV; i++)
       IBRSPL[i] = 1;
 
-    // x-ray splitting
-    for(unsigned int i = 0; i < NBV; i++){
-      IXRSPL[i] = 1;
-      LXRSPL[i] = false;
-    }
   }
   int init(double EMAX, FILE *IWR, int INFO, std::string PMFILE[constants::MAXMAT]);
 

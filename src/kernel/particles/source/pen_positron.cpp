@@ -35,8 +35,9 @@ const double pen_betaP::twomc2 = 2.0*mc2;
 
 pen_betaP::pen_betaP(const pen_context& contextIn,
 		     pen_particleStack<pen_particleState>& stackEin,
-		     pen_particleStack<pen_state_gPol>& stackGin)
-  : abc_particle(contextIn,PEN_POSITRON,5,twomc2), 
+		     pen_particleStack<pen_state_gPol>& stackGin,
+             pen_particleStack<pen_particleState>& stackPin)
+  : abc_particle(contextIn,PEN_POSITRON,5,twomc2,stackPin), 
     HinelastCol(stackEin),
     Hbremsstrahlung(stackGin),
     HinnerShell(stackEin,stackGin),

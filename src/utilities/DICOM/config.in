@@ -27,30 +27,32 @@
 #    
 #
 
+directory "/home/vigial/feina/classespenelopeC/toDo/adapt2microesferes/dades"
+default/material 4
+default/density 0.9998
 
+materials/prostata/ID 1
+materials/prostata/density 1.1
 
-#############################
-#  MAIN PROGRAMS
-#############################
+materials/uretra/ID 3
+materials/uretra/density 0.5
 
-# Create penmain
-add_executable(pen_main ${PROJECT_SOURCE_DIR}/mains/source/pen_main.cpp)
+materials/rectum/ID 2
+materials/rectum/density 0.03
 
-target_include_directories(pen_main PUBLIC ${PROJECT_SOURCE_DIR}/mains/includes)
-target_include_directories(pen_main PUBLIC ${PROJECT_SOURCE_DIR}/kernel/includes)
+materials/water/ID 4
+materials/water/density 0.9998
 
-target_link_libraries(pen_main pen_particles)
-target_link_libraries(pen_main pen_geos)
-target_link_libraries(pen_main samplers)
-target_link_libraries(pen_main tallies)
-target_link_libraries(pen_main pen_VR)
-target_link_libraries(pen_main pen_timer)
+# Contours
 
+contours/target/material 1
+contours/target/density 1.05
+contours/target/priority 1.0
 
-#-----------------------------------------------------------------------------
-# Install penmain executable
-install(
-  TARGETS pen_main
-  DESTINATION ${PROJECT_SOURCE_DIR}/compiled/mains/penmain
-  )
-#-----------------------------------------------------------------------------
+contours/urethra/material 3
+contours/urethra/density 0.5
+contours/urethra/priority 2.0
+
+contours/rectum/material 2
+contours/rectum/density 0.03
+contours/rectum/priority 3.0
