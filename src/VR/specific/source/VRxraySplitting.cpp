@@ -248,7 +248,7 @@ int pen_VRxraysplitting::configure(const pen_parserSection& config,
 }
 
 void pen_VRxraysplitting::vr_particleStack(const unsigned long long /*nhist*/,
-					   const pen_KPAR kpar,
+					   const pen_KPAR /*kpar*/,
 					   const unsigned /*kdet*/,
 					   pen_state_gPol& state,
 					   std::array<pen_state_gPol,constants::NMS>& stack,

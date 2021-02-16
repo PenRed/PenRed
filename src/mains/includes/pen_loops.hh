@@ -264,20 +264,60 @@ void simulatePart(const unsigned long long nhist,
 	  return;
 	}
 
+	// Particle has been stopped at interface,
+	// restart particle state
+	particle.START();
+
+	//Check if the particle must be absorbed
+	if(absorb(nhist,particle,tallies,randoms))
+	  return;
+
 	//VR
-	particle.vr_matChange(nhist,randoms,2);
-      }
+	double deVR = particle.vr_matChange(nhist,randoms,2);	
+	//VR
+	deVR += particle.vr_interfCross(nhist,randoms,2);
 
-      //VR
-      particle.vr_interfCross(nhist,randoms,2);      
+	//Tally the deposited energy by VR
+	if(deVR > 0.0){
+	  //We must compensate the particle weight to score correctly
+	  //the energy stored in the secondary stacks by the VR call
+	  double originWGHT = state.WGHT;
+	  state.WGHT = 1.0;
+	  tallies.run_localEdep(nhist,kpar,state,deVR);
+	  state.WGHT = originWGHT;
+	}
+
+	//Check if the particle must be absorbed because VR
+	if(absorb(nhist,particle,tallies,randoms))
+	  return;
 	
-      // Particle has been stopped at interface,
-      // restart particle state
-      particle.START();
+      }
+      else{
+	// Particle has been stopped at interface,
+	// restart particle state
+	particle.START();
 
-      //Check if the particle must be absorbed
-      if(absorb(nhist,particle,tallies,randoms))
-	return;
+	//Check if the particle must be absorbed
+	if(absorb(nhist,particle,tallies,randoms))
+	  return;
+      
+	//VR
+	double deVR = particle.vr_interfCross(nhist,randoms,2);
+
+	//Tally the deposited energy by VR
+	if(deVR > 0.0){
+	  //We must compensate the particle weight to score correctly
+	  //the energy stored in the secondary stacks by the VR call
+	  double originWGHT = state.WGHT;
+	  state.WGHT = 1.0;
+	  tallies.run_localEdep(nhist,kpar,state,deVR);
+	  state.WGHT = originWGHT;
+	}
+
+	//Check if the particle must be absorbed because VR
+	if(absorb(nhist,particle,tallies,randoms))
+	  return;	
+      }
     }
     else{
 

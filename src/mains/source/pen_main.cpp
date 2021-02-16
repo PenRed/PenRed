@@ -174,7 +174,7 @@ void simulate(const unsigned ithread,
   const pen_context& context = *pcontext;
   pen_specificStateGen<stateType>& source = *psource;
   pen_commonTallyCluster& tallies = *ptallies;
-  
+
   //Create random generator
   pen_rand random;
   random.setSeeds(*seed1,*seed2);
@@ -257,14 +257,19 @@ void simulate(const unsigned ithread,
   pen_gamma gamma(context,stackE,stackP,stackG);
   pen_betaP betaP(context,stackE,stackG,stackP);
 
+  
   //Register VR
   if(genericVR->numVR() > 0){
     betaE.registerGenericVR(*genericVR);
     gamma.registerGenericVR(*genericVR);
     betaP.registerGenericVR(*genericVR);
+    printf("Registered generic VR\n");
+    fflush(stdout);
   }
   if(photonVR->numVR() > 0){
     gamma.registerSpecificVR(*photonVR);
+    printf("Registered photon VR\n");
+    fflush(stdout);
   }
   
   //History bucle
@@ -676,7 +681,7 @@ int main(int argc, char** argv){
   }
 	
   if(strcmp(argv[1],"--version") == 0 || strcmp(argv[1],"-v") == 0){
-    printf("PenRed 1.1.3\n");
+    printf("PenRed 1.2.0\n");
     printf("Copyright (c) 2019-2020 Universitat Politecnica de Valencia\n");
     printf("Copyright (c) 2019-2020 Universitat de Valencia\n");
     printf("This is free software; see the source for copying conditions. "
@@ -932,9 +937,11 @@ int main(int argc, char** argv){
   int errAuxEsp = 99;
   if((errAuxEsp = config.read("loadBalance/balance-interval",balanceIntervald)) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("\n\nTime between load balances not specified.\n\n");
+      printf("\n\nTime between load balances not specified.\n");
+      printf("Read of parameter 'loadBalance/balance-interval' "
+	     "failed because: %s\n\n",
+	     pen_parserError(errAuxEsp));
     }
-    printf("Error code: %d\n",errAuxEsp);
   }
   else{
     if(balanceIntervald <= 10.0){
@@ -2928,7 +2935,7 @@ int setVarianceReduction(pen_context& context,
   //**************************
 
   pen_parserSection VRgeneric;
-  if(VRSection.readSubsection("generic",VRSection) != INTDATA_SUCCESS){
+  if(VRSection.readSubsection("generic",VRgeneric) != INTDATA_SUCCESS){
     if(verbose > 1){
       printf("No generic variance reduction specified.\n");
     }

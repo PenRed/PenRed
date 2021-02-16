@@ -1,7 +1,7 @@
 //
 //
-//    Copyright (C) 2020 Universitat de València - UV
-//    Copyright (C) 2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2020-2021 Universitat de València - UV
+//    Copyright (C) 2020-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -25,40 +25,44 @@
 //    
 // 
 
-#ifndef __PEN_VR_XRAY_SPLITTING__
-#define __PEN_VR_XRAY_SPLITTING__
+#ifndef __PEN_RUSSIAN_ROULETTE__
+#define __PEN_RUSSIAN_ROULETTE__
 
 #include "pen_constants.hh"
 
-class pen_VRxraysplitting : public pen_genericVR<pen_state_gPol>{
-  DECLARE_VR(pen_VRxraysplitting)
+class pen_VRRussianRoulette : public pen_genericVR<pen_particleState>{
+  DECLARE_VR(pen_VRRussianRoulette)
 
   private:
 
-  //  ----  x-ray splitting numbers, IXRSPL(IBODY).
-  unsigned int IXRSPL[pen_geoconst::NB];
-  bool         LXRSPL[pen_geoconst::NB];
+  //  ----  splitting numbers, IXRSPL(IBODY).
+  double DRR[pen_geoconst::NB];
+  bool   LRR[pen_geoconst::NB];
+
+  double minWght;
+  double maxWght;
   
   public:
 
-  pen_VRxraysplitting() : pen_genericVR(VR_USE_PARTICLESTACK)
+  pen_VRRussianRoulette() : pen_genericVR(VR_USE_INTERFCROSS)
   {
     for(unsigned i = 0; i < pen_geoconst::NB; ++i)
-      LXRSPL[i] = false;
+      LRR[i] = false;
+    minWght = maxWght = 0.0;
   }
 
   int configure(const pen_parserSection& config,
 		const wrapper_geometry& geometry,
 		const unsigned verbose);
   
-  void vr_particleStack(const unsigned long long /*nhist*/,
-			const pen_KPAR /*kpar*/,
-			const unsigned /*kdet*/,
-			pen_state_gPol& state,
-			std::array<pen_state_gPol,constants::NMS>& stack,
-			unsigned& created,
-			const unsigned available,
-			pen_rand& random) const;
+  void vr_interfCross(const unsigned long long /*nhist*/,
+		      const pen_KPAR /*kpar*/,
+		      const unsigned /*kdet*/,
+		      pen_particleState& state,
+		      std::array<pen_particleState,constants::NMS>& /*stack*/,
+		      unsigned& /*created*/,
+		      const unsigned /*available*/,
+		      pen_rand& random) const;
 };
 
 #endif

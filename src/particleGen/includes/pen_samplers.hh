@@ -1040,7 +1040,8 @@ public:
 
     if(nthreads < 1){
       if(verbose > 0){
-	printf("SelectSpecificSampler: Error: Number of threads must be greater than zero.\n");
+	printf("SelectSpecificSampler: Error: Number of threads must be "
+	       "greater than zero.\n");
       }
       return -1;
     }
@@ -1058,7 +1059,8 @@ public:
       specificSamplerVect[i] = specificSamplers().createInstance(ID);
       if(specificSamplerVect[i] == nullptr){
 	if(verbose > 0){
-	  printf("SelectSpecificSampler: Error: Unable to create specific sampler '%s' for thread %d\n",ID,i);
+	  printf("SelectSpecificSampler: Error: Unable to create "
+		 "specific sampler '%s' for thread %d\n",ID,i);
 	}
 	clearSpecificSamplers();
 	return -2;
@@ -1074,7 +1076,8 @@ public:
     
     if(specificSamplerVect[0]->usesSpatial() && spatial() == nullptr){
       if(verbose > 0){
-	printf("SelectSpecificSampler: Error: Specific sampler '%s' requires a spatial sampler.\n",ID);
+	printf("SelectSpecificSampler: Error: Specific sampler '%s' "
+	       "requires a spatial sampler.\n",ID);
       }
       clearSpecificSamplers();
       return -3;
@@ -1084,7 +1087,8 @@ public:
 	    !specificSamplerVect[0]->usesGeneric()
 	    ){
       if(verbose > 2){
-	printf("SelectSpecificSampler: Warning: Spatial sampler selected but not required by specific sampler. Could be ignored.\n");
+	printf("SelectSpecificSampler: Warning: Spatial sampler "
+	       "selected but not required by specific sampler. Could be ignored.\n");
       }
     }
 
@@ -1092,7 +1096,8 @@ public:
 
     if(specificSamplerVect[0]->usesDirection() && direction() == nullptr){
       if(verbose > 0){
-	printf("SelectSpecificSampler: Error: Specific sampler '%s' requires a direction sampler.\n",ID);
+	printf("SelectSpecificSampler: Error: Specific sampler '%s' "
+	       "requires a direction sampler.\n",ID);
       }
       clearSpecificSamplers();
       return -4;
@@ -1102,7 +1107,8 @@ public:
 	    !specificSamplerVect[0]->usesGeneric()
 	    ){
       if(verbose > 2){
-	printf("SelectSpecificSampler: Warning: Direction sampler selected but not required by specific sampler. Could be ignored.\n");
+	printf("SelectSpecificSampler: Warning: Direction sampler selected "
+	       "but not required by specific sampler. Could be ignored.\n");
       }
     }    
     
@@ -1110,7 +1116,8 @@ public:
     
     if(specificSamplerVect[0]->usesEnergy() && energy() == nullptr){
       if(verbose > 0){
-	printf("SelectSpecificSampler: Error: Specific sampler '%s' requires an energy sampler.\n",ID);
+	printf("SelectSpecificSampler: Error: Specific sampler '%s' "
+	       "requires an energy sampler.\n",ID);
       }
       clearSpecificSamplers();
       return -5;
@@ -1120,7 +1127,8 @@ public:
 	    !specificSamplerVect[0]->usesGeneric()
 	    ){
       if(verbose > 2){
-	printf("SelectSpecificSampler: Warning: Energy sampler selected but not required by specific sampler. Could be ignored.\n");
+	printf("SelectSpecificSampler: Warning: Energy sampler selected "
+	       "but not required by specific sampler. Could be ignored.\n");
       }
     }    
 
@@ -1128,7 +1136,8 @@ public:
     
     if(specificSamplerVect[0]->usesTime() && time() == nullptr){
       if(verbose > 0){
-	printf("SelectSpecificSampler: Error: Specific sampler '%s' requires a time sampler.\n",ID);
+	printf("SelectSpecificSampler: Error: Specific sampler '%s' "
+	       "requires a time sampler.\n",ID);
       }
       clearSpecificSamplers();
       return -6;
@@ -1138,7 +1147,8 @@ public:
 	    !specificSamplerVect[0]->usesGeneric()
 	    ){
       if(verbose > 2){
-	printf("SelectSpecificSampler: Warning: Time sampler selected but not required by specific sampler. Could be ignored.\n");
+	printf("SelectSpecificSampler: Warning: Time sampler selected "
+	       "but not required by specific sampler. Could be ignored.\n");
       }
     }
     
@@ -1150,7 +1160,9 @@ public:
 	 energy() == nullptr){
 	
 	if(verbose > 0){
-	  printf("SelectSpecificSampler: Error: Specific sampler '%s' requires generic sampling. So, spatial, direction and energy generic samplers must be provided.\n",ID);
+	  printf("SelectSpecificSampler: Error: Specific sampler '%s' requires "
+		 "generic sampling. So, spatial, direction and energy generic "
+		 "samplers must be provided.\n",ID);
 	}
 	clearSpecificSamplers();
 	return -7;
@@ -1171,7 +1183,8 @@ public:
 							auxVerbose);
       if(errConfig != 0){
 	if(verbose > 0){
-	  printf("SelectSpecificSampler: Error: Unable to configure specific sampler '%s' for thread %u\n",ID,i);
+	  printf("SelectSpecificSampler: Error: Unable to configure specific "
+		 "sampler '%s' for thread %u\n",ID,i);
 	}
 	clearSpecificSamplers();
 	return -8;
@@ -1312,7 +1325,8 @@ public:
     int err = configureGeneric(config,specificSpecified,verbose);
     if(err != 0){
       if(verbose > 0){
-	printf("specificStateGen: configure: Error: Unable to configure generic state generation part.\n");
+	printf("specificStateGen: configure: Error: Unable to configure "
+	       "generic state generation part.\n");
       }
       clear();
       configStatus = -1;
@@ -1323,8 +1337,8 @@ public:
     if(!specificSpecified){
       if(verbose > 1){
 	printf("Section 'specific' not found. No specific sampler will be used\n");
-	useGeneric = true;
       }
+      useGeneric = true;
       configStatus = 0;
       return;
     }
@@ -1333,7 +1347,8 @@ public:
     pen_parserSection specificSection;
     if(config.readSubsection("specific",specificSection) != INTDATA_SUCCESS){
       if(verbose > 0){
-	printf("specificStateGen: configure: Error: Unable to read 'specific' field. Section expected\n");
+	printf("specificStateGen: configure: Error: Unable to read "
+	       "'specific' field. Section expected\n");
       }
       clear();
       configStatus = -2;
@@ -1344,7 +1359,8 @@ public:
     std::string specificType;
     if(specificSection.read("type",specificType) != INTDATA_SUCCESS){
       if(verbose > 0){
-	printf("specificStateGen: configure: Error: Unable to read field 'specific/type'. String expected.\n");
+	printf("specificStateGen: configure: Error: Unable to read "
+	       "field 'specific/type'. String expected.\n");
       }
       clear();      
       configStatus = -5;
@@ -1362,7 +1378,8 @@ public:
     }
     
     if(verbose > 1){
-      printf("specificStateGen: configure: Info: Generator '%s' configured with %u threads and specific sampler:\n",name.c_str(),nthreads);
+      printf("specificStateGen: configure: Info: Generator '%s' configured "
+	     "with %u threads and specific sampler:\n",name.c_str(),nthreads);
       printf("Specific   -> %s\n", specificID());
     }
     

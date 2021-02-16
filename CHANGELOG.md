@@ -14,9 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fix
 - Main program prints Bremsstrahlung splitting number (IBRSPL) instead of x-ray splitting number (IXRSPL)
+- Generic sources configuration error for verbose levels lesser than 2
+- Compilation warnings on load balance server utility
 
 ### Added
-- VR modules to implement custom variance reduction techniques
+- Variance reduction (VR) modules to implement custom variance reduction techniques
+- Splitting VR module
+- Russian Roulette VR module
+
+### Changed
+- X-Ray splitting converted to VR module
 
 ## [1.1.3] - 2020-11-27
 

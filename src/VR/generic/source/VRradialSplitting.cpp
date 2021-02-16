@@ -178,8 +178,9 @@ void pen_VRradialSplitting::vr_particleStack(const unsigned long long /*nhist*/,
     return;
 
   unsigned toSplit;
-  if(linear)
+  if(linear){
     toSplit = sqrt(r2)/rmin;
+  }
   else
     toSplit = r2/rmin2;
 
@@ -192,6 +193,7 @@ void pen_VRradialSplitting::vr_particleStack(const unsigned long long /*nhist*/,
   
   //Reduce the weight according to splitting factor
   state.WGHT /= (double) nsplit;
+
   
   //Clone the state
   for(unsigned isplit = 1; isplit < nsplit; ++isplit){

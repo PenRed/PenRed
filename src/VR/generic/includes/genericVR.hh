@@ -32,5 +32,6 @@
 
 #include "VRsplitting.hh"
 #include "VRradialSplitting.hh"
+#include "VRRussianRoulette.hh"
 
 #endif

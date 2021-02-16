@@ -56,7 +56,7 @@ class pen_VRsplitting : public pen_genericVR<pen_particleState>{
 		const unsigned verbose);
   
   void vr_interfCross(const unsigned long long /*nhist*/,
-			      const pen_KPAR kpar,
+			      const pen_KPAR /*kpar*/,
 			      const unsigned /*kdet*/,
 			      pen_particleState& state,
 			      std::array<pen_particleState,constants::NMS>& stack,

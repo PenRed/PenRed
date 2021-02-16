@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -610,7 +610,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
       char AuxStr[9];strcpy(AuxStr,"        ");
       for(int ii=0; ii<8; ii++)
 	{
-	  sprintf(AuxStr, "%-8s", LARRAY[ii]);
+	  sprintf(AuxStr, "%-8.8s", LARRAY[ii]);
 	  strcpy(LARRAY[ii],AuxStr);
 
 	}

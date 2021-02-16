@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2020 Universitat de València - UV
-//    Copyright (C) 2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2020-2021 Universitat de València - UV
+//    Copyright (C) 2020-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -26,14 +26,14 @@
 //    
 //
 
-#include "VRsplitting.hh"
+#include "VRRussianRoulette.hh"
 
-int pen_VRsplitting::configure(const pen_parserSection& config,
-			       const wrapper_geometry& geometry,
-			       const unsigned verbose){
+int pen_VRRussianRoulette::configure(const pen_parserSection& config,
+				     const wrapper_geometry& geometry,
+				     const unsigned verbose){
 
   if(verbose > 1)
-    printf("*** Splitting configuration ***\n\n");
+    printf("*** Russian roulette configuration ***\n\n");
 
   int err;
 
@@ -44,14 +44,14 @@ int pen_VRsplitting::configure(const pen_parserSection& config,
   //Get weight window
   if(config.read("minWght",minWght) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("pen_VRsplitting: configure: Error: Missing minimum "
+      printf("pen_VRRussianRoulette: configure: Error: Missing minimum "
 	     "weight ('minWght'). Double expected.\n");
     }
     return -1;
   }
   if(config.read("maxWght",maxWght) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("pen_VRsplitting: configure: Error: Missing maximum "
+      printf("pen_VRRussianRoulette: configure: Error: Missing maximum "
 	     "weight ('maxWght'). Double expected.\n");
     }
     return -2;
@@ -62,7 +62,7 @@ int pen_VRsplitting::configure(const pen_parserSection& config,
 
   if(maxWght <= minWght){
     if(verbose > 0)
-      printf("pen_VRsplitting: configure: Error: Maximum weight must be "
+      printf("pen_VRRussianRoulette: configure: Error: Maximum weight must be "
 	     "greater than minimum.\n"
 	     "          minimum weight: %.5E\n"
 	     "          maximum weight: %.5E\n",
@@ -81,8 +81,8 @@ int pen_VRsplitting::configure(const pen_parserSection& config,
 
   if(mats.size() > 0){
     if(verbose > 1){
-      printf("\n\n **** Material splitting:\n\n");
-      printf("  Mat  | splitting\n");      
+      printf("\n\n **** Material russian roulette:\n\n");
+      printf("  Mat  | survival prob\n");      
     }
     
     for(unsigned imname = 0; imname < mats.size(); imname++){
@@ -92,7 +92,7 @@ int pen_VRsplitting::configure(const pen_parserSection& config,
       std::string matSecKey = std::string("materials/") + mats[imname];
       if(config.readSubsection(matSecKey,matSection) != INTDATA_SUCCESS){
 	if(verbose > 0){
-	  printf("pen_VRsplitting: configure: '%s' is not a "
+	  printf("pen_VRRussianRoulette: configure: '%s' is not a "
 		 "section, skip this material.\n",matSecKey.c_str());
 	}
 	continue;
@@ -106,7 +106,7 @@ int pen_VRsplitting::configure(const pen_parserSection& config,
       err = matSection.read("mat-index",imat);
       if(err != INTDATA_SUCCESS){
 	if(verbose > 0){
-	  printf("pen_VRsplitting: configure: Error: Material index "
+	  printf("pen_VRRussianRoulette: configure: Error: Material index "
 		 "not specified for material '%s'. Integer expected\n",
 		 mats[imname].c_str());
 	}
@@ -116,7 +116,7 @@ int pen_VRsplitting::configure(const pen_parserSection& config,
       //Check if material index is in range
       if(imat < 1 || imat > (int)constants::MAXMAT){
 	if(verbose > 0){
-	  printf("pen_VRsplitting: configure: Error: Specified index "
+	  printf("pen_VRRussianRoulette: configure: Error: Specified index "
 		 "(%d) for material '%s' out of range.\n",
 		 imat,mats[imname].c_str());
 	}
@@ -126,59 +126,59 @@ int pen_VRsplitting::configure(const pen_parserSection& config,
       //Check if material is used at current geometry
       if(!usedMat[imat]){
 	if(verbose > 0){
-	  printf("pen_VRsplitting: configure: Error: Specified index "
+	  printf("pen_VRRussianRoulette: configure: Error: Specified index "
 		 "(%d) for material '%s' is not used at current geometry.\n",
 		 imat,mats[imname].c_str());
 	}
 	return -6;
       }
 
-      //Get splitting factor
-      int splitting;
-      err = matSection.read("splitting",splitting);
+      //Get survival probability factor
+      double survivalProb;
+      err = matSection.read("prob",survivalProb);
       if(err != INTDATA_SUCCESS){
 	if(verbose > 0)
-	  printf("pen_VRsplitting: configure: Error: Unable to read "
-		 "field 'splitting' for splitting on "
-		 "material '%s'. Integer expected.\n",
+	  printf("pen_VRRussianRoulette: configure: Error: Unable to read "
+		 "field 'prob' for russian roulette on "
+		 "material '%s'. Double expected.\n",
 		 mats[imname].c_str());
 	return -7;
       }
 
-      //Check splitting factor
-      if(splitting < 1){
+      //Check survival probability
+      if(survivalProb < 1.0e-5 || survivalProb > 1.0){
 	if(verbose > 0)
-	  printf("pen_VRsplitting: configure: Error: Invalid "
-		 "splitting factor (%d).\n",splitting);
+	  printf("pen_VRRussianRoulette: configure: Error: Invalid "
+		 "survival probability (%.5E).\n",survivalProb);
 	return -8;
       }
 
-      //Set splitting factor for bodies with this material index
+      //Set survival probability for bodies with this material index
       for(unsigned ibody = 0; ibody < geometry.getBodies(); ibody++){
       
 	if(geometry.getMat(ibody) != (unsigned)imat) continue;
 
 	if(ibody >= pen_geoconst::NB){
 	  if(verbose > 0){
-	    printf("pen_VRsplitting: configure: Error: Maximum body "
+	    printf("pen_VRRussianRoulette: configure: Error: Maximum body "
 		   "index reached (%u)\n",pen_geoconst::NB);
 	  }
 	  return -9;
 	}
 	
-	ISPL[ibody] = (unsigned)splitting;
-	LSPL[ibody] = true;
+	DRR[ibody] = survivalProb;
+	LRR[ibody] = true;
       }
 
       //Print configuration
       if(verbose > 1){
-	printf(" %5d   %5d\n", imat,splitting);
+	printf(" %5d   %.5E\n", imat,survivalProb);
       }
       
     }
   }
   else if(verbose > 1){
-    printf("No material with splitting enabled.\n");
+    printf("No material with russian roulette enabled.\n");
   }
   
   // Bodies
@@ -189,8 +189,8 @@ int pen_VRsplitting::configure(const pen_parserSection& config,
 
   if(bodies.size() > 0){
     if(verbose > 1){
-      printf("\n\n **** Body splitting:\n\n");
-      printf(" Body  | splitting\n");      
+      printf("\n\n **** Body roussian roulette:\n\n");
+      printf(" Body  | survival prob\n");      
     }
     
     for(unsigned ibname = 0; ibname < bodies.size(); ibname++){
@@ -200,7 +200,7 @@ int pen_VRsplitting::configure(const pen_parserSection& config,
       std::string bodySecKey = std::string("bodies/") + bodies[ibname];
       if(config.readSubsection(bodySecKey,bodySection) != INTDATA_SUCCESS){
 	if(verbose > 0){
-	  printf("pen_VRsplitting: configuration: '%s' is not a "
+	  printf("pen_VRRussianRoulette: configuration: '%s' is not a "
 		 "section, skip this body.\n",bodySecKey.c_str());
 	}
 	continue;
@@ -213,7 +213,7 @@ int pen_VRsplitting::configure(const pen_parserSection& config,
       unsigned ibody = geometry.getIBody(bodies[ibname].c_str());
       if(ibody >= geometry.getBodies()){
 	if(verbose > 0){
-	  printf("pen_VRsplitting: configure: Error: Body '%s' doesn't "
+	  printf("pen_VRRussianRoulette: configure: Error: Body '%s' doesn't "
 		 "exists in the loaded geometry.\n",
 		 bodies[ibname].c_str());
 	}
@@ -221,58 +221,58 @@ int pen_VRsplitting::configure(const pen_parserSection& config,
       }
       else if(ibody >= pen_geoconst::NB){
 	if(verbose > 0){
-	  printf("pen_VRsplitting: configure: Error: Maximum body "
+	  printf("pen_VRRussianRoulette: configure: Error: Maximum body "
 		 "index is (%u)\n",pen_geoconst::NB);
 	  printf("                     specified index: %u\n",ibody);
 	}
 	return -28;
       }
 
-      // Splitting factor
+      // Survival probability
       //***********************
 
-      //Get splitting factor
-      int splitting;
-      err = bodySection.read("splitting",splitting);
+      //Get survival probability
+      double survivalProb;
+      err = bodySection.read("prob",survivalProb);
       if(err != INTDATA_SUCCESS){
 	if(verbose > 0)
-	  printf("pen_VRsplitting: configure: Error: Unable to "
-		 "read field 'splitting' for splitting on "
-		 "body '%s'. Integer expected.\n",
+	  printf("pen_VRRussianRoulette: configure: Error: Unable to "
+		 "read field 'prob' for russian roulette on "
+		 "body '%s'. double expected.\n",
 		 bodies[ibname].c_str());
 	return -29;
       }
 
-      //Check splitting factor
-      if(splitting < 1){
+      //Check survival prob
+      if(survivalProb < 1.0e-5 || survivalProb > 1.0){
 	if(verbose > 0)
-	  printf("pen_VRsplitting: configure: Error: Invalid "
-		 "splitting factor (%d).\n",splitting);
+	  printf("pen_VRRussianRoulette: configure: Error: Invalid "
+		 "survival probability (%.5E).\n",survivalProb);
 	return -30;
       }
 
-      //Set splitting factor for specified body
-      ISPL[ibody] = (unsigned)splitting;	  
-      LSPL[ibody] = true;	  
+      //Set survival probability for specified body
+      DRR[ibody] = survivalProb;	  
+      LRR[ibody] = true;	  
 
       //Print configuration
       if(verbose > 1){
-	printf(" %5d   %5d\n", ibody,splitting);
+	printf(" %5d   %.5E\n", ibody,survivalProb);
       }
       
     }
   }
   else if(verbose > 1){
-    printf("No bodies with splitting enabled.\n");
+    printf("No bodies with russian roulette enabled.\n");
   }
 
   if(verbose > 1){
-    printf("\n\nFinal splitting:\n\n");
-    printf(" Body  | splitting\n");
+    printf("\n\nFinal russian roulette:\n\n");
+    printf(" Body  | survival prob\n");
     for(unsigned ibody = 0; ibody < pen_geoconst::NB; ibody++){      
       
-      if(LSPL[ibody])
-	printf(" %5u   %5u\n", ibody,ISPL[ibody]);
+      if(LRR[ibody])
+	printf(" %5u   %.5E\n", ibody,DRR[ibody]);
     }
     printf("\n\n");
   }
@@ -281,37 +281,30 @@ int pen_VRsplitting::configure(const pen_parserSection& config,
 }
 
 
-void pen_VRsplitting::vr_interfCross(const unsigned long long /*nhist*/,
-				     const pen_KPAR /*kpar*/,
-				     const unsigned /*kdet*/,
-				     pen_particleState& state,
-				     std::array<pen_particleState,constants::NMS>& stack,
-				     unsigned& created,
-				     const unsigned available,
-				     pen_rand& /*random*/) const{
+void pen_VRRussianRoulette::vr_interfCross(const unsigned long long /*nhist*/,
+					   const pen_KPAR /*kpar*/,
+					   const unsigned /*kdet*/,
+					   pen_particleState& state,
+					   std::array<pen_particleState,constants::NMS>& /*stack*/,
+					   unsigned& /*created*/,
+					   const unsigned /*available*/,
+					   pen_rand& random) const{
 
-  //Check if splitting is enabled in this body
-  if(LSPL[state.IBODY]){
+  //Check if russian roulette is enabled in this body
+  if(LRR[state.IBODY]){
 
     if(state.WGHT < minWght || state.WGHT >= maxWght)
       return;
-    
-    //Check the available space at the stack
-    unsigned freeSpace = available - created;
-    unsigned nsplit = std::min(ISPL[state.IBODY],freeSpace);
 
-    if(nsplit <= 1)
-        return;
-    
-    //Reduce the weight according to splitting factor
-    state.WGHT /= static_cast<double>(nsplit);
-
-    //Clone the state
-    for(unsigned isplit = 1; isplit < nsplit; ++isplit){
-      stack[created++] = state;
+    if(random.rand() > DRR[state.IBODY]){
+      //Kill the particle
+      state.E = 0.0;
+    }
+    else{
+      //The particle survive
+      state.WGHT /= DRR[state.IBODY];
     }
   }
-  
 }
 
-REGISTER_VR(pen_VRsplitting,pen_particleState, SPLITTING)
+REGISTER_VR(pen_VRRussianRoulette,pen_particleState, RUSSIAN_ROULETTE)

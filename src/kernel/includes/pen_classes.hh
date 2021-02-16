@@ -488,13 +488,13 @@ public:
 			pen_rand& random,
 			const unsigned verbose);  
 
-  void vr_matChange(const unsigned long long nhist,
-		    pen_rand& random,
-		    const unsigned verbose);
-
-  void vr_interfCross(const unsigned long long nhist,
+  double vr_matChange(const unsigned long long nhist,
 		      pen_rand& random,
 		      const unsigned verbose);
+
+  double vr_interfCross(const unsigned long long nhist,
+			pen_rand& random,
+			const unsigned verbose);
   
   void baseClear(){
     KSOFTI = 0;
@@ -960,10 +960,11 @@ vr_particleStack(const unsigned long long nhist,
 }
 
 template<class stateType, class contextType, class materialType>
-void abc_particle<stateType,contextType,materialType>::
+double abc_particle<stateType,contextType,materialType>::
 vr_matChange(const unsigned long long nhist,
 	     pen_rand& random, const unsigned verbose){
 
+  double de = 0.0;
   if(genericVR != nullptr){
     unsigned spaceAvailable = constants::NMS-stack.getNSec();
     unsigned created = 0;
@@ -982,6 +983,7 @@ vr_matChange(const unsigned long long nhist,
     for(unsigned i = 0; i < created; ++i){
       defaultState.copyBase(genericStates[i]);
       stack.store(defaultState);
+      de += defaultState.E*defaultState.WGHT;
     }
   }
   if(specificVR != nullptr){
@@ -1001,15 +1003,18 @@ vr_matChange(const unsigned long long nhist,
 
     for(unsigned i = 0; i < created; ++i){
       stack.store(specificStates[i]);
+      de += specificStates[i].E*specificStates[i].WGHT;      
     }
   }
+  return de;
 }
 
 template<class stateType, class contextType, class materialType>
-void abc_particle<stateType,contextType,materialType>::
+double abc_particle<stateType,contextType,materialType>::
 vr_interfCross(const unsigned long long nhist,
 	       pen_rand& random, const unsigned verbose){
 
+  double de = 0.0;
   if(genericVR != nullptr){
     unsigned spaceAvailable = constants::NMS-stack.getNSec();
     unsigned created = 0;
@@ -1028,6 +1033,7 @@ vr_interfCross(const unsigned long long nhist,
     for(unsigned i = 0; i < created; ++i){
       defaultState.copyBase(genericStates[i]);
       stack.store(defaultState);
+      de += defaultState.E*defaultState.WGHT;      
     }
   }
   if(specificVR != nullptr){
@@ -1047,8 +1053,10 @@ vr_interfCross(const unsigned long long nhist,
 
     for(unsigned i = 0; i < created; ++i){
       stack.store(specificStates[i]);
+      de += specificStates[i].E*specificStates[i].WGHT;      
     }
   }
+  return de;
 }
 
 #endif
