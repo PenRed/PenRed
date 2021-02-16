@@ -143,8 +143,6 @@ VR/IForcing/bodies/VR2/max-weight 2
 
 VR/bremss/bodies/1/splitting 4
 
-VR/x-ray/bodies/1/splitting 4
-
 VR/IForcing/bodies/VR3/body "2"
 VR/IForcing/bodies/VR3/particle "electron"
 VR/IForcing/bodies/VR3/interaction 2
@@ -161,9 +159,6 @@ VR/IForcing/bodies/VR4/min-weight 0.1
 VR/IForcing/bodies/VR4/max-weight 2
 
 VR/bremss/bodies/2/splitting 4
-
-VR/x-ray/bodies/2/splitting 4
-
 
 VR/IForcing/bodies/VR5/body "3"
 VR/IForcing/bodies/VR5/particle "electron"
@@ -182,8 +177,10 @@ VR/IForcing/bodies/VR6/max-weight 2
 
 VR/bremss/bodies/3/splitting 4
 
-VR/x-ray/bodies/3/splitting 4
-
+VR/photon/x-ray/type "XRAY_SPLITTING"
+VR/photon/x-ray/bodies/1/splitting 4
+VR/photon/x-ray/bodies/2/splitting 4
+VR/photon/x-ray/bodies/3/splitting 4
 
 
 #########################
