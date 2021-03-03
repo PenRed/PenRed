@@ -1,6 +1,6 @@
 //
 //
-//    Copyright (C) 2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2020-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of RUPER-LB: Runtime Unpredictable Performance Load Balancer.
 //
@@ -1697,10 +1697,14 @@ int LB::task::checkPoint(const unsigned verbose){
   }
   
   // **** External LB **** //
+  bool forceUpdate = false;
 #ifndef _PEN_USE_MPI_
   //If MPI is not enabled, external balance reports are handled at checkpoints
+  unsigned long long prevIterations = iterations;
   extReportHandler(iterPred,actualTime,
 		   std::chrono::seconds(5),verbose,true);
+  if(prevIterations != iterations)
+      forceUpdate = true;
 #endif
   // **** External LB **** //
 
@@ -1770,7 +1774,7 @@ int LB::task::checkPoint(const unsigned verbose){
     mtxMPI.unlock();
 #else
   // **************************** MPI ********************************* //
-    if(remainingTime > threshold){
+    if(remainingTime > threshold || forceUpdate){
       if(verbose > 2){
 	const std::lock_guard<std::mutex> lockTh(mtxfth);      
 	fprintf(fth,"%07ld s - LB:task:checkPoint: Remaining time above "
