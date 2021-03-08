@@ -27,8 +27,8 @@
 //
 
 
-#ifndef __PEN_GENERIC_VR__ 
-#define __PEN_GENERIC_VR__ 
+#ifndef __PEN_SPECIFIC_VR__ 
+#define __PEN_SPECIFIC_VR__ 
 
 #include "VRxraySplitting.hh"
 
