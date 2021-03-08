@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2020 Universitat de València - UV
-//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -30,7 +30,6 @@
 #include <thread>
 #include <limits>
 #include "pen_loops.hh"
-#include "pen_vr.cpp"
 
 int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>>& genericSources,
 			     std::vector<pen_specificStateGen<pen_state_gPol>>& polarisedGammaSources,
