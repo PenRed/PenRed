@@ -236,7 +236,8 @@ int pen_genericStateGen::selectSpatialSampler(const char* ID,
   spatialSampler = spatialSamplers().createInstance(ID);
   if(spatialSampler == nullptr){
     if(verbose > 0){
-      printf("SelectSpatialSampler: Error: Unable to create spatial sampler '%s'\n",ID);
+      printf("SelectSpatialSampler: Error: Unable to create "
+	     "spatial sampler '%s'\n",ID);
     }
     return -1;
   }
@@ -244,7 +245,8 @@ int pen_genericStateGen::selectSpatialSampler(const char* ID,
   int errConfig = spatialSampler->configure(config, verbose);
   if(errConfig != 0){
     if(verbose > 0){
-      printf("SelectSpatialSampler: Error: Unable to configurate spatial sampler '%s'\n",ID);
+      printf("SelectSpatialSampler: Error: Unable to "
+	     "configurate spatial sampler '%s'\n",ID);
     }
     delete spatialSampler;
     spatialSampler = nullptr;
@@ -266,15 +268,17 @@ int pen_genericStateGen::selectDirectionSampler(const char* ID,
   directionSampler = directionSamplers().createInstance(ID);
   if(directionSampler == nullptr){
     if(verbose > 0){
-      printf("SelectDirectionSampler: Error: Unable to create direction sampler '%s'\n",ID);
-    }    
+      printf("SelectDirectionSampler: Error: Unable to "
+	     "create direction sampler '%s'\n",ID);
+    }
     return -1;
   }
 
   int errConfig = directionSampler->configure(config,verbose);
   if(errConfig != 0){
     if(verbose > 0){
-      printf("SelectDirectionSampler: Error: Unable to configure direction sampler '%s'\n",ID);
+      printf("SelectDirectionSampler: Error: Unable to "
+	     "configure direction sampler '%s'\n",ID);
     }
     delete directionSampler;
     directionSampler = nullptr;
@@ -295,7 +299,8 @@ int pen_genericStateGen::selectEnergySampler(const char* ID,
   energySampler = energySamplers().createInstance(ID);
   if(energySampler == nullptr){
     if(verbose > 0){
-      printf("SelectEnergySampler: Error: Unable to create energy sampler '%s'\n",ID);
+      printf("SelectEnergySampler: Error: Unable to create "
+	     "energy sampler '%s'\n",ID);
     }
     return -1;
   }
@@ -303,7 +308,8 @@ int pen_genericStateGen::selectEnergySampler(const char* ID,
   int errConfig = energySampler->configure(Emax,config,verbose);
   if(errConfig != 0){
     if(verbose > 0){
-      printf("SelectEnergySampler: Error: Unable to configure energy sampler '%s'\n",ID);
+      printf("SelectEnergySampler: Error: Unable to "
+	     "configure energy sampler '%s'\n",ID);
     }
     Emax = 0.0;
     delete energySampler;
@@ -325,16 +331,18 @@ int pen_genericStateGen::selectTimeSampler(const char* ID,
   timeSampler = timeSamplers().createInstance(ID);
   if(timeSampler == nullptr){
     if(verbose > 0){
-      printf("SelectTimeSampler: Error: Unable to create time sampler '%s'\n",ID);
-    }    
+      printf("SelectTimeSampler: Error: Unable to create "
+	     "time sampler '%s'\n",ID);
+    }
     return -1;
   }
 
   int errConfig = timeSampler->configure(config,verbose);
   if(errConfig != 0){
     if(verbose > 0){
-      printf("SelectTimeSampler: Error: Unable to configure time sampler '%s'\n",ID);
-    }    
+      printf("SelectTimeSampler: Error: Unable to "
+	     "configure time sampler '%s'\n",ID);
+    }
     delete timeSampler;
     timeSampler = nullptr;
     return -2;
@@ -401,7 +409,8 @@ void pen_genericStateGen::configure(const pen_parserSection& config,
   err = config.read("record-time",LAGE);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("genericStateGen: configure: Field ('record-time') not found. Age recording disabled.\n");
+      printf("genericStateGen: configure: Field ('record-time') "
+	     "not found. Age recording disabled.\n");
     }
     LAGE = false;
   }
@@ -419,7 +428,8 @@ void pen_genericStateGen::configure(const pen_parserSection& config,
   err = config.readSubsection("spatial",spatialSection);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("genericStateGen: configure: Error: '%s': Unable to read field 'spatial'.\n",name.c_str());
+      printf("genericStateGen: configure: Error: '%s': Unable "
+	     "to read field 'spatial'.\n",name.c_str());
     }
     configStatus = -1;
     return;
@@ -430,7 +440,8 @@ void pen_genericStateGen::configure(const pen_parserSection& config,
   err = config.readSubsection("direction",directionSection);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("genericStateGen: configure: Error: '%s': Unable to read field 'direction'.\n",name.c_str());
+      printf("genericStateGen: configure: Error: '%s': Unable "
+	     "to read field 'direction'.\n",name.c_str());
     }
     configStatus = -2;
     return;
@@ -441,7 +452,8 @@ void pen_genericStateGen::configure(const pen_parserSection& config,
   err = config.readSubsection("energy",energySection);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){    
-      printf("genericStateGen: configure: Error: '%s': Unable to read field 'energy'.\n",name.c_str());
+      printf("genericStateGen: configure: Error: '%s': Unable "
+	     "to read field 'energy'.\n",name.c_str());
     }
     configStatus = -3;
     return;
@@ -466,7 +478,8 @@ void pen_genericStateGen::configure(const pen_parserSection& config,
   err = spatialSection.read("type",spatialType);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("genericStateGen:configure: Error: '%s': Unable to read field 'spatial/type'. String expected.\n",name.c_str());
+      printf("genericStateGen:configure: Error: '%s': Unable "
+	     "to read field 'spatial/type'. String expected.\n",name.c_str());
     }
     configStatus = -1;
     return;
@@ -477,7 +490,8 @@ void pen_genericStateGen::configure(const pen_parserSection& config,
   err = directionSection.read("type",directionType);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("genericStateGen:configure: Error: '%s': Unable to read field 'direction/type'. String expected.\n",name.c_str());
+      printf("genericStateGen:configure: Error: '%s': Unable to "
+	     "read field 'direction/type'. String expected.\n",name.c_str());
     }
     configStatus = -2;
     return;
@@ -488,7 +502,8 @@ void pen_genericStateGen::configure(const pen_parserSection& config,
   err = energySection.read("type",energyType);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("genericStateGen:configure: Error: '%s': Unable to read field 'energy/type'. String expected.\n",name.c_str());
+      printf("genericStateGen:configure: Error: '%s': Unable to "
+	     "read field 'energy/type'. String expected.\n",name.c_str());
     }
     configStatus = -3;
     return;
@@ -500,7 +515,8 @@ void pen_genericStateGen::configure(const pen_parserSection& config,
     err = timeSection.read("type",timeType);
     if(err != INTDATA_SUCCESS){
       if(verbose > 0){
-	printf("genericStateGen:configure: Error: '%s': Unable to read field 'time/type'. String expected.\n",name.c_str());
+	printf("genericStateGen:configure: Error: '%s': Unable to "
+	       "read field 'time/type'. String expected.\n",name.c_str());
       }
       configStatus = -4;
       return;
@@ -517,7 +533,7 @@ void pen_genericStateGen::configure(const pen_parserSection& config,
     printf("\n **** Source '%s'\n",name.c_str());
     printf("\n------------------------------------\n\n");
     printf("\nSpatial sampler '%s':\n\n",spatialType.c_str());
-  }    
+  }
   err = selectSpatialSampler(spatialType.c_str(),spatialSection,verbose);
   if(verbose > 1){printf("\n------------------------------------\n\n");}     
   if(err != INTDATA_SUCCESS){
@@ -566,7 +582,9 @@ void pen_genericStateGen::configure(const pen_parserSection& config,
   if(err == INTDATA_SUCCESS && sbody >= 0){
     if(sbody >= int(pen_geoconst::NB)){
       if(verbose > 0){
-	printf("genericStateGen: configure: Warning: '%s': Selected source body (%d) out of range [0-%u)\n",name.c_str(),sbody,pen_geoconst::NB);	
+	printf("genericStateGen: configure: Warning: '%s': Selected "
+	       "source body (%d) out of range [0-%u)\n",
+	       name.c_str(),sbody,pen_geoconst::NB);	
       }
     }
     else{
@@ -586,7 +604,9 @@ void pen_genericStateGen::configure(const pen_parserSection& config,
   if(err == INTDATA_SUCCESS){
     if(smat < 1 || smat > int(constants::MAXMAT)){
       if(verbose > 0){
-	printf("genericStateGen: configure: Warning: '%s': Selected source material (%d) out of range (0-%u]\n",name.c_str(),smat,constants::MAXMAT);	
+	printf("genericStateGen: configure: Warning: '%s': Selected "
+	       "source material (%d) out of range (0-%u]\n",
+	       name.c_str(),smat,constants::MAXMAT);	
       }
     }
     else{

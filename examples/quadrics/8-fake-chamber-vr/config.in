@@ -1,0 +1,223 @@
+
+#
+#
+#    Copyright (C) 2021 Universitat de València - UV
+#    Copyright (C) 2021 Universitat Politècnica de València - UPV
+#
+#    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
+#
+#    PenRed is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    PenRed is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with PenRed.  If not, see <https://www.gnu.org/licenses/>. 
+#
+#
+#    contact emails:
+#
+#        vicent.gimenez.alventosa@gmail.com
+#        vicente.gimenez@uv.es
+#    
+#
+
+#########################
+##  SOURCES           ###
+#########################
+
+#------------------------
+#  Source 1
+#########################
+
+sources/generic/source1/nhist 1.0e9
+sources/generic/source1/kpar "gamma"
+
+# Directional sampling
+#########################
+
+sources/generic/source1/direction/type "CONE"
+
+# Set theta
+sources/generic/source1/direction/theta 180.0
+
+# Set phi
+sources/generic/source1/direction/phi 0.0
+
+# Set oberture (alpha)
+sources/generic/source1/direction/alpha 11.4212
+
+# Energy sampling
+#########################
+
+sources/generic/source1/energy/type "MONOENERGETIC"
+
+# Set energy
+sources/generic/source1/energy/energy 4.0e6
+
+# Spatial sampling
+#########################
+
+sources/generic/source1/spatial/type "POINT"
+
+# Set particle origin
+sources/generic/source1/spatial/position/x 0.0
+sources/generic/source1/spatial/position/y 0.0
+sources/generic/source1/spatial/position/z 90.0
+
+
+#########################
+##  TALLIES           ###
+#########################
+
+tallies/secondary/type "SECONDARY_GEN"
+
+#tallies/track/type "TRACK"
+#tallies/track/nhists 1000
+
+tallies/matEDep/type "EDEP_MAT"
+tallies/matEDep/nmat 4
+
+tallies/SpatialDoseDistrib/type "SPATIAL_DOSE_DISTRIB"
+tallies/SpatialDoseDistrib/print-xyz true 
+tallies/SpatialDoseDistrib/xmin -25.0
+tallies/SpatialDoseDistrib/xmax  25.0
+tallies/SpatialDoseDistrib/nx 1
+tallies/SpatialDoseDistrib/ymin -25.0
+tallies/SpatialDoseDistrib/ymax  25.0
+tallies/SpatialDoseDistrib/ny 1
+tallies/SpatialDoseDistrib/zmin -50.0
+tallies/SpatialDoseDistrib/zmax 0.0
+tallies/SpatialDoseDistrib/nz 500
+
+#########################
+#  VARIANCE REDUCTION   #
+#########################
+
+VR/generic/splitting/type "SPLITTING"
+VR/generic/splitting/minWght 0.05
+VR/generic/splitting/maxWght 21.0
+VR/generic/splitting/materials/activeVolume/mat-index 2 
+VR/generic/splitting/materials/activeVolume/splitting 20 
+
+VR/generic/RR/type "RUSSIAN_ROULETTE"
+VR/generic/RR/minWght 0.01
+VR/generic/RR/maxWght 19.9
+VR/generic/RR/materials/activeVolume/mat-index 1
+VR/generic/RR/materials/activeVolume/prob 0.05
+
+#########################
+#  GEOMETRY PARAMETERS  #
+#########################
+
+geometry/type "PEN_QUADRIC"
+geometry/input-file "chamber.geo"
+geometry/processed-geo-file "report.geo"
+
+#########################
+#       MATERIALS       #
+#########################
+
+#Phantom water
+materials/phantom/number 1
+
+materials/phantom/eabs_e- 200.0e3
+materials/phantom/eabs_e+ 200.0e3
+materials/phantom/eabs_gamma 1.0e3
+
+materials/phantom/C1 0.05
+materials/phantom/C2 0.05
+
+materials/phantom/WCC 200.0e3 
+materials/phantom/WCR 200.0e3
+
+materials/phantom/filename "water.mat"
+
+
+#Envelope water
+materials/envelope/number 2
+
+materials/envelope/eabs_e- 1.0e3
+materials/envelope/eabs_e+ 1.0e3
+materials/envelope/eabs_gamma 1.0e3
+
+materials/envelope/C1 0.00
+materials/envelope/C2 0.00
+
+materials/envelope/WCC 0.0 
+materials/envelope/WCR 0.0
+
+materials/envelope/filename "water.mat"
+
+#Chamber top material
+materials/chamberTop/number 3
+
+materials/chamberTop/eabs_e- 1.0e3
+materials/chamberTop/eabs_e+ 1.0e3
+materials/chamberTop/eabs_gamma 1.0e3
+
+materials/chamberTop/C1 0.00
+materials/chamberTop/C2 0.00
+
+materials/chamberTop/WCC 0.0 
+materials/chamberTop/WCR 0.0
+
+materials/chamberTop/filename "pmma.mat"
+
+#Chamber active volume material
+materials/activeVol/number 4
+
+materials/activeVol/eabs_e- 1.0e3
+materials/activeVol/eabs_e+ 1.0e3
+materials/activeVol/eabs_gamma 1.0e3
+
+materials/activeVol/C1 0.00
+materials/activeVol/C2 0.00
+
+materials/activeVol/WCC 0.0 
+materials/activeVol/WCR 0.0
+
+materials/activeVol/filename "air.mat"
+
+#Chamber bot material
+materials/chamberBot/number 5
+
+materials/chamberBot/eabs_e- 1.0e3
+materials/chamberBot/eabs_e+ 1.0e3
+materials/chamberBot/eabs_gamma 1.0e3
+
+materials/chamberBot/C1 0.00
+materials/chamberBot/C2 0.00
+
+materials/chamberBot/WCC 0.0 
+materials/chamberBot/WCR 0.0
+
+materials/chamberBot/filename "pmma.mat"
+
+#Water "shield"
+materials/tap/number 6
+
+materials/tap/eabs_e- 1.0e9  
+materials/tap/eabs_e+ 1.0e9  
+materials/tap/eabs_gamma 1.0e9
+
+materials/tap/C1 0.05
+materials/tap/C2 0.05
+
+materials/tap/WCC 1.0e9   
+materials/tap/WCR 1.0e9   
+
+materials/tap/filename "water.mat"
+
+
+#########################
+# SIMULATION PARAMETERS #
+#########################
+
+simulation/threads 8
+simulation/dump-interval 1e35

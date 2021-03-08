@@ -218,7 +218,8 @@ public:
   
   pen_betaP(const pen_context& context,
 	    pen_particleStack<pen_particleState>& stackEin,
-	    pen_particleStack<pen_state_gPol>& stackGin);
+	    pen_particleStack<pen_state_gPol>& stackGin,
+        pen_particleStack<pen_particleState>& stackPin);
 
   void JUMP(double &DS,
 	    pen_rand& penRand,

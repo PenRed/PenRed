@@ -10,9 +10,9 @@ int main(int argc, char** argv){
   }
     
   //Parse parameters
-  long long int nIter = atoll(argv[1]);
-  if(nIter < 1){
-    printf("Invalid number of iterations: %lld\n",nIter);
+  long long int nIterG = atoll(argv[1]);
+  if(nIterG < 1){
+    printf("Invalid number of iterations: %lld\n",nIterG);
     return -2;
   }    
   int nw = atoi(argv[2]);
@@ -27,10 +27,10 @@ int main(int argc, char** argv){
   }
   
   const char* logfilename = nullptr;
-  long int elapsed = 0;
+  long int elapsedG = 0;
   unsigned verbose = 2;
   if(argc >= 5)
-    elapsed = atol(argv[4]);
+    elapsedG = atol(argv[4]);
   if(argc >= 6)
     logfilename = argv[5];
   if(argc >= 7)
@@ -38,9 +38,9 @@ int main(int argc, char** argv){
  
   //Initialize server
   LB::taskServer server;
-  if(elapsed != 0)
-    server.moveInit(std::chrono::seconds(elapsed));
-  server.init(nw,static_cast<unsigned long long>(nIter),logfilename,verbose);
+  if(elapsedG != 0)
+    server.moveInit(std::chrono::seconds(elapsedG));
+  server.init(nw,static_cast<unsigned long long>(nIterG),logfilename,verbose);
   server.setThreshold(static_cast<unsigned long long>(threshold));
   
   

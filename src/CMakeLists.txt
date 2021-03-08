@@ -180,6 +180,9 @@ add_subdirectory(particleGen)
 # tallies folder
 add_subdirectory(tallies)
 
+# VR folder
+add_subdirectory(VR)
+
 # main programs folder
 add_subdirectory(mains)
 

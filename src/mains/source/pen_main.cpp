@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2020 Universitat de València - UV
-//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -55,6 +55,8 @@ int createMaterials(pen_context& context,
 int setVarianceReduction(pen_context& context,
 			 const wrapper_geometry& geometry,
 			 const pen_parserSection& config,
+			 pen_VRCluster<pen_particleState>& genericVR,
+			 pen_VRCluster<pen_state_gPol>& photonVR,
 			 const unsigned verbose);
 
 template<class stateType>
@@ -144,6 +146,8 @@ void simulate(const unsigned ithread,
 	      const pen_context* pcontext,
 	      pen_specificStateGen<stateType>* psource,
 	      pen_commonTallyCluster* ptallies,
+	      const pen_VRCluster<pen_particleState>* genericVR,
+	      const pen_VRCluster<pen_state_gPol>* photonVR,    
 	      int* seed1, int* seed2,
 	      const double dumpTime,
 	      const std::string dumpFilename,
@@ -169,7 +173,7 @@ void simulate(const unsigned ithread,
   const pen_context& context = *pcontext;
   pen_specificStateGen<stateType>& source = *psource;
   pen_commonTallyCluster& tallies = *ptallies;
-  
+
   //Create random generator
   pen_rand random;
   random.setSeeds(*seed1,*seed2);
@@ -250,7 +254,22 @@ void simulate(const unsigned ithread,
   //Create particle simulations
   pen_betaE betaE(context,stackE,stackG);
   pen_gamma gamma(context,stackE,stackP,stackG);
-  pen_betaP betaP(context,stackE,stackG);
+  pen_betaP betaP(context,stackE,stackG,stackP);
+
+  
+  //Register VR
+  if(genericVR->numVR() > 0){
+    betaE.registerGenericVR(*genericVR);
+    gamma.registerGenericVR(*genericVR);
+    betaP.registerGenericVR(*genericVR);
+    printf("Registered generic VR\n");
+    fflush(stdout);
+  }
+  if(photonVR->numVR() > 0){
+    gamma.registerSpecificVR(*photonVR);
+    printf("Registered photon VR\n");
+    fflush(stdout);
+  }
   
   //History bucle
   stateType genState;
@@ -432,6 +451,9 @@ void simulate(const unsigned ithread,
 	  stackE.get(betaE.getState());
 
 	  betaE.updateBody();
+
+	  //VR
+	  betaE.vr_particleStack(hist,random,verbose);
 	  
 	  //Check if this particle has sufficient energy
 	  if(betaE.getState().E < betaE.getEABS()){
@@ -454,6 +476,9 @@ void simulate(const unsigned ithread,
 	  stackG.get(gamma.getState());
 
 	  gamma.updateBody();
+
+	  //VR
+	  gamma.vr_particleStack(hist,random,verbose);
 	  
 	  //Check if this particle has sufficient energy
 	  if(gamma.getState().E < gamma.getEABS()){
@@ -462,40 +487,11 @@ void simulate(const unsigned ithread,
 	  }
 	  
 	  gamma.updateMat();
-
+	    
 	  //Get kdet
 	  unsigned kdet = gamma.getDET();
-	
-	  // ****  x-ray splitting
-	
-	  //Get gamma state
-	  pen_state_gPol& state = gamma.getState();
 
-	  if(context.LXRSPL[state.IBODY] && state.ILB[3] > 0){
-	    //Is a characteristic x-ray in a body with x-ray splitting enabled
-	    if(state.ILB[0] == 2 && state.ILB[2] < 9){
-	      // Unsplitted 2nd generation photon
-	      state.WGHT /= (double) context.IXRSPL[state.IBODY];
-	      state.ILB[2] = 9; //Labels split x rays
-	    
-	      //Create and store 'IXRSPL[IBODY]' states
-	      pen_state_gPol stateSplit;
-	      stateSplit = state;
-
-	      for(unsigned isplit = 1; isplit < context.IXRSPL[state.IBODY]; isplit++){
-	      
-		stateSplit.W = -1.0 + 2.0 * random.rand();
-		double SDTS = sqrt(1.0 - stateSplit.W*stateSplit.W);
-		double DF = constants::TWOPI*random.rand();
-		stateSplit.U = cos(DF)*SDTS;
-		stateSplit.V = sin(DF)*SDTS;
-		stackG.store(stateSplit);
-	      }
-	    }
-	  }
-	  // **********************
-
-	  tallies.run_beginPart(hist,kdet,PEN_PHOTON,state);
+	  tallies.run_beginPart(hist,kdet,PEN_PHOTON,gamma.readState());
 	  simulatePart(hist,gamma,tallies,random);
 	
 	  ngammasim++;
@@ -527,7 +523,14 @@ void simulate(const unsigned ithread,
 	    nbetaPsim++;
 	    continue;
 	  }
-	  
+
+	  //VR
+	  betaP.vr_particleStack(hist,random,verbose);
+	  if(betaP.readState().E < betaP.getEABS()){
+	    nbetaPsim++;
+	    continue;
+	  }
+	    
 	  //Get kdet
 	  unsigned kdet = betaP.getDET();
 	
@@ -677,7 +680,7 @@ int main(int argc, char** argv){
   }
 	
   if(strcmp(argv[1],"--version") == 0 || strcmp(argv[1],"-v") == 0){
-    printf("PenRed 1.1.3\n");
+    printf("PenRed 1.2.0\n");
     printf("Copyright (c) 2019-2020 Universitat Politecnica de Valencia\n");
     printf("Copyright (c) 2019-2020 Universitat de Valencia\n");
     printf("This is free software; see the source for copying conditions. "
@@ -933,9 +936,11 @@ int main(int argc, char** argv){
   int errAuxEsp = 99;
   if((errAuxEsp = config.read("loadBalance/balance-interval",balanceIntervald)) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("\n\nTime between load balances not specified.\n\n");
+      printf("\n\nTime between load balances not specified.\n");
+      printf("Read of parameter 'loadBalance/balance-interval' "
+	     "failed because: %s\n\n",
+	     pen_parserError(errAuxEsp));
     }
-    printf("Error code: %d\n",errAuxEsp);
   }
   else{
     if(balanceIntervald <= 10.0){
@@ -1409,8 +1414,10 @@ int main(int argc, char** argv){
   //****************************
   // Variance Reduction 
   //****************************
-
-  int vrRet = setVarianceReduction(context,*geometry,config,verbose);
+  pen_VRCluster<pen_particleState> genericVR;
+  pen_VRCluster<pen_state_gPol> photonVR;
+  int vrRet = setVarianceReduction(context,*geometry,config,
+				   genericVR,photonVR,verbose);
   if(vrRet < 0){
     if(verbose > 0){
       printf("Error on variance reduction section.\n");
@@ -1463,6 +1470,8 @@ int main(int argc, char** argv){
 					 &context,
 					 &genericSources[iSource],
 					 &talliesVect[ithread],
+					 &genericVR,
+					 &photonVR,		     
 					 &(seeds1[ithread]),&(seeds2[ithread]),
 					 dumpTime,
 					 dump2write,
@@ -1512,6 +1521,8 @@ int main(int argc, char** argv){
 	       &context,
 	       &genericSources[iSource],
 	       &talliesVect[0],
+	       &genericVR,
+	       &photonVR,
 	       &(seeds1[0]),&(seeds2[0]),
 	       dumpTime,
 	       dump2write,
@@ -1549,6 +1560,8 @@ int main(int argc, char** argv){
 					 &context,
 					 &polarisedGammaSources[iSource],
 					 &talliesVect[ithread],
+					 &genericVR,
+					 &photonVR,
 					 &(seeds1[ithread]),&(seeds2[ithread]),
 					 dumpTime,
 					 dump2write,
@@ -1598,6 +1611,8 @@ int main(int argc, char** argv){
 			       &context,
 			       &polarisedGammaSources[iSource],
 			       &talliesVect[0],
+			       &genericVR,
+			       &photonVR,			       
 			       &(seeds1[0]),&(seeds2[0]),
 			       dumpTime,
 			       dump2write,
@@ -2334,6 +2349,8 @@ int createMaterials(pen_context& context,
 int setVarianceReduction(pen_context& context,
 			 const wrapper_geometry& geometry,
 			 const pen_parserSection& config,
+			 pen_VRCluster<pen_particleState>& genericVR,
+			 pen_VRCluster<pen_state_gPol>& photonVR,
 			 const unsigned verbose){
 
   //Extract variance reduction section
@@ -2913,191 +2930,43 @@ int setVarianceReduction(pen_context& context,
   }
 
   //**************************
-  // X-ray splitting
+  // Other VR techniques
   //**************************
 
-  // Materials
-  //************
-
-  std::vector<std::string> xRayMat;
-  VRSection.ls("x-ray/materials",xRayMat);
-
-  if(xRayMat.size() > 0){
+  pen_parserSection VRgeneric;
+  if(VRSection.readSubsection("generic",VRgeneric) != INTDATA_SUCCESS){
     if(verbose > 1){
-      printf("\n\n **** Material x-ray splitting:\n\n");
-      printf("  Mat  | x-ray splitting\n");      
-    }
-    
-    for(unsigned imname = 0; imname < xRayMat.size(); imname++){
-
-      //Get ibody name section
-      pen_parserSection matSection;
-      std::string matSecKey = std::string("x-ray/materials/") + xRayMat[imname];
-      if(VRSection.readSubsection(matSecKey,matSection) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  printf("setVarianceReduction: 'VR/%s' is not a section, skip this material.\n",matSecKey.c_str());
-	}
-	continue;
-      }
-
-      // Material index
-      //***********************
-
-      //Read index
-      int imat;
-      err = matSection.read("mat-index",imat);
-      if(err != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  printf("setVarianceReduction: Error: Material index not specified for material '%s'. Integer expected\n",xRayMat[imname].c_str());
-	}
-      }
-
-      //Check if material index is in range
-      if(imat < 1 || imat > (int)constants::MAXMAT){
-	if(verbose > 0){
-	  printf("setVarianceReduction: Error: Specified index (%d) for material '%s' out of range.\n",imat,xRayMat[imname].c_str());
-	}
-	return -24;
-      }
-
-      //Check if material is used at current geometry
-      if(!usedMat[imat]){
-	if(verbose > 0){
-	  printf("setVarianceReduction: Error: Specified index (%d) for material '%s' is not used at current geometry.\n",imat,xRayMat[imname].c_str());
-	}
-	return -25;
-      }
-
-      //Get splitting factor
-      int splitting;
-      err = matSection.read("splitting",splitting);
-      if(err != INTDATA_SUCCESS){
-	if(verbose > 0)
-	  printf("setVarianceReduction: Error: Unable to read field 'splitting' for x-ray splitting on material '%s'. Integer expected.\n",xRayMat[imname].c_str());
-	return -26;
-      }
-
-      //Check splitting factor
-      if(splitting < 1){
-	if(verbose > 0)
-	  printf("setVarianceReduction: Error: Invalid x-ray splitting factor (%d).\n",splitting);
-	return -27;
-      }
-
-      //Set splitting factor for bodies with this material index
-      for(unsigned ibody = 0; ibody < geometry.getBodies(); ibody++){
-      
-	if(geometry.getMat(ibody) != (unsigned)imat) continue;
-
-	if(ibody >= context.NBV){
-	  if(verbose > 0){
-	    printf("setVarianceReduction: Error: Maximum body index for IF reached (%u)\n",context.NBV);
-	  }
-	  return -27;
-	}
-	
-	context.IXRSPL[ibody] = (unsigned)splitting;
-	context.LXRSPL[ibody] = true;
-      }
-
-      //Print configuration
-      if(verbose > 1){
-	printf(" %5d   %5d\n", imat,splitting);
-      }
-      
+      printf("No generic variance reduction specified.\n");
     }
   }
-  else if(verbose > 1){
-    printf("No material with x-ray splitting enabled.\n");
+  else{
+    genericVR.configure(VRgeneric,geometry,verbose);
+    genericVR.name.assign("Generic-VR");
+    if(genericVR.configureStatus() != 0){
+      printf("setVarianceReduction: Error: Unable to configure "
+	     "generic variance reduction.");
+      return -24;
+    }
   }
-  
-  // Bodies
-  //************
 
-  std::vector<std::string> xRayBodies;
-  VRSection.ls("x-ray/bodies",xRayBodies);
-
-  if(xRayBodies.size() > 0){
+  pen_parserSection VRphoton;
+  if(VRSection.readSubsection("photon",VRphoton) != INTDATA_SUCCESS){
     if(verbose > 1){
-      printf("\n\n **** Body x-ray splitting:\n\n");
-      printf(" Body  | x-ray splitting\n");      
+      printf("No photon based variance reduction specified.\n");
     }
-    
-    for(unsigned ibname = 0; ibname < xRayBodies.size(); ibname++){
-
-      //Get ibody name section
-      pen_parserSection bodySection;
-      std::string bodySecKey = std::string("x-ray/bodies/") + xRayBodies[ibname];
-      if(VRSection.readSubsection(bodySecKey,bodySection) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  printf("setVarianceReduction: 'VR/%s' is not a section, skip this body.\n",bodySecKey.c_str());
-	}
-	continue;
-      }
-
-      // Body index
-      //***********************
-
-      //Check if specified body exists
-      unsigned ibody = geometry.getIBody(xRayBodies[ibname].c_str());
-      if(ibody >= geometry.getBodies()){
-	if(verbose > 0){
-	  printf("setVarianceReduction: Body '%s' doesn't exists in loaded geometry.\n",xRayBodies[ibname].c_str());
-	}
-	return -28;
-      }
-      else if(ibody >= context.NBV){
-	if(verbose > 0){
-	  printf("setVarianceReduction: Error: Maximum body index for IF is (%u)\n",context.NBV);
-	  printf("                  specified index: %u\n",ibody);
-	}
-	return -28;
-      }
-
-      // Splitting factor
-      //***********************
-
-      //Get splitting factor
-      int splitting;
-      err = bodySection.read("splitting",splitting);
-      if(err != INTDATA_SUCCESS){
-	if(verbose > 0)
-	  printf("setVarianceReduction: Error: Unable to read field 'splitting' for x-ray splitting on body '%s'. Integer expected.\n",xRayBodies[ibname].c_str());
-	return -29;
-      }
-
-      //Check splitting factor
-      if(splitting < 1){
-	if(verbose > 0)
-	  printf("setVarianceReduction: Error: Invalid x-ray splitting factor (%d).\n",splitting);
-	return -30;
-      }
-
-      //Set splitting factor for specified body
-      context.IXRSPL[ibody] = (unsigned)splitting;	  
-      context.LXRSPL[ibody] = true;	  
-
-      //Print configuration
-      if(verbose > 1){
-	printf(" %5d   %5d\n", ibody,splitting);
-      }
-      
-    }
+  }else{
+    photonVR.name.assign("Photon-VR");
+    photonVR.configure(VRphoton,geometry,verbose);
+    if(photonVR.configureStatus() != 0){
+      printf("setVarianceReduction: Error: Unable to configure "
+	     "photon specific variance reduction.");
+      return -25;
+    }    
   }
-  else if(verbose > 1){
-    printf("No bodies with x-ray splitting enabled.\n");
-  }
-
-  if(verbose > 1){
-    printf("\n\nFinal x-ray splitting:\n\n");
-    printf(" Body  | x-ray splitting\n");
-    for(unsigned ibody = 0; ibody < context.NBV; ibody++){      
-      
-      if(context.LXRSPL[ibody])
-	printf(" %5u   %5u\n", ibody,context.IBRSPL[ibody]);
-    }
-    printf("\n\n");
-  }
+  //pen_VRxraysplitting dummy;
+  //printf("\n*****************************");
+  //printf("\n\nRegister return: %d\n\n",dummy.registerStatus());
+  //printf("*****************************\n");
   
   return 0;
 }

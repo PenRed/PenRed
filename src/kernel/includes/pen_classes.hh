@@ -41,7 +41,6 @@
 #include "../rands/includes/pen_random.hh"
 #include "../parsers/internalData/includes/pen_data.hh"
 
-
 template<class particleType, class contextType, class materialType> class abc_interaction;
 template<class stateType, class contextType> class pen_particle;
 template<class stateType> class pen_particleStack;
@@ -127,6 +126,43 @@ public:
   
 };
 
+//-------------------
+// Variance reduction
+//-------------------
+
+template<class stateType>
+class abc_VR{
+
+public:
+  virtual void run_particleStack(const unsigned long long nhist,
+				 const pen_KPAR kpar,
+				 const unsigned kdet,
+				 stateType& state,
+				 std::array<stateType,constants::NMS>& stack,
+				 unsigned& created,
+				 const unsigned available,
+				 pen_rand& random) const = 0;
+
+  virtual void run_matChange(const unsigned long long nhist,
+			     const pen_KPAR kpar,
+			     const unsigned prevMat,			    
+			     stateType& state,
+			     std::array<stateType,constants::NMS>& stack,
+			     unsigned& created,
+			     const unsigned available,
+			     pen_rand& random) const = 0;
+
+  virtual void run_interfCross(const unsigned long long nhist,
+			       const pen_KPAR kpar,
+			       const unsigned kdet,
+			       stateType& state,
+			       std::array<stateType,constants::NMS>& stack,
+			       unsigned& created,
+			       const unsigned available,
+			       pen_rand& random) const = 0;
+
+  virtual ~abc_VR(){}
+};
 
 //-------------------
 // Interactions
@@ -158,7 +194,8 @@ template<class stateType, class contextType, class materialType>
 class abc_particle{
 
 private:
-  
+  std::array<pen_particleState,constants::NMS> genericStates;
+  std::array<stateType,constants::NMS> specificStates;
 protected:
 
   //Particle energy at previous JUMP
@@ -202,6 +239,13 @@ protected:
   double EABS;
   double DSMAXbody;
   unsigned KDET;
+
+  //Generic VR cluster
+  const abc_VR<pen_particleState>* genericVR;
+  //Specific VR cluster
+  const abc_VR<stateType>* specificVR;
+  //Reference to particle stack
+  pen_particleStack<stateType>& stack;
   
 public:
   
@@ -216,24 +260,27 @@ public:
   abc_particle(const contextType& contextIn,
 	       const pen_KPAR KPAR,
 	       const unsigned int nInt,
-	       const double annihilationEDepIn) : KSOFTI(0),
-						  pmat(nullptr),
-						  dsef(0.0),
-						  dstot(0.0),
-						  ncross(0),
-						  MATL(0),
-						  IBODYL(0),
-						  XL(0.0),
-						  YL(0.0),
-						  ZL(0.0),
-						  EABS(0.0),
-						  DSMAXbody(1.0e35),
-						  KDET(0),
-						  context(contextIn),
-						  kpar(KPAR),
-						  interactions(nInt),
-						  annihilationEDep(annihilationEDepIn)
-											     
+	       const double annihilationEDepIn,
+	       pen_particleStack<stateType>& stackIn) : KSOFTI(0),
+							pmat(nullptr),
+							dsef(0.0),
+							dstot(0.0),
+							ncross(0),
+							MATL(0),
+							IBODYL(0),
+							XL(0.0),
+							YL(0.0),
+							ZL(0.0),
+							EABS(0.0),
+							DSMAXbody(1.0e35),
+							KDET(0),
+							genericVR(nullptr),
+							specificVR(nullptr),
+							stack(stackIn),
+							context(contextIn),
+							kpar(KPAR),
+							interactions(nInt),
+							annihilationEDep(annihilationEDepIn)
   {
     //Check if kpar is in range [0,nParTypes)
     if(KPAR < 0 || KPAR >= constants::nParTypes)
@@ -429,6 +476,26 @@ public:
   }
   inline const contextType& readContext(){return context;}
 
+  inline void registerGenericVR(const abc_VR<pen_particleState>& vrIn){
+    genericVR = &vrIn;
+  }
+
+  inline void registerSpecificVR(const abc_VR<stateType>& vrIn){
+    specificVR = &vrIn;
+  }
+
+  void vr_particleStack(const unsigned long long nhist,
+			pen_rand& random,
+			const unsigned verbose);  
+
+  double vr_matChange(const unsigned long long nhist,
+		      pen_rand& random,
+		      const unsigned verbose);
+
+  double vr_interfCross(const unsigned long long nhist,
+			pen_rand& random,
+			const unsigned verbose);
+  
   void baseClear(){
     KSOFTI = 0;
     pmat = nullptr;
@@ -494,8 +561,8 @@ template<class stateType> class pen_particleStack{
 	//Create warning
 	penError(ERR_store_FULL_STACK);
       }
-  }    
-
+  }
+  
   unsigned get(stateType& state){
     if(NSEC > 0){
       NSEC--;
@@ -841,5 +908,155 @@ public:
 			   double& XEL, double& XE, double& XEK) const = 0;  
   virtual ~abc_genericGrid(){};
 };
+
+
+//  Implementations
+//-------------------
+
+template<class stateType, class contextType, class materialType>
+void abc_particle<stateType,contextType,materialType>::
+vr_particleStack(const unsigned long long nhist,
+		 pen_rand& random, const unsigned verbose){
+
+  if(genericVR != nullptr){
+    unsigned spaceAvailable = constants::NMS-stack.getNSec();
+    unsigned created = 0;
+    genericVR->run_particleStack(nhist,kpar,KDET,
+				 state,genericStates,
+				 created,spaceAvailable,random);
+      
+    if(created > spaceAvailable){
+      created = spaceAvailable;
+      if(verbose > 1)
+	printf("abc_particle: Warning: Generic VR creates "
+	       "more particles (%u) than available space (%u)\n"
+	       "Extra particles will be ignored\n",created,spaceAvailable);
+    }
+    stateType defaultState;
+    for(unsigned i = 0; i < created; ++i){
+      defaultState.copyBase(genericStates[i]);
+      stack.store(defaultState);
+    }
+  }
+  if(specificVR != nullptr){
+    unsigned spaceAvailable = constants::NMS-stack.getNSec();
+    unsigned created = 0;
+    specificVR->run_particleStack(nhist,kpar,KDET,
+				  state,specificStates,
+				  created,spaceAvailable,random);
+
+    if(created > spaceAvailable){
+      created = spaceAvailable;
+      if(verbose > 1)
+	printf("abc_particle: Warning: Specific VR creates "
+	       "more particles (%u) than available space (%u)\n"
+	       "Extra particles will be ignored\n",created,spaceAvailable);
+    }
+
+    for(unsigned i = 0; i < created; ++i){
+      stack.store(specificStates[i]);
+    }
+  }
+}
+
+template<class stateType, class contextType, class materialType>
+double abc_particle<stateType,contextType,materialType>::
+vr_matChange(const unsigned long long nhist,
+	     pen_rand& random, const unsigned verbose){
+
+  double de = 0.0;
+  if(genericVR != nullptr){
+    unsigned spaceAvailable = constants::NMS-stack.getNSec();
+    unsigned created = 0;
+    genericVR->run_matChange(nhist,kpar,MATL,
+			     state,genericStates,
+			     created,spaceAvailable,random);
+      
+    if(created > spaceAvailable){
+      created = spaceAvailable;
+      if(verbose > 1)
+	printf("abc_particle: Warning: Generic VR creates "
+	       "more particles (%u) than available space (%u)\n"
+	       "Extra particles will be ignored\n",created,spaceAvailable);
+    }
+    stateType defaultState;
+    for(unsigned i = 0; i < created; ++i){
+      defaultState.copyBase(genericStates[i]);
+      stack.store(defaultState);
+      de += defaultState.E*defaultState.WGHT;
+    }
+  }
+  if(specificVR != nullptr){
+    unsigned spaceAvailable = constants::NMS-stack.getNSec();
+    unsigned created = 0;
+    specificVR->run_matChange(nhist,kpar,MATL,
+			      state,specificStates,
+			      created,spaceAvailable,random);
+
+    if(created > spaceAvailable){
+      created = spaceAvailable;
+      if(verbose > 1)
+	printf("abc_particle: Warning: Specific VR creates "
+	       "more particles (%u) than available space (%u)\n"
+	       "Extra particles will be ignored\n",created,spaceAvailable);
+    }
+
+    for(unsigned i = 0; i < created; ++i){
+      stack.store(specificStates[i]);
+      de += specificStates[i].E*specificStates[i].WGHT;      
+    }
+  }
+  return de;
+}
+
+template<class stateType, class contextType, class materialType>
+double abc_particle<stateType,contextType,materialType>::
+vr_interfCross(const unsigned long long nhist,
+	       pen_rand& random, const unsigned verbose){
+
+  double de = 0.0;
+  if(genericVR != nullptr){
+    unsigned spaceAvailable = constants::NMS-stack.getNSec();
+    unsigned created = 0;
+    genericVR->run_interfCross(nhist,kpar,KDET,
+			       state,genericStates,
+			       created,spaceAvailable,random);
+
+    if(created > spaceAvailable){
+      created = spaceAvailable;
+      if(verbose > 1)
+	printf("abc_particle: Warning: Generic VR creates "
+	       "more particles (%u) than available space (%u)\n"
+	       "Extra particles will be ignored\n",created,spaceAvailable);
+    }
+    stateType defaultState;
+    for(unsigned i = 0; i < created; ++i){
+      defaultState.copyBase(genericStates[i]);
+      stack.store(defaultState);
+      de += defaultState.E*defaultState.WGHT;      
+    }
+  }
+  if(specificVR != nullptr){
+    unsigned spaceAvailable = constants::NMS-stack.getNSec();
+    unsigned created = 0;
+    specificVR->run_interfCross(nhist,kpar,KDET,
+				state,specificStates,
+				created,spaceAvailable,random);
+
+    if(created > spaceAvailable){
+      created = spaceAvailable;
+      if(verbose > 1)
+	printf("abc_particle: Warning: Specific VR creates "
+	       "more particles (%u) than available space (%u)\n"
+	       "Extra particles will be ignored\n",created,spaceAvailable);
+    }
+
+    for(unsigned i = 0; i < created; ++i){
+      stack.store(specificStates[i]);
+      de += specificStates[i].E*specificStates[i].WGHT;      
+    }
+  }
+  return de;
+}
 
 #endif

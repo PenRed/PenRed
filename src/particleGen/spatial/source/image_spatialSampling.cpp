@@ -180,8 +180,8 @@ int image_spatialSampling::configure(const pen_parserSection& config,
   printf("done\n");fflush(stdout);
 
   char buffer[81];
-  char BLINE[100];  
   /* FILE* in;
+  char BLINE[100];  
   
   strcpy(buffer,"WalkersCutoffAlias.dat");
      

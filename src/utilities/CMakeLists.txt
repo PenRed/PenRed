@@ -47,6 +47,10 @@ CMAKE_DEPENDENT_OPTION(SAMPLE_REGISTER "Compile samplers register" ON
                        "BUILD_UTILITIES" OFF)
 CMAKE_DEPENDENT_OPTION(GEOMETRY_REGISTER "Compile geometries register" ON
                        "BUILD_UTILITIES" OFF)
+CMAKE_DEPENDENT_OPTION(PHOTON_VR_REGISTER "Compile photon VR register" ON
+                       "BUILD_UTILITIES" OFF)
+CMAKE_DEPENDENT_OPTION(GENERIC_VR_REGISTER "Compile generic VR register" ON
+                       "BUILD_UTILITIES" OFF)                       
 CMAKE_DEPENDENT_OPTION(PSF_SPECTRE "Compile PSF spectrum generator" ON
                        "BUILD_UTILITIES" OFF)
 CMAKE_DEPENDENT_OPTION(PSF_2_ASCII "Compile PSF to ASCII conversor" ON
@@ -54,8 +58,11 @@ CMAKE_DEPENDENT_OPTION(PSF_2_ASCII "Compile PSF to ASCII conversor" ON
 CMAKE_DEPENDENT_OPTION(GEO_2_VOXEL "Compile conversor to voxelized geometry" ON
                        "BUILD_UTILITIES" OFF)
 CMAKE_DEPENDENT_OPTION(LB_SERVER "Compile RUPER_LB basic server program" ON
-                       "BUILD_UTILITIES;WITH_LB" OFF)                       
-
+                       "BUILD_UTILITIES;WITH_LB" OFF)
+                       
+CMAKE_DEPENDENT_OPTION(DICOM_KERNELS "Compile DICOM kernels utility" ON
+                       "BUILD_UTILITIES;WITH_DICOM" OFF)
+                       
 #       EXECUTABLES         #
 #############################
 
@@ -168,6 +175,43 @@ if(GEOMETRY_REGISTER)
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/registers
     )
 endif(GEOMETRY_REGISTER)
+
+#-----------------------------------------------------------------------------
+#  registered photon VR
+#############################
+
+if(PHOTON_VR_REGISTER)
+    # Create registered tallies executable
+    add_executable(regPhotonVR ${PROJECT_SOURCE_DIR}/utilities/registers/registeredPhotonVR.cpp)
+
+    #target libs
+    target_link_libraries(regPhotonVR pen_VR)
+
+    # Install registered tallies executable
+    install(
+    TARGETS regPhotonVR
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/registers
+    )
+endif(PHOTON_VR_REGISTER)
+
+#-----------------------------------------------------------------------------
+#  registered generic VR
+#############################
+
+if(GENERIC_VR_REGISTER)
+    # Create registered tallies executable
+    add_executable(regGenericVR ${PROJECT_SOURCE_DIR}/utilities/registers/registeredGenericVR.cpp)
+
+    #target libs
+    target_link_libraries(regGenericVR pen_VR)
+
+    # Install registered tallies executable
+    install(
+    TARGETS regGenericVR
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/registers
+    )
+endif(GENERIC_VR_REGISTER)
+
 #-----------------------------------------------------------------------------
 #  PSF spectrum
 #############################
@@ -222,6 +266,27 @@ if(GEO_2_VOXEL)
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/geometry/voxels
     )
 endif(GEO_2_VOXEL)
+#-----------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------
+#  DICOM kernels
+#############################
+
+if(DICOM_KERNELS AND WITH_DICOM)
+
+    add_executable(dicomKernels ${PROJECT_SOURCE_DIR}/utilities/DICOM/kernels.cpp)
+
+    #target libs
+    target_link_libraries(dicomKernels pen_geos)
+    
+    # Install DICOM kernels program
+    install(
+    TARGETS dicomKernels
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/DICOM
+    )    
+    
+endif()
+
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------

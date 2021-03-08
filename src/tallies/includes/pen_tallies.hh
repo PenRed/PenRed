@@ -53,6 +53,7 @@
 #include "pen_data.hh"
 #include "pen_dump.hh"
 #include "pen_geometries.hh"
+#include "pen_states.hh"
 
 // Auxiliar structures
 //////////////////////////

@@ -35,7 +35,7 @@
 #  Source 1
 #########################
 
-sources/generic/source1/nhist __NHISTS__
+sources/generic/source1/nhist 1.0e5
 sources/generic/source1/kpar "electron"
 
 # Directional sampling
@@ -152,7 +152,8 @@ VR/IForcing/bodies/x-rayIF/max-weight 2
 
 VR/bremss/bodies/1/splitting 2
 
-VR/x-ray/bodies/1/splitting 2
+VR/photon/x-ray/type "XRAY_SPLITTING"
+VR/photon/x-ray/bodies/1/splitting 2
 
 #########################
 #  GEOMETRY PARAMETERS  #
@@ -189,5 +190,5 @@ materials/cu/filename "Cu.mat"
 # SIMULATION PARAMETERS #
 #########################
 
-simulation/threads __NTHREADS__
-simulation/dump-interval __DUMPTIME__
+simulation/threads 1
+simulation/dump-interval 1.0e35

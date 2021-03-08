@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -36,7 +36,7 @@ class intervals_energySampling : public abc_energySampler{
   DECLARE_SAMPLER(intervals_energySampling)
 private:
 
-  static const unsigned maxIntervals = 30;
+  static const unsigned maxIntervals = 200;
   double energies[maxIntervals];
   double dE[maxIntervals];
   double cummulative[maxIntervals+1];
