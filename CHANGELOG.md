@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### To add
 - CT based source
 - CT detector tally
+- PSF shift and rotation
 
-## [Working on]
+## [1.2.0] - 2021-03-08
 
 ### Fix
 - Main program prints Bremsstrahlung splitting number (IBRSPL) instead of x-ray splitting number (IXRSPL)
@@ -21,9 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Variance reduction (VR) modules to implement custom variance reduction techniques
 - Splitting VR module
 - Russian Roulette VR module
+- Radial splitting VR module (experimental and undocumented)
 
 ### Changed
 - X-Ray splitting converted to VR module
+- Increased the maximum number of intervals in the "energy intervals" energetic source
 
 ## [1.1.3] - 2020-11-27
 
