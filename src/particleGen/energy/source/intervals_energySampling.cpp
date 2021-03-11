@@ -145,7 +145,8 @@ int intervals_energySampling::configure(double& Emax, const pen_parserSection& c
     if(Emax < Etop[j])
       Emax = Etop[j];
   
-  //Add extra dummy interval for seeki function
+  //Add an extra interval for the seeki function because we
+  //add a 0.0 value at the beginning of the cummulative array
   nIntervals++;
 
   if(verbose > 1){

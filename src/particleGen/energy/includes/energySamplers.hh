@@ -32,5 +32,6 @@
 
 #include "intervals_energySampling.hh"
 #include "monoenergetic.hh"
+#include "fileSpectrum_energySampling.hh"
 
 #endif
