@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2021 Universitat de València - UV
+//    Copyright (C) 2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -27,6 +27,25 @@
 //
 
 
-#include "intervals_energySampling.cpp" 
-#include "monoenergetic.cpp"
-#include "fileSpectrum_energySampling.cpp"
+#ifndef __FILE_ENERGY_SPECTRUM_SAMPLING__
+#define __FILE_ENERGY_SPECTRUM_SAMPLING__
+
+#include "pen_auxiliar.hh"
+
+class fileSpectrum_energySampling : public abc_energySampler{
+  DECLARE_SAMPLER(fileSpectrum_energySampling)
+private:
+
+  std::vector<double> energies;
+  std::vector<double> dE;
+  std::vector<double> cummulative;
+  unsigned nEBins;
+  
+  
+public:
+  void energySampling(double& energy, pen_rand& random) const;
+  int configure(double& Emax, const pen_parserSection& config, const unsigned verbose);
+  
+};
+
+#endif
