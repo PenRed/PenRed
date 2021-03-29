@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -306,7 +306,7 @@ class pen_elementDataBase{
 
   //  ****  Photoelectric cross sections.
   // EPH -> Energy grid point for photoelectric cross section for loaded
-  //        elements. The position where the data begins and end for each
+  //        elements. The position where the data begins and ends for each
   //        element will be specified by IPHF and IPHL respectively.
   //
   // XPH -> Cross section for each grid point for photoelectric cross section for loaded

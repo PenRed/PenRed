@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -228,6 +228,85 @@ int pen_context::init(double EMAX, FILE *IWR, int INFO, std::string PMFILE[const
       mat.EABS[PEN_POSITRON]=EABS0[PEN_POSITRON][M];
     }
   return PEN_SUCCESS;
+}
+
+double pen_context::range(const double E, const pen_KPAR kpar, const unsigned M) const {
+
+  //This subroutine computes the particle range at the specified energy
+
+  const pen_material& mat = readBaseMaterial(M);
+
+  //Check if energy is in range
+  double EE;
+  if(E < grid.EL){
+    EE = grid.EL;
+  }
+  else if(E > grid.EU){
+    EE = grid.EU;
+  }
+  else{
+    EE = E;
+  }
+
+  //Get energy interval
+  int KE;
+  double XEL, XE, XEK;
+  grid.getInterval(E,KE,XEL,XE,XEK);
+  if(KE >= static_cast<int>(constants::NEGP-1)){
+    KE = constants::NEGP-2;
+    XEK = XE - KE;
+  }
+
+  // *** Electrons and positrons
+  if(kpar == PEN_ELECTRON || kpar == PEN_POSITRON){
+    return exp(mat.RANGEL[kpar][KE] +
+	       (mat.RANGEL[kpar][KE+1] - mat.RANGEL[kpar][KE])*XEK);
+  }
+
+  // *** Photons
+
+  if(kpar == PEN_PHOTON){
+
+    // Rayleigh scattering
+    
+    int II = mat.IED[KE];
+    int IU = mat.IEU[KE];
+    do{
+      int IT = (II+IU)/2;
+      if(XEL > mat.ERA[IT]){
+	II = IT;
+      }
+      else{
+	IU = IT;
+      }
+    }while(IU-II > 1);
+
+    double HMF1 = exp(mat.XSRA[II] + (mat.XSRA[II+1] - mat.XSRA[II])*
+		      (XEL-mat.ERA[II])
+		      /(mat.ERA[II+1]-mat.ERA[II]));
+
+    // Compton scattering
+    double HMF2 = exp(mat.SGCO[KE] + (mat.SGCO[KE+1] - mat.SGCO[KE])*XEK);
+
+    // Photoelectric absorption
+    double XS;
+    GPHaT(EE, XS, mat, elements);
+    double HMF3 = XS*mat.VMOL;
+
+    // Pair production
+    double HMF4;
+    if(E > 1.022E6){
+      HMF4 = exp(mat.SGPP[KE] + (mat.SGPP[KE+1] - mat.SGPP[KE])*XEK);
+    }
+    else{
+      HMF4 = 0.0;
+    }
+
+    return 1.0/std::max(HMF1+HMF2+HMF3+HMF4,1.0e-35);
+    
+  }
+
+  return 1.0e35;
 }
 
 void DIRECT(const double CDT, const double DF, double &U, double &V, double &W)
@@ -811,4 +890,48 @@ void RELAX(const pen_elementDataBase& elements,
   }       // 1 CONTINUE. Eixir
   state.PAGE = PAGE0;
 
+}
+
+//  *********************************************************************
+//                       SUBROUTINE GPHaT
+//  *********************************************************************
+void GPHaT(double &E, double &XS, const pen_material& mat, const pen_elementDataBase& elemDB)
+{
+  //  Delivers the photoelectric cross section XS (in cm**2) for photons of
+  //  energy E in material M.
+
+
+  double XEL = log(E);
+  XS = 0.0;
+  double DEE, PCSL;
+  int IZZ, I, IU, IT;
+  for(int IEL = 0; IEL < mat.NELEM; IEL++)
+  {
+    IZZ = mat.IZ[IEL];
+    I = elemDB.IPHF[IZZ-1];
+    IU = elemDB.IPHL[IZZ-1];
+
+    while(IU-I > 1)
+    {
+      IT = (I+IU)/2;
+      if(XEL > elemDB.EPH[IT])
+      {
+        I = IT;
+      }
+      else
+      {
+        IU = IT;
+      }
+    }
+    DEE = elemDB.EPH[I+1]-elemDB.EPH[I];
+    if(DEE > 1.0E-15)
+    {
+      PCSL = elemDB.XPH[I][0]+(elemDB.XPH[I+1][0]-elemDB.XPH[I][0])*(XEL-elemDB.EPH[I])/DEE;
+    }
+    else
+    {
+      PCSL = elemDB.XPH[I][0];
+    }
+    XS = XS+mat.STF[IEL]*exp(PCSL);
+  }
 }

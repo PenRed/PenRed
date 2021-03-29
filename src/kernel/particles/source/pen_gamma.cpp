@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -954,8 +954,8 @@ void GPHa(const pen_material& mat,
   {
     IZZ = mat.IZ[IEL];
     //  ****  Binary search.
-    I = elemDB.IPHF[IZZ-1]-1;
-    IU = elemDB.IPHL[IZZ-1]-1;
+    I = elemDB.IPHF[IZZ-1];
+    IU = elemDB.IPHL[IZZ-1];
     do
     {
       IT=(I+IU)/2;
@@ -1092,8 +1092,8 @@ void GPHa0(pen_elementDataBase& elemDB)
   for(unsigned int I = 0; I < elemDB.nElements; I++)
   {
     elemDB.NPHS[I] = 0;
-    elemDB.IPHF[I] = constants::NTP;
-    elemDB.IPHL[I] = constants::NTP;
+    elemDB.IPHF[I] = constants::NTP-1;
+    elemDB.IPHL[I] = constants::NTP-1;
   }
 
   for(unsigned int I = 0; I < constants::NTP; I++)
@@ -1105,50 +1105,6 @@ void GPHa0(pen_elementDataBase& elemDB)
     }
   }
   elemDB.NCUR = 0;
-}
-
-//  *********************************************************************
-//                       SUBROUTINE GPHaT
-//  *********************************************************************
-void GPHaT(double &E, double &XS, const pen_material& mat, const pen_elementDataBase& elemDB)
-{
-  //  Delivers the photoelectric cross section XS (in cm**2) for photons of
-  //  energy E in material M.
-
-
-  double XEL = log(E);
-  XS = 0.0;
-  double DEE, PCSL;
-  int IZZ, I, IU, IT;
-  for(int IEL = 0; IEL < mat.NELEM; IEL++)
-  {
-    IZZ = mat.IZ[IEL];
-    I = elemDB.IPHF[IZZ-1]-1;
-    IU = elemDB.IPHL[IZZ-1]-1;
-
-    while(IU-I > 1)
-    {
-      IT = (I+IU)/2;
-      if(XEL > elemDB.EPH[IT])
-      {
-        I = IT;
-      }
-      else
-      {
-        IU = IT;
-      }
-    }
-    DEE = elemDB.EPH[I+1]-elemDB.EPH[I];
-    if(DEE > 1.0E-15)
-    {
-      PCSL = elemDB.XPH[I][0]+(elemDB.XPH[I+1][0]-elemDB.XPH[I][0])*(XEL-elemDB.EPH[I])/DEE;
-    }
-    else
-    {
-      PCSL = elemDB.XPH[I][0];
-    }
-    XS = XS+mat.STF[IEL+1]*exp(PCSL);
-  }
 }
 
 //  *********************************************************************
@@ -1302,8 +1258,8 @@ void GRAa(const pen_material& mat,
 
   //  ****  Binary search.
 
-  int II = mat.IED[KE]-1;
-  int IU = mat.IEU[KE]-1;
+  int II = mat.IED[KE];
+  int IU = mat.IEU[KE];
   int IT;
   while(IU-II > 1)
   {

@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019-2020 Universitat de València - UV
-#    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2021 Universitat de València - UV
+#    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -62,6 +62,9 @@ CMAKE_DEPENDENT_OPTION(LB_SERVER "Compile RUPER_LB basic server program" ON
                        
 CMAKE_DEPENDENT_OPTION(DICOM_KERNELS "Compile DICOM kernels utility" ON
                        "BUILD_UTILITIES;WITH_DICOM" OFF)
+                       
+CMAKE_DEPENDENT_OPTION(MUTREN "Compile mutren" ON
+                       "BUILD_UTILITIES" OFF)                       
                        
 #       EXECUTABLES         #
 #############################
@@ -316,4 +319,24 @@ if(LB_SERVER AND WITH_LB)
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/LB/server
     )    
 endif(LB_SERVER AND WITH_LB)
+#-----------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------
+#  MUTREN
+#############################
+
+if(MUTREN)
+    # Create mutren executable
+    add_executable(mutren ${PROJECT_SOURCE_DIR}/utilities/mutren/mutren.cpp)
+
+    target_link_libraries(mutren pen_particles)
+    target_link_libraries(mutren pen_geos)
+    target_link_libraries(mutren pen_timer)
+
+    # Install mutren executable
+    install(
+    TARGETS mutren
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/mutren/mutren
+    )
+endif(MUTREN)
 #-----------------------------------------------------------------------------

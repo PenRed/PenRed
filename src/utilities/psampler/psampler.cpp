@@ -4987,8 +4987,7 @@ void GPHaSV(const pen_context& context, const pen_material& mat, const double E,
     {
       Eixir = true;
       int IT = (I+IU)/2;
-      if(XEL > context.elements.EPH[IT-1])
-      {
+      if(XEL > context.elements.EPH[IT]){
         I = IT;
       }
       else
@@ -4998,18 +4997,18 @@ void GPHaSV(const pen_context& context, const pen_material& mat, const double E,
       if(IU-I > 1){ Eixir = false; continue;}
     }
 //
-    double DEE=context.elements.EPH[I+1-1]-context.elements.EPH[I-1];
+    double DEE=context.elements.EPH[I+1]-context.elements.EPH[I];
     double PSHELL=0.0E0;
     for(int ISH=1; ISH<=context.elements.NPHS[IZZ-1]+1; ISH++)
     {
       double PCSL;
       if(DEE>1.0E-15)
       {
-        PCSL=context.elements.XPH[I-1][ISH-1]+(context.elements.XPH[I+1-1][ISH-1]-context.elements.XPH[I-1][ISH-1])*(XEL-context.elements.EPH[I-1])/DEE;
+        PCSL=context.elements.XPH[I][ISH-1]+(context.elements.XPH[I+1][ISH-1]-context.elements.XPH[I][ISH-1])*(XEL-context.elements.EPH[I])/DEE;
       }
       else
       {
-        PCSL=context.elements.XPH[I-1][ISH-1];
+        PCSL=context.elements.XPH[I][ISH-1];
       }
       if(ISH==1)
       {

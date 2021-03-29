@@ -11,6 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CT detector tally
 - PSF shift and rotation
 
+## [1.2.2] - 2021-03-28
+
+### Fix
+- Corrected incorrect access of the IED and IEU variables.
+
+### Added
+- Mutren utility based on the mutren code in the original PENELOPE package
+
+### Changed
+- Changed IPHF and IPHL variables of the element data base class to store the indexes in a C like format (starting from 0) instead of FORTRAN like (starting from 1)
+- The mu_en data for the kerma track length tally must be specified in the input file in eV instead of keV
+
+## [1.2.1] - 2021-03-11
+
+### Added
+- File spectrum energy sampler	
+
 ## [1.2.0] - 2021-03-08
 
 ### Fix

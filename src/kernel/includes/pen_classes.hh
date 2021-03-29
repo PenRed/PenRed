@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -641,6 +641,10 @@ public:
       materials[i] = nullptr;
   }
 
+  //Function 'range' is intended to return the range in the specified
+  //material for a particle with the specified energy and type
+  virtual double range(const double E, const pen_KPAR kpar, const unsigned M) const = 0;
+  
   inline void getMatBaseArray(const abc_material* mats[constants::MAXMAT]) const {
 
     for(unsigned i = 0; i < constants::MAXMAT; i++){

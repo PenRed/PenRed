@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -1790,8 +1790,8 @@ unsigned int pen_elementDataBase::getPHposition(const unsigned int IZ, const dou
   //for element with atomic number Z = IZ.
 
   //Perform a binary search
-  unsigned int I = IPHF[IZ];
-  unsigned int IU = IPHL[IZ];
+  unsigned int I = IPHF[IZ-1];
+  unsigned int IU = IPHL[IZ-1];
 
   unsigned int IT;
   while(IU - I > 1)
@@ -4791,7 +4791,7 @@ void GPHaR(pen_material& mat, pen_elementDataBase& elemDB, FILE* IRD, FILE* IWR,
     int IC;
     if(elemDB.NPHS[IZZ-1] == 0)
     {
-      elemDB.IPHF[IZZ-1] = elemDB.NCUR+1;
+      elemDB.IPHF[IZZ-1] = elemDB.NCUR;
       if(elemDB.NCUR+NDATA > constants::NTP)
       {
         fprintf(IWR, "Insufficient memory storage in GPHaR.\n");
@@ -4809,7 +4809,7 @@ void GPHaR(pen_material& mat, pen_elementDataBase& elemDB, FILE* IRD, FILE* IWR,
         }
       }
       elemDB.NCUR += NDATA;
-      elemDB.IPHL[IZZ-1] = elemDB.NCUR;
+      elemDB.IPHL[IZZ-1] = elemDB.NCUR-1;
       elemDB.NPHS[IZZ-1] = NSHR;
     }
   }
@@ -4820,7 +4820,7 @@ void GPHaR(pen_material& mat, pen_elementDataBase& elemDB, FILE* IRD, FILE* IWR,
   int IST = elemDB.IPHF[IZZ-1];
   int LST = elemDB.IPHL[IZZ-1];
   gph01.NPHD = 0;
-  for(int I = IST-1; I < LST; I++)
+  for(int I = IST; I <= LST; I++)
   {
     gph01.NPHD = gph01.NPHD+1;
     gph01.ER[gph01.NPHD-1] = exp(elemDB.EPH[I]);
@@ -4841,7 +4841,7 @@ void GPHaR(pen_material& mat, pen_elementDataBase& elemDB, FILE* IRD, FILE* IWR,
       IST = elemDB.IPHF[IZZ-1];
       LST = elemDB.IPHL[IZZ-1];
       N2 = 0;
-      for(int I = IST-1; I < LST; I++)
+      for(int I = IST; I <= LST; I++)
       {
         N2 = N2+1;
         X2[N2-1] = exp(elemDB.EPH[I]);
@@ -4933,7 +4933,7 @@ void GRAaTI(const pen_material& mat, const double DLEMP1, const double DLFC, dou
   {
     Eixir = true;
     int IT=(II+IU)/2;
-    if(XELN > mat.ERA[IT-1])
+    if(XELN > mat.ERA[IT])
     {
       II = IT;
     }
@@ -4943,8 +4943,8 @@ void GRAaTI(const pen_material& mat, const double DLEMP1, const double DLFC, dou
     }
     if(IU-II > 1){ Eixir = false; continue;}
   }
-  ECS = exp(mat.XSRA[II-1]+(mat.XSRA[II]-mat.XSRA[II-1])
-	    *(XELN-mat.ERA[II-1])/(mat.ERA[II]-mat.ERA[II-1]))/mat.VMOL;
+  ECS = exp(mat.XSRA[II]+(mat.XSRA[II+1]-mat.XSRA[II])
+	    *(XELN-mat.ERA[II])/(mat.ERA[II+1]-mat.ERA[II]))/mat.VMOL;
 }
 
 //  *********************************************************************

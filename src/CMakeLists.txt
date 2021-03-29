@@ -58,6 +58,8 @@ option(BUILD_STATIC "Enable static compilation" OFF)
 mark_as_advanced(FORCE BUILD_STATIC)
 option(BUILD_C_BINDS "Compile C binds" OFF)
 mark_as_advanced(FORCE BUILD_C_BINDS)
+option(WITH_DEBUG "Compile with debug flag" OFF)
+mark_as_advanced(WITH_DEBUG)
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
@@ -78,6 +80,11 @@ else(BUILD_STATIC)
 endif(BUILD_STATIC)
 
 # Compilation options
+
+if (WITH_DEBUG)
+	add_compile_options(-g)
+endif(WITH_DEBUG)
+
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   # using GCC
   if (WITH_NATIVE)

@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -230,11 +230,6 @@ void GPHa(const pen_material& mat,
 	  pen_rand& penRand);
 
 void GPHa0(pen_elementDataBase& elemDB);
-
-void GPHaT(double &E,
-	   double &XS,
-	   const pen_material& mat,
-	   const pen_elementDataBase& elemDB);
 
 void GPPa(const pen_material& mat,
 	  const double E,

@@ -1758,7 +1758,7 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& /*geometry*/,
 	  return -9;
 	}
 	//Convert to eV
-	E *= 1000.0;
+	//E *= 1000.0;
 	if(exp(EData.back()) >= E || E <= 0.0 || muenAux <= 0.0){
 	  if(verbose > 0){
 	    printf("pen_tallyKermaTrackLength:configure: Error: Energy bins "
