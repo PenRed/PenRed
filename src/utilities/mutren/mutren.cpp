@@ -205,7 +205,7 @@ int main(int argc, const char** argv){
 
 bool dumpResults(unsigned long long nhist,
 		 double EDPT, double EDPT2,
-		 double ETRT, double ETRT2,
+		 double ETRT, double /*ETRT2*/,
 		 double RMU0, double E0, double TOL,
 		 long int TSEC, bool forceFinish,
 		 FILE* fout){
@@ -346,9 +346,9 @@ void simulate(pen_context& context,
 	  betaE.START();
 	  do{
 	    double ds, de;
-	    int icol;
+	    int icolDummy;
 	    betaE.JUMP(ds,random,DSMAX);
-	    betaE.KNOCK(de,icol,random);	      
+	    betaE.KNOCK(de,icolDummy,random);	      
 	  }while(betaE.readState().E >= mat.EABS[PEN_ELECTRON]);
 	}
       }
@@ -365,9 +365,9 @@ void simulate(pen_context& context,
 	  betaP.START();
 	  do{
 	    double ds, de;
-	    int icol;
+	    int icolDummy;
 	    betaP.JUMP(ds,random,DSMAX);
-	    betaP.KNOCK(de,icol,random);	      
+	    betaP.KNOCK(de,icolDummy,random);	      
 	  }while(betaP.readState().E >= mat.EABS[PEN_POSITRON]);
 	}
       }
