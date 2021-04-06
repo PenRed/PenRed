@@ -67,34 +67,55 @@ int main(int argc, char** argv)
     }
   }
 
-  // Load material
-  //****************
-  
-  //Open material file
-  FILE* fmat = 0;
-  fmat = fopen(argv[1],"r");
-  //Check if material has been opened
-  if(fmat == nullptr)
-    {
-      printf("Error: Can't open material file '%s'\n",argv[1]);
-      return -1;
-    }
+  // Configure context
+  //*********************
 
-  //Load material
-  initStructs initStore;
+  //Create elements data base
   pen_elementDataBase elements;
-  pen_logGrid grid;
-  
-  //Initialize grid energy limits
-  grid.init(50.0, 1.0e9);
+  //Create a context
+  pen_context context(elements);
 
-  pen_material* mat = new pen_material;
-  mat->load(fmat, stdout, initStore,elements,grid, 0);
-  if(penGetError() != PEN_SUCCESS)
-    {
-      printf("%s",penErrorString(penGetError()));
-      return -3;
-    }
+  //Set the number of materials to context (1)
+  int errmat = context.setMats<pen_material>(1);
+  if(errmat != 0){
+    printf("Error at context material creation: %d.\n",errmat);
+    return -1;
+  }  
+  
+  //Get the material
+  pen_material& mat = context.getBaseMaterial(j);
+
+  //Configure the material
+  mat.C1=0.2;
+  mat.C2=0.2;
+  mat.WCC=1.0e3;
+  mat.WCR=1.0e3;
+
+  mat.EABS[PEN_ELECTRON] = 50.0E0;
+  mat.EABS[PEN_PHOTON]   = 50.0E0;
+  mat.EABS[PEN_POSITRON] = 50.0E0;
+
+  //Configure context
+  printf("  \n");
+  printf("Configuring context with material '%s'. Please, wait...\n",argv[1]);
+
+  FILE* fcontext = nullptr;
+  fcontext = fopen("context.rep","w");
+  if(fcontext == nullptr){
+    printf("Error: unable to create file 'context.rep'\n");
+    return -2;
+  }
+  
+  double EMAX=1.0E9;
+  int INFO = 2;
+  std::string PMFILEstr[constants::MAXMAT];
+  PMFILEstr[0].assign(argv[1]);
+  int err = context.init(EMAX,fcontext,INFO,PMFILEstr);
+  if(err != 0){
+    printf("Error: Unable to configure context. Check 'context.rep'.\n");
+    return -3;
+  }
+  fclose(fcontext);
 
   //Print ranges for for specified energies
   for(double E : energies){
@@ -105,9 +126,8 @@ int main(int argc, char** argv)
     grid.getInterval(E,KE,XEL,XE,XEK);
 
     for(size_t i = 0; i < constants::nParTypes; ++i)
-      printf("# range for particle %16s with %12.4E eV: %12.4E cm\n", particleName(i), E, exp(mat->RANGEL[i][KE] + (mat->RANGEL[i][KE+1]-mat->RANGEL[i][KE])*XEK));
+      printf("# range for particle %16s with %12.4E eV: %12.4E cm\n", particleName(i), E, context.range(E,static_cast<pen_KPAR>(i),0));
   }
   
-  delete mat;
   return 0;
 }
