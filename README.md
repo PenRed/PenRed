@@ -76,45 +76,6 @@ mpirun -np Nprocesses ./pen_main path/to/configuration/file
 
 where *Nprocesses* specify the number of MPI processes to use. Of course, the user can use any other options of the *mpirun* command, such us specify the hosts where execute the code via the *hostfile* option.
 
-### Use package managers
-
-PenRed can be installed via a *rpm* or *deb* package using the corresponding package managers. However, not all distributions are supported. For suppoerted distributions, these packages can be found at the repository 
-
-> https://github.com/PenRed/packages
-
-You can download a single package instead of the whole repository, using the curl comand. For example, to 
-download some of the available *rpm* files, use,
-
-```
-curl https://raw.githubusercontent.com/PenRed/packages/master/rpm/PenRed-XXXX.x86_64.rpm --output PenRed.rpm
-```
-
-where XXXX depends on the desired file to download. Finally, install the package using
-
-```
-sudo dnf install PenRed.rpm
-```
-
-or
-
-```
-sudo yum install PenRed.rpm
-```
-
-Once the installation has been finished, PenRed can be executed directly using,
-
-```
-penred path/to/configuration/file
-```
-
-Also, the PenRed version can be checked using,
-
-```
-penred -v
-```
-
-In addition, some utilities will be installed with the PenRed package. They are explained at the package repository.
-
 ## Docker containers
 
 Another method to run PenRed is using a docker container. We provide several docker images with different characteristics. The first one **vigial/penred-compiled** contains the whole github package and all the required dependencies to compile the source code, including the dcmtk library for DICOM suport. To download the image and execute the simulation, use the following command in the simulation folder,
