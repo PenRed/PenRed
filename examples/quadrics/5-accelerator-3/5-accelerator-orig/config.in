@@ -1,0 +1,200 @@
+
+#
+#
+#    Copyright (C) 2019 Universitat de València - UV
+#    Copyright (C) 2019 Universitat Politècnica de València - UPV
+#
+#    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
+#
+#    PenRed is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    PenRed is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with PenRed.  If not, see <https://www.gnu.org/licenses/>. 
+#
+#
+#    contact emails:
+#
+#        vicent.gimenez.alventosa@gmail.com
+#        vicente.gimenez@uv.es
+#    
+#
+
+#########################
+##  SOURCES           ###
+#########################
+
+#------------------------
+#  Source 1
+#########################
+
+sources/generic/source-psf/nhist 1.0e8
+sources/generic/source-psf/specific/type "PSF"
+sources/generic/source-psf/specific/filename "../../5-accelerator-1/psf-merged.dat"
+sources/generic/source-psf/specific/Emax 7e6
+
+
+sources/generic/source-psf/specific/wght-window [5e-4, 1e-3]
+sources/generic/source-psf/specific/nsplit 10
+
+sources/generic/source-psf/specific/npartitions 5
+
+#########################
+##  TALLIES           ###
+#########################
+
+tallies/secondary/type "SECONDARY_GEN"
+
+tallies/matEDep/type "EDEP_MAT"
+tallies/matEDep/nmat 4
+
+tallies/bodyEDep/type "EDEP_BODY"
+tallies/bodyEDep/nBody 14
+
+#tallies/track/type "TRACK"
+#tallies/track/nhists 25 
+
+tallies/ImpactDetector1/type "IMPACT_DET"
+tallies/ImpactDetector1/detector 1
+tallies/ImpactDetector1/emin 0.0
+tallies/ImpactDetector1/emax 7.0e6
+tallies/ImpactDetector1/nbin-energy 120
+tallies/ImpactDetector1/spectrum true
+tallies/ImpactDetector1/fluence true
+tallies/ImpactDetector1/linearScale-spc true
+
+
+tallies/ImpactDetector2/type "IMPACT_DET"
+tallies/ImpactDetector2/detector 2
+tallies/ImpactDetector2/emin 0.0
+tallies/ImpactDetector2/emax 7.0e6
+tallies/ImpactDetector2/nbin-energy 120
+tallies/ImpactDetector2/spectrum true
+tallies/ImpactDetector2/fluence true
+tallies/ImpactDetector2/linearScale-spc true
+
+
+
+tallies/ImpactDetector3/type "IMPACT_DET"
+tallies/ImpactDetector3/detector 3
+tallies/ImpactDetector3/emin 0.0
+tallies/ImpactDetector3/emax 7.0e6
+tallies/ImpactDetector3/nbin-energy 120
+tallies/ImpactDetector3/spectrum true
+tallies/ImpactDetector3/fluence true
+tallies/ImpactDetector3/linearScale-spc true
+
+
+
+#########################
+#  VARIANCE REDUCTION   #
+#########################
+
+VR/IForcing/bodies/VR1/body "4"
+VR/IForcing/bodies/VR1/particle "gamma"
+VR/IForcing/bodies/VR1/interaction 1
+VR/IForcing/bodies/VR1/factor 50.0
+VR/IForcing/bodies/VR1/min-weight 0.01
+VR/IForcing/bodies/VR1/max-weight 5.0
+
+
+VR/IForcing/bodies/VR2/body "4"
+VR/IForcing/bodies/VR2/particle "gamma"
+VR/IForcing/bodies/VR2/interaction 2
+VR/IForcing/bodies/VR2/factor 50.0
+VR/IForcing/bodies/VR2/min-weight 0.01
+VR/IForcing/bodies/VR2/max-weight 5.0
+
+
+#########################
+#  GEOMETRY PARAMETERS  #
+#########################
+
+geometry/type "PEN_QUADRIC"
+geometry/input-file "accel.geo"
+geometry/processed-geo-file "report.geo"
+
+geometry/kdet/1  1
+geometry/kdet/6  2
+geometry/kdet/13  3
+
+
+#########################
+#       MATERIALS       #
+#########################
+
+materials/wol/number 1
+
+materials/wol/eabs_e- 1.0e5
+materials/wol/eabs_gamma 1.0e4
+materials/wol/eabs_e+ 1.0e5
+
+materials/wol/C1 0.1
+materials/wol/C2 0.1
+
+materials/wol/WCC 2.0e3 
+materials/wol/WCR 2.0e3
+
+materials/wol/filename "W.mat"
+
+
+materials/wol1/number 2
+
+materials/wol1/eabs_e- 1.0e5
+materials/wol1/eabs_gamma 1.0e4
+materials/wol1/eabs_e+ 1.0e5
+
+materials/wol1/C1 0.2
+materials/wol1/C2 0.2
+
+materials/wol1/WCC 2.0e3 
+materials/wol1/WCR 2.0e3
+
+materials/wol1/filename "W.mat"
+
+
+
+materials/air/number 3
+
+materials/air/eabs_e- 1.0e5
+materials/air/eabs_gamma 1.0e4
+materials/air/eabs_e+ 1.0e5
+
+materials/air/C1 0.2
+materials/air/C2 0.2
+
+materials/air/WCC 2.0e3 
+materials/air/WCR 2.0e3
+
+materials/air/filename "Air.mat"
+
+materials/water/number 4
+
+materials/water/eabs_e- 1.0e5
+materials/water/eabs_gamma 1.0e4
+materials/water/eabs_e+ 1.0e5
+
+materials/water/C1 0.2
+materials/water/C2 0.2
+
+materials/water/WCC 2.0e3 
+materials/water/WCR 2.0e3
+
+materials/water/filename "H2O.mat"
+
+
+
+
+#########################
+# SIMULATION PARAMETERS #
+#########################
+
+simulation/threads 5
+simulation/dump-interval 3600

@@ -1,0 +1,9 @@
+#------------------------------------------------------------
+# PenRed: Material energy deposition
+# Units are eV per history
+#
+# Material : Energy (eV/hist) : +-2sigma
+      1        1.24345E+04       5.3E+01
+      2        7.18712E+04       1.4E+02
+      3        6.98722E+04       1.4E+02
+      4        2.11745E+03       8.2E+00

@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### To add
 - CT based source
 - CT detector tally
-- PSF shift and rotation
+
+
+## [1.2.3] -
+
+### Added
+- Enable PSF translations and rotations
+- PSF translation and rotation example (quadrics/5-accelerator-3)
+- Utility to convert the IAEA PSF format to PenRed PSF format
+- Utility to convert the PenRed PSF format to IAEA PSF format
 
 ## [1.2.2b] - 2021-04-08
 
