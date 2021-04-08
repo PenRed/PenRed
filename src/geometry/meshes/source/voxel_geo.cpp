@@ -110,7 +110,7 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
   //////////////////////////
   double auxd;
   if(config.read("voxel-size/dx",auxd) == INTDATA_SUCCESS){
-    if(auxd != dx){
+    if(fabs((auxd-dx)/dx) > 1.0E-6){
       if(verbose > 0){
 	printf("pen_voxelGeo:configure:Error: Read value 'voxe-size/dx' mismatch with data stored in %s.\n",filename.c_str());
 	printf("                       %12.4E != %12.4E\n",auxd,dx);
@@ -122,7 +122,7 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
   }
 
   if(config.read("voxel-size/dy",auxd) == INTDATA_SUCCESS){
-    if(auxd != dy){
+    if(fabs((auxd-dy)/dy) > 1.0E-6){
       if(verbose > 0){
 	printf("pen_voxelGeo:configure:Error: Read value 'voxe-size/dy' mismatch with data stored in %s.\n",filename.c_str());
 	printf("                       %12.4E != %12.4E\n",auxd,dy);
@@ -134,7 +134,7 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
   }
   
   if(config.read("voxel-size/dz",auxd) == INTDATA_SUCCESS){
-    if(auxd != dz){
+    if(fabs((auxd-dz)/dz) > 1.0E-6){
       if(verbose > 0){
 	printf("pen_voxelGeo:configure:Error: Read value 'voxe-size/dz' mismatch with data stored in %s.\n",filename.c_str());
 	printf("                       %12.4E != %12.4E\n",auxd,dz);
