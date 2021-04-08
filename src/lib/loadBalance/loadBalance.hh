@@ -1065,10 +1065,12 @@ namespace LB{
       // **************************** MPI ********************************* //
 
       //Skip iterations locally
-      if(nIter > 0 && iterations > nIter)
-	setIterations(iterations-nIter);
-      else
-	setIterations(0);
+      if(nIter > 0){
+	if(iterations > nIter)
+	  setIterations(iterations-nIter);
+	else
+	  setIterations(0);
+      }
 #endif
     }
 

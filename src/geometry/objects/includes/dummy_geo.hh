@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -40,7 +40,22 @@ class pen_dummyGeo : public abc_geometry<pen_baseBody>{
     configStatus = 0;
   }
   
-  int configure(const pen_parserSection& /*config*/, unsigned /*verbose*/){
+  int configure(const pen_parserSection& /*config*/, unsigned verbose){
+    NBODYS = 1; //The geometry consists of a single body
+    bodies[0].MATER = 1; //of material 1
+    bodies[0].DSMAX = 1.0e35; //with infinite eabs
+
+    if(verbose > 1){
+      printf("Dummy body:\n");
+      printf("  Material: %d\n",bodies[0].MATER);
+      printf("  DSMAX   : %E\n",bodies[0].DSMAX);
+      printf("  KDET    : %d\n",bodies[0].KDET);
+      printf("  EABS    :\n");
+      for(unsigned k = 0; k < constants::nParTypes; k++)
+	printf("  %20.20s: %14.5E\n",particleName(k),bodies[0].localEABS[k]);
+
+    }
+    
     return 0;
   }
   void locate(pen_particleState&) const;

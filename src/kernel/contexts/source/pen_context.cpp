@@ -203,10 +203,6 @@ int pen_context::init(double EMAX, FILE *IWR, int INFO, std::string PMFILE[const
       fprintf(IWR, "      C1 =%11.4E,       C2 =%11.4E\n     WCC =%11.4E eV,   WCR =%11.4E eV\n\n",
 	      mat.C1, mat.C2, mat.WCC, (mat.WCR>10.0 ? mat.WCR:10.0));
 
-      if(mat.EABS[PEN_ELECTRON] < mat.EABS[PEN_PHOTON]){ mat.ECUTR = mat.EABS[PEN_ELECTRON];}
-      else{ mat.ECUTR = mat.EABS[PEN_PHOTON];}
-      if(mat.ECUTR < mat.WCC){mat.ECUTR = mat.WCC;}
-
       initStructs initStore;
       mat.load(IRD,IWR,initStore,elements,grid,INFO);
       fclose(IRD);

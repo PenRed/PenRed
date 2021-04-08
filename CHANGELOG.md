@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CT detector tally
 - PSF shift and rotation
 
+## [1.2.2b] - 2021-04-08
+
+### Fix
+- Bug: Errenoeus calculation of the ECUTR variable when WCC is greater than minimum EABS
+- Bug: Erroneous history skipping at dump resume when no specific samplers have been created
+
+### Added
+- Soft energy deposition corrections in mutren utility
+
 ## [1.2.2] - 2021-03-28
 
 ### Fix

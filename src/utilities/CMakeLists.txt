@@ -100,7 +100,7 @@ if(MAT_RANGE)
     add_executable(range ${PROJECT_SOURCE_DIR}/utilities/penMats/range.cpp)
 
     #target libs
-    target_link_libraries(range pen_materials)
+    target_link_libraries(range pen_particles)
 
     # Install readMat executable
     install(

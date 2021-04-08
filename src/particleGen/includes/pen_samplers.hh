@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2020 Universitat de València - UV
-//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -1291,18 +1291,24 @@ public:
     skip(dhists);
   }
 
-  void skip(const std::vector<unsigned long long> dhists){
+  void skip(const std::vector<unsigned long long>& dhists){
 
-    const size_t nthreads = specificSamplerVect.size();
-    if(dhists.size() < nthreads)
-      return;
-    unsigned long long totalHists = 0.0;
-    for(size_t ithread = 0; ithread < nthreads; ++ithread){
-      totalHists += dhists[ithread];
-      if(useSpecific){
+    unsigned long long totalHists = 0;
+    if(useSpecific){
+      const size_t nthreads = specificSamplerVect.size();
+      if(dhists.size() < nthreads)
+	return;
+      
+      for(size_t ithread = 0; ithread < nthreads; ++ithread){
+	totalHists += dhists[ithread];
 	specificSamplerVect[ithread]->skip(dhists[ithread]);
       }
     }
+    else{
+      for(const unsigned long long ntoSkip : dhists)
+	totalHists += ntoSkip;
+    }
+    
     skip(totalHists);
   }
   
@@ -1333,12 +1339,13 @@ public:
       return;
     }
 
-    //Check if specific sapling has been enabled
+    //Check if specific sampling has been enabled
     if(!specificSpecified){
       if(verbose > 1){
 	printf("Section 'specific' not found. No specific sampler will be used\n");
       }
       useGeneric = true;
+      useSpecific = false;
       configStatus = 0;
       return;
     }

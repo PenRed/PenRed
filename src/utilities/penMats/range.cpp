@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -32,8 +32,7 @@
 #include <cstring>
 #include <vector>
 #include <algorithm>
-#include "pen_materials.hh"
-
+#include "PenRed.hh"
 
 int main(int argc, char** argv)
 {
@@ -83,7 +82,7 @@ int main(int argc, char** argv)
   }  
   
   //Get the material
-  pen_material& mat = context.getBaseMaterial(j);
+  pen_material& mat = context.getBaseMaterial(0);
 
   //Configure the material
   mat.C1=0.2;
@@ -123,7 +122,7 @@ int main(int argc, char** argv)
     //Get energy interval
     int KE;
     double XEL, XE, XEK;
-    grid.getInterval(E,KE,XEL,XE,XEK);
+    context.grid.getInterval(E,KE,XEL,XE,XEK);
 
     for(size_t i = 0; i < constants::nParTypes; ++i)
       printf("# range for particle %16s with %12.4E eV: %12.4E cm\n", particleName(i), E, context.range(E,static_cast<pen_KPAR>(i),0));
