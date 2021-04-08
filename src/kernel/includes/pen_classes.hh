@@ -372,6 +372,9 @@ public:
   inline void setLastPos(const double X, const double Y, const double Z) {
     XL = X; YL = Y; ZL = Z;
   }
+  inline void saveLastPos(){
+    XL = state.X; YL = state.Y; ZL = state.Z;
+  }
   
   inline void jumpVolume(){
 

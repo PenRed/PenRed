@@ -29,18 +29,19 @@
 #include "PenRed.hh"
 #include "pen_geometries.hh"
 
-bool dumpResults(unsigned long long nhist,
-		 double EDPT, double EDPT2,
-		 double ETRT, double ETRT2,
-		 double RMU0, double E0, double TOL,
-		 long int TSEC, bool forceFinish,
+bool dumpResults(const unsigned long long nhist,
+		 const double EDPT, const double EDPT2,
+		 const double ETRT, const double ETRT2,
+		 const double RMU0, const double E0, const double TOL,
+		 const long int TSEC, const bool forceFinish,
 		 FILE* fout);
 
-void simulate(pen_context& context,
+void simulate(const pen_context& context,
 	      const double E0,
 	      const double dumpTime,
 	      const double simTime,
-	      const double tolerance,	      
+	      const double tolerance,
+	      int& seed1, int& seed2,
 	      FILE* fout);
 
 int main(int argc, const char** argv){
@@ -67,8 +68,16 @@ int main(int argc, const char** argv){
 
   const char* filenameSpectrum = argv[2];
 
+  //Get initial random seeds
+  int seed1, seed2;
+  rand0(5,seed1,seed2);
+  
   //Create a dummy geometry
   pen_dummyGeo geometry;
+
+  //Configure dummy geometry
+  pen_parserSection dummySection;
+  geometry.configure(dummySection,2);
   
   //Create elements data base
   pen_elementDataBase* elementsDB = new pen_elementDataBase;
@@ -193,7 +202,7 @@ int main(int argc, const char** argv){
     printf("#  EABS(ph)= %E eV\n",mat.EABS[PEN_PHOTON]);
     printf("#  EABS(po)= %E eV\n",mat.EABS[PEN_POSITRON]);
 
-    simulate(context,E0,dumpTime,simTime,tolerance,fout);
+    simulate(context,E0,dumpTime,simTime,tolerance,seed1,seed2,fout);
   }
 
   fclose(fspec);
@@ -203,11 +212,11 @@ int main(int argc, const char** argv){
   return 0;
 }
 
-bool dumpResults(unsigned long long nhist,
-		 double EDPT, double EDPT2,
-		 double ETRT, double /*ETRT2*/,
-		 double RMU0, double E0, double TOL,
-		 long int TSEC, bool forceFinish,
+bool dumpResults(const unsigned long long nhist,
+		 const double EDPT, const double EDPT2,
+		 const double ETRT, const double /*ETRT2*/,
+		 const double RMU0, const double E0, const double TOL,
+		 const long int TSEC, const bool forceFinish,
 		 FILE* fout){
   double FNT  = 1.0/static_cast<double>(nhist);
   double F    = ETRT*FNT;
@@ -230,20 +239,21 @@ bool dumpResults(unsigned long long nhist,
   return false;
 }
 
-void simulate(pen_context& context,
+void simulate(const pen_context& context,
 	      const double E0,
 	      const double dumpTime,
 	      const double simTime,
 	      const double tolerance,
+	      int& seed1, int& seed2,
 	      FILE* fout){
 
   //Declare random generator
   pen_rand random;
   //Initialize random
-  random.rand0(5);
+  random.setSeeds(seed1,seed2);
 
   //Get material
-  pen_material& mat = context.getBaseMaterial(0);
+  const pen_material& mat = context.readBaseMaterial(0);
   
   unsigned long long ntot = 1000000000;
 
@@ -260,21 +270,26 @@ void simulate(pen_context& context,
   double RMU0 = 1.0/context.range(E0,PEN_PHOTON,0);
   RMU0 = RMU0/mat.RHO;
 
+  printf("# Initial seeds: %d %d\n",seed1,seed2);
   printf("#  mu/rho= %E cm^2/g\n\n",RMU0);
   printf("#       N        mu_en/rho     (1-g)*f         f       unc.(%%)     T(s)\n");
 
   //Create a common initial history state
   pen_state_gPol genState;
   genState.E = E0;
+  genState.WGHT = 1.0;
   genState.MAT = 1;
-  genState.IBODY = 1;
+  genState.IBODY = 0;
   genState.ILB[0] = 1;
   genState.ILB[1] = 0;
   genState.ILB[2] = 0;
   genState.ILB[3] = 0;
   genState.ILB[4] = 0;
-  
-  double DSMAX = 1.0e35;
+  genState.U = 0.0;
+  genState.V = 0.0;
+  genState.W = 1.0;
+
+  double DSMAX = 1.0e20;
 
   double EDPT = 0.0;
   double ETRT = 0.0;
@@ -292,6 +307,7 @@ void simulate(pen_context& context,
   //Get start time
   const auto tstart = std::chrono::steady_clock::now();
 
+  bool breaked = false;
   for(unsigned long long nhist = 1; nhist <= ntot; ++nhist){
 
     //Clear stacks
@@ -345,10 +361,13 @@ void simulate(pen_context& context,
 	  
 	  betaE.START();
 	  do{
-	    double ds, de;
+	    double ds, de, X, Y, Z;
 	    int icolDummy;
-	    betaE.JUMP(ds,random,DSMAX);
-	    betaE.KNOCK(de,icolDummy,random);	      
+	    betaE.JUMP(ds,random,DSMAX);  //Call Jump
+	    betaE.move(ds,de,X,Y,Z,random); //Move tha particle due soft interactions
+	    if(betaE.readState().E < mat.EABS[PEN_ELECTRON])
+	      break;
+	    betaE.KNOCK(de,icolDummy,random);  //Call nock
 	  }while(betaE.readState().E >= mat.EABS[PEN_ELECTRON]);
 	}
       }
@@ -364,10 +383,13 @@ void simulate(pen_context& context,
 
 	  betaP.START();
 	  do{
-	    double ds, de;
+	    double ds, de, X, Y, Z;
 	    int icolDummy;
-	    betaP.JUMP(ds,random,DSMAX);
-	    betaP.KNOCK(de,icolDummy,random);	      
+	    betaP.JUMP(ds,random,DSMAX);  //Call Jump
+	    betaP.move(ds,de,X,Y,Z,random); //Move tha particle due soft interactions
+	    if(betaP.readState().E < mat.EABS[PEN_POSITRON])
+	      break;
+	    betaP.KNOCK(de,icolDummy,random);  //Call nock
 	  }while(betaP.readState().E >= mat.EABS[PEN_POSITRON]);
 	}
       }
@@ -376,7 +398,7 @@ void simulate(pen_context& context,
     //Add history results to global counters
     EDPT += EDP;  EDPT2 += EDP*EDP;
     ETRT += ETR;  ETRT2 += ETR*ETR;
-
+    
     //Get actual time
     const auto tnow = std::chrono::steady_clock::now();
     //Check if is time to dump
@@ -388,6 +410,7 @@ void simulate(pen_context& context,
       if(dumpResults(nhist,EDPT,EDPT2,ETRT,ETRT2,
 		     RMU0,E0,tolerance,elaps,false,fout)){
 	//Finish this point
+	breaked = true;
 	break;
       }
       dumpWatch.start();
@@ -401,9 +424,23 @@ void simulate(pen_context& context,
       if(dumpResults(nhist,EDPT,EDPT2,ETRT,ETRT2,
 		     RMU0,E0,tolerance,elaps,true,fout)){
 	//Finish this point
+	breaked = true;
 	break;
       }
     }
       
-  }  
+  }
+
+  if(!breaked){
+    //Number of histories reached, report results
+    //Get actual time
+    const auto tnow = std::chrono::steady_clock::now();
+    //Time to finish
+    long int elaps =
+      std::chrono::duration_cast<std::chrono::seconds>(tnow-tstart).count();
+    dumpResults(ntot,EDPT,EDPT2,ETRT,ETRT2,
+		RMU0,E0,tolerance,elaps,true,fout);
+  }
+
+  random.getSeeds(seed1,seed2);
 }

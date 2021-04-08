@@ -101,6 +101,7 @@ void pen_material::load(FILE* IRD,
   // Calculate ECUTR
   if(EABS[PEN_ELECTRON] < EABS[PEN_PHOTON]){ ECUTR = EABS[PEN_ELECTRON];}
   else{ ECUTR = EABS[PEN_PHOTON];}  
+  if(ECUTR < WCC){ECUTR = WCC;}
   
   strcpy(LNAME, " PENELOPE (v. 2018)  Material data file ...............");
   fscanf(IRD,"%55c%*[^\n]",NAME);
