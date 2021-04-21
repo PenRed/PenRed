@@ -55,6 +55,10 @@ CMAKE_DEPENDENT_OPTION(PSF_SPECTRE "Compile PSF spectrum generator" ON
                        "BUILD_UTILITIES" OFF)
 CMAKE_DEPENDENT_OPTION(PSF_2_ASCII "Compile PSF to ASCII conversor" ON
                        "BUILD_UTILITIES" OFF)
+CMAKE_DEPENDENT_OPTION(IAEA_2_PENRED "Compile IAEA to PENRED conversor" OFF
+                       "BUILD_UTILITIES" OFF)
+CMAKE_DEPENDENT_OPTION(PENRED_2_IAEA "Compile PENRED to IAEA conversor" OFF
+                       "BUILD_UTILITIES" OFF)
 CMAKE_DEPENDENT_OPTION(GEO_2_VOXEL "Compile conversor to voxelized geometry" ON
                        "BUILD_UTILITIES" OFF)
 CMAKE_DEPENDENT_OPTION(LB_SERVER "Compile RUPER_LB basic server program" ON
@@ -251,6 +255,52 @@ if(PSF_2_ASCII)
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/psf
     )
 endif(PSF_2_ASCII)
+#-----------------------------------------------------------------------------
+#  IAEA 2 PENRED PSF FORMAT
+#############################
+
+if(IAEA_2_PENRED)
+    # Create IAEA2PENRED executable
+    add_executable(iaea2PenRed ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/iaea2PenRed.cpp)
+    target_include_directories(iaea2PenRed PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf)
+    target_sources(iaea2PenRed PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/iaea_phsp.cpp
+    PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/iaea_header.cpp
+    PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/iaea_record.cpp
+    PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/utilities.cpp)
+
+    #target libs
+    target_link_libraries(iaea2PenRed pen_psf)
+
+
+    # Install registered executable
+    install(
+        TARGETS iaea2PenRed
+        DESTINATION ${PROJECT_SOURCE_DIR}/compiled/iaeaPsf
+    )
+endif(IAEA_2_PENRED)
+#-----------------------------------------------------------------------------
+#  PENRED 2 IAEA PSF FORMAT
+#############################
+
+if(PENRED_2_IAEA)
+    # Create PENRED2IAEA executable
+    add_executable(penRed2iaea ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/penRed2iaea.cpp)
+    target_include_directories(penRed2iaea PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf)
+    target_sources(penRed2iaea PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/iaea_phsp.cpp
+    PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/iaea_header.cpp
+    PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/iaea_record.cpp
+    PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/utilities.cpp)
+
+    #target libs
+    target_link_libraries(penRed2iaea pen_psf)
+
+
+    # Install registered executable
+    install(
+        TARGETS penRed2iaea
+        DESTINATION ${PROJECT_SOURCE_DIR}/compiled/iaeaPsf
+    )
+endif(PENRED_2_IAEA)
 #-----------------------------------------------------------------------------
 #  geo to voxel
 #############################
