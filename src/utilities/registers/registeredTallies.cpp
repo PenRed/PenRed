@@ -27,7 +27,7 @@
 //
 
 
-#include "pen_tallies.cpp"
+#include "pen_tallies.hh"
 
 
 int main(){

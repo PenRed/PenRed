@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019-2020 Universitat de València - UV
-#    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2021 Universitat de València - UV
+#    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -46,6 +46,18 @@ endif(WITH_MPI)
 # Source Classes lib 
 #############################
 add_library(samplers STATIC ${PROJECT_SOURCE_DIR}/particleGen/source/pen_samplers.cpp)
+
+#In some compilers the string instantiator method causes the source files to be 
+#detected as unused code. Therefore, the code is not included and during the execution 
+#the instantiator fails. Linking the library as:
+#
+# target_link_libraries(executable -Wl,--whole-archive samplers -Wl,--no-whole-archive)
+#
+# instead of:
+#
+# target_link_libraries(executable samplers)
+#
+# will solve this problem.
 
 target_include_directories(samplers PUBLIC ${PROJECT_SOURCE_DIR}/particleGen/includes)
 target_include_directories(samplers PUBLIC ${PROJECT_SOURCE_DIR}/particleGen/source)

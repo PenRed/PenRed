@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019 Universitat de València - UV
-#    Copyright (C) 2019 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2021 Universitat de València - UV
+#    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -36,6 +36,18 @@
 
 # Create geo lib
 add_library(pen_geos STATIC ${PROJECT_SOURCE_DIR}/geometry/source/pen_geometries.cpp)
+
+#In some compilers the string instantiator method causes the source files to be 
+#detected as unused code. Therefore, the code is not included and during the execution 
+#the instantiator fails. Linking the library as:
+#
+# target_link_libraries(executable -Wl,--whole-archive pen_geos -Wl,--no-whole-archive)
+#
+# instead of:
+#
+# target_link_libraries(executable pen_geos)
+#
+# will solve this problem.
 
 target_include_directories(pen_geos PUBLIC ${PROJECT_SOURCE_DIR}/geometry/includes)
 target_include_directories(pen_geos PUBLIC ${PROJECT_SOURCE_DIR}/geometry/objects/includes)

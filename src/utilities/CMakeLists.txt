@@ -139,7 +139,7 @@ if(TALLIES_REGISTER)
     add_executable(regTallies ${PROJECT_SOURCE_DIR}/utilities/registers/registeredTallies.cpp)
 
     #target libs
-    target_link_libraries(regTallies tallies)
+    target_link_libraries(regTallies -Wl,--whole-archive tallies -Wl,--no-whole-archive)
 
     # Install registered tallies executable
     install(
@@ -152,11 +152,11 @@ endif(TALLIES_REGISTER)
 #############################
 
 if(SAMPLE_REGISTER)
-    # Create registered tallies executable
+    # Create registered samplers executable
     add_executable(regSamplers ${PROJECT_SOURCE_DIR}/utilities/registers/registeredSamplers.cpp)
 
     #target libs
-    target_link_libraries(regSamplers samplers)
+    target_link_libraries(regSamplers -Wl,--whole-archive samplers -Wl,--no-whole-archive)
 
     # Install registered samplers executable
     install(
@@ -169,11 +169,11 @@ endif(SAMPLE_REGISTER)
 #############################
 
 if(GEOMETRY_REGISTER)
-    # Create registered tallies executable
+    # Create registered geometries executable
     add_executable(regGeometries ${PROJECT_SOURCE_DIR}/utilities/registers/registeredGeometries.cpp)
 
     #target libs
-    target_link_libraries(regGeometries pen_geos)
+    target_link_libraries(regGeometries -Wl,--whole-archive pen_geos -Wl,--no-whole-archive)
 
 
     # Install registered geometries executable
@@ -188,13 +188,13 @@ endif(GEOMETRY_REGISTER)
 #############################
 
 if(PHOTON_VR_REGISTER)
-    # Create registered tallies executable
+    # Create registered VR executable
     add_executable(regPhotonVR ${PROJECT_SOURCE_DIR}/utilities/registers/registeredPhotonVR.cpp)
 
     #target libs
-    target_link_libraries(regPhotonVR pen_VR)
+    target_link_libraries(regPhotonVR -Wl,--whole-archive pen_VR -Wl,--no-whole-archive)
 
-    # Install registered tallies executable
+    # Install registered VR executable
     install(
     TARGETS regPhotonVR
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/registers
@@ -206,13 +206,13 @@ endif(PHOTON_VR_REGISTER)
 #############################
 
 if(GENERIC_VR_REGISTER)
-    # Create registered tallies executable
+    # Create registered VR executable
     add_executable(regGenericVR ${PROJECT_SOURCE_DIR}/utilities/registers/registeredGenericVR.cpp)
 
     #target libs
-    target_link_libraries(regGenericVR pen_VR)
+    target_link_libraries(regGenericVR -Wl,--whole-archive pen_VR -Wl,--no-whole-archive)
 
-    # Install registered tallies executable
+    # Install registered VR executable
     install(
     TARGETS regGenericVR
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/registers
@@ -306,14 +306,14 @@ endif(PENRED_2_IAEA)
 #############################
 
 if(GEO_2_VOXEL)
-    # Create registered tallies executable
+    # Create geometry to voxel executable
     add_executable(geo2voxel ${PROJECT_SOURCE_DIR}/utilities/geometry/geo2voxel.cpp)
 
     #target libs
     target_link_libraries(geo2voxel pen_geos)
 
 
-    # Install registered geometries executable
+    # Install geometry to voxel executable
     install(
     TARGETS geo2voxel
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/geometry/voxels

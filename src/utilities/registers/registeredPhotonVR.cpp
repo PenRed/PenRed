@@ -26,7 +26,7 @@
 //
 
 
-#include "pen_vr.cpp"
+#include "pen_vr.hh"
 
 
 int main(){
