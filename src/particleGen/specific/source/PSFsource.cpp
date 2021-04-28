@@ -102,6 +102,7 @@ void psf_specificSampler::sample(pen_particleState& state,
     unsigned long localDHist;
     if(psf.get(localDHist,kpar,state) == 0){
       //Phase space file is empty, refill the buffer
+        
 
       //Check for remaining chunks
       if(remainingChunks <= 0){
@@ -176,6 +177,24 @@ void psf_specificSampler::sample(pen_particleState& state,
       return;
     }
 
+    //Apply rotation to each particle state
+    if (rotation){
+        double pos[3] = {state.X,state.Y,state.Z};
+        double dir[3] = {state.U,state.V,state.W};
+        matmul3D(particleRot,pos);
+        matmul3D(particleRot,dir);
+        state.X=pos[0];
+        state.Y=pos[1];
+        state.Z=pos[2];
+        state.U=dir[0];
+        state.V=dir[1];
+        state.W=dir[2];
+    }
+        
+    state.X += dx;
+    state.Y += dy;
+    state.Z += dz;
+        
     //Add history increment
     sumDHist += localDHist;
 
@@ -196,17 +215,23 @@ void psf_specificSampler::sample(pen_particleState& state,
     }
     else if(state.WGHT > WGHTU){
       // Splitting
-      
       //Update dhist
       dhist = sumDHist;
 
       //Calculate number of required splits
-      requiredSplits = std::min(MAXsplit,unsigned(state.WGHT*RWGHTL));
+      double auxSplits = state.WGHT*RWGHTL;
+      if(auxSplits >= static_cast<double>(MAXsplit)){
+          requiredSplits = MAXsplit;
+      }
+      else{
+          requiredSplits = static_cast<unsigned>(auxSplits);
+      }
+
       requiredSplits = std::min(NSPLIT,requiredSplits);
+
       
       //If required, store current state for future copies 
       if(requiredSplits > 1){
-
 	//Store kpar
 	lastKpar = genKpar;
 	
@@ -422,10 +447,8 @@ int psf_specificSampler::configure(double& Emax,
 
   if(nChunks*psf.memory() != fsize){
     if(verbose > 0){
-      printf("psfSource:configure: Error: PSF corrupted or incompatible with current version of 'phase space file' library.\n");    
+      printf("psfSource:configure: Warning: PSF corrupted or incompatible with current version of 'phase space file' library.\n");    
     }
-    nChunks = 0;
-    return -14;
   }
 
   if(nChunks < (unsigned)npartitions){
@@ -439,6 +462,102 @@ int psf_specificSampler::configure(double& Emax,
   chunksPerPart = nChunks/npartitions;
   offsetChunks = nChunks - chunksPerPart*npartitions;
     
+  if(config.isSection(std::string("rotation"))){
+      
+    //Read rotation Euler angles 
+    double omega, theta, phi;
+    err = config.read("rotation/omega", omega);
+    if(err != INTDATA_SUCCESS){
+        if(verbose > 0){
+            printf("psfSource:configure: Error: Unable to read 'omega' Euler angle\n");
+        }
+        return -14;
+    }
+  
+    err = config.read("rotation/theta", theta);
+    if(err != INTDATA_SUCCESS){
+        if(verbose > 0){
+            printf("psfSource:configure: Error: Unable to read 'theta' Euler angle\n");
+        }
+        return -15;
+    }
+  
+    err = config.read("rotation/phi", phi);
+    if(err != INTDATA_SUCCESS){
+        if(verbose > 0){
+            printf("psfSource:configure: Error: Unable to read 'phi' Euler angle\n");
+        }
+        return -16;
+    }
+  
+    //Change to rad
+    omega*=M_PI/180.0;
+    theta*=M_PI/180.0;
+    phi*=M_PI/180.0;  
+  
+    if(omega != 0.0 || theta != 0.0 || phi != 0.0){
+        rotation = true;
+        if(verbose > 1){
+            printf("Psf rotation has been applied with Euler angles values:\n"
+                    "omega = %15.5E\n"
+                    "theta = %15.5E\n"
+                    "phi   = %15.5E\n", omega*180.0/M_PI, theta*180.0/M_PI, phi*180.0/M_PI);
+        }
+        //Create particle rotation matrix
+        createRotationZYZ(omega,theta,phi,particleRot);
+  }
+}else{
+    rotation=false;
+    if(verbose > 1){
+            printf("No psf rotation has been applied.\n");
+    }
+}
+
+    
+if(config.isSection(std::string("translation"))){
+  //Read translation 
+  err = config.read("translation/dx", dx);
+  if(err != INTDATA_SUCCESS){
+    if(verbose > 0){
+      printf("psfSource:configure: Error: Unable to read 'dx' translation in x axis\n");
+    }
+    return -17;
+  }
+  
+  err = config.read("translation/dy", dy);
+  if(err != INTDATA_SUCCESS){
+    if(verbose > 0){
+      printf("psfSource:configure: Error: Unable to read 'dy' translation in y axis\n");
+    }
+    return -18;
+  }
+  
+  err = config.read("translation/dz", dz);
+  if(err != INTDATA_SUCCESS){
+    if(verbose > 0){
+      printf("psfSource:configure: Error: Unable to read 'dz' translation in z axis\n");
+    }
+    return -19;
+  }
+  
+  if(verbose > 1){
+        printf("Psf translation has been applied:\n"
+                "dx = %15.5E\n"
+                "dy = %15.5E\n"
+                "dz = %15.5E\n", dx, dy, dz);
+  }
+    
+}else
+{
+    dx=0.0;
+    dy=0.0;
+    dz=0.0;
+    
+    if(verbose > 1){
+        printf("No psf translation has been applied.\n");
+    }
+}
+  
   if(verbose > 1){
     printf("Maximum psf energy (eV):\n");
     printf(" %14.5E\n",Emax);
@@ -488,7 +607,7 @@ int psf_specificSampler::configure(double& Emax,
 	printf("          Shared file seek error code: %d\n",err);
 	printf("                     fseek error code: %d\n",fseekErr);
       }
-      return -15;
+      return -20;
     }
   }
   

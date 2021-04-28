@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -29,14 +29,19 @@
 
 #include "dummy_geo.hh"
 
-void pen_dummyGeo::locate(pen_particleState& /*state*/) const{
+void pen_dummyGeo::locate(pen_particleState& state) const{
+  state.MAT = bodies[0].MATER;
+  state.IBODY = 0;  
 }
 
-void pen_dummyGeo::step(pen_particleState& /*state*/, double /*DS*/, double &DSEF, double &DSTOT, int &NCROSS) const{
+void pen_dummyGeo::step(pen_particleState& state, double DS, double &DSEF, double &DSTOT, int &NCROSS) const{
 
-  DSEF = 0.0;
-  DSTOT = 0.0;
+  DSEF = DS;
+  DSTOT = DS;
   NCROSS = 0;
+  state.X += DS*state.U;
+  state.Y += DS*state.V;
+  state.Z += DS*state.W;
 }
 
 REGISTER_GEOMETRY(pen_dummyGeo,DUMMY)

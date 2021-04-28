@@ -55,6 +55,10 @@ CMAKE_DEPENDENT_OPTION(PSF_SPECTRE "Compile PSF spectrum generator" ON
                        "BUILD_UTILITIES" OFF)
 CMAKE_DEPENDENT_OPTION(PSF_2_ASCII "Compile PSF to ASCII conversor" ON
                        "BUILD_UTILITIES" OFF)
+CMAKE_DEPENDENT_OPTION(IAEA_2_PENRED "Compile IAEA to PENRED conversor" OFF
+                       "BUILD_UTILITIES" OFF)
+CMAKE_DEPENDENT_OPTION(PENRED_2_IAEA "Compile PENRED to IAEA conversor" OFF
+                       "BUILD_UTILITIES" OFF)
 CMAKE_DEPENDENT_OPTION(GEO_2_VOXEL "Compile conversor to voxelized geometry" ON
                        "BUILD_UTILITIES" OFF)
 CMAKE_DEPENDENT_OPTION(LB_SERVER "Compile RUPER_LB basic server program" ON
@@ -100,7 +104,7 @@ if(MAT_RANGE)
     add_executable(range ${PROJECT_SOURCE_DIR}/utilities/penMats/range.cpp)
 
     #target libs
-    target_link_libraries(range pen_materials)
+    target_link_libraries(range pen_particles)
 
     # Install readMat executable
     install(
@@ -135,7 +139,7 @@ if(TALLIES_REGISTER)
     add_executable(regTallies ${PROJECT_SOURCE_DIR}/utilities/registers/registeredTallies.cpp)
 
     #target libs
-    target_link_libraries(regTallies tallies)
+    target_link_libraries(regTallies -Wl,--whole-archive tallies -Wl,--no-whole-archive)
 
     # Install registered tallies executable
     install(
@@ -148,11 +152,11 @@ endif(TALLIES_REGISTER)
 #############################
 
 if(SAMPLE_REGISTER)
-    # Create registered tallies executable
+    # Create registered samplers executable
     add_executable(regSamplers ${PROJECT_SOURCE_DIR}/utilities/registers/registeredSamplers.cpp)
 
     #target libs
-    target_link_libraries(regSamplers samplers)
+    target_link_libraries(regSamplers -Wl,--whole-archive samplers -Wl,--no-whole-archive)
 
     # Install registered samplers executable
     install(
@@ -165,11 +169,11 @@ endif(SAMPLE_REGISTER)
 #############################
 
 if(GEOMETRY_REGISTER)
-    # Create registered tallies executable
+    # Create registered geometries executable
     add_executable(regGeometries ${PROJECT_SOURCE_DIR}/utilities/registers/registeredGeometries.cpp)
 
     #target libs
-    target_link_libraries(regGeometries pen_geos)
+    target_link_libraries(regGeometries -Wl,--whole-archive pen_geos -Wl,--no-whole-archive)
 
 
     # Install registered geometries executable
@@ -184,13 +188,13 @@ endif(GEOMETRY_REGISTER)
 #############################
 
 if(PHOTON_VR_REGISTER)
-    # Create registered tallies executable
+    # Create registered VR executable
     add_executable(regPhotonVR ${PROJECT_SOURCE_DIR}/utilities/registers/registeredPhotonVR.cpp)
 
     #target libs
-    target_link_libraries(regPhotonVR pen_VR)
+    target_link_libraries(regPhotonVR -Wl,--whole-archive pen_VR -Wl,--no-whole-archive)
 
-    # Install registered tallies executable
+    # Install registered VR executable
     install(
     TARGETS regPhotonVR
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/registers
@@ -202,13 +206,13 @@ endif(PHOTON_VR_REGISTER)
 #############################
 
 if(GENERIC_VR_REGISTER)
-    # Create registered tallies executable
+    # Create registered VR executable
     add_executable(regGenericVR ${PROJECT_SOURCE_DIR}/utilities/registers/registeredGenericVR.cpp)
 
     #target libs
-    target_link_libraries(regGenericVR pen_VR)
+    target_link_libraries(regGenericVR -Wl,--whole-archive pen_VR -Wl,--no-whole-archive)
 
-    # Install registered tallies executable
+    # Install registered VR executable
     install(
     TARGETS regGenericVR
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/registers
@@ -252,18 +256,64 @@ if(PSF_2_ASCII)
     )
 endif(PSF_2_ASCII)
 #-----------------------------------------------------------------------------
+#  IAEA 2 PENRED PSF FORMAT
+#############################
+
+if(IAEA_2_PENRED)
+    # Create IAEA2PENRED executable
+    add_executable(iaea2PenRed ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/iaea2PenRed.cpp)
+    target_include_directories(iaea2PenRed PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf)
+    target_sources(iaea2PenRed PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/iaea_phsp.cpp
+    PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/iaea_header.cpp
+    PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/iaea_record.cpp
+    PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/utilities.cpp)
+
+    #target libs
+    target_link_libraries(iaea2PenRed pen_psf)
+
+
+    # Install registered executable
+    install(
+        TARGETS iaea2PenRed
+        DESTINATION ${PROJECT_SOURCE_DIR}/compiled/iaeaPsf
+    )
+endif(IAEA_2_PENRED)
+#-----------------------------------------------------------------------------
+#  PENRED 2 IAEA PSF FORMAT
+#############################
+
+if(PENRED_2_IAEA)
+    # Create PENRED2IAEA executable
+    add_executable(penRed2iaea ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/penRed2iaea.cpp)
+    target_include_directories(penRed2iaea PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf)
+    target_sources(penRed2iaea PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/iaea_phsp.cpp
+    PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/iaea_header.cpp
+    PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/iaea_record.cpp
+    PUBLIC ${PROJECT_SOURCE_DIR}/utilities/iaeaPsf/utilities.cpp)
+
+    #target libs
+    target_link_libraries(penRed2iaea pen_psf)
+
+
+    # Install registered executable
+    install(
+        TARGETS penRed2iaea
+        DESTINATION ${PROJECT_SOURCE_DIR}/compiled/iaeaPsf
+    )
+endif(PENRED_2_IAEA)
+#-----------------------------------------------------------------------------
 #  geo to voxel
 #############################
 
 if(GEO_2_VOXEL)
-    # Create registered tallies executable
+    # Create geometry to voxel executable
     add_executable(geo2voxel ${PROJECT_SOURCE_DIR}/utilities/geometry/geo2voxel.cpp)
 
     #target libs
     target_link_libraries(geo2voxel pen_geos)
 
 
-    # Install registered geometries executable
+    # Install geometry to voxel executable
     install(
     TARGETS geo2voxel
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/geometry/voxels

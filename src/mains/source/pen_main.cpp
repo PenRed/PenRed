@@ -243,7 +243,7 @@ void simulate(const unsigned ithread,
   //The function will report the number of simulated particles
   //every 10% of histories has been completed.
   const unsigned long long printInterval = std::max(nhists/10,1llu);
-  unsigned long long nextPrint = printInterval;
+  unsigned long long nextPrint = hist+printInterval;
   
   //Create particle stacks for electrons, positrons and gamma
   pen_particleStack<pen_particleState> stackE;
@@ -680,7 +680,7 @@ int main(int argc, char** argv){
   }
 	
   if(strcmp(argv[1],"--version") == 0 || strcmp(argv[1],"-v") == 0){
-    printf("PenRed 1.2.2\n");
+    printf("PenRed 1.2.3\n");
     printf("Copyright (c) 2019-2021 Universitat Politecnica de Valencia\n");
     printf("Copyright (c) 2019-2021 Universitat de Valencia\n");
     printf("This is free software; see the source for copying conditions. "
@@ -1354,16 +1354,18 @@ int main(int argc, char** argv){
 	return -10;
       }
 
-      if(dump2ascii){
+      if(verbose > 1){
 	//Report data in dump file and finish execution
 	printf(" *** Dump information of thread %u:\n\n",i);
 	printf("  Total simulated histories: %llu\n",simulated[i]);
 	printf("                 Last seeds: %9d %9d\n",seeds1[i],seeds2[i]);
 	printf("      Last completed source: %d\n",nextSource[i]);
-	printf(" Source histories simulated: %llu\n",currentSourceDone[i]);
-
-	// Save data of this thread
-	talliesVect[i].saveData(simulated[i]); //Save data with previous flush call
+	printf(" Source histories simulated: %llu\n",currentSourceDone[i]);	
+      }
+      
+      if(dump2ascii){
+	// Save the data of this thread
+	talliesVect[i].saveData(simulated[i]);
       }
 
       nextSource[i] += 1;
@@ -1389,6 +1391,7 @@ int main(int argc, char** argv){
 	  toSkip[ithread] = 0;
 	}
       }
+
       source.skip(toSkip);
       ++iSource;
     }
@@ -1400,7 +1403,7 @@ int main(int argc, char** argv){
 	if(nextSource[ithread] == iSource){
 	  toSkip[ithread] = currentSourceDone[ithread];
 	}else{
-	  toSkip[ithread] = 0.0;
+	  toSkip[ithread] = 0;
 	}
       }
       source.skip(toSkip);

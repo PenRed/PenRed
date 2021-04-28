@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019 Universitat de València - UV
-#    Copyright (C) 2019 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2021 Universitat de València - UV
+#    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -40,10 +40,10 @@ target_include_directories(pen_main PUBLIC ${PROJECT_SOURCE_DIR}/mains/includes)
 target_include_directories(pen_main PUBLIC ${PROJECT_SOURCE_DIR}/kernel/includes)
 
 target_link_libraries(pen_main pen_particles)
-target_link_libraries(pen_main pen_geos)
-target_link_libraries(pen_main samplers)
-target_link_libraries(pen_main tallies)
-target_link_libraries(pen_main pen_VR)
+target_link_libraries(pen_main -Wl,--whole-archive pen_geos -Wl,--no-whole-archive )
+target_link_libraries(pen_main -Wl,--whole-archive samplers -Wl,--no-whole-archive )
+target_link_libraries(pen_main -Wl,--whole-archive tallies -Wl,--no-whole-archive )
+target_link_libraries(pen_main -Wl,--whole-archive pen_VR -Wl,--no-whole-archive )
 target_link_libraries(pen_main pen_timer)
 
 

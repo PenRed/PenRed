@@ -27,7 +27,7 @@
 //
 
 
-#include "pen_samplers.cpp"
+#include "pen_samplers.hh"
 
 
 int main(){

@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019 Universitat de València - UV
-#    Copyright (C) 2019 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2021 Universitat de València - UV
+#    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -50,6 +50,18 @@ endif(WITH_MPI)
 # Source Classes lib 
 #############################
 add_library(tallies STATIC ${PROJECT_SOURCE_DIR}/tallies/source/pen_tallies.cpp)
+
+#In some compilers the string instantiator method causes the source files to be 
+#detected as unused code. Therefore, the code is not included and during the execution 
+#the instantiator fails. Linking the library as:
+#
+# target_link_libraries(executable -Wl,--whole-archive tallies -Wl,--no-whole-archive)
+#
+# instead of:
+#
+# target_link_libraries(executable tallies)
+#
+# will solve this problem.
 
 target_include_directories(tallies PUBLIC ${PROJECT_SOURCE_DIR}/kernel/states)
 target_include_directories(tallies PUBLIC ${PROJECT_SOURCE_DIR}/kernel/includes)

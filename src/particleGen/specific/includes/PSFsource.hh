@@ -35,6 +35,10 @@
 #include "pen_phaseSpaceFile.hh"
 #include "sharedFile.hh"
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 class psf_specificSampler : public abc_specificSampler<pen_particleState>{
   DECLARE_SAMPLER(psf_specificSampler)
   private:
@@ -64,7 +68,10 @@ class psf_specificSampler : public abc_specificSampler<pen_particleState>{
   unsigned requiredSplits;
   pen_KPAR lastKpar;
   pen_particleState splitState;
-
+  double particleRot[9];
+  double dx, dy, dz;
+  
+  bool rotation = false;
   bool VRR(double& WGHT, pen_rand& random) const ;
   
   public:
