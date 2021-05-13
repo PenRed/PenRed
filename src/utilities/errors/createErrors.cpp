@@ -29,6 +29,131 @@
 
 #include <cstdio>  //FILENAME_MAX
 #include <ctype.h>
+
+#if defined _MSC_VER
+//  Microsoft Visual C++
+#include <filesystem>   
+namespace fs = std::filesystem;
+
+#include <cstring>
+
+int main()
+{
+	//Get actual dir
+	std::error_code ec;
+	const std::filesystem::path& dirpath = fs::current_path(ec);
+	if (ec.value() != 0)
+	{
+		printf("Error: Could not get actual dir path.\n");
+		return -2;
+	}
+
+	if ((fs::exists(dirpath)) == true)
+	{
+
+		//Open output files
+		FILE* fenum = 0;
+		fenum = fopen("eenum.h", "w");
+		FILE* fmess = 0;
+		fmess = fopen("emess.h", "w");
+
+		if (fenum == 0 || fmess == 0)
+		{
+			printf("Error: Could not open output files 'eenum.h' and 'emess.h'.\n");
+			return -3;
+		}
+
+		fprintf(fenum, "#ifndef __PEN_ERROR_ENUM__\n");
+		fprintf(fenum, "#define __PEN_ERROR_ENUM__\n");
+
+		fprintf(fenum, "enum pen_errCode{\n");
+		fprintf(fenum, "      PEN_SUCCESS = 0");
+
+		fprintf(fmess, "#ifndef __PEN_ERROR_MESS__\n");
+		fprintf(fmess, "#define __PEN_ERROR_MESS__\n");
+
+		fprintf(fmess, "const char* __pen_errorMessages[] = { \n");
+		fprintf(fmess, "              \"Success\"");
+
+
+		for (auto& strDir : fs::directory_iterator(dirpath))
+		{
+
+			//Skip hide files
+			if (strDir.path().filename().string()[0] == '.') {
+				printf("Skipping hide file: '%s'.\n", strDir.path().filename().string().c_str());
+				continue;
+			}
+			//Avoid files with no .err extension
+			if (strDir.path().extension().string() != ".err")
+			{
+				printf("Skipping non '.err' file: '%s'.\n", strDir.path().extension().string().c_str());
+				continue;
+			}
+
+			printf("Adding errors list from '%s'.\n", strDir.path().filename().string().c_str());
+			FILE* fin = 0;
+			fin = fopen(strDir.path().filename().string().c_str(), "r");
+			char line[30000];
+			while (fgets(line, sizeof(line), fin))
+			{
+				//Check for \n character
+				char* psn = strchr(line, '\n');
+				if (psn == NULL)
+				{
+					//discard remaining line
+					fscanf(fin, "%*[^\n]");
+					getc(fin);
+				}
+				else
+				{
+					//Remove \n char
+					*psn = '\0';
+				}
+
+				//get enum string
+				char* pline = line;
+				//skip whitespaces
+				while (isspace(*pline)) pline++;
+				char* penum = pline;
+				//Search next whitespace
+				while (!isspace(*pline)) pline++;
+				//Print enum string
+				*pline = '\0';
+				fprintf(fenum, ",\n");
+				fprintf(fenum, "      ERR_%s", penum);
+				*pline = ' ';
+				//skip whitespaces
+				while (isspace(*pline)) pline++;
+				//Print error descriptiom
+				fprintf(fmess, ",\n");
+				fprintf(fmess, "              \"%s\"", pline);
+			}
+
+		}
+
+		// Add extra element to enumeration to count number of errors
+		fprintf(fenum, ",\n");
+		fprintf(fenum, "      ERR_LAST___");
+
+		fprintf(fmess, ",\n");
+		fprintf(fmess, "              \"Last error.\"");
+
+		fprintf(fenum, "};\n");
+		fprintf(fmess, "};\n");
+		//closedir(dir);
+		fprintf(fenum, "#endif\n");
+		fprintf(fmess, "#endif\n");
+		return 0;
+	}
+	else
+	{
+		printf("Error: Colud not open directory '%s'\n", dirpath.string().c_str());
+		return -1;
+	}
+}
+
+#else
 #include <dirent.h>
 
 #ifdef _WIN32
@@ -155,3 +280,5 @@ int main()
       return -1;
     }
 }
+#endif
+
