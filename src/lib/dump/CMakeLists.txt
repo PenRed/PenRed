@@ -39,4 +39,7 @@ add_library(pen_dump STATIC ${PROJECT_SOURCE_DIR}/lib/dump/source/pen_dump.cpp)
 target_include_directories(pen_dump PUBLIC ${PROJECT_SOURCE_DIR}/lib/dump/includes)
 
 #Link math library
-target_link_libraries(pen_dump m)
+if (NOT MSVC)
+	target_link_libraries(pen_dump m)
+endif(NOT MSVC)
+
