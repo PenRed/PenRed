@@ -73,10 +73,6 @@ CMAKE_DEPENDENT_OPTION(MUTREN "Compile mutren" ON
 #       EXECUTABLES         #
 #############################
 
-#  Error list generator
-#############################
-add_executable(createErrors ${PROJECT_SOURCE_DIR}/utilities/errors/createErrors.cpp)  
-
 #-----------------------------------------------------------------------------
 #  Read material
 #############################
