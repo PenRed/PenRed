@@ -141,28 +141,12 @@ endif(WITH_HTTP)
 
 # Check platform
 if(UNIX)
-  add_definitions(-D_PEN_UNIX_=1) #enable DICOM
+  add_definitions(-D_PEN_UNIX_=1) #enable Unix
 elseif(WIN32)
   
 elseif(APPLE)
   
 endif(UNIX)
-
-# Generate error list
-add_custom_command(
-  OUTPUT
-  ${PROJECT_SOURCE_DIR}/config/errors/eenum.h
-  ${PROJECT_SOURCE_DIR}/config/errors/emess.h
-  DEPENDS ${CMAKE_BINARY_DIR}/utilities/createErrors
-  COMMAND ${CMAKE_BINARY_DIR}/utilities/createErrors
-  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/config/errors
-  )
-# Create target for error headers
-add_custom_target(
-  errorHeaders
-  DEPENDS ${PROJECT_SOURCE_DIR}/config/errors/eenum.h
-  DEPENDS ${PROJECT_SOURCE_DIR}/config/errors/emess.h  
-  )
   
 #-----------------------------------------------------------------------------
 #############################
