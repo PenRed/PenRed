@@ -30,8 +30,8 @@
 #include <cstdio>  //FILENAME_MAX
 #include <ctype.h>
 
-#if defined _MSC_VER
-//  Microsoft Visual C++
+#if defined(_MSC_VER) && _MSC_VER >= 1914 
+//  Microsoft Visual C++ 2017 15.7
 #include <filesystem>   
 namespace fs = std::filesystem;
 
