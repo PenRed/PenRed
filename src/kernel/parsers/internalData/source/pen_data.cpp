@@ -29,11 +29,13 @@
 
 #include "pen_data.hh"
 
+#if defined(_MSC_VER)
 #include <string>
 using std::stoi;
 using std::stod;
 #include <cctype>
 using std::isspace;
+#endif
 
 const char* pen_parserError(const int err){
   switch(err){
