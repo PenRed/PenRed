@@ -109,7 +109,7 @@ endif()
 
 if (MSVC) 
   # using Visual Studio C++
-  add_compile_options(/std:c++latest /std:c17 /arch:AVX2)
+  add_compile_options(/arch:AVX2)
   # Check if MPI option has been enabled
   if(WITH_MPI)
 	add_compile_options(/MP) #enable MPI
@@ -123,7 +123,7 @@ if (MSVC)
   
   # We need a stack size of 8MB (as it is default on linux)
   # See https://github.com/open62541/open62541/issues/1326
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8000000")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
 	
 endif(MSVC)
 
