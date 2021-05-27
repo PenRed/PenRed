@@ -73,16 +73,6 @@ CMAKE_DEPENDENT_OPTION(MUTREN "Compile mutren" ON
 #       EXECUTABLES         #
 #############################
 
-#  Error list generator
-#############################
-add_executable(createErrors ${PROJECT_SOURCE_DIR}/utilities/errors/createErrors.cpp)  
-set_target_properties(createErrors PROPERTIES
-	RUNTIME_OUTPUT_DIRECTORY_DEBUG $<1:${CMAKE_BINARY_DIR}/utilities>
-	RUNTIME_OUTPUT_DIRECTORY_RELEASE $<1:${CMAKE_BINARY_DIR}/utilities>
-	RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO $<1:${CMAKE_BINARY_DIR}/utilities>
-	RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL $<1:${CMAKE_BINARY_DIR}/utilities>
-)
-
 #-----------------------------------------------------------------------------
 #  Read material
 #############################
