@@ -29,6 +29,14 @@
 
 #include "pen_data.hh"
 
+#if defined(_MSC_VER)
+#include <string>
+using std::stoi;
+using std::stod;
+#include <cctype>
+using std::isspace;
+#endif
+
 const char* pen_parserError(const int err){
   switch(err){
   case INTDATA_SUCCESS: return "Success";break;
@@ -210,7 +218,77 @@ int pen_parserData::parse(const std::string& strIn){
   }
 
   //Check if is a number
-  
+#if 1
+  bool isInt = true;
+  bool isDoub = true;
+
+  char* end_i;
+  char* end_d;
+
+  int intVar = int(strtol(strIn.c_str(), &end_i, 0));
+  size_t int_str_rep_length = strlength - strlen(end_i);
+
+  if (intVar == 0)
+  {
+      if (int_str_rep_length == 0)
+      {
+          //Is not an integer
+          isInt == false;
+      }
+  }
+  else if (intVar == LONG_MIN || intVar == LONG_MAX)
+  {
+      //Is not an integer
+      isInt == false;
+  }
+  else
+  {
+      isInt == true;
+  }
+
+  double doubVar = strtod(strIn.c_str(), &end_d);
+  size_t double_str_rep_length = strlength - strlen(end_d);
+
+  if (doubVar == 0.0)
+  {
+      if (double_str_rep_length == 0)
+      {
+          //Is not a double
+          isDoub == false;
+      }
+  }
+  else if (doubVar == HUGE_VAL)
+  {
+      //Is not a double
+      isDoub == false;
+  }
+  else
+  {
+      isDoub == true;
+  }
+
+  if (!isDoub && !isInt) {
+      //Is a string
+      return INTDATA_PARSE_STRING_INVALID_DATA;
+  }
+
+  //Is a integer or a double, check read positions
+  if (int_str_rep_length == double_str_rep_length)
+  {
+      //Number not contain '.', 'e' etc, is a integer
+      *this = intVar;
+      if (int_str_rep_length < strlength)
+          return INTDATA_PARSE_STRING_PARTIAL_UNUSED;
+  }
+  else {
+      //Is a double
+      *this = doubVar;
+      if (double_str_rep_length < strlength)
+          return INTDATA_PARSE_STRING_PARTIAL_UNUSED;
+  }
+  return INTDATA_SUCCESS;
+#endif
+#if 0  
   bool isInt = true;
   bool isDoub = true;
   size_t posi = 0;
@@ -261,6 +339,7 @@ int pen_parserData::parse(const std::string& strIn){
       return INTDATA_PARSE_STRING_PARTIAL_UNUSED;
   }
   return INTDATA_SUCCESS;
+#endif
 }
 
 // pen_parserArray

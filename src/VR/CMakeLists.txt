@@ -52,6 +52,7 @@ add_library(pen_VR STATIC ${PROJECT_SOURCE_DIR}/VR/source/pen_vr.cpp)
 
 target_include_directories(pen_VR PUBLIC ${PROJECT_SOURCE_DIR}/kernel/states)
 target_include_directories(pen_VR PUBLIC ${PROJECT_SOURCE_DIR}/kernel/includes)
+
 target_include_directories(pen_VR PUBLIC ${PROJECT_SOURCE_DIR}/VR/includes)
 target_include_directories(pen_VR PUBLIC ${PROJECT_SOURCE_DIR}/VR/source)
 target_include_directories(pen_VR PUBLIC ${PROJECT_SOURCE_DIR}/lib/instantiator)
@@ -67,3 +68,4 @@ target_link_libraries(pen_VR pen_math)
 target_link_libraries(pen_VR pen_aux)
 target_link_libraries(pen_VR pen_internalData)
 target_link_libraries(pen_VR pen_grids)
+

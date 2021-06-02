@@ -39,4 +39,6 @@ add_library(pen_aux STATIC ${PROJECT_SOURCE_DIR}/lib/auxiliar/source/pen_auxilia
 target_include_directories(pen_aux PUBLIC ${PROJECT_SOURCE_DIR}/lib/auxiliar/includes)
 
 #Link math library
-target_link_libraries(pen_aux m)
+if (NOT MSVC) 
+	target_link_libraries(pen_aux m)
+endif(NOT MSVC)
