@@ -14,9 +14,9 @@ In addition, users can find a descriptive [academic article](https://arxiv.org/a
 
 ## Installation
 
-To install PenRed, the user has two options. Compile the code by itself or install it using a package manager.
+PenRed compilation has been tested in several Linux distributions with gcc 5 to 10 versions, clang and icc. However, the support on windows is not complete tested yet. For example, DICOM geometries have not been tested, but multithreading and MPI capabilities are expected to work. In addition, the compilation on windows has been tested only with the MSVS 2019 compiler.
 
-### Code compilation
+### Linux code compilation
 
 To install PenRed directly by the code compilation, download PenRed sources from this GitHub repository,
 
@@ -57,6 +57,42 @@ With *ccmake* you can configure the optional PenRed features with a more friendl
 ```
 cmake -DWITH_DICOM="ON" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DWITH_LB="OFF" -DDEVELOPMENT_WARNINGS="OFF" ../
 ```
+
+### Windows code compilation
+
+To compile the PenRed code using MSVS on windows, first, select "Clone a repository" from the Visual Studio start window.
+
+![newRepo](./img/MSVS/NewCloneRepo.png)
+
+Then, set the PenRed repository url and push on the clone button.
+
+![clone](./img/MSVS/ClonePenRed.png)
+
+The download will start automatically. Once the Cmake configuration ends, to avoid compiling with a debug profile, add a new configuration with the configuration manager.
+
+![newRepo](./img/MSVS/manageConfigurations.png)
+
+There, push the plus green button to add a new configuration and select the release depending on your system. In the following image, we selected a release for 64-bit system.
+
+![newRepo](./img/MSVS/addConfiguration.png)
+
+Then, we must select the new configuration and push on "Save and generate CMake cache to load variables" to be able to change the CMake variables for this configuration and compile it.
+
+![newRepo](./img/MSVS/selectConfiguration.png)
+
+Now, we can change all the Cmake configuration variables to enable or disable MPI support and other features.
+
+![newRepo](./img/MSVS/setCompileConfig.png)
+
+Finally, build and install PenRed,
+
+![newRepo](./img/MSVS/buildAndInstall.png)
+
+If the compilation finishes successfully, a new folder named *compiled* will be created inside the *src* folder with the main program and all the enabled utilities executables.
+
+![newRepo](./img/MSVS/compiled.png)
+
+### Usage
 
 Once the code has been compiled, the user can found the executable of our provided main program ready to simulate at,
 

@@ -35,6 +35,10 @@
 #include <vector>
 #include <exception>
 #include <stdexcept>
+#include <string>
+#include <cctype>
+#include <climits>
+#include <cmath>
 
 enum pen_parserErrors{INTDATA_SUCCESS = 0,
 		      INTDATA_FALSE = 0,
