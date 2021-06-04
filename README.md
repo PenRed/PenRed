@@ -72,11 +72,11 @@ The download will start automatically. Once the Cmake configuration ends, to avo
 
 ![newRepo](./img/MSVS/manageConfigurations.png)
 
-There, push the plus green button to add a new configuration and select the release depending on your system. In the following image, we selected a release for 64-bit system.
+In the configuration panel to the left, click on the button with the green *plus* sign to add a new configuration and select the release depending on your system. In the following image, we selected a release for 64-bit system.
 
 ![newRepo](./img/MSVS/addConfiguration.png)
 
-Then, we must select the new configuration and push on "Save and generate CMake cache to load variables" to be able to change the CMake variables for this configuration and compile it.
+Once you have selected the new configuration, and push on "Save and generate CMake cache to load variables" to be able to change the CMake variables for this configuration and compile it.
 
 ![newRepo](./img/MSVS/selectConfiguration.png)
 
@@ -88,7 +88,7 @@ Finally, build and install PenRed,
 
 ![newRepo](./img/MSVS/buildAndInstall.png)
 
-If the compilation finishes successfully, a new folder named *compiled* will be created inside the *src* folder with the main program and all the enabled utilities executables.
+If the compilation finishes successfully, a new folder named *compiled* will be created inside the *src* folder containing the PenRed's main program and the executables for all other enabled utilities.
 
 ![newRepo](./img/MSVS/compiled.png)
 
@@ -98,43 +98,30 @@ Once the code has been compiled, the user can found the executable of our provid
 
 > src/compiled/mains/pen_main
 
-To execute the program, the user needs a configuration file and, probably, the required data base files, such as material and geometry files. Their path should be specified at the configuration, remaining the configuration file path as the only program argument. So, to execute the program, the user must use 
+To execute the program, the user needs a configuration file and, probably, some required data base files, such as material and geometry files. Their path should be specified in the configuration, remaining the configuration file path as the only program argument. So, to execute the program, the user can use the following instruction in a Unix environment,
 
 ```
 ./pen_main path/to/configuration/file
 ```
 
-Otherwise, if the MPI capabilities have been enabled at the compilation, the code should be executed as any MPI program, for example,
+or with the inverted slashes (\) if is executed in Windows. On the other hand, if the MPI capabilities have been enabled at the compilation, the code should be executed as any MPI program, for example,
 
 ```
 mpirun -np Nprocesses ./pen_main path/to/configuration/file
 ```
 
-where *Nprocesses* specify the number of MPI processes to use. Of course, the user can use any other options of the *mpirun* command, such us specify the hosts where execute the code via the *hostfile* option.
+where *Nprocesses* specifies the number of MPI processes to use. Of course, the user may use any other options of the *mpirun* command, such as specifying the hosts where the code will be executed via the *hostfile* option.
 
 ## Docker containers
 
-Another method to run PenRed is using a docker container. We provide several docker images with different characteristics. The first one **vigial/penred-compiled** contains the whole github package and all the required dependencies to compile the source code, including the dcmtk library for DICOM suport. To download the image and execute the simulation, use the following command in the simulation folder,
+As the code grows, several compilation options are included in the *CMakeLists* files. Therefore, providing a prebuilded container for each possible parameter combination is no longer feasible.
+
+Nevertheless, to obtain a containerised version of PenRed, we provide three Dockerfiles in the folder *containers* to generate them. The first one, named *complete* includes all the packages to compile and run PenRed in the Fedora environment. For size optimised versions, we provide also two alpine based Dockerfiles, named *Alpine* and *Alpine-dicom*, which include only the necessary runtime libraries and the PenRed executable for executions without and with DICOM capabilities. However, notice that *Alpine* uses the *musl* library instead of the *glib*, which causes the multithreading PenRed capabilities to don't work properly. 
+
+Notice that each Dockerfile includes a set of predefined compilation options that should be modified by the user according to their needs. For example, if the container will be executed on different architectures, the user should disable the native architecture optimisation specifying the flag
 
 ```
-sudo docker run -v $PWD:/home/penred:z vigial/penred-compiled path/to/configuration/file
+-DWITH_NATIVE="OFF"
 ```
 
-For size optimized containers, we provide two Alpine based images with only the compiled executable and the runtime libraries. The first one has not DICOM support enabled and has a compressed size lesser than 5 MB. Can be downloaded using the instruction,
-
-```
-sudo docker push vigial/penred-alpine
-```
-
-The second one has DICOM support enabled and its compressed size is lesser than 20 MB. Can be downloaded using
-
-```
-sudo docker pull vigial/penred-alpine-dicom
-```
-
-To execute a simulation with that images, use the corresponding instruction on the simulation folder,
-
-```
-sudo docker run -v $PWD:/home:z vigial/penred-alpine path/to/configuration/file
-sudo docker run -v $PWD:/home:z vigial/penred-alpine-dicom path/to/configuration/file
-```
+A complete list of all available compilation options can be found in the documentation.
