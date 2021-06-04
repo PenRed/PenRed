@@ -51,6 +51,13 @@ int createMaterials(pen_context& context,
 		    std::string filenames[constants::MAXMAT],
 		    const pen_parserSection& config,
 		    const unsigned verbose);
+double AVNCOL(double E, pen_KPAR kpar, int icol, int imat, pen_context& context);
+double inverseMeanFreePath(double E, pen_KPAR kpar, int icol, 
+    int imat, pen_context& context);
+double meanNumberOfInteractions(double E, pen_KPAR kpar, int icol, 
+    int imat, pen_context& context, bool calc_piecewise);
+double interactionForcingFactor(double forcer, pen_KPAR kpar, int icol,
+    int imat, pen_context& context, bool calc_piecewise);
 
 int setVarianceReduction(pen_context& context,
 			 const wrapper_geometry& geometry,
@@ -2349,6 +2356,364 @@ int createMaterials(pen_context& context,
   return err;
 }
 
+double AVNCOL(double E, pen_KPAR kpar, int icol, int imat, pen_context& context)
+{
+    //Get material
+    pen_material& mat = context.getBaseMaterial(imat - 1);
+
+    double averageNumberOfInteractions = 0.0; // Value returned by the function
+
+    if (E < context.grid.EL || E > context.grid.EU)
+    {
+        return averageNumberOfInteractions;
+    }
+
+    double AUX[constants::NEGP];
+    
+    if (kpar == PEN_ELECTRON)
+    {
+        pen_betaE_interact icole = static_cast<pen_betaE_interact>(icol);
+
+        /*
+        Total stopping power
+        mat.TSTPE[I] = log(mat.CSTPE[I]+mat.RSTPE[I]);
+        where mat.CSTPE[I] and mat.RSTPE[I] are collision and radiation stopping power.
+        Average number of hard collisions between energy nodes of grid
+        grid.ET[i + 1] and grid.ET[i] is DS[i]/L[i], where DS[i] is electron
+        path length on which electron lost energy DE = grid.ET[i + 1] - grid.ET[i], and
+        L(Ei) is electron mean free path for given interaction.
+        DS[i] = (-1/dE/ds)*DE, wher -dE/ds is stopping power.
+                                                _
+                                                \
+        Total avarage number of interactions is /_((1/L(Ei)) / (-1/dE/ds)*DE
+                                                 i
+
+        */
+
+        if (icole == BETAe_HARD_ELASTIC)
+        {
+            for (int KE = 0; KE < constants::NEGP; ++KE)
+            {
+                AUX[KE] = exp(mat.SEHEL[KE] - mat.TSTPE[KE]);
+            }
+        }
+        else if (icole == BETAe_HARD_INELASTIC)
+        {
+            for (int KE = 0; KE < constants::NEGP; ++KE)
+            {
+                AUX[KE] = (exp(mat.SEHIN[KE]) + exp(mat.SEISI[KE]) - mat.TSTPE[KE]);
+            }
+        }
+        else if (icole == BETAe_HARD_BREMSSTRAHLUNG)
+        {
+            for (int KE = 0; KE < constants::NEGP; ++KE)
+            {
+                AUX[KE] = exp(mat.SEHBR[KE] - mat.TSTPE[KE]);
+            }
+        }
+        else if (icole == BETAe_HARD_INNER_SHELL)
+        {
+            for (int KE = 0; KE < constants::NEGP; ++KE)
+            {
+                AUX[KE] = exp(mat.SEISI[KE] - mat.TSTPE[KE]);
+            }
+        }
+        else if (icole == BETAe_HARD_TOTAL) // BETAe_HARD_TOTAL =  BETAe SOFT INTERACTION + 1 = 6
+        {
+            for (int KE = 0; KE < constants::NEGP; ++KE)
+            {
+                AUX[KE] = exp(mat.SETOT[KE] - mat.TSTPE[KE]);
+            }
+        }
+
+        averageNumberOfInteractions = RMOMX(context.grid.ET, AUX, context.grid.EL, E, constants::NEGP, 0);
+    }
+    else if (kpar == PEN_PHOTON)
+    {
+        pen_gamma_interact icolg = static_cast<pen_gamma_interact>(icol);
+
+        int KE;
+        double XEL, XE, XEK;
+        context.grid.getInterval(E, KE, XEL, XE, XEK);
+        if (KE >= static_cast<int>(constants::NEGP - 1))
+
+        if (KE < 0)
+        {
+            KE = 0;
+            XEK = XE - KE;
+        }
+        if (KE >= static_cast<int>(constants::NEGP - 1))
+        {
+            KE = constants::NEGP - 2;
+            XEK = XE - KE;
+        }
+
+        double HMF[4];
+
+        HMF[static_cast<int>(GAMMA_RAYLEIGH)] = mat.SGRA[KE];
+        HMF[static_cast<int>(GAMMA_COMPTON)] = exp(mat.SGCO[KE] + mat.DSGCO[KE] * XEK);
+        HMF[static_cast<int>(GAMMA_PHOTOELECTRIC)] = mat.SGPH[KE];
+        HMF[static_cast<int>(GAMMA_PAIR_PRODUCTION)] = E > 1.022E6 ? exp(mat.SGPP[KE] + mat.DSGPP[KE] * XEK) : 0.0;
+
+        averageNumberOfInteractions = HMF[icolg]
+            / std::max(HMF[static_cast<int>(GAMMA_RAYLEIGH)] 
+                + HMF[static_cast<int>(GAMMA_COMPTON)] 
+                + HMF[static_cast<int>(GAMMA_PHOTOELECTRIC)] 
+                + HMF[static_cast<int>(GAMMA_PAIR_PRODUCTION)], 1.0e-35);
+    }
+    else if (kpar == PEN_POSITRON)
+    {
+        pen_betaP_interact icolp = static_cast<pen_betaP_interact>(icol);
+
+        if (icolp == BETAp_HARD_ELASTIC)
+        {
+            for (int KE = 0; KE < constants::NEGP; ++KE)
+            {
+                AUX[KE] = exp(mat.SPHEL[KE] - mat.TSTPP[KE]);
+            }
+        }
+        else if (icolp == BETAp_HARD_INELASTIC)
+        {
+            for (int KE = 0; KE < constants::NEGP; ++KE)
+            {
+                AUX[KE] = (exp(mat.SPHIN[KE]) + exp(mat.SPISI[KE]) - mat.TSTPP[KE]);
+            }
+        }
+        else if (icolp == BETAp_HARD_BREMSSTRAHLUNG)
+        {
+            for (int KE = 0; KE < constants::NEGP; ++KE)
+            {
+                AUX[KE] = exp(mat.SPHBR[KE] - mat.TSTPP[KE]);
+            }
+        }
+        else if (icolp == BETAp_HARD_INNER_SHELL)
+        {
+            for (int KE = 0; KE < constants::NEGP; ++KE)
+            {
+                AUX[KE] = exp(mat.SPISI[KE] - mat.TSTPP[KE]);
+            }
+        }
+        else if (icolp == BETAp_ANNIHILATION)
+        {
+            for (int KE = 0; KE < constants::NEGP; ++KE)
+            {
+                AUX[KE] = exp(mat.SPAN[KE] - mat.TSTPP[KE]);
+            }
+        }
+        else if (icolp == BETAp_HARD_TOTAL) // BETAp_HARD_TOTAL =  BETAp SOFT INTERACTION + 1 = 6
+        {
+            for (int KE = 0; KE < constants::NEGP; ++KE)
+            {
+                AUX[KE] = exp(mat.SPTOT[KE] - mat.TSTPP[KE]);
+            }
+        }
+
+        averageNumberOfInteractions = RMOMX(context.grid.ET, AUX, context.grid.EL, E, constants::NEGP, 0);
+    }
+
+    return averageNumberOfInteractions;
+
+}
+
+double inverseMeanFreePath(double E, pen_KPAR kpar, int icol, int imat, pen_context& context)
+{
+    //Get material
+    pen_material& mat = context.getBaseMaterial(imat - 1);
+    double inverse_mean_free_path = 1.0e-35; // Value returned by the function
+
+    if (E < context.grid.EL || E > context.grid.EU)
+    {
+        return inverse_mean_free_path;
+    }
+
+    int KE;
+    double XEL, XE, XEK;
+    context.grid.getInterval(E, KE, XEL, XE, XEK);
+
+    
+    //Compute inverse mean free path
+    if (kpar == PEN_ELECTRON)
+    {
+        pen_betaE_interact icole = static_cast<pen_betaE_interact>(icol);
+        
+        if (icole == BETAe_HARD_ELASTIC)
+        {
+            inverse_mean_free_path = exp(mat.SEHEL[KE] + mat.DSEHEL[KE] * XEK);
+        }
+        else if (icole == BETAe_HARD_INELASTIC)
+        {
+            inverse_mean_free_path = exp(mat.SEHIN[KE] + mat.DSEHIN[KE] * XEK);
+        }
+        else if (icole == BETAe_HARD_BREMSSTRAHLUNG)
+        {
+            inverse_mean_free_path = exp(mat.SEHBR[KE] + mat.DSEHBR[KE] * XEK);
+        }
+        else if (icole == BETAe_HARD_INNER_SHELL)
+        {
+            inverse_mean_free_path = exp(mat.SEISI[KE] + mat.DSEISI[KE] * XEK);
+        }
+    }
+    else if (kpar == PEN_PHOTON)
+    {
+        pen_gamma_interact icolg = static_cast<pen_gamma_interact>(icol);
+
+        int KE;
+        double XEL, XE, XEK;
+        context.grid.getInterval(E, KE, XEL, XE, XEK);
+
+        if (KE < 0)
+        {
+            KE = 0;
+            XEK = XE - KE;
+        }
+        if (KE >= static_cast<int>(constants::NEGP - 1))
+        {
+            KE = constants::NEGP - 2;
+            XEK = XE - KE;
+        }
+
+        if (icolg == GAMMA_RAYLEIGH)
+        {
+            inverse_mean_free_path = mat.SGRA[KE];
+        }
+        else if (icolg == GAMMA_COMPTON)
+        {
+            inverse_mean_free_path = exp(mat.SGCO[KE] + mat.DSGCO[KE] * XEK);
+        }
+        else if (icolg == GAMMA_PHOTOELECTRIC)
+        {
+            inverse_mean_free_path = mat.SGPH[KE];
+        }
+        else if (icolg == GAMMA_PAIR_PRODUCTION)
+        {
+            inverse_mean_free_path = E < 1.023e6 ? 0.0 : exp(mat.SGPP[KE] + mat.DSGPP[KE] * XEK);
+        }
+    }
+    else if (kpar == PEN_POSITRON)
+    {
+        pen_betaP_interact icolp = static_cast<pen_betaP_interact>(icol);
+
+        if (icolp == BETAp_HARD_ELASTIC)
+        {
+            inverse_mean_free_path = exp(mat.SPHEL[KE] + mat.DSPHEL[KE] * XEK);
+        }
+        else if (icolp == BETAp_HARD_INELASTIC)
+        {
+            inverse_mean_free_path = exp(mat.SPHIN[KE] + mat.DSPHIN[KE] * XEK);
+        }
+        else if (icolp == BETAp_HARD_BREMSSTRAHLUNG)
+        {
+            inverse_mean_free_path = exp(mat.SPHBR[KE] + mat.DSPHBR[KE] * XEK);
+        }
+        else if (icolp == BETAp_HARD_INNER_SHELL)
+        {
+            inverse_mean_free_path = exp(mat.SPISI[KE] + mat.DSPISI[KE] * XEK);
+        }
+        else if (icolp == BETAp_ANNIHILATION)
+        {
+            inverse_mean_free_path = exp(mat.SPAN[KE] + mat.DSPAN[KE] * XEK);
+        }
+    }
+
+    return inverse_mean_free_path;
+
+}
+
+double meanNumberOfInteractions(double E, pen_KPAR kpar, int icol, int imat, pen_context& context, bool calc_piecewise)
+{
+    double mean_number_of_interactions = 0.0;
+    if (calc_piecewise == true)
+    {
+        mean_number_of_interactions = AVNCOL(E, kpar, icol, imat, context);
+    }
+    else
+    {
+        double inverse_mean_free_path = inverseMeanFreePath(E, kpar, icol, imat, context);
+        double plt = context.range(E, kpar, imat);
+        mean_number_of_interactions = inverse_mean_free_path * plt;
+    }
+
+    return mean_number_of_interactions;
+}
+
+/*
+ forcer is the forcing factor, which must be larger than unity.
+ TRICK: a negative input value of forcer, -FN, is assumed to
+ mean that a particle with energy E=EPMAX should interact,
+ on average, +FN times in the course of its slowing down to
+ rest, for electrons and positrons, or along a mean free
+ path, for photons. 
+ 1. forcer > 0, emfp = mfp / force; where mfp is mean free pass, emfp
+    is effective mfp.  
+    avncol = range / emfp(Emax) is avarage number of interactions on full range down to rest.
+    This value is not known when creating configuration file that is why 
+    selecting forcer is not intuitive.
+ 2. forcer < 0 is reinterpreted. forcer = abs(forcer).
+    avncol0 = range(Emax) / mfp(Emax)
+    forcer_new = forcer / avncol0
+    emfp = mfp / forcer_new = mfp * avncol0/ forcer = mfp * range(Emax) / (forcer * mfp(Emax))
+    avncol = range / emfp = range(Emax) * forcer * mfp(Emax) / (mfp * range(Emax)) = forcer * mfp(Emax) / mfp 
+    avncol ~ forcer
+ */
+#define PENEPMA_NEGATIVE_FORCER
+
+inline double interactionForcingFactor(double forcer, pen_KPAR kpar, int icol,
+    int imat, pen_context& context, bool calc_piecewise)
+{
+    if (forcer < -1.0e-6)
+    {
+#ifdef PENEPMA_NEGATIVE_FORCER // penepma 2018
+        // Negative forcer values are re-interpreted.
+        double E0 = context.grid.EU;
+        // penepma
+        bool calc_piecewise = true;
+        double avncl = meanNumberOfInteractions(E0, kpar, icol, imat, context, calc_piecewise);
+
+        if (avncl > 1.0e-8)
+        {
+            forcer = std::max(abs(forcer) / avncl, 1.0);
+        }
+        else
+        {
+            forcer = std::max(abs(forcer), 1.0);
+        }
+
+#else        // penelope 2018
+        if (kpar == PEN_PHOTON)
+        {
+            double E0 = context.grid.EU;
+            double fp = 1.0 / inverseMeanFreePath(E0, kpar, icol, imat, context);
+            double tst = abs(forcer);
+            if (fp > tst)
+            {
+                forcer = fp / tst;
+            }
+            else
+            {
+                forcer = 1.0;
+            }
+        }
+        else
+        {
+            double E0 = context.grid.EU;
+            bool calc_piecewise = true;
+            double avncl = meanNumberOfInteractions(E0, kpar, icol, imat, context, calc_piecewise);
+
+            if (avncl > 1.0e-8)
+            {
+                forcer = std::max(abs(forcer) / avncl, 1.0);
+            }
+            else
+            {
+                forcer = std::max(abs(forcer), 1.0);
+            }
+        }
+#endif
+    }
+
+    return forcer;
+}
+
 int setVarianceReduction(pen_context& context,
 			 const wrapper_geometry& geometry,
 			 const pen_parserSection& config,
@@ -2480,11 +2845,16 @@ int setVarianceReduction(pen_context& context,
       }
 
       //Check forcing factor
-      if(forcer < 1.0){
-	if(verbose > 0){
-	  printf("Interaction forcing factor for material '%s', interaction %d lesser than minimum (1.0), will be set to 1.0\n",IFmats[imname].c_str(),icol);
-	  forcer = 1.0;
-	}
+
+      pen_KPAR kpart = static_cast<pen_KPAR>(kpar);
+      bool calc_piecewise = true;
+      forcer = interactionForcingFactor(forcer, kpart, icol, imat, context, calc_piecewise);
+
+      if (forcer < 1.0) {
+          if (verbose > 0) {
+              printf("Interaction forcing factor for material '%s', interaction %d lesser than minimum (1.0), will be set to 1.0\n", IFmats[imname].c_str(), icol);
+              forcer = 1.0;
+          }
       }
 
       //Read weight range
@@ -2662,11 +3032,17 @@ int setVarianceReduction(pen_context& context,
       }
 
       //Check forcing factor
-      if(forcer < 1.0){
-	if(verbose > 0){
-	  printf("Interaction forcing factor for body '%s', interaction %d lesser than minimum (1.0), will be set to 1.0\n",IFbodies[ibname].c_str(),icol);
-	  forcer = 1.0;
-	}
+
+      unsigned imat = geometry.getMat(ibody);
+      pen_KPAR kpart = static_cast<pen_KPAR>(kpar);
+      bool calc_piecewise = true;
+      forcer = interactionForcingFactor(forcer, kpart, icol, imat, context, calc_piecewise);
+
+      if (forcer < 1.0) {
+          if (verbose > 0) {
+              printf("Interaction forcing factor for body '%s', interaction %d lesser than minimum (1.0), will be set to 1.0\n", IFbodies[ibname].c_str(), icol);
+              forcer = 1.0;
+          }
       }
 
       //Read weight range

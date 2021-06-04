@@ -38,7 +38,8 @@ enum pen_betaP_interact{
   BETAp_HARD_INNER_SHELL,
   BETAp_ANNIHILATION,
   BETAp_DELTA,
-  BETAp_SOFT_INTERACTION
+  BETAp_SOFT_INTERACTION,
+  BETAp_HARD_TOTAL
 };
 
 class pen_betaP; 
