@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -101,7 +101,7 @@ struct pen_surfDS{
   }
   inline bool operator>(const pen_surfDS& r){
     return (S > r.S);
-  }  
+  }
 };
 
 inline bool operator<(const pen_surfDS& l, const pen_surfDS& r){
@@ -189,6 +189,7 @@ class pen_quadricGeo : public abc_geometry<pen_quadBody>{
 protected:
   
   const double FUZZL = 1.0E-12;  
+  const double mFUZZL = -FUZZL;  
   const double FUZZT = -0.25E0*FUZZL;
   static const unsigned int NS  = 10000; //Maximum number of surfaces
   static const unsigned int NS2M = 2*NS;
@@ -330,7 +331,6 @@ inline bool pen_quadricGeo::goInner(const pen_quadBody*& pbody,
   
   
 }
-
 
 inline void FSURF(const pen_quadSurface& surface,
 		  const pen_particleState& state,

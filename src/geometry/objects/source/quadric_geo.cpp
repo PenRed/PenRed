@@ -4842,7 +4842,6 @@ void pen_quadricGeo::STEPSI(const pen_quadBody* pbody, const pen_particleState& 
 
   // const double FUZZL = 1.0E-12;
 
-  double A,B,C,T1,T2,R2A,DELTA,SH;
   //Copy initial values
   int NSC = NSC_IO;
   unsigned KSLAST = KSLAST_IO;
@@ -4855,12 +4854,51 @@ void pen_quadricGeo::STEPSI(const pen_quadBody* pbody, const pen_particleState& 
       //  ****  Intersections with a given surface are calculated only once.
       //        The side pointer of a surface must be changed each time the
       //        surface is crossed.
-      unsigned KFL = psurf->KFLAG, KS = psurf->KSURF;
-      if(KFL > 4){ continue;}
-      unsigned KSm1 = KS-1;
-      if(KSP[KSm1] != 0){ continue;}
-      FSURF(surfaces[KSm1],state,A,B,C);
-      double ABSA = fabs(A);
+      if(psurf->KFLAG > 4){ continue;}
+      const unsigned KS = psurf->KSURF;
+      const unsigned KSm1 = KS-1;
+      unsigned& KSP_KSm1 = KSP[KSm1];
+      if(KSP_KSm1){ continue;} // if(KSP[KSm1] != 0)
+
+      double A,B,C,ABSA;
+      //FSURF(surfaces[KSm1],state,A,B,C);
+
+      //*** FSURF inclusion ***
+      //***********************
+      const pen_quadSurface& surface = surfaces[KSm1];
+      
+      if(surface.KPLANE){ // if(surface.KPLANE != 0)
+	A = ABSA = 0.0;
+	B = state.U*surface.AX+state.V*surface.AY+state.W*surface.AZ;
+	C = state.X*surface.AX+state.Y*surface.AY+state.Z*surface.AZ+surface.A0;
+      }
+      else{
+	A = state.U*(surface.AXX*state.U+
+		     surface.AXY*state.V+
+		     surface.AXZ*state.W)+
+	  state.V*(surface.AYY*state.V+
+		   surface.AYZ*state.W)+
+	  state.W*surface.AZZ*state.W;
+      
+	double XXX = surface.AXX*state.X+surface.AXY*state.Y+
+	  surface.AXZ*state.Z+surface.AX;
+      
+	double YYY = surface.AYY*state.Y+surface.AYZ*state.Z+surface.AY;
+	double ZZZ = surface.AZZ*state.Z+surface.AZ;
+
+	B = state.U*(surface.AXX*state.X+XXX)+
+	  state.V*(surface.AXY*state.X+surface.AYY*state.Y+YYY)+
+	  state.W*(surface.AXZ*state.X+surface.AYZ*state.Y+surface.AZZ*state.Z+
+		   ZZZ);
+
+	C = state.X*XXX+state.Y*YYY+state.Z*ZZZ+surface.A0;
+	
+	ABSA = fabs(A);
+      }
+
+      //***   FSURF END    ***
+      //**********************
+      
       double ABSB = fabs(B);
 
       //  ****  Plane, a single root.
@@ -4869,43 +4907,41 @@ void pen_quadricGeo::STEPSI(const pen_quadBody* pbody, const pen_particleState& 
 	{
 	  if(ABSB > 0.0)
 	    {
-	      if(C < -FUZZL)  // SP=-1
+	      if(C < mFUZZL)  // SP=-1
 		{
-		  KSP[KSm1] = 1;
+		  KSP_KSm1 = 1;
 		}
 	      else if(C > FUZZL)  // SP=+1
 		{
-		  KSP[KSm1] = 2;
+		  KSP_KSm1 = 2;
 		}
 	      else  // Point close to the surface.
 		{
 		  KSLAST=KS;
 		  if(B < 0.0)
 		    {
-		      KSP[KSm1] = 1;  // Particle moving 'inwards'.
+		      KSP_KSm1 = 1;  // Particle moving 'inwards'.
 		    }
 		  else
 		    {
-		      KSP[KSm1] = 2;  // Particle moving 'outwards'.
+		      KSP_KSm1 = 2;  // Particle moving 'outwards'.
 		    }
 		  continue;
 		}
-	      T1 = -C/B;
-	      if(T1 > 0.0)
-		{
-		  surfDS[NSC].set(T1,KS);
-		  ++NSC;
-		}
+	      double T1 = -C/B;
+	      if(T1 > 0.0){
+		surfDS[NSC++].set(T1,KS);
+	      }
 	    }
 	  else  // Ray parallel to the plane.
 	    {
 	      if(C < 0.0)
 		{
-		  KSP[KSm1] = 1;
+		  KSP_KSm1 = 1;
 		}
 	      else
 		{
-		  KSP[KSm1] = 2;
+		  KSP_KSm1 = 2;
 		}
 	    }
 	  
@@ -4919,12 +4955,12 @@ void pen_quadricGeo::STEPSI(const pen_quadBody* pbody, const pen_particleState& 
 	  if(C < -FUZZ)  // SP=-1
 	    {
 	      IAMBIG = 0;
-	      KSP[KSm1] = 1;
+	      KSP_KSm1 = 1;
 	    }
 	  else if(C > FUZZ)  // SP=+1
 	    {
 	      IAMBIG = 0;
-	      KSP[KSm1] = 2;
+	      KSP_KSm1 = 2;
 	    }
 	  else
 	    {
@@ -4932,11 +4968,11 @@ void pen_quadricGeo::STEPSI(const pen_quadBody* pbody, const pen_particleState& 
 	      KSLAST=KS;
 	      if(B < 0.0)
 		{
-		  KSP[KSm1] = 1;  // Particle moving 'inwards'.
+		  KSP_KSm1 = 1;  // Particle moving 'inwards'.
 		}
 	      else
 		{
-		  KSP[KSm1] = 2;  // Particle moving 'outwards'.
+		  KSP_KSm1 = 2;  // Particle moving 'outwards'.
 		}
 	    }
 
@@ -4944,41 +4980,38 @@ void pen_quadricGeo::STEPSI(const pen_quadBody* pbody, const pen_particleState& 
 
 	  if(IAMBIG == 0)
 	    {
-	      R2A = 0.5/A;
-	      DELTA = sqrt(DISCR)*fabs(R2A);
-	      SH = -B*R2A;
-	      T1 = SH-DELTA;
-	      if(T1 > 0.0)
-		{
-		  surfDS[NSC].set(T1,KS);
-		  ++NSC;
-		}
-	      T2 = SH+DELTA;
-	      if(T2 > 0.0)
-		{
-		  surfDS[NSC].set(T2,KS);		  
-		  ++NSC;		  
-		}
+	      double R2A = 0.5/A;
+	      double DELTA = sqrt(DISCR)*fabs(R2A);
+	      double SH = -B*R2A;
+	      double T1 = SH-DELTA;
+	      if(T1 > 0.0){
+		surfDS[NSC++].set(T1,KS);
+	      }
+	      double T2 = SH+DELTA;
+	      if(T2 > 0.0){
+		surfDS[NSC++].set(T2,KS);
+	      }
 	    }
 	  else
 	    {
-	      if(B*A < 0.0)
-		{
-		  R2A = 0.5/A;
-		  DELTA = sqrt(DISCR)*fabs(R2A);
-		  SH = -B*R2A;
-		  T2 = SH+DELTA;
+	      if(B*A < 0.0){
+		double R2A = 0.5/A;
+		double DELTA = sqrt(DISCR)*fabs(R2A);
+		double SH = -B*R2A;
+		double T2 = SH+DELTA;
 
-		  surfDS[NSC].set((T2 > 0.0 ? T2 : 0.0),KS);  
-		  ++NSC;
-		}
+		surfDS[NSC++].set((T2 > 0.0 ? T2 : 0.0),KS);
+	      }
 	    }
 	}
     }
 
   //  ****  Sort surface distances in decreasing order.
 
+  if(NSC > 1)
+    std::sort(surfDS,surfDS+NSC,std::greater<pen_surfDS>());
   
+  /*
   if(NSC > 1)
     {
       int NSCm1 = NSC-1;
@@ -5002,6 +5035,7 @@ void pen_quadricGeo::STEPSI(const pen_quadBody* pbody, const pen_particleState& 
 	    }
 	}
     }
+  */
   
   //Get final output values
   NSC_IO = NSC;
