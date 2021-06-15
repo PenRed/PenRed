@@ -196,7 +196,7 @@ void PANaR(const pen_particleState& betaState,
 	   pen_particleStack<pen_state_gPol>& stackG,
 	   pen_rand& penRand);
 
-void GPHaT(double &E,
+void GPHaT(const double E,
 	   double &XS,
 	   const pen_material& mat,
 	   const pen_elementDataBase& elemDB);
