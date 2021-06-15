@@ -30,17 +30,6 @@
 #ifndef __PEN_ELECTRON_
 #define __PEN_ELECTRON_
 
-
-enum pen_betaE_interact{
-  BETAe_HARD_ELASTIC = 0,
-  BETAe_HARD_INELASTIC,
-  BETAe_HARD_BREMSSTRAHLUNG,
-  BETAe_HARD_INNER_SHELL,
-  BETAe_DELTA,
-  BETAe_SOFT_INTERACTION,
-  BETAe_HARD_TOTAL
-};
-
 class pen_betaE;
 
 class pen_eHEC final : public abc_interaction<pen_betaE, pen_context, pen_material>{
