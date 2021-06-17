@@ -73,10 +73,6 @@ CMAKE_DEPENDENT_OPTION(MUTREN "Compile mutren" ON
 #       EXECUTABLES         #
 #############################
 
-#  Error list generator
-#############################
-add_executable(createErrors ${PROJECT_SOURCE_DIR}/utilities/errors/createErrors.cpp)  
-
 #-----------------------------------------------------------------------------
 #  Read material
 #############################
@@ -139,7 +135,13 @@ if(TALLIES_REGISTER)
     add_executable(regTallies ${PROJECT_SOURCE_DIR}/utilities/registers/registeredTallies.cpp)
 
     #target libs
-    target_link_libraries(regTallies -Wl,--whole-archive tallies -Wl,--no-whole-archive)
+	if (MSVC) 
+		target_link_libraries(regTallies tallies)
+		set_target_properties(regTallies PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WHOLEARCHIVE:tallies")
+
+	else(MSVC)
+		target_link_libraries(regTallies -Wl,--whole-archive tallies -Wl,--no-whole-archive)
+	endif(MSVC)
 
     # Install registered tallies executable
     install(
@@ -156,7 +158,12 @@ if(SAMPLE_REGISTER)
     add_executable(regSamplers ${PROJECT_SOURCE_DIR}/utilities/registers/registeredSamplers.cpp)
 
     #target libs
-    target_link_libraries(regSamplers -Wl,--whole-archive samplers -Wl,--no-whole-archive)
+	if (MSVC) 
+		target_link_libraries(regSamplers samplers)
+		set_target_properties(regSamplers PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WHOLEARCHIVE:samplers")
+	else(MSVC)
+		target_link_libraries(regSamplers -Wl,--whole-archive samplers -Wl,--no-whole-archive)
+	endif(MSVC)
 
     # Install registered samplers executable
     install(
@@ -173,7 +180,13 @@ if(GEOMETRY_REGISTER)
     add_executable(regGeometries ${PROJECT_SOURCE_DIR}/utilities/registers/registeredGeometries.cpp)
 
     #target libs
-    target_link_libraries(regGeometries -Wl,--whole-archive pen_geos -Wl,--no-whole-archive)
+	if (MSVC) 
+		target_link_libraries(regGeometries pen_geos)
+		set_target_properties(regGeometries PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WHOLEARCHIVE:pen_geos")
+	else(MSVC)
+		target_link_libraries(regGeometries -Wl,--whole-archive pen_geos -Wl,--no-whole-archive)
+	endif(MSVC)
+    
 
 
     # Install registered geometries executable
@@ -192,7 +205,12 @@ if(PHOTON_VR_REGISTER)
     add_executable(regPhotonVR ${PROJECT_SOURCE_DIR}/utilities/registers/registeredPhotonVR.cpp)
 
     #target libs
-    target_link_libraries(regPhotonVR -Wl,--whole-archive pen_VR -Wl,--no-whole-archive)
+	if (MSVC) 
+		target_link_libraries(regPhotonVR pen_VR)
+		set_target_properties(regPhotonVR PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WHOLEARCHIVE:pen_VR")
+	else(MSVC)
+		target_link_libraries(regPhotonVR -Wl,--whole-archive pen_VR -Wl,--no-whole-archive)
+	endif(MSVC)
 
     # Install registered VR executable
     install(
@@ -210,7 +228,13 @@ if(GENERIC_VR_REGISTER)
     add_executable(regGenericVR ${PROJECT_SOURCE_DIR}/utilities/registers/registeredGenericVR.cpp)
 
     #target libs
-    target_link_libraries(regGenericVR -Wl,--whole-archive pen_VR -Wl,--no-whole-archive)
+	if (MSVC) 
+		target_link_libraries(regGenericVR pen_VR)
+		set_target_properties(regGenericVR PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WHOLEARCHIVE:pen_VR")
+	else(MSVC)
+		target_link_libraries(regGenericVR -Wl,--whole-archive pen_VR -Wl,--no-whole-archive)
+	endif(MSVC)
+    
 
     # Install registered VR executable
     install(
@@ -229,7 +253,6 @@ if(PSF_SPECTRE)
 
     #target libs
     target_link_libraries(psfSpect pen_psf)
-
 
     # Install registered geometries executable
     install(

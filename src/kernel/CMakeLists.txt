@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019 Universitat de València - UV
-#    Copyright (C) 2019 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2021 Universitat de València - UV
+#    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -45,8 +45,6 @@ add_library(pen_errors STATIC ${PROJECT_SOURCE_DIR}/kernel/errors/pen_errors.cpp
 
 target_include_directories(pen_errors PUBLIC ${PROJECT_SOURCE_DIR}/kernel/errors)
 target_include_directories(pen_errors PUBLIC ${PROJECT_SOURCE_DIR}/config/errors)
-
-add_dependencies(pen_errors errorHeaders)
 
 # Create pen_randoms lib
 #############################

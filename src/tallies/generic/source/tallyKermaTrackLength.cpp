@@ -29,6 +29,8 @@
 
 #include "tallyKermaTrackLength.hh"
 
+#include <array>
+
 inline void pen_tally_KTL::cart2CylSph(const vect3d& pos,
 				       vect3d& cyl,
 				       vect3d& sph){

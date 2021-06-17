@@ -178,6 +178,10 @@ void pen_parserData::stringify(std::string& strout) const{
 //Parse function
 int pen_parserData::parse(const std::string& strIn){
 
+  using std::stoi;
+  using std::stod;
+  using std::isspace;
+    
   //Clear string
   std::string strClear = trim(strIn);
   
@@ -210,55 +214,76 @@ int pen_parserData::parse(const std::string& strIn){
   }
 
   //Check if is a number
-  
   bool isInt = true;
   bool isDoub = true;
-  size_t posi = 0;
-  int intVar = 0;
-  size_t posd = 0;
-  double doubVar = 0.0;
-  
-  try{
-    intVar = stoi(strIn,&posi);
-  }
-  catch(const std::out_of_range& oor){
-    //Is not an integer
-    isInt = false;
-  }
-  catch(const std::invalid_argument& ia){
-    //Is not an integer
-    isInt = false;
-  }
-  
-  try{
-    doubVar = stod(strIn,&posd);
-  }
-  catch(const std::out_of_range& oor){
-    //Is not a double
-    isDoub = false;
-  }
-  catch(const std::invalid_argument& ia){
-    //Is not a double
-    isDoub = false;
-  }  
 
-  if(!isDoub && !isInt){
-    //Is a string
-    return INTDATA_PARSE_STRING_INVALID_DATA;
+  char* end_l;
+  char* end_d;
+
+  int intVar = 0;
+  long int longVar = strtol(strClear.c_str(), &end_l, 0);
+  size_t long_str_rep_length = strlength - strlen(end_l);
+
+  if (longVar == 0)
+  {
+      if (long_str_rep_length == 0)
+      {
+          //Is not an integer
+          isInt = false;
+      }else{ //Is an integer and is zero
+          intVar = 0;
+      }
+  }
+  else if (longVar == LONG_MIN || longVar == LONG_MAX)
+  {
+      //Is not an integer
+      isInt = false;
+  }
+  else if(longVar > INT_MAX || longVar < INT_MIN){
+      isInt = false; //Can't fit in an integer
+  }
+  else
+  {   //Is an integer
+      intVar = static_cast<int>(longVar);
+  }
+
+  double doubVar = strtod(strClear.c_str(), &end_d);
+  size_t double_str_rep_length = strlength - strlen(end_d);
+
+  if (doubVar == 0.0)
+  {
+      if (double_str_rep_length == 0)
+      {
+          //Is not a double
+          isDoub = false;
+      } 
+      // else{ Is a double and is zero} 
+  }
+  else if (doubVar == HUGE_VAL)
+  {
+      //Is not a double
+      isDoub = false;
+  }
+  // else{  Is a double }
+
+  if (!isDoub && !isInt) {
+      //Is a string
+      return INTDATA_PARSE_STRING_INVALID_DATA;
   }
 
   //Is a integer or a double, check read positions
-  if(posi == posd){ 
-    //Number not contain '.', 'e' etc, is a integer
-    *this = intVar;
-    if(posi < strlength)
-      return INTDATA_PARSE_STRING_PARTIAL_UNUSED;
+  if (long_str_rep_length == double_str_rep_length)
+  {
+      //Number not contain '.', 'e' etc, is a integer
+      *this = intVar;
+      if (long_str_rep_length < strlength)
+          return INTDATA_PARSE_STRING_PARTIAL_UNUSED;
   }
-  else{
-    //Is a double
-    *this = doubVar;
-    if(posd < strlength)
-      return INTDATA_PARSE_STRING_PARTIAL_UNUSED;
+  else {
+      //Is a double
+      *this = doubVar;
+      if (double_str_rep_length < strlength)
+          return INTDATA_PARSE_STRING_PARTIAL_UNUSED;
   }
   return INTDATA_SUCCESS;
 }

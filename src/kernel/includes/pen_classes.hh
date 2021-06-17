@@ -34,6 +34,7 @@
 #include <cstdio>
 #include <stdexcept>
 #include <type_traits>
+#include <array>
 
 #include "../states/pen_baseState.hh"
 #include "pen_constants.hh"

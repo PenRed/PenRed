@@ -1682,8 +1682,12 @@ int main(int argc, char** argv){
   printf("Simulated histories: %20llu \n",localHists);
   printf("Simulation real time: %12.4E s\n",simtime);
   printf("Simulation user time: %12.4E s\n",usertime);
-  printf("Histories per second and thread: %12.4E s\n",static_cast<double>(localHists)/usertime);
-  printf("Histories per second: %12.4E s\n",static_cast<double>(localHists)/(usertime/double(nthreads)));
+#if defined(_MSC_VER)
+  printf("Histories per second: %12.4E\n", static_cast<double>(localHists) / usertime);
+#else
+  printf("Histories per second and thread: %12.4E\n",static_cast<double>(localHists)/usertime);
+  printf("Histories per second: %12.4E\n",static_cast<double>(localHists)/(usertime/double(nthreads)));
+#endif
   printf("Results processing time: %12.4E s\n",postProcessTime);
   printf("\n*********** END REPORT *************\n");
   fflush(stdout);
@@ -1712,8 +1716,12 @@ int main(int argc, char** argv){
       fprintf( stderr,"Simulated histories: %20llu\n",localHists);
       fprintf( stderr,"Simulation real time: %12.4E s\n",simtime);
       fprintf( stderr,"Simulation user time: %12.4E s\n",usertime);
-      fprintf( stderr,"Histories per second and thread: %12.4E s\n",static_cast<double>(localHists)/usertime);
-      fprintf( stderr,"Histories per second: %12.4E s\n",static_cast<double>(localHists)/(usertime/double(nthreads)));
+#if defined(_MSC_VER)
+      fprintf(stderr, "Histories per second: %12.4E\n", static_cast<double>(localHists) / usertime);
+#else
+      fprintf( stderr,"Histories per second and thread: %12.4E\n",static_cast<double>(localHists)/usertime);
+      fprintf( stderr,"Histories per second: %12.4E\n",static_cast<double>(localHists)/(usertime/double(nthreads)));
+#endif
       fprintf( stderr,"Results processing time: %12.4E s\n",postProcessTime);
       fprintf( stderr,"\n*********** END REPORT *************\n");
       fflush(stderr);
@@ -1729,8 +1737,12 @@ int main(int argc, char** argv){
     fprintf( stderr,"Simulated histories: %20llu\n",totalHists);
     fprintf( stderr,"Simulation real time: %12.4E s\n",globalSimTime);
     fprintf( stderr,"Simulation user time: %12.4E s\n",globalUserTime);
-    fprintf( stderr,"Histories per second and thread: %12.4E s\n",static_cast<double>(totalHists)/globalUserTime);
-    fprintf( stderr,"Histories per second: %12.4E s\n",static_cast<double>(totalHists)/(globalUserTime/double(totalThreads)));
+#if defined(_MSC_VER)
+    fprintf(stderr, "Histories per second: %12.4E\n", static_cast<double>(totalHists) / globalUserTime);
+#else
+    fprintf( stderr,"Histories per second and thread: %12.4E\n",static_cast<double>(totalHists)/globalUserTime);
+    fprintf( stderr,"Histories per second: %12.4E\n",static_cast<double>(totalHists)/(globalUserTime/double(totalThreads)));
+#endif
     fprintf( stderr,"Results processing time: %12.4E s\n",postProcessTime);  
   }
   
@@ -1748,8 +1760,12 @@ int main(int argc, char** argv){
   printf("\n\nSimulated histories: %20llu\n",totalHists);
   printf("Simulation real time: %12.4E s\n",simtime);
   printf("Simulation user time: %12.4E s\n",usertime);
-  printf("Histories per second and thread: %12.4E s\n",static_cast<double>(totalHists)/usertime);
-  printf("Histories per second: %12.4E s\n",static_cast<double>(totalHists)/(usertime/double(nthreads)));
+#if defined(_MSC_VER)
+  printf("Histories per second: %12.4E\n", static_cast<double>(totalHists) / usertime);
+#else
+  printf("Histories per second and thread: %12.4E\n",static_cast<double>(totalHists)/usertime);
+  printf("Histories per second: %12.4E\n",static_cast<double>(totalHists)/(usertime/double(nthreads)));
+#endif
   printf("Results processing time: %12.4E s\n",postProcessTime);
   
 #endif

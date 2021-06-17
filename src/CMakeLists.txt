@@ -32,7 +32,7 @@
 # Check CMake version
 cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
 #-----------------------------------------------------------------------------
-
+CMAKE_POLICY(SET CMP0054 NEW)
 #-----------------------------------------------------------------------------
 include(CMakeDependentOption)
 
@@ -107,6 +107,26 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   # using Visual Studio C++
 endif()
 
+if (MSVC) 
+  # using Visual Studio C++
+  add_compile_options(/arch:AVX2)
+  # Check if MPI option has been enabled
+  if(WITH_MPI)
+	add_compile_options(/MP) #enable MPI
+  endif(WITH_MPI) 
+  # Needed for M_PI to be visible in visual studio.
+  ADD_DEFINITIONS(-D_USE_MATH_DEFINES)
+
+  # Removes the warnings about unsafe methods such as strcpy, std::copy,
+  # memcmp, etc.
+  ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE -D_SCL_SECURE_NO_DEPRECATE)
+  
+  # We need a stack size of 8MB (as it is default on linux)
+  # See https://github.com/open62541/open62541/issues/1326
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
+	
+endif(MSVC)
+
 #-----------------------------------------------------------------------------
 
 # Check if DICOM option has been enabled
@@ -141,28 +161,12 @@ endif(WITH_HTTP)
 
 # Check platform
 if(UNIX)
-  add_definitions(-D_PEN_UNIX_=1) #enable DICOM
+  add_definitions(-D_PEN_UNIX_=1) #enable Unix
 elseif(WIN32)
   
 elseif(APPLE)
   
 endif(UNIX)
-
-# Generate error list
-add_custom_command(
-  OUTPUT
-  ${PROJECT_SOURCE_DIR}/config/errors/eenum.h
-  ${PROJECT_SOURCE_DIR}/config/errors/emess.h
-  DEPENDS ${CMAKE_BINARY_DIR}/utilities/createErrors
-  COMMAND ${CMAKE_BINARY_DIR}/utilities/createErrors
-  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/config/errors
-  )
-# Create target for error headers
-add_custom_target(
-  errorHeaders
-  DEPENDS ${PROJECT_SOURCE_DIR}/config/errors/eenum.h
-  DEPENDS ${PROJECT_SOURCE_DIR}/config/errors/emess.h  
-  )
   
 #-----------------------------------------------------------------------------
 #############################
