@@ -30,15 +30,6 @@
 #ifndef __PEN_GAMMA_
 #define __PEN_GAMMA_
 
-
-enum pen_gamma_interact{
-  GAMMA_RAYLEIGH = 0,
-  GAMMA_COMPTON,
-  GAMMA_PHOTOELECTRIC,
-  GAMMA_PAIR_PRODUCTION,
-  GAMMA_DELTA  
-};
-
 class pen_gamma;
 
 struct GCO00{

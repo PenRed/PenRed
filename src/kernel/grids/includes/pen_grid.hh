@@ -155,12 +155,12 @@ void SINTEG(double* X,
 	    double &SUM,
 	    int N);
 
-double RMOMX(double* X,
-	     double* PDF,
-	     double XD,
-	     double XU,
-	     int NPpar,
-	     int MOM);
+double RMOMX(const double* X,
+	     const double* PDF,
+	     const double XD,
+	     const double XU,
+	     const int NPpar,
+	     const int MOM);
 
 void RLPAC(const double* X,
 	   double* PDF,

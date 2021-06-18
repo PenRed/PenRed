@@ -648,6 +648,23 @@ public:
   //Function 'range' is intended to return the range in the specified
   //material for a particle with the specified energy and type
   virtual double range(const double E, const pen_KPAR kpar, const unsigned M) const = 0;
+
+  virtual double avncol(const double E,
+			const pen_KPAR kpar,
+			const int icol,
+			const unsigned imat) const = 0;
+
+  virtual double avninter(const double E,
+			  const pen_KPAR kpar,
+			  const int icol,
+			  const unsigned imat,
+			  const bool calc_piecewise) const = 0;  
+
+  virtual double getIF(const double forcer,
+		       const pen_KPAR kpar,
+		       const int icol,
+		       const unsigned imat,
+		       const bool calc_piecewise) const = 0;
   
   inline void getMatBaseArray(const abc_material* mats[constants::MAXMAT]) const {
 
