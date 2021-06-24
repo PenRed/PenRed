@@ -305,6 +305,380 @@ double pen_context::range(const double E, const pen_KPAR kpar, const unsigned M)
   return 1.0e35;
 }
 
+double pen_context::avncol(const double E,
+			   const pen_KPAR kpar,
+			   const int icol,
+			   const unsigned M) const {
+  //Get material
+  const pen_material& mat = readBaseMaterial(M);
+  
+  double averageNumberOfInteractions = 0.0; // Value returned by the function
+  
+  if (E < grid.EL || E > grid.EU){
+    return averageNumberOfInteractions;
+  }
+  
+  double AUX[constants::NEGP];
+  
+  if(kpar == PEN_ELECTRON){
+    
+    pen_betaE_interact icole = static_cast<pen_betaE_interact>(icol);
+
+    /*
+      Total stopping power
+      mat.TSTPE[I] = log(mat.CSTPE[I]+mat.RSTPE[I]);
+      where mat.CSTPE[I] and mat.RSTPE[I] are collision and radiation stopping power.
+      Average number of hard collisions between energy nodes of grid
+      grid.ET[i + 1] and grid.ET[i] is DS[i]/L[i], where DS[i] is electron
+      path length on which electron lost energy DE = grid.ET[i + 1] - grid.ET[i], and
+      L(Ei) is electron mean free path for given interaction.
+      DS[i] = (-1/dE/ds)*DE, wher -dE/ds is stopping power.
+      _
+      \
+      Total avarage number of interactions is /_((1/L(Ei)) / (-1/dE/ds)*DE
+      i
+
+    */
+
+    if(icole == BETAe_HARD_ELASTIC){
+      for (unsigned KE = 0; KE < constants::NEGP; ++KE){
+	AUX[KE] = exp(mat.SEHEL[KE] - mat.TSTPE[KE]);
+      }
+    }
+    else if(icole == BETAe_HARD_INELASTIC){
+      for(unsigned KE = 0; KE < constants::NEGP; ++KE){
+	AUX[KE] = (exp(mat.SEHIN[KE]) + exp(mat.SEISI[KE]))
+	  /(mat.CSTPE[KE]+mat.RSTPE[KE]);
+      }
+    }
+    else if(icole == BETAe_HARD_BREMSSTRAHLUNG){
+      for (unsigned KE = 0; KE < constants::NEGP; ++KE){
+	AUX[KE] = exp(mat.SEHBR[KE] - mat.TSTPE[KE]);
+      }
+    }
+    else if(icole == BETAe_HARD_INNER_SHELL){
+      for(unsigned KE = 0; KE < constants::NEGP; ++KE){
+	AUX[KE] = exp(mat.SEISI[KE] - mat.TSTPE[KE]);
+      }
+    }
+    else if (icole == BETAe_HARD_TOTAL){
+      for (unsigned KE = 0; KE < constants::NEGP; ++KE){
+	AUX[KE] = exp(mat.SETOT[KE] - mat.TSTPE[KE]);
+      }
+    }
+    
+    averageNumberOfInteractions =
+      RMOMX(grid.ET, AUX, grid.EL, E, constants::NEGP, 0);
+  }
+  else if(kpar == PEN_PHOTON){
+    pen_gamma_interact icolg = static_cast<pen_gamma_interact>(icol);
+
+    int KE;
+    double XEL, XE, XEK;
+    grid.getInterval(E, KE, XEL, XE, XEK);
+
+    if(KE >= static_cast<int>(constants::NEGP - 1)){
+      KE = constants::NEGP - 2;
+      XEK = XE - KE;
+    }
+
+    int II = mat.IED[KE];
+    int IU = mat.IEU[KE];
+    do{
+      int IT = (II+IU)/2;
+      if(XEL > mat.ERA[IT]){
+	II = IT;
+      }
+      else{
+	IU = IT;
+      }
+    }while(IU-II > 1);
+
+    double HMF[4];
+    
+    // Rayleigh scattering
+    HMF[static_cast<int>(GAMMA_RAYLEIGH)] =
+      exp(mat.XSRA[II]+(mat.XSRA[II+1]-mat.XSRA[II])
+	  *(XEL-mat.ERA[II])/(mat.ERA[II+1]-mat.ERA[II]));
+    
+    // Compton scattering
+    HMF[static_cast<int>(GAMMA_COMPTON)] =
+      exp(mat.SGCO[KE] + (mat.SGCO[KE+1] - mat.SGCO[KE])*XEK);
+
+    // Photoelectric absorption
+    double XS;
+    GPHaT(E, XS, mat, elements);
+    HMF[static_cast<int>(GAMMA_PHOTOELECTRIC)] = XS*mat.VMOL;
+
+    // Pair production
+    if(E > 1.022E6){
+      HMF[static_cast<int>(GAMMA_PAIR_PRODUCTION)] =
+	exp(mat.SGPP[KE] + (mat.SGPP[KE+1] - mat.SGPP[KE])*XEK);
+    }
+    else{
+      HMF[static_cast<int>(GAMMA_PAIR_PRODUCTION)] = 0.0;
+    }
+
+    averageNumberOfInteractions = HMF[icolg]
+      / std::max(HMF[static_cast<int>(GAMMA_RAYLEIGH)] 
+		 + HMF[static_cast<int>(GAMMA_COMPTON)] 
+		 + HMF[static_cast<int>(GAMMA_PHOTOELECTRIC)] 
+		 + HMF[static_cast<int>(GAMMA_PAIR_PRODUCTION)], 1.0e-35);
+  }
+  else if(kpar == PEN_POSITRON){
+    pen_betaP_interact icolp = static_cast<pen_betaP_interact>(icol);
+
+    if(icolp == BETAp_HARD_ELASTIC){
+      for(unsigned KE = 0; KE < constants::NEGP; ++KE){
+	AUX[KE] = exp(mat.SPHEL[KE] - mat.TSTPP[KE]);
+      }
+    }
+    else if(icolp == BETAp_HARD_INELASTIC){
+      for(unsigned KE = 0; KE < constants::NEGP; ++KE){
+	AUX[KE] = (exp(mat.SPHIN[KE]) + exp(mat.SPISI[KE]))
+	  /(mat.CSTPP[KE]+mat.RSTPP[KE]);
+      }
+    }
+    else if(icolp == BETAp_HARD_BREMSSTRAHLUNG){
+      for(unsigned KE = 0; KE < constants::NEGP; ++KE){
+	AUX[KE] = exp(mat.SPHBR[KE] - mat.TSTPP[KE]);
+      }
+    }
+    else if(icolp == BETAp_HARD_INNER_SHELL){
+      for(unsigned KE = 0; KE < constants::NEGP; ++KE){
+	AUX[KE] = exp(mat.SPISI[KE] - mat.TSTPP[KE]);
+      }
+    }
+    else if(icolp == BETAp_ANNIHILATION){
+      for(unsigned KE = 0; KE < constants::NEGP; ++KE){
+	AUX[KE] = exp(mat.SPAN[KE] - mat.TSTPP[KE]);
+      }
+    }
+    else if(icolp == BETAp_HARD_TOTAL){
+      for(unsigned KE = 0; KE < constants::NEGP; ++KE){
+	AUX[KE] = exp(mat.SPTOT[KE] - mat.TSTPP[KE]);
+      }
+    }
+
+    averageNumberOfInteractions =
+      RMOMX(grid.ET, AUX, grid.EL, E, constants::NEGP, 0);
+  }
+
+  return averageNumberOfInteractions;
+
+}
+
+double pen_context::IMFP(const double E,
+			 const pen_KPAR kpar,
+			 const int icol,
+			 const unsigned M) const {
+    //Get material
+    const pen_material& mat = readBaseMaterial(M);
+    double inverse_mean_free_path = 1.0e-35; // Value returned by the function
+
+    if(E < grid.EL || E > grid.EU){
+      return inverse_mean_free_path;
+    }
+
+    int KE;
+    double XEL, XE, XEK;
+    grid.getInterval(E, KE, XEL, XE, XEK);
+    
+    
+    //Compute inverse mean free path
+    if(kpar == PEN_ELECTRON){
+      pen_betaE_interact icole = static_cast<pen_betaE_interact>(icol);
+        
+      if (icole == BETAe_HARD_ELASTIC)
+        {
+	  inverse_mean_free_path = exp(mat.SEHEL[KE] + mat.DSEHEL[KE] * XEK);
+        }
+      else if (icole == BETAe_HARD_INELASTIC)
+        {
+	  inverse_mean_free_path = exp(mat.SEHIN[KE] + mat.DSEHIN[KE] * XEK);
+        }
+      else if (icole == BETAe_HARD_BREMSSTRAHLUNG)
+        {
+	  inverse_mean_free_path = exp(mat.SEHBR[KE] + mat.DSEHBR[KE] * XEK);
+        }
+      else if (icole == BETAe_HARD_INNER_SHELL)
+        {
+	  inverse_mean_free_path = exp(mat.SEISI[KE] + mat.DSEISI[KE] * XEK);
+        }
+    }
+    else if (kpar == PEN_PHOTON){
+      pen_gamma_interact icolg = static_cast<pen_gamma_interact>(icol);
+
+      if (KE < 0)
+        {
+	  KE = 0;
+	  XEK = XE - KE;
+        }
+      if (KE >= static_cast<int>(constants::NEGP - 1))
+        {
+	  KE = constants::NEGP - 2;
+	  XEK = XE - KE;
+        }
+
+      if (icolg == GAMMA_RAYLEIGH){
+	int II = mat.IED[KE];
+	int IU = mat.IEU[KE];
+	do{
+	  int IT = (II+IU)/2;
+	  if(XEL > mat.ERA[IT]){
+	    II = IT;
+	  }
+	  else{
+	    IU = IT;
+	  }
+	}while(IU-II > 1);
+	
+	inverse_mean_free_path =
+	  exp(mat.XSRA[II]+(mat.XSRA[II+1]-mat.XSRA[II])*(XEL-mat.ERA[II])
+	      /(mat.ERA[II+1]-mat.ERA[II]));
+      }
+      else if(icolg == GAMMA_COMPTON){
+	inverse_mean_free_path = exp(mat.SGCO[KE] + mat.DSGCO[KE] * XEK);
+      }
+      else if(icolg == GAMMA_PHOTOELECTRIC){
+	double XS;
+	GPHaT(E, XS, mat, elements);
+	inverse_mean_free_path = XS*mat.VMOL;
+      }
+      else if(icolg == GAMMA_PAIR_PRODUCTION){
+	inverse_mean_free_path =
+	  E < 1.023e6 ? 0.0 : exp(mat.SGPP[KE] + mat.DSGPP[KE] * XEK);
+      }
+    }
+    else if (kpar == PEN_POSITRON){
+      pen_betaP_interact icolp = static_cast<pen_betaP_interact>(icol);
+
+      if (icolp == BETAp_HARD_ELASTIC)
+        {
+	  inverse_mean_free_path = exp(mat.SPHEL[KE] + mat.DSPHEL[KE] * XEK);
+        }
+      else if (icolp == BETAp_HARD_INELASTIC)
+        {
+	  inverse_mean_free_path = exp(mat.SPHIN[KE] + mat.DSPHIN[KE] * XEK);
+        }
+      else if (icolp == BETAp_HARD_BREMSSTRAHLUNG)
+        {
+	  inverse_mean_free_path = exp(mat.SPHBR[KE] + mat.DSPHBR[KE] * XEK);
+        }
+      else if (icolp == BETAp_HARD_INNER_SHELL)
+        {
+	  inverse_mean_free_path = exp(mat.SPISI[KE] + mat.DSPISI[KE] * XEK);
+        }
+      else if (icolp == BETAp_ANNIHILATION)
+        {
+	  inverse_mean_free_path = exp(mat.SPAN[KE] + mat.DSPAN[KE] * XEK);
+        }
+    }
+
+    return std::max(inverse_mean_free_path,1.0e-35);
+
+}
+
+double pen_context::avninter(const double E,
+			     const pen_KPAR kpar,
+			     const int icol,
+			     const unsigned M,
+			     const bool calc_piecewise) const {
+  double mean_number_of_interactions = 0.0;
+  if (calc_piecewise == true)
+    {
+      mean_number_of_interactions = avncol(E, kpar, icol, M);
+    }
+  else
+    {
+      double inverse_mean_free_path = IMFP(E, kpar, icol, M);
+      double plt = range(E, kpar, M);
+      mean_number_of_interactions = inverse_mean_free_path * plt;
+    }
+
+  return mean_number_of_interactions;
+}
+
+double pen_context::getIF(const double forcerIn,
+			  const pen_KPAR kpar,
+			  const int icol,
+			  const unsigned M,
+			  const bool calc_piecewise) const {
+
+/*
+ forcer is the forcing factor, which must be larger than unity.
+ TRICK: a negative input value of forcer, -FN, is assumed to
+ mean that a particle with energy E=EPMAX should interact,
+ on average, +FN times in the course of its slowing down to
+ rest, for electrons and positrons, or along a mean free
+ path, for photons. 
+ 1. forcer > 0, emfp = mfp / force; where mfp is mean free pass, emfp
+    is effective mfp.  
+    avncol = range / emfp(Emax) is avarage number of interactions on full range down to rest.
+    This value is not known when creating configuration file that is why 
+    selecting forcer is not intuitive.
+ 2. forcer < 0 is reinterpreted. forcer = abs(forcer).
+    avncol0 = range(Emax) / mfp(Emax)
+    forcer_new = forcer / avncol0
+    emfp = mfp / forcer_new = mfp * avncol0/ forcer = mfp * range(Emax) / (forcer * mfp(Emax))
+    avncol = range / emfp = range(Emax) * forcer * mfp(Emax) / (mfp * range(Emax)) = forcer * mfp(Emax) / mfp 
+    avncol ~ forcer
+ */
+
+//#define PENEPMA_NEGATIVE_FORCER
+  double forcer = forcerIn;
+  if (forcer < -1.0e-6)
+    {
+#ifdef PENEPMA_NEGATIVE_FORCER // penepma 2018
+      // Negative forcer values are re-interpreted.
+      double E0 = grid.EU;
+      // penepma
+      double avncl = avninter(E0, kpar, icol, M, calc_piecewise);
+
+      if (avncl > 1.0e-8)
+        {
+	  forcer = std::max(fabs(forcer) / avncl, 1.0);
+        }
+      else
+        {
+	  forcer = std::max(fabs(forcer), 1.0);
+        }
+
+#else        // penelope 2018
+      if (kpar == PEN_PHOTON)
+        {
+	  double E0 = grid.EU;
+	  double fp = 1.0 / IMFP(E0, kpar, icol, M);
+	  double tst = abs(forcer);
+	  if (fp > tst)
+            {
+	      forcer = fp / tst;
+            }
+	  else
+            {
+	      forcer = 1.0;
+            }
+        }
+      else
+        {
+	  double E0 = grid.EU;
+	  double avncl = avninter(E0, kpar, icol, M, calc_piecewise);
+
+	  if (avncl > 1.0e-8)
+            {
+	      forcer = std::max(fabs(forcer) / avncl, 1.0);
+            }
+	  else
+            {
+	      forcer = std::max(fabs(forcer), 1.0);
+            }
+        }
+#endif
+    }
+
+  return forcer;
+}
+
 void DIRECT(const double CDT, const double DF, double &U, double &V, double &W)
 {
   //  This subroutine computes the new direction cosines of the particle
@@ -891,7 +1265,7 @@ void RELAX(const pen_elementDataBase& elements,
 //  *********************************************************************
 //                       SUBROUTINE GPHaT
 //  *********************************************************************
-void GPHaT(double &E, double &XS, const pen_material& mat, const pen_elementDataBase& elemDB)
+void GPHaT(const double E, double &XS, const pen_material& mat, const pen_elementDataBase& elemDB)
 {
   //  Delivers the photoelectric cross section XS (in cm**2) for photons of
   //  energy E in material M.

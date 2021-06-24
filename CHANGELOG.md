@@ -9,7 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### To add
 - CT based source
 - CT detector tally
+- Mesh geometry simulation support
 
+## [1.2.4] - 2021-06-21
+
+### Added
+- Negative interpretation of the IF factor as the PENELOPE's penmain program does, i.e. the IF is calculated to produce an average number of interactions equal to abs(factor)
+
+### Changed
+- Changes in the CMake files to be albe to compile the program using the MSVS
+
+### Removed
+- The creation of error files during the compilation has been removed, as it not require more changes.
 
 ## [1.2.3] - 2021-04-21
 
