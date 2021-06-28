@@ -642,7 +642,12 @@ void SINTEG(double* X, double* A, double* B, double* C, double* D, double &XL, d
 //  *********************************************************************
 //                       FUNCTION RMOMX
 //  *********************************************************************
-double RMOMX(double* X, double* PDF, double XD, double XU, int NP, int MOM)
+double RMOMX(const double* X,
+	     const double* PDF,
+	     const double XD,
+	     const double XU,
+	     const int NP,
+	     const int MOM)
 {
   //  Calculation of momenta of a pdf, PDF(X), obtained from linear log-log
   //  interpolation of the input table. The independent variable X is

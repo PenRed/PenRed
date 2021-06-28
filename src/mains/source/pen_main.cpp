@@ -680,7 +680,7 @@ int main(int argc, char** argv){
   }
 	
   if(strcmp(argv[1],"--version") == 0 || strcmp(argv[1],"-v") == 0){
-    printf("PenRed 1.2.3\n");
+    printf("PenRed 1.2.4\n");
     printf("Copyright (c) 2019-2021 Universitat Politecnica de Valencia\n");
     printf("Copyright (c) 2019-2021 Universitat de Valencia\n");
     printf("This is free software; see the source for copying conditions. "
@@ -2496,11 +2496,18 @@ int setVarianceReduction(pen_context& context,
       }
 
       //Check forcing factor
-      if(forcer < 1.0){
-	if(verbose > 0){
-	  printf("Interaction forcing factor for material '%s', interaction %d lesser than minimum (1.0), will be set to 1.0\n",IFmats[imname].c_str(),icol);
-	  forcer = 1.0;
-	}
+
+      pen_KPAR kpart = static_cast<pen_KPAR>(kpar);
+      bool calc_piecewise = true;
+      forcer = context.getIF(forcer, kpart, icol,
+			     static_cast<unsigned>(imat-1),
+			     calc_piecewise);
+
+      if (forcer < 1.0) {
+          if (verbose > 0) {
+              printf("Interaction forcing factor for material '%s', interaction %d lesser than minimum (1.0), will be set to 1.0\n", IFmats[imname].c_str(), icol);
+              forcer = 1.0;
+          }
       }
 
       //Read weight range
@@ -2678,11 +2685,19 @@ int setVarianceReduction(pen_context& context,
       }
 
       //Check forcing factor
-      if(forcer < 1.0){
-	if(verbose > 0){
-	  printf("Interaction forcing factor for body '%s', interaction %d lesser than minimum (1.0), will be set to 1.0\n",IFbodies[ibname].c_str(),icol);
-	  forcer = 1.0;
-	}
+
+      unsigned imat = geometry.getMat(ibody);
+      pen_KPAR kpart = static_cast<pen_KPAR>(kpar);
+      bool calc_piecewise = true;
+      forcer = context.getIF(forcer, kpart, icol,
+			     static_cast<unsigned>(imat-1),
+			     calc_piecewise);
+
+      if (forcer < 1.0) {
+          if (verbose > 0) {
+              printf("Interaction forcing factor for body '%s', interaction %d lesser than minimum (1.0), will be set to 1.0\n", IFbodies[ibname].c_str(), icol);
+              forcer = 1.0;
+          }
       }
 
       //Read weight range

@@ -30,17 +30,6 @@
 #ifndef __PEN_POSITRON_
 #define __PEN_POSITRON_
 
-
-enum pen_betaP_interact{
-  BETAp_HARD_ELASTIC = 0,
-  BETAp_HARD_INELASTIC,
-  BETAp_HARD_BREMSSTRAHLUNG,
-  BETAp_HARD_INNER_SHELL,
-  BETAp_ANNIHILATION,
-  BETAp_DELTA,
-  BETAp_SOFT_INTERACTION
-};
-
 class pen_betaP; 
 
 // Interactions
