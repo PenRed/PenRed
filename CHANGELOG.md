@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CT detector tally
 - Mesh geometry simulation support
 
+## [1.2.4b] - 2021-07-02
+
+### Changed
+- Optimisation of the quadric gometry library, specially for complex geometries
+
 ## [1.2.4] - 2021-06-21
 
 ### Added
