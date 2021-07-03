@@ -14,35 +14,36 @@ In addition, users can find a descriptive [academic article](https://arxiv.org/a
 
 ## Installation
 
-PenRed compilation has been tested in several Linux distributions with gcc 5 to 10 versions, clang and icc. However, the support on windows is not complete tested yet. For example, DICOM geometries have not been tested, but multithreading and MPI capabilities are expected to work. In addition, the compilation on windows has been tested only with the MSVS 2019 compiler.
+PenRed compilation has been tested in several Linux distributions with gcc 5 to 10 versions, clang and icc, and in Windows 10 environment using the MSVS 2019. However, the support on windows is not complete tested yet. For example, DICOM geometries have not been tested, but multithreading and MPI capabilities are tested and expected to work.
 
 ### Linux code compilation
 
-To install PenRed directly by the code compilation, download PenRed sources from this GitHub repository,
+To install PenRed via the code compilation, download PenRed sources from this GitHub repository,
 
 ```
 git clone https://github.com/PenRed/PenRed.git
 ```
 
-The code must be compiled in the *src* folder. Thus, move into this folder. To simplify the installation, PenRed includes a CMake file and a bash script (*compile.sh*) to compile the code automatically. In this script, you can enable/disable the following optional features,
+The code must be compiled in the *src* folder. To simplify the installation, PenRed includes a CMake file and a bash script (*compile.sh*) to compile the code automatically. In this script, you can enable/disable the following optional features,
 
 1. DICOMs: If it is enabled, PenRed capabilities to read and simulate DICOM images will be active. This option requires the library dicom toolkit (dcmtk).
 2. Multi-threading: This option enables multi-threading capabilities. PenRed implements multi-threading via the standard thread library specified in the C++11 standard. Thus, it is not required any extra library to enable this option.
-3. MPI: This option enables MPI simulations. It requires a library with an implementation of the MPI standard, such as openmpi or mpich.
-4. Load balance: Enables load balancing system between threads and MPI processes. This option requires, as least, multi-threading capabilities, because uses threads to handle MPI communications.
+3. MPI: This option enables MPI parallelism. It requires a library with an implementation of the MPI standard, such as openmpi or mpich.
+4. Load balance: Enables load balancing system between threads and MPI processes. This option requires, at least, multi-threading capabilities, because the MPI balance procedure uses threads to handle MPI communications.
 
-Notice that all previous dependencies are optional. The corresponding libraries can be found at most linux package repositories. For example, to compile PenRed with DICOM support in Fedora, you can use the *dnf* command to install the dependencies,
+It is possible also to enable many other compilation options, which are described in the documentation. Notice that all previous dependencies are optional, thus PenRed can be executed with no external libraries besides the standard C++ library. Moreover, the dependencies libraries can be found at most linux package repositories. For example, to compile PenRed with DICOM support in Fedora, you can use the *dnf* command to install the *dcmtk* library,
 
 ```
 sudo dnf install dcmtk dcmtk-devel
 ```
 
-After that simple step, you can launch the compilation using the provided script,
+So, to compile PenRed, you can use the provided script,
+
 ```
 bash compile.sh
 ```
 
-or doing it yourself,
+or do it yourself using the ccmake tool,
 
 ```
 cd /path/to/PenRed/repository/src
@@ -57,6 +58,8 @@ With *ccmake* you can configure the optional PenRed features with a more friendl
 ```
 cmake -DWITH_DICOM="ON" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DWITH_LB="OFF" -DDEVELOPMENT_WARNINGS="OFF" ../
 ```
+
+Notice that the *cmake* version 3 is the minimum required to perform the compilation.
 
 ### Windows code compilation
 
@@ -98,13 +101,15 @@ Once the code has been compiled, the user can found the executable of our provid
 
 > src/compiled/mains/pen_main
 
-To execute the program, the user needs a configuration file and, probably, some required data base files, such as material and geometry files. Their path should be specified in the configuration, remaining the configuration file path as the only program argument. So, to execute the program, the user can use the following instruction in a Unix environment,
+To execute the program, the user needs a configuration file and, probably, some required data base files, such as material and geometry files. To introduce how PenRed should be used, the package includes several examples ready to be executed in the *examples* directory. These examples include all the materials and geometry files as well as the corresponding configuration file. Notice that, in some examples, the user must specify the number of histories to simulate and the dump time interval in seconds. In addition, all the available paramterers to be used in the configuration file are summarised in the provided documentation.
+
+To execute the program, only the path to the configuration file is required, so the user can use the following instruction in a Unix environment,
 
 ```
 ./pen_main path/to/configuration/file
 ```
 
-or with the inverted slashes (\) if is executed in Windows. On the other hand, if the MPI capabilities have been enabled at the compilation, the code should be executed as any MPI program, for example,
+or with the inverted slashes (\\) if is executed in Windows. On the other hand, if the MPI capabilities have been enabled at the compilation, the code should be executed as any MPI program, for example,
 
 ```
 mpirun -np Nprocesses ./pen_main path/to/configuration/file
