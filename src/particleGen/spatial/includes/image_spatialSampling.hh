@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2020 Universitat de València - UV
-//    Copyright (C) 2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2021 Universitat de València - UV
+//    Copyright (C) 2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -33,6 +33,7 @@
 #ifdef _PEN_USE_DICOM_
 
 #include "pen_dicom.hh"
+#include "pen_geometries.hh"
 
 class image_spatialSampling : public abc_spatialSampler {
 
@@ -48,17 +49,26 @@ private:
   double* F;
   long int* K;
   double isocenter[3];
+  bool positionset;
+  bool savegeosampling;
+
+  double isocenterph[3];
+
+  unsigned verbose;
+  
 public:
 
   image_spatialSampling() : nx(0), ny(0), nz(0),
 			    dx(0.0), dy(0.0), dz(0.0),
-			    F(nullptr), K(nullptr)
+			    F(nullptr), K(nullptr), verbose(0)
   {}
 
   void geoSampling(double pos[3], pen_rand& random) const;
 
   int configure(const pen_parserSection& config, const unsigned verbose = 0);
-
+  
+  void updateGeometry(const wrapper_geometry* geometry);
+  
   ~image_spatialSampling();
 };
 

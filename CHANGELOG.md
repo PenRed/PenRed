@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CT detector tally
 - Mesh geometry simulation support
 
+## [1.3.0] - 
+
+### Added
+- Geometry information is now accessible for all sampler types via the virtual method *updateGeometry*
+- Image sampler can, optionally, ajust the source position automatically if it is used with DICOM based geometries
+
 ## [1.2.4b] - 2021-07-02
 
 ### Changed

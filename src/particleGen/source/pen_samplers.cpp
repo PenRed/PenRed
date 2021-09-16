@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2020 Universitat de València - UV
-//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -220,6 +220,20 @@ int pen_genericStateGen::setGeometry(const wrapper_geometry* geometryIn){
   if(geometryIn == nullptr)
     return -1;
   geometry = geometryIn;
+
+  //Update samplers geometry
+  if(spatialSampler != nullptr)
+    spatialSampler->updateGeometry(geometry);
+  
+  if(directionSampler != nullptr)
+    directionSampler->updateGeometry(geometry);
+  
+  if(energySampler != nullptr)
+    energySampler->updateGeometry(geometry);
+  
+  if(timeSampler != nullptr)
+    timeSampler->updateGeometry(geometry);
+  
   return 0;
 }
 
@@ -252,6 +266,9 @@ int pen_genericStateGen::selectSpatialSampler(const char* ID,
     spatialSampler = nullptr;
     return -2;
   }
+
+  if(geometry != nullptr)
+    spatialSampler->updateGeometry(geometry);
   
   return 0;
 }
@@ -285,6 +302,9 @@ int pen_genericStateGen::selectDirectionSampler(const char* ID,
     return -2;
   }
 
+  if(geometry != nullptr)
+    directionSampler->updateGeometry(geometry);  
+
   return 0;
 }
 
@@ -316,6 +336,9 @@ int pen_genericStateGen::selectEnergySampler(const char* ID,
     energySampler = nullptr;
     return -2;
   }
+
+  if(geometry != nullptr)
+    energySampler->updateGeometry(geometry);  
   
   return 0;
 }
@@ -347,7 +370,10 @@ int pen_genericStateGen::selectTimeSampler(const char* ID,
     timeSampler = nullptr;
     return -2;
   }
-    
+
+  if(geometry != nullptr)
+    timeSampler->updateGeometry(geometry);  
+  
   return 0;
 }
 
