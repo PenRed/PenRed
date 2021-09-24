@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -44,6 +44,21 @@ void matmul3D(const double A[9], double B[3]){
   
 }
 
+void matmul3D(const float A[9], float B[3]){
+
+  float C[3];
+  
+  for(int j = 0; j < 3; j++){
+    C[j] = 0.0;
+    for(int i = 0; i < 3; i++){
+      C[j] += A[3*j+i]*B[i];
+    }
+  }
+  for(int i = 0; i < 3; i++)
+    B[i] = C[i];  
+  
+}
+
 void createRotationZYZ(const double omega, const double theta, const double phi, double rotation[9])
 {
   //*******************************************************************
@@ -66,6 +81,126 @@ void createRotationZYZ(const double omega, const double theta, const double phi,
   ctheta = cos(theta);
   sphi   = sin(phi);
   cphi   = cos(phi);
+    
+  rotation[0] = cphi*ctheta*comega-sphi*somega;
+  rotation[1] = -cphi*ctheta*somega-sphi*comega;
+  rotation[2] = cphi*stheta;
+    
+  rotation[3] = sphi*ctheta*comega+cphi*somega;
+  rotation[4] = -sphi*ctheta*somega+cphi*comega;
+  rotation[5] = sphi*stheta;
+    
+  rotation[6] = -stheta*comega;
+  rotation[7] = stheta*somega;
+  rotation[8] = ctheta;
+}
+
+void rollAlign(const double u,
+	       const double v,
+	       const double w,
+	       const double omega,
+	       double rotation[9]){
+  //*******************************************************************
+  //*    Computes the required rotation matrix to align the vector    *
+  //*    (0,0,1) to the direction (u,v,w) with a initial Z rotation   *
+  //*    specified by "omega".                                        *
+  //*                                                                 *
+  //*    Input:                                                       *
+  //*      u -> direction x component                                 *
+  //*      v -> direction y component                                 *
+  //*      w -> direction z component                                 *
+  //*      omega -> initial rotation in the Z axis                    *
+  //*    Output:                                                      *
+  //*      rot -> 3x3 matrix of the 3D rotation                       *
+  //*******************************************************************
+
+  //To solve:
+  //
+  // cphi * stheta = u
+  // sphi * stheta = v
+  // ctheta = w
+  
+  double somega,comega,stheta,ctheta,sphi,cphi;
+  
+  ctheta = w;
+  
+  if(fabs(ctheta) < 0.99999999999){
+    double phi = atan2(v,u);
+    cphi = cos(phi);
+    sphi = sin(phi);
+    
+    stheta = fabs(cphi) > fabs(sphi) ? u/cphi : v/sphi;
+    //sphi = v/stheta;
+  }
+  else{
+    stheta = 0.0;
+    ctheta = 1.0;
+    cphi = 1.0;
+    sphi = 0.0;
+  }
+  
+  somega = sin(omega);
+  comega = cos(omega);
+    
+  rotation[0] = cphi*ctheta*comega-sphi*somega;
+  rotation[1] = -cphi*ctheta*somega-sphi*comega;
+  rotation[2] = cphi*stheta;
+    
+  rotation[3] = sphi*ctheta*comega+cphi*somega;
+  rotation[4] = -sphi*ctheta*somega+cphi*comega;
+  rotation[5] = sphi*stheta;
+    
+  rotation[6] = -stheta*comega;
+  rotation[7] = stheta*somega;
+  rotation[8] = ctheta;
+}
+
+void rollAlignf(const float u,
+		const float v,
+		const float w,
+		const float omega,
+		float rotation[9]){
+  //*******************************************************************
+  //*    Computes the required rotation matrix to align the vector    *
+  //*    (0,0,1) to the direction (u,v,w) with a initial Z rotation   *
+  //*    specified by "omega".                                        *
+  //*                                                                 *
+  //*    Input:                                                       *
+  //*      u -> direction x component                                 *
+  //*      v -> direction y component                                 *
+  //*      w -> direction z component                                 *
+  //*      omega -> initial rotation in the Z axis                    *
+  //*    Output:                                                      *
+  //*      rot -> 3x3 matrix of the 3D rotation                       *
+  //*******************************************************************
+
+  //To solve:
+  //
+  // cphi * stheta = u
+  // sphi * stheta = v
+  // ctheta = w
+  
+  float somega,comega,stheta,ctheta,sphi,cphi;
+  
+  ctheta = w;
+  
+  if(fabs(ctheta) < 0.99999999999){
+    float phi = atan2(v,u);
+    cphi = cos(phi);
+    sphi = sin(phi);
+    
+    stheta = fabs(cphi) > fabs(sphi) ? u/cphi : v/sphi;
+    //sphi = v/stheta;
+  }
+  else{
+    stheta = 0.0;
+    ctheta = 1.0;
+    cphi = 1.0;
+    sphi = 0.0;
+  }
+  
+  somega = sin(omega);
+  comega = cos(omega);
     
   rotation[0] = cphi*ctheta*comega-sphi*somega;
   rotation[1] = -cphi*ctheta*somega-sphi*comega;
