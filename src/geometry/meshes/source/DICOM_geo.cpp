@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2020 Universitat de València - UV
-//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -42,6 +42,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
     if(verbose > 0){
       printf("pen_dicomGeo:configure:Error: Unable to read field 'directory'. String spected.\n");
     }
+    configStatus = 1;
     return 1;
   }
 
@@ -69,6 +70,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   if(defMat < 1){
     if(verbose > 0)
       printf("pen_dicomGeo:configure: Error: Default material must be greater than zero\n");
+    configStatus = 2;
     return 2;
   }
 
@@ -82,6 +84,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   if(defDens <= 0.0){
     if(verbose > 0)
       printf("pen_dicomGeo:configure: Error: Invalid default density.\n");
+    configStatus = 3;
     return 3;
   }
 
@@ -127,6 +130,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	if(verbose > 0){
 	  printf("pen_dicomGeo:configure: Error: Unable to read material ID for intensity range '%s'. Integer expected.\n",intensityRangesNames[i].c_str());
 	}
+	configStatus = -1;
 	return -1;
       }
       //Check material ID
@@ -136,6 +140,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	  printf("                         ID: %d\n",auxMat);
 	  printf("Maximum number of materials: %d\n",constants::MAXMAT);
 	}
+	configStatus = -2;
 	return -2;
       }
 
@@ -147,6 +152,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	if(verbose > 0){
 	  printf("pen_dicomGeo:configure: Error: Unable to read low intensity for range '%s'. Double expected.\n",intensityRangesNames[i].c_str());
 	}
+	configStatus = -3;
 	return -3;
       }
 
@@ -155,6 +161,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	if(verbose > 0){
 	  printf("pen_dicomGeo:configure: Error: Unable to read top intensity for range '%s'. Double expected.\n",intensityRangesNames[i].c_str());
 	}
+	configStatus = -4;
 	return -4;
       }
       
@@ -165,6 +172,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	  printf("                    low intensity: %12.4E\n",auxIntensityLow);
 	  printf("                    top intensity: %12.4E\n",auxIntensityTop);
 	}
+	configStatus = -5;
 	return -5;
       }
 
@@ -176,6 +184,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	if(verbose > 0){
 	  printf("pen_dicomGeo:configure: Error: Unable to read density for intensity range '%s'. Double expected.\n",intensityRangesNames[i].c_str());
 	}
+	configStatus = -3;
 	return -3;
       }
 
@@ -211,6 +220,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
     if(verbose > 0){
       printf("pen_dicomGeo:configure: No material information provided\n");
     }
+    configStatus = 4;
     return 4;
   }
   
@@ -238,6 +248,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
       if(verbose > 0){
 	printf("pen_dicomGeo:configure: Error: Unable to read material ID for material '%s'. Integer expected.\n",matNames[imat].c_str());
       }
+      configStatus = -1;
       return -1;
     }
     //Check material ID
@@ -247,6 +258,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	printf("                         ID: %d\n",auxID);
 	printf("Maximum number of materials: %d\n",constants::MAXMAT);
       }
+      configStatus = -2;
       return -2;
     }
 
@@ -258,6 +270,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
       if(verbose > 0){
 	printf("pen_dicomGeo:configure: Error: Unable to read density for material '%s'. Double expected.\n",matNames[imat].c_str());
       }
+      configStatus = -3;
       return -3;
     }
     //Check density
@@ -266,6 +279,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	printf("pen_dicomGeo:configure: Error: Invalid density specified for material '%s'. Must be greater than zero.\n",matNames[imat].c_str());
 	printf("                        density: %12.4E g/cm^3\n",auxDens);
       }
+      configStatus = -4;
       return -4;
     }
 
@@ -323,6 +337,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	    printf("                         ID: %d\n",auxMat);
 	    printf("Maximum number of materials: %d\n",constants::MAXMAT);
 	  }
+	  configStatus = -2;
 	  return -2;
 	}
       }
@@ -340,6 +355,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	    printf("pen_dicomGeo:configure: Error: Invalid material density specified for contour '%s'. Must be greater than zero.\n",contourNames[i].c_str());
 	    printf("                        density: %12.4E\n",auxDens);
 	  }
+	  configStatus = -4;
 	  return -4;
 	}
       }
@@ -351,6 +367,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	if(verbose > 0){
 	  printf("pen_dicomGeo:configure: Error: Unable to read priority for contour '%s'. Double expected.\n",contourNames[i].c_str());
 	}
+	configStatus = -5;
 	return -5;
       }
       
@@ -385,6 +402,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
     //Check if we can assign density using calibration
     if(calibration.size() == 0 && intensityRangesNames.size() == 0){
       printf("pen_dicomGeo:configure: Error: No contour information nor calibration nor intensity ranges provided to assign density to voxels.\n");
+      configStatus = 4;
       return 4;
     }
   }
@@ -432,6 +450,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	if(verbose > 0){
 	  printf("pen_dicomGeo:configure: Error: Unable to read material ID for density range '%s'. Integer expected.\n",rangesNames[i].c_str());
 	}
+	configStatus = -1;
 	return -1;
       }
       //Check material ID
@@ -441,6 +460,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	  printf("                         ID: %d\n",auxMat);
 	  printf("Maximum number of materials: %d\n",constants::MAXMAT);
 	}
+	configStatus = -2;
 	return -2;
       }
 
@@ -452,6 +472,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	if(verbose > 0){
 	  printf("pen_dicomGeo:configure: Error: Unable to read low density for range '%s'. Double expected.\n",rangesNames[i].c_str());
 	}
+	configStatus = -3;
 	return -3;
       }
 
@@ -460,6 +481,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	if(verbose > 0){
 	  printf("pen_dicomGeo:configure: Error: Unable to read top density for range '%s'. Double expected.\n",rangesNames[i].c_str());
 	}
+	configStatus = -4;
 	return -4;
       }
       
@@ -470,6 +492,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	  printf("                    low density: %12.4E\n",auxDensLow);
 	  printf("                    top density: %12.4E\n",auxDensTop);
 	}
+	configStatus = -5;
 	return -5;
       }
       if(verbose > 1)
@@ -495,6 +518,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
       printf("pen_dicomGeo:configure: Error loading DICOM '%s'\n",directoryPath.c_str());
       printf("                 Error code: %d\n",err);
     }
+    configStatus = 5;
     return 5;
   }
 
@@ -515,6 +539,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
       if(verbose > 0){
 	printf("pen_dicomGeo:configure: Error: Contour '%s' doesn't exist in specified DICOM (%s)\n",contourNames[icont].c_str(),directoryPath.c_str());
       }
+      configStatus = 6;
       return 6;
     }
     //Store configuration index
@@ -531,6 +556,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
       printf("pen_dicomGeo:configure: Error on DICOM contour assign '%s'\n",directoryPath.c_str());
       printf("                 Error code: %d\n",err);
     }
+    configStatus = 7;
     return 7;
   }
 
@@ -542,6 +568,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	     "                   Read z planes: %lu\n",
 	     std::numeric_limits<unsigned>::max(),dicom.getNZ());
     }
+    configStatus = 8;
     return 8;
   }
 
@@ -666,6 +693,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
       if(verbose > 0){
 	printf("pen_dicomGeo:configure: Error: Nominal density not provided for material index %d, which is used in the provided DICOM image.\n",mats[ivox]);
       }
+      configStatus = 8;
       return 8;
     }
     //Calculate density factor
@@ -679,6 +707,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
       printf("pen_dicomGeo:configure: Error: Unable to create voxel geometry from DICOM with provided configuration.\n");
       printf("                        Error code: %d\n",err);
     }
+    configStatus = 9;
     return 9;
   }
 
@@ -698,7 +727,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
     }
   }
   
-  
+  configStatus = 0;
   return 0;
 }
 
