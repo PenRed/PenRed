@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Geometry information is now accessible for all sampler types via the virtual method *updateGeometry*
 - Image sampler can, optionally, ajust the source position automatically if it is used with DICOM based geometries
+- Function to access dicon seed data
+- The main program will check the returned value of the geometry configuration function, in addition to the configure status variable
+
+### Fix
+- Bug: DICOM geometry does not update the configure status variable during the configuration function call
 
 ## [1.2.4b] - 2021-07-02
 
