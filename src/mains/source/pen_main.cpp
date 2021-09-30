@@ -2189,7 +2189,11 @@ int createGeometry(wrapper_geometry*& geometry,
 
   //Configure geometry  
   geometry->name.assign("geometry");    
-  geometry->configure(geometrySection,verbose);    
+  if(geometry->configure(geometrySection,verbose) != 0){
+    if(verbose > 0)
+      printf("createGeometry: Error: Fail on geometry configuration.\n");
+    return -5;
+  }
   
   //Check errors
   if(geometry->configureStatus() != 0){
