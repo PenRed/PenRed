@@ -1725,6 +1725,10 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& /*geometry*/,
   activeMat[0] = false;
   for(unsigned imat = 1; imat < constants::MAXMAT; ++imat){
 
+    //Clear energy and muen data vectors
+    EData.clear();
+    muenData.clear();
+    
     activeMat[imat] = false;
     
     std::string key("dataFiles/");
@@ -1761,11 +1765,14 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& /*geometry*/,
 	}
 	//Convert to eV
 	//E *= 1000.0;
-	if(exp(EData.back()) >= E || E <= 0.0 || muenAux <= 0.0){
+	if( (EData.size() > 0 && exp(EData.back()) >= E) || E <= 0.0 || muenAux <= 0.0){
 	  if(verbose > 0){
 	    printf("pen_tallyKermaTrackLength:configure: Error: Energy bins "
 		   "must be in increasing order and both vaules positive\n"
 		   "   line: %s\n",line);
+            if(EData.size() > 0){
+                printf("   Previous energy: %E\n",exp(EData.back()));
+            }
 	  }
 	  fclose(fin);
 	  return -9;	  
