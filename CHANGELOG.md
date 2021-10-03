@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fix
 - Bug: DICOM geometry does not update the configure status variable during the configuration function call
+- Bug: Kerma track length tally fails on configuration when multiple materials are used
 
 ## [1.2.4b] - 2021-07-02
 
