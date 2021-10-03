@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2020 Universitat de València - UV
-//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -21,7 +21,8 @@
 //
 //    contact emails:
 //
-//        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
+//        sanolgi@upvnet.upv.es (Sandra Oliver Gil)
+//        vicent.gimenez.alventosa@gmail.com  (Vicent Giménez Alventosa)
 //        vicente.gimenez@uv.es (Vicente Giménez Gómez)
 //    
 //
@@ -43,5 +44,6 @@
 #include "tallyPhaseSpaceFile.hh"
 #include "tallyKermaTrackLength.hh"
 #include "tallyDICOMDoseDistrib.hh"
+#include "tallyCTsinogram.hh"
 
 #endif
