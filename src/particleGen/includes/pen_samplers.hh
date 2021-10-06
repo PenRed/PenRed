@@ -214,8 +214,11 @@ public:
     updateSamplers(); //Handle sampler change
   }
 
+  virtual void updateGeometry(const wrapper_geometry* /*geometryIn*/){}
+
   inline void setGeometry(const wrapper_geometry* geometryIn){
     geometry = geometryIn;
+    updateGeometry(geometryIn);
   }
 
   //Virtual method to handle sapler changes
@@ -280,6 +283,8 @@ public:
 
   inline static const char* type() {return "SPATIAL";}
   virtual const char* readID() const = 0;
+
+  virtual void updateGeometry(const wrapper_geometry* /*geometryIn*/){}
   
   virtual ~abc_spatialSampler(){}
 };
@@ -301,6 +306,8 @@ public:
 
   inline static const char* type() {return "DIRECTION";}
   virtual const char* readID() const = 0;
+
+  virtual void updateGeometry(const wrapper_geometry* /*geometryIn*/){}
   
   virtual ~abc_directionSampler(){}
 };
@@ -325,6 +332,8 @@ public:
 
   inline static const char* type() {return "ENERGY";}
   virtual const char* readID() const = 0;
+
+  virtual void updateGeometry(const wrapper_geometry* /*geometryIn*/){}
   
   virtual ~abc_energySampler(){}
 };
@@ -346,6 +355,8 @@ public:
 
   inline static const char* type() {return "TIME";}
   virtual const char* readID() const = 0;
+
+  virtual void updateGeometry(const wrapper_geometry* /*geometryIn*/){}
   
   virtual ~abc_timeSampler(){}
 };

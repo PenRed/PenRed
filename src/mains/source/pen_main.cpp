@@ -680,7 +680,7 @@ int main(int argc, char** argv){
   }
 	
   if(strcmp(argv[1],"--version") == 0 || strcmp(argv[1],"-v") == 0){
-    printf("PenRed 1.2.4b\n");
+    printf("PenRed 1.3.0\n");
     printf("Copyright (c) 2019-2021 Universitat Politecnica de Valencia\n");
     printf("Copyright (c) 2019-2021 Universitat de Valencia\n");
     printf("This is free software; see the source for copying conditions. "
@@ -2189,7 +2189,11 @@ int createGeometry(wrapper_geometry*& geometry,
 
   //Configure geometry  
   geometry->name.assign("geometry");    
-  geometry->configure(geometrySection,verbose);    
+  if(geometry->configure(geometrySection,verbose) != 0){
+    if(verbose > 0)
+      printf("createGeometry: Error: Fail on geometry configuration.\n");
+    return -5;
+  }
   
   //Check errors
   if(geometry->configureStatus() != 0){

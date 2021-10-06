@@ -92,6 +92,7 @@ target_link_libraries(samplers pen_contexts)
 target_link_libraries(samplers pen_internalData)
 target_link_libraries(samplers pen_psf)
 target_link_libraries(samplers pen_sharedFile)
+target_link_libraries(samplers pen_geos)
 
 if(WITH_LB)
     target_link_libraries(samplers pen_LB)

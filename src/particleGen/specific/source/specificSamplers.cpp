@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -21,11 +21,11 @@
 //
 //    contact emails:
 //
-//        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
+//        sanolgi@upvnet.upv.es (Sandra Oliver Gil)
+//        vicent.gimenez.alventosa@gmail.com  (Vicent Giménez Alventosa)
+//        vicente.gimenez@uv.es (Vicente Giménez Gómez)
 //    
 //
-
 
 //Source_classes will be compiled with all specific samplers.
 //So, only particle states used in this samplers will be avaible
@@ -36,3 +36,4 @@
 #include "randomState.cpp" 
 #include "PSFsource.cpp"
 #include "gammaPolarised.cpp"
+#include "CTsource.cpp"

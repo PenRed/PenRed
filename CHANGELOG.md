@@ -7,9 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### To add
+- Mesh geometry simulation support
+
+## [1.3.0] - 2021-10-06
+
+### Added
 - CT based source
 - CT detector tally
-- Mesh geometry simulation support
+- Geometry information is now accessible for all sampler types via the virtual method *updateGeometry*
+- Image sampler can, optionally, ajust the source position automatically if it is used with DICOM based geometries
+- Function to access DICOM seed data
+- The main program will check the returned value of the geometry configuration function, in addition to the configure status variable
+
+### Fix
+- Bug: DICOM geometry does not update the configure status variable during the configuration function call
+- Bug: Kerma track length tally fails on configuration when multiple materials are used
+
+### Changed
+- Documentation has been split and expanded
 
 ## [1.2.4b] - 2021-07-02
 

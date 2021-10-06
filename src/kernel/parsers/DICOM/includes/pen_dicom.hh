@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2020 Universitat de València - UV
-//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -360,6 +360,10 @@ public:
 
   inline const pen_contour& contour(unsigned long icont) const {
       return contours[icont];
+  }
+
+  inline const pen_seed& seed(unsigned long icont) const {
+    return seeds[icont];
   }
 
   int printContours(const char* filename) const;
