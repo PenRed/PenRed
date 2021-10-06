@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### To add
 - Mesh geometry simulation support
 
-## [1.3.0] - 
+## [1.3.0] - 2021-10-06
 
 ### Added
 - CT based source
@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fix
 - Bug: DICOM geometry does not update the configure status variable during the configuration function call
 - Bug: Kerma track length tally fails on configuration when multiple materials are used
+
+### Changed
+- Documentation has been split and expanded
 
 ## [1.2.4b] - 2021-07-02
 
