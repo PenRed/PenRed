@@ -4,9 +4,11 @@ Parallel Engine for Radiation Energy Deposition
 
 ## Introduction
 
-PenRed package provides a parallel engine for radiation transport Monte-Carlo simulations. The information about installation, usage and description of source files can be found at the provided documentation. This one is distributed within the PenRed package at
+PenRed package provides a parallel engine for radiation transport Monte-Carlo simulations. The information about installation, usage and how to implement new components can be found in the provided documentation, which can be found in the folder
 
-> doc/PenRed_doc.pdf
+> doc/
+
+Actually two manuals are provided. The first one, named *PenRed_user_manual.pdf*, describes the installation procedure and the framework usage. The second, named *PenRed_implementation_manual.pdf*, is focused on the required information to implement and include new components in the PenRed framework. In addition, we are working in a deeper documentation about the code structure.
 
 In addition, users can find a descriptive [academic article](https://arxiv.org/abs/2003.00796) at ArXiv which has been accepted and published in the Computer Physics Communications journal (https://doi.org/10.1016/j.cpc.2021.108065). If PenRed is used for research conducting to publications, please, cite the published article.
 
