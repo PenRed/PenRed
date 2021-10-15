@@ -680,7 +680,7 @@ int main(int argc, char** argv){
   }
 	
   if(strcmp(argv[1],"--version") == 0 || strcmp(argv[1],"-v") == 0){
-    printf("PenRed 1.3.0\n");
+    printf("PenRed 1.3.0b\n");
     printf("Copyright (c) 2019-2021 Universitat Politecnica de Valencia\n");
     printf("Copyright (c) 2019-2021 Universitat de Valencia\n");
     printf("This is free software; see the source for copying conditions. "
