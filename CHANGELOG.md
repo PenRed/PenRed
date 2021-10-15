@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### To add
 - Mesh geometry simulation support
 
+## [1.3.0b] - 2021-10-15
+
+### Fix
+- Bug: Contour voxel plane assign was inconsistent when the contour Z coordinate is located on the edge between two voxels 
+
 ## [1.3.0] - 2021-10-06
 
 ### Added
