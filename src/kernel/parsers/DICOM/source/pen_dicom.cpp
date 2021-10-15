@@ -2021,8 +2021,15 @@ int pen_dicom::assignContours(){
 	  //Calculate Z plane
 	  double p0[3];
 	  refCont.getPoint(p0,nplane,0);
+	  double zPlanef = p0[2]/dvox_z;
 	  long int zPlane = p0[2]/dvox_z;
 	  
+	  //Ensure that the contour Z coordinate is not on the voxel Z edge
+	  if(zPlanef - static_cast<double>(zPlane) < 1.0e-6){
+	    //The contour is on the voxel Z edge. Assign it to lower voxel
+	    zPlane = static_cast<long int>(zPlanef - dvox_z*0.5);
+	  }
+      
 	  if(zPlane < 0 || zPlane >= (int)nvox_z)
 	    continue;
 
