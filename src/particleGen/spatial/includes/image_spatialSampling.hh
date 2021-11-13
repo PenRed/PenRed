@@ -39,7 +39,7 @@ class image_spatialSampling : public abc_spatialSampler {
 
   DECLARE_SAMPLER(image_spatialSampling)
 
-private:
+  private:
   long int nx,ny,nz;
   long int nxy;
   long int nvox;
@@ -51,16 +51,20 @@ private:
   double isocenter[3];
   bool positionset;
   bool savegeosampling;
+  FILE* outsampling = nullptr;
 
   double isocenterph[3];
 
+  mutable long int count;
   unsigned verbose;
+
+  mutable std::mutex count_mutex;
   
 public:
 
   image_spatialSampling() : nx(0), ny(0), nz(0),
 			    dx(0.0), dy(0.0), dz(0.0),
-			    F(nullptr), K(nullptr), verbose(0)
+			    F(nullptr), K(nullptr), count(0), verbose(0)
   {}
 
   void geoSampling(double pos[3], pen_rand& random) const;
