@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### To add
 - Mesh geometry simulation support
 
+## [1.3.1] - 
+
+### Added
+- Capability to add dump files
+- Capability to specify a different number of threads for each MPI rank
+- Cabability to dump final results of each thread
+- Automatic number of threads selection
+
+### Fix
+- Bug: Corrupted material creation using Visual Studio compiler
+- Bug: Erroneous history count when dumping a resumed simulation
+
 ## [1.3.0b] - 2021-10-15
 
 ### Fix
