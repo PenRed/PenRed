@@ -1,0 +1,47 @@
+name: CMake
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+
+    name: ${ { matrix.name } }
+    runs-on: ${ { matrix.os } }
+    strategy:
+      fail-fast: false
+      matrix:
+      
+        include:
+          - os: ubuntu-latest
+            name: Ubuntu
+            
+          - os: windows-latest
+            name: Windows
+            
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Create building folder
+      run: |
+        cd ${{ github.workspace }}/src
+        mkdir build
+        cd build
+    - name: Configure and build cmake
+      run: |
+        cmake -DWITH_DICOM="OFF" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DWITH_LB="OFF" -DDEVELOPMENT_WARNINGS="ON" ../
+    - name: Compile the code 
+      run: |
+        make install
+    - name: Print PenRed version
+      run: |
+        cd ..
+        cd compiled/mains/penmain
+        ./pen_main --version
