@@ -26,17 +26,19 @@ jobs:
 
     - name: Create building folder
       run: |
-        cd ${{ github.workspace }}/src
-        mkdir build
-        cd build
+        mkdir ${{ github.workspace }}/src/build
+
     - name: Configure and build cmake
       run: |
+        cd ${{ github.workspace }}/src/build
         cmake -DWITH_DICOM="OFF" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DWITH_LB="OFF" -DDEVELOPMENT_WARNINGS="ON" ../
+        
     - name: Compile the code 
       run: |
+        cd ${{ github.workspace }}/src/build
         make install
+        
     - name: Print PenRed version
       run: |
-        cd ..
-        cd compiled/mains/penmain
+        cd ${{ github.workspace }}/src/build/compiled/mains/penmain
         ./pen_main --version
