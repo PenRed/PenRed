@@ -40,5 +40,5 @@ jobs:
         
     - name: Print PenRed version
       run: |
-        cd ${{ github.workspace }}/src/build/compiled/mains/penmain
+        cd ${{ github.workspace }}/src/compiled/mains/penmain
         ./pen_main --version
