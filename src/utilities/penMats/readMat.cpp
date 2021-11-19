@@ -43,13 +43,6 @@ int main(int argc, char** argv)
       return 1;
     }
     
-  //******************************************************
-  //Fix the minimum number of exponent digits in MVS to 2 
-#ifdef _MSC_VER
-  unsigned int prev_exponent_format =
-      _set_output_format(_TWO_DIGIT_EXPONENT);
-#endif
-  //******************************************************      
 
   if(strcmp(argv[1],"--help") == 0 || strcmp(argv[1],"-help") == 0 || strcmp(argv[1],"-h") == 0 || strcmp(argv[1],"--h") == 0)
     {
