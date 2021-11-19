@@ -703,14 +703,6 @@ int main(int argc, char** argv){
       addDumps = true;
     }
   }
-
-  //******************************************************
-  //Fix the minimum number of exponent digits in MVS to 2 
-#ifdef _MSC_VER
-  unsigned int prev_exponent_format =
-      _set_output_format(_TWO_DIGIT_EXPONENT);
-#endif
-  //******************************************************
   
   unsigned verbose = 2;
 
