@@ -31,10 +31,10 @@ jobs:
     - name: Build and compile
       run: |
         cmake -DWITH_DICOM="OFF" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DWITH_LB="OFF" -DDEVELOPMENT_WARNINGS="ON" ../
-        make install
+        cmake --build . --config install
       working-directory: ${{ github.workspace }}/src/build
               
-    - name: Print PenRed version in unix environment
+    - name: Print PenRed version
       run: |
         ./pen_main --version
       working-directory: ${{ github.workspace }}/src/compiled/mains/penmain
