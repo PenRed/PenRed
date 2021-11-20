@@ -1,4 +1,7 @@
-# PenRed
+# PenRed 
+
+[![CMake](https://github.com/PenRed/PenRed/actions/workflows/cmake.yml/badge.svg)](https://github.com/PenRed/PenRed/actions/workflows/cmake.yml) 
+
 Parallel Engine for Radiation Energy Deposition
 
 
