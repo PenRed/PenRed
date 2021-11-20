@@ -31,7 +31,7 @@ jobs:
     - name: Build and compile
       run: |
         cmake -DWITH_DICOM="OFF" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DWITH_LB="OFF" -DDEVELOPMENT_WARNINGS="ON" ../
-        cmake --build . --config install
+        cmake --build . --target install
       working-directory: ${{ github.workspace }}/src/build
               
     - name: Print PenRed version
