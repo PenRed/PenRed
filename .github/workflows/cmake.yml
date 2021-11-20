@@ -30,15 +30,22 @@ jobs:
 
     - name: Configure and build cmake
       run: |
-        cd ${{ github.workspace }}/src/build
         cmake -DWITH_DICOM="OFF" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DWITH_LB="OFF" -DDEVELOPMENT_WARNINGS="ON" ../
-        
+      working-directory: ${{ github.workspace }}/src/build
+      
     - name: Compile the code 
       run: |
-        cd ${{ github.workspace }}/src/build
         make install
+      working-directory: ${{ github.workspace }}/src/build
         
-    - name: Print PenRed version
+    - name: Print PenRed version in unix environment
+      if: runner.os != 'Windows'
       run: |
-        cd ${{ github.workspace }}/src/compiled/mains/penmain
         ./pen_main --version
+      working-directory: ${{ github.workspace }}/src/compiled/mains/penmain
+
+    - name: Print PenRed version in windows environment
+      if: runner.os == 'Windows'
+      run: |
+        .\pen_main --version
+      working-directory: ${{ github.workspace }}/src/compiled/mains/penmain
