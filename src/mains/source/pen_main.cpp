@@ -310,8 +310,8 @@ void simulate(const unsigned ithread,
 
   //Get detector ID
   unsigned firstKdet = context.getDET(genState.IBODY);
-  //Tally first history begin
-  tallies.run_beginHist(hist,firstKdet,genKpar,genState);
+  //Tally first sampled particle
+  tallies.run_sampledPart(hist,dhist,firstKdet,genKpar,genState);
   
   for(;;){
 
@@ -336,13 +336,8 @@ void simulate(const unsigned ithread,
 	//Get detector ID
 	unsigned kdet = betaE.getDET();	
 
-	//Simulate primary particle
+	//Simulate sampled particle
 	tallies.run_beginPart(hist,kdet,PEN_ELECTRON,betaE.readState());
-	if(dhist == 0){
-	  //Compensate extracted energy on "beginPart" functions
-	  tallies.run_localEdep(hist,PEN_ELECTRON,betaE.readState(),
-				betaE.getState().E);
-	}
 	simulatePart(hist,betaE,tallies,random);
 	
       }
@@ -364,13 +359,8 @@ void simulate(const unsigned ithread,
 	//Get detector ID
 	unsigned kdet = gamma.getDET();
 	
-	//Simulate primary particle
+	//Simulate sampled particle
 	tallies.run_beginPart(hist,kdet,PEN_PHOTON,gamma.readState());
-	if(dhist == 0){
-	  //Compensate extracted energy on "beginPart" functions
-	  tallies.run_localEdep(hist,PEN_PHOTON,gamma.readState(),
-				gamma.getState().E);
-	}
 	simulatePart(hist,gamma,tallies,random);
 	
       }
@@ -392,13 +382,8 @@ void simulate(const unsigned ithread,
 	//Get detector ID
 	unsigned kdet = betaP.getDET();	
 	
-	//Simulate primary particle
+	//Simulate sampled particle
 	tallies.run_beginPart(hist,kdet,PEN_POSITRON,betaP.readState());
-	if(dhist == 0){
-	  //Compensate extracted energy on "beginPart" functions
-	  tallies.run_localEdep(hist,PEN_POSITRON,betaP.readState(),
-				betaP.getState().E);
-	}
 	simulatePart(hist,betaP,tallies,random);
 	
       }
@@ -623,13 +608,7 @@ void simulate(const unsigned ithread,
       hist += dhist;
 
       //Check history limit
-      if(hist < lastHist){
-	//Get detector ID
-	unsigned kdet = context.getDET(genState.IBODY);
-	//Tally new history
-	tallies.run_beginHist(hist,kdet,genKpar,genState);
-      }
-      else{
+      if(hist >= lastHist){
 	//End of simulation, ask permission to finish
 	if(source.handleFinish(ithread,hist-simulated,nhists,verbose)){
 	  //This worker can finish, exit from the simulation loop
@@ -651,6 +630,13 @@ void simulate(const unsigned ithread,
       }
       
     }
+
+    //Get detector ID
+    unsigned kdet = context.getDET(genState.IBODY);
+    //Tally new sampled particle
+    tallies.run_sampledPart(hist,dhist,kdet,genKpar,genState);
+    
+    
   }
 
   //Update seeds for next source
