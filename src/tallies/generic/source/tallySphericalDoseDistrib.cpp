@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2020 Universitat de València - UV
-//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -21,8 +21,9 @@
 //
 //    contact emails:
 //
-//        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
+//        vicent.gimenez.alventosa@gmail.com  (Vicent Giménez Alventosa)
+//        vicente.gimenez@uv.es (Vicente Giménez Gómez)
+//        sanolgi@upvnet.upv.es (Sandra Oliver Gil)
 //    
 //
 
@@ -122,16 +123,17 @@ void pen_SphericalDoseDistrib::tally_beginPart(const unsigned long long nhist,
     updateEdepCounters(-state.E, nhist, state.X, state.Y, state.Z, state.WGHT);
 }
 
-void pen_SphericalDoseDistrib::tally_beginHist(const unsigned long long nhist,
-					       const unsigned /*kdet*/,
-					       const pen_KPAR /*kpar*/,
-					       const pen_particleState& state){
+void pen_SphericalDoseDistrib::tally_sampledPart(const unsigned long long nhist,
+						 const unsigned long long /*dhist*/,
+						 const unsigned /*kdet*/,
+						 const pen_KPAR /*kpar*/,
+						 const pen_particleState& state){
 
-    if(state.MAT > 0){
-        //Particle created at non void volume. Add particle energy to compensate
-        //substracted one when beginPart will be called.
-        updateEdepCounters(state.E, nhist, state.X, state.Y, state.Z, state.WGHT);
-    }
+  if(state.MAT > 0){
+    //Particle created at non void volume. Add particle energy to compensate
+    //substracted one when beginPart will be called.
+    updateEdepCounters(state.E, nhist, state.X, state.Y, state.Z, state.WGHT);
+  }
 }
 
 void pen_SphericalDoseDistrib::tally_step(const unsigned long long nhist,

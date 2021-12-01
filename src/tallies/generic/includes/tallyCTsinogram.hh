@@ -38,9 +38,9 @@
 
 
 struct CTsinogram_point
-  {
-   double X,Y,Z;
-  };
+{
+  double X,Y,Z;
+};
 
 class pen_CTsinogram : public pen_genericTally<pen_particleState> {
   DECLARE_TALLY(pen_CTsinogram,pen_particleState)
@@ -98,12 +98,12 @@ public:
 				      USE_JUMP |
 				      USE_BEGINPART |
 				      USE_ENDPART |
-				      USE_BEGINHIST |
+				      USE_SAMPLEDPART |
 				      USE_STEP |
 				      USE_ENDHIST |
 				      USE_MOVE2GEO |
 				      USE_ENDSIM |
-                      USE_KNOCK),
+				      USE_KNOCK),
 		     sino(nullptr),
 		     sino2(nullptr),
 		     sinotemp(nullptr),
@@ -115,26 +115,27 @@ public:
   {}
     
         
-    bool detIndexes(const pen_particleState& state,
-                    CTsinogram_point finalPoint,
-                    const double partPage,
-                    unsigned long& iphi, 
-                    unsigned long& ipix);
+  bool detIndexes(const pen_particleState& state,
+		  CTsinogram_point finalPoint,
+		  const double partPage,
+		  unsigned long& iphi, 
+		  unsigned long& ipix);
     
-    void countDetector(const  unsigned long long nhist, 
-                       const pen_particleState& state);
+  void countDetector(const  unsigned long long nhist, 
+		     const pen_particleState& state);
     
-    void countSource(const  unsigned long long nhist, 
-                     const pen_particleState& state);
+  void countSource(const  unsigned long long nhist, 
+		   const pen_particleState& state);
 
   void tally_localEdep(const unsigned long long nhist,
 		       const pen_KPAR kpar,
 		       const pen_particleState& state,
 		       const double dE);
-  void tally_beginHist(const unsigned long long nhist,
-		       const unsigned kdet,
-		       const pen_KPAR kpar,
-		       const pen_particleState& state);
+  void tally_sampledPart(const unsigned long long nhist,
+			 const unsigned long long dhist,
+			 const unsigned kdet,
+			 const pen_KPAR kpar,
+			 const pen_particleState& state);
   void tally_step(const unsigned long long nhist,
 		  const pen_KPAR kpar,
 		  const pen_particleState& state,
@@ -148,9 +149,9 @@ public:
 		      const double dstot);
   void tally_endHist(const unsigned long long nhist);  
   void tally_jump(const unsigned long long /*nhist*/,
-				const pen_KPAR kpar,
-				const pen_particleState& state,
-				const double /*ds*/);
+		  const pen_KPAR kpar,
+		  const pen_particleState& state,
+		  const double /*ds*/);
   
   void tally_beginPart(const unsigned long long nhist,
 		       const unsigned kdet,
@@ -158,14 +159,14 @@ public:
 		       const pen_particleState& state);
   
   void tally_endPart(const unsigned long long nhist,
-				   const pen_KPAR kpar,
-				   const pen_particleState& state);
+		     const pen_KPAR kpar,
+		     const pen_particleState& state);
 
   void tally_endSim(const unsigned long long /*nhist*/);
   void tally_knock(const unsigned long long /*nhist*/,
-		 const pen_KPAR /*kpar*/,
-		 const pen_particleState& /*state*/,
-		 const int /*icol*/);
+		   const pen_KPAR /*kpar*/,
+		   const pen_particleState& /*state*/,
+		   const int /*icol*/);
   
   int configure(const wrapper_geometry& geometry,
 		const abc_material* const materials[constants::MAXMAT],     
@@ -175,29 +176,29 @@ public:
   int sumTally(const pen_CTsinogram& tally);
 
   inline long int getProjection(const pen_particleState& state) const{
-      if(state.PAGE < tmin || state.PAGE >= tmax)
-        return -1;
-      return (state.PAGE-tmin)/dt;
+    if(state.PAGE < tmin || state.PAGE >= tmax)
+      return -1;
+    return (state.PAGE-tmin)/dt;
   }
   
   ~pen_CTsinogram(){
     if(sino != nullptr)
-        free(sino);
+      free(sino);
     if(sino2 != nullptr)
-        free(sino2);
+      free(sino2);
     if(sinotemp != nullptr)
-        free(sinotemp);
+      free(sinotemp);
     if(lasthist != nullptr)
-        free(lasthist);
+      free(lasthist);
 
     if(sinoNorm != nullptr)
-        free(sinoNorm);
+      free(sinoNorm);
     if(sino2Norm != nullptr)
-        free(sino2Norm);
+      free(sino2Norm);
     if(sinotempNorm != nullptr)
-        free(sinotempNorm);
+      free(sinotempNorm);
     if(lasthistNorm != nullptr)
-        free(lasthistNorm);
+      free(lasthistNorm);
     
   }
 };

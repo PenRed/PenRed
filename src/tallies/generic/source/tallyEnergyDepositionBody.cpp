@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -21,8 +21,9 @@
 //
 //    contact emails:
 //
-//        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
+//        vicent.gimenez.alventosa@gmail.com  (Vicent Giménez Alventosa)
+//        vicente.gimenez@uv.es (Vicente Giménez Gómez)
+//        sanolgi@upvnet.upv.es (Sandra Oliver Gil)
 //    
 //
 
@@ -60,16 +61,17 @@ void pen_EdepBody::tally_beginPart(const unsigned long long /*nhist*/,
 
 }
 
-void pen_EdepBody::tally_beginHist(const unsigned long long /*nhist*/,
-				  const unsigned /*kdet*/,
-				  const pen_KPAR /*kpar*/,
-				  const pen_particleState& state){
+void pen_EdepBody::tally_sampledPart(const unsigned long long /*nhist*/,
+				     const unsigned long long /*dhist*/,
+				     const unsigned /*kdet*/,
+				     const pen_KPAR /*kpar*/,
+				     const pen_particleState& state){
 
-  //Add energy to body to compensate substracted one when
-  //beginPartwill be called.
+  //Add energy to body to compensate the substracted energy when
+  //beginPart will be called.
   if(state.MAT > 0){
-    //Ensure that primary particle has not been created at void volume.
-    //If this happens, energy will be added at move2geo call.
+    //Ensure that primary particle has not been created in a void volume.
+    //If this happens, energy will be added in the move2geo call.
     edptmp[state.IBODY] += state.E*state.WGHT;
   }
 }
@@ -96,7 +98,7 @@ void pen_EdepBody::tally_move2geo(const unsigned long long /*nhist*/,
     //Non void volume reached. Add particle energy to compensate
     //substracted one when beginPart will be called.
     edptmp[state.IBODY] += state.E*state.WGHT;
-  }  
+  }
 }
 
 

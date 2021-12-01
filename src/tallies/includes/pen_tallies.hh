@@ -108,7 +108,7 @@ struct tally_StepData{
 enum __usedFunc{
 	      USE_BEGINSIM     = 1 << 0,
 	      USE_ENDSIM       = 1 << 1,
-	      USE_BEGINHIST    = 1 << 2,
+	      USE_SAMPLEDPART  = 1 << 2,
 	      USE_ENDHIST      = 1 << 3,
 	      USE_MOVE2GEO     = 1 << 4,
 	      USE_BEGINPART    = 1 << 5,
@@ -189,8 +189,8 @@ public:
       funcNames.push_back(std::string("beginSim"));
     if(has_endSim())
       funcNames.push_back(std::string("endSim"));  
-    if(has_beginHist())
-      funcNames.push_back(std::string("beginHist"));  
+    if(has_sampledPart())
+      funcNames.push_back(std::string("sampledPart"));  
     if(has_endHist())
       funcNames.push_back(std::string("endHist"));
     if(has_move2geo())
@@ -230,12 +230,13 @@ public:
     throw std::bad_function_call();
   }
   
-  virtual void tally_beginHist(const unsigned long long /*nhist*/,
-			       const unsigned /*kdet*/,
-			       const pen_KPAR /*kpar*/,
-			       const stateType& /*state*/){
+  virtual void tally_sampledPart(const unsigned long long /*nhist*/,
+				 const unsigned long long /*dhist*/,
+				 const unsigned /*kdet*/,
+				 const pen_KPAR /*kpar*/,
+				 const stateType& /*state*/){
     char error[1000];
-    sprintf(error,"Error on tally %s of type %s: \n Trying to call 'tally_beginHist' but has not been implemented.\n",readName().c_str(),readID());
+    sprintf(error,"Error on tally %s of type %s: \n Trying to call 'tally_sampledPart' but has not been implemented.\n",readName().c_str(),readID());
     printf("%s\n",error);
     fflush(stdout);
     throw std::bad_function_call();
@@ -374,8 +375,8 @@ public:
   inline bool has_endSim() const{
     return ((usedFunctions & USE_ENDSIM) == USE_ENDSIM);
   }
-  inline bool has_beginHist() const{
-    return ((usedFunctions & USE_BEGINHIST) == USE_BEGINHIST);
+  inline bool has_sampledPart() const{
+    return ((usedFunctions & USE_SAMPLEDPART) == USE_SAMPLEDPART);
   }
   inline bool has_endHist() const{
     return ((usedFunctions & USE_ENDHIST) == USE_ENDHIST);
@@ -454,7 +455,7 @@ protected:
   //Vectors containing tally pointers with specific collection functions
   std::vector<pen_genericTally<pen_particleState>*> tallies_beginSim;
   std::vector<pen_genericTally<pen_particleState>*> tallies_endSim;
-  std::vector<pen_genericTally<pen_particleState>*> tallies_beginHist;
+  std::vector<pen_genericTally<pen_particleState>*> tallies_sampledPart;
   std::vector<pen_genericTally<pen_particleState>*> tallies_endHist;
   std::vector<pen_genericTally<pen_particleState>*> tallies_move2geo;
   std::vector<pen_genericTally<pen_particleState>*> tallies_beginPart;
@@ -532,14 +533,15 @@ public:
       (*i)->tally_endSim(nhist);
   }
   
-  inline void run_beginHist(const unsigned long long nhist,
-			    const unsigned kdet,
-			    const pen_KPAR kpar,
-			    const pen_particleState& state){
+  inline void run_sampledPart(const unsigned long long nhist,
+			      const unsigned long long dhist,
+			      const unsigned kdet,
+			      const pen_KPAR kpar,
+			      const pen_particleState& state){
 
-    for(tallyIterator i = tallies_beginHist.begin();
-	i != tallies_beginHist.end(); ++i)
-      (*i)->tally_beginHist(nhist,kdet,kpar,state);
+    for(tallyIterator i = tallies_sampledPart.begin();
+	i != tallies_sampledPart.end(); ++i)
+      (*i)->tally_sampledPart(nhist,dhist,kdet,kpar,state);
   }
   
   inline void run_endHist(const unsigned long long nhist){
@@ -725,7 +727,7 @@ protected:
   //Vectors containing tally pointers with specific collection functions
   std::vector<pen_genericTally<stateType>*> tallies_beginSim;
   std::vector<pen_genericTally<stateType>*> tallies_endSim;
-  std::vector<pen_genericTally<stateType>*> tallies_beginHist;
+  std::vector<pen_genericTally<stateType>*> tallies_sampledPart;
   std::vector<pen_genericTally<stateType>*> tallies_endHist;
   std::vector<pen_genericTally<stateType>*> tallies_move2geo;
   std::vector<pen_genericTally<stateType>*> tallies_beginPart;
@@ -797,7 +799,7 @@ protected:
     
     if(ptally->has_beginSim()){ tallies_beginSim.push_back(ptally);}
     if(ptally->has_endSim()){ tallies_endSim.push_back(ptally);}
-    if(ptally->has_beginHist()){ tallies_beginHist.push_back(ptally);}
+    if(ptally->has_sampledPart()){ tallies_sampledPart.push_back(ptally);}
     if(ptally->has_endHist()){ tallies_endHist.push_back(ptally);}
     if(ptally->has_move2geo()){ tallies_move2geo.push_back(ptally);}
     if(ptally->has_beginPart()){ tallies_beginPart.push_back(ptally);}
@@ -896,7 +898,7 @@ public:
     tallies.clear();
     tallies_beginSim.clear();
     tallies_endSim.clear();
-    tallies_beginHist.clear();
+    tallies_sampledPart.clear();
     tallies_endHist.clear();
     tallies_move2geo.clear();
     tallies_beginPart.clear();
@@ -1046,14 +1048,15 @@ public:
       (*i)->tally_endSim(nhist);
   }
   
-  inline void run_beginHist(const unsigned long long nhist,
-			    const unsigned kdet,
-			    const pen_KPAR kpar,
-			    const stateType& state){
+  inline void run_sampledPart(const unsigned long long nhist,
+			      const unsigned long long dhist,
+			      const unsigned kdet,
+			      const pen_KPAR kpar,
+			      const stateType& state){
 
-    for(tallyIterator i = tallies_beginHist.begin();
-	i != tallies_beginHist.end(); ++i)
-      (*i)->tally_beginHist(nhist,kdet,kpar,state);
+    for(tallyIterator i = tallies_sampledPart.begin();
+	i != tallies_sampledPart.end(); ++i)
+      (*i)->tally_sampledPart(nhist,dhist,kdet,kpar,state);
   }
   
   

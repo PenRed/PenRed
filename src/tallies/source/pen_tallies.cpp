@@ -217,7 +217,7 @@ int pen_commonTallyCluster::createTally(const char* ID,
 
   if(ptally->has_beginSim()){ tallies_beginSim.push_back(ptally);}
   if(ptally->has_endSim()){ tallies_endSim.push_back(ptally);}
-  if(ptally->has_beginHist()){ tallies_beginHist.push_back(ptally);}
+  if(ptally->has_sampledPart()){ tallies_sampledPart.push_back(ptally);}
   if(ptally->has_endHist()){ tallies_endHist.push_back(ptally);}
   if(ptally->has_move2geo()){ tallies_move2geo.push_back(ptally);}
   if(ptally->has_beginPart()){ tallies_beginPart.push_back(ptally);}
@@ -990,7 +990,7 @@ void pen_commonTallyCluster::clear(){
   tallies.clear();
   tallies_beginSim.clear();
   tallies_endSim.clear();
-  tallies_beginHist.clear();
+  tallies_sampledPart.clear();
   tallies_endHist.clear();
   tallies_move2geo.clear();
   tallies_beginPart.clear();

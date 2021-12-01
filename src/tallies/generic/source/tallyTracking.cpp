@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -21,8 +21,9 @@
 //
 //    contact emails:
 //
-//        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
+//        vicent.gimenez.alventosa@gmail.com  (Vicent Giménez Alventosa)
+//        vicente.gimenez@uv.es (Vicente Giménez Gómez)
+//        sanolgi@upvnet.upv.es (Sandra Oliver Gil)
 //    
 //
 
@@ -55,18 +56,31 @@ void pen_tallyTracking::tally_beginPart(const unsigned long long /*nhist*/,
   }
 }
 
-void pen_tallyTracking::tally_beginHist(const unsigned long long nhist,
-					const unsigned /*kdet*/,
-					const pen_KPAR kpar,
-					const pen_particleState& state){
+void pen_tallyTracking::tally_sampledPart(const unsigned long long nhist,
+					  const unsigned long long dhist,
+					  const unsigned /*kdet*/,
+					  const pen_KPAR kpar,
+					  const pen_particleState& state){
 
   if(nhist < nhists){
-    fprintf(fout,"#Begin history %llu:\n",nhist);
-    fprintf(fout,"#      kpar -> %d\n",kpar);
-    fprintf(fout,"#X,Y,Z (cm) -> %12.4E, %12.4E, %12.4E \n",
-	    state.X,state.Y,state.Z);
-    fprintf(fout,"#    E (eV) -> %12.4E\n",state.E);
-    printstate(fout,state);
+    
+    if(dhist > 0){
+      fprintf(fout,"#Begin history %llu:\n",nhist);
+      fprintf(fout,"#      kpar -> %d\n",kpar);
+      fprintf(fout,"#X,Y,Z (cm) -> %12.4E, %12.4E, %12.4E \n",
+	      state.X,state.Y,state.Z);
+      fprintf(fout,"#    E (eV) -> %12.4E\n",state.E);
+      printstate(fout,state);
+    } else{
+
+      fprintf(fout,"#Sampled particle in the same history %llu:\n",nhist);
+      fprintf(fout,"#      kpar -> %d\n",kpar);
+      fprintf(fout,"#X,Y,Z (cm) -> %12.4E, %12.4E, %12.4E \n",
+	      state.X,state.Y,state.Z);
+      fprintf(fout,"#    E (eV) -> %12.4E\n",state.E);
+      printstate(fout,state);      
+      
+    }
   } else{
     active = false;
   }
