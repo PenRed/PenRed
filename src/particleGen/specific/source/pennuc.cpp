@@ -312,8 +312,10 @@ void pennuc_specificSampler::sample(pen_particleState& state,
     }
 
     //Unable to get a valid particle in this cascade.
-    //Increase the history number and try again
-    ++dhist;
+    //Increase the history number if the nucleus is not
+    //in a metastable level and try again
+    if(lastMETAST == 0)
+      ++dhist;
   }
 
   //Unable to extract any valid particle after 1000 cascades
@@ -376,23 +378,27 @@ void pennuc_specificSampler::PENNUC(int& IS,
     C  ---------------------------------------------------------------------
     C
     C  -- For nuclear disintegrations and de-excitations,
-    C        ITNR=IDAUGH*1000+IBR*1000+ITR,
-    C   where IDAUGH and IBR are the indices of the daughter and the branch,
-    C   and ITR identifies the kind of tranformation that originated the
-    C   particle.
+    C        ITNR=-(IDAUGH*1000000+IBRANCH*1000+ITR)
+    C     where IDAUGH and IBRANCH are the indices of the daughter and the
+    C     branch, and ITR is the type of nuclear transition that released
+    C     the particle.
     C
-    C        ITNR= 1, beta- disintegration,
-    C              2, beta+ disintegration,
-    C              3, gamma emission,
-    C              4, internal conversion in the K shell,
-    C              5, internal conversion in the L1 subshell,
-    C              6, internal conversion in the L2 subshell,
-    C              7, internal conversion in the L3 subshell,
-    C              8, internal conversion in the M, N and outer subshells.
+    C        ITR= 0, alpha disintegration,
+    C             1, beta- disintegration,
+    C             2, beta+ disintegration,
+    C             3, gamma emission,
+    C             4, internal conversion in the K shell,
+    C             5, internal conversion in the L1 subshell,
+    C             6, internal conversion in the L2 subshell,
+    C             7, internal conversion in the L3 subshell,
+    C             8, internal conversion in the M, N and outer subshells.
     C
     C
     C  Input argument:
-    C    IS .............. active radioisotope.
+    C    IS ........... active radioisotope.
+    C    METAST ....... flag for metastable levels. Set METAST=0 to start
+    C                   the simulation of the decay of a new isotope, and
+    C                   keep the output values unchanged.
     C
     C  Output arguments:
     C    METAST ....... output flag for metastable levels,
@@ -537,7 +543,7 @@ void pennuc_specificSampler::PENNUC(int& IS,
 	  ISOTROP(UNR[NR - 1], VNR[NR - 1], WNR[NR - 1],random);
 	  AGENR[NR - 1] = DPAGE;
 	  KPNR[NR - 1] = 4;
-	  ITNR[NR - 1] = IDAUGH * 1000000 + IBRANCH * 1000 + 1;
+	  ITNR[NR - 1] = -(IDAUGH*1000000+IBRANCH*1000+0);
 	  break;
 	  //  ----  Beta- emission, energy sampled from the beta spectrum.
 	case 2:
@@ -550,7 +556,7 @@ void pennuc_specificSampler::PENNUC(int& IS,
 	    ISOTROP (UNR[NR - 1], VNR[NR - 1], WNR[NR - 1],random);
 	    AGENR[NR - 1] = DPAGE;
 	    KPNR[NR - 1] = 1;
-	    ITNR[NR - 1] = IDAUGH * 1000000 + IBRANCH * 1000 + 1;
+	    ITNR[NR - 1] = -(IDAUGH*1000000+IBRANCH*1000+1);
 	    break;
 	  }
 	  //  ----  Beta+ emission, energy sampled from the beta spectrum.
@@ -564,7 +570,7 @@ void pennuc_specificSampler::PENNUC(int& IS,
 	    ISOTROP (UNR[NR - 1], VNR[NR - 1], WNR[NR - 1],random);
 	    AGENR[NR - 1] = DPAGE;
 	    KPNR[NR - 1] = 3;
-	    ITNR[NR - 1] = IDAUGH * 1000000 + IBRANCH * 1000 + 2;
+	    ITNR[NR - 1] = -(IDAUGH*1000000+IBRANCH*1000+2);
 	    break;
 	  }
 	  //  ----  Electron capture K.
@@ -804,7 +810,7 @@ void pennuc_specificSampler::PENNUC(int& IS,
 	  ISOTROP (UNR[NR - 1], VNR[NR - 1], WNR[NR - 1],random);
 	  AGENR[NR - 1] = DPAGE;
 	  KPNR[NR - 1] = 2;
-	  ITNR[NR - 1] = IDAUGH * 1000000 + IBRANCH * 1000 + 3;
+	  ITNR[NR - 1] = -(IDAUGH*1000000+IBRANCH*1000+3);
 	  break;
 	  //  ----  K conversion electron.
 	case 2:
@@ -814,7 +820,7 @@ void pennuc_specificSampler::PENNUC(int& IS,
 	    ISOTROP (UNR[NR - 1], VNR[NR - 1], WNR[NR - 1],random);
 	    AGENR[NR - 1] = DPAGE;
 	    KPNR[NR - 1] = 1;
-	    ITNR[NR - 1] = IDAUGH * 1000000 + IBRANCH * 1000 + 4;
+	    ITNR[NR - 1] = -(IDAUGH*1000000+IBRANCH*1000+4);
 	    int NS;
 	    ATREL(IZD, 1, ES, PAGES, KPARS, ITR, NS, random);
 	    if (NS > 0)
@@ -839,7 +845,7 @@ void pennuc_specificSampler::PENNUC(int& IS,
 	    ISOTROP (UNR[NR - 1], VNR[NR - 1], WNR[NR - 1],random);
 	    AGENR[NR - 1] = DPAGE;
 	    KPNR[NR - 1] = 1;
-	    ITNR[NR - 1] = IDAUGH * 1000000 + IBRANCH * 1000 + 5;
+	    ITNR[NR - 1] = -(IDAUGH*1000000+IBRANCH*1000+5);
 	    int NS;
 	    ATREL(IZD, 2, ES, PAGES, KPARS, ITR, NS, random);
 	    if (NS > 0)
@@ -864,7 +870,7 @@ void pennuc_specificSampler::PENNUC(int& IS,
 	    ISOTROP (UNR[NR - 1], VNR[NR - 1], WNR[NR - 1],random);
 	    AGENR[NR - 1] = DPAGE;
 	    KPNR[NR - 1] = 1;
-	    ITNR[NR - 1] = IDAUGH * 1000000 + IBRANCH * 1000 + 6;
+	    ITNR[NR - 1] = -(IDAUGH*1000000+IBRANCH*1000+6);
 	    int NS;
 	    ATREL(IZD, 3, ES, PAGES, KPARS, ITR, NS, random);
 	    if (NS > 0)
@@ -889,7 +895,7 @@ void pennuc_specificSampler::PENNUC(int& IS,
 	    ISOTROP (UNR[NR - 1], VNR[NR - 1], WNR[NR - 1],random);
 	    AGENR[NR - 1] = DPAGE;
 	    KPNR[NR - 1] = 1;
-	    ITNR[NR - 1] = IDAUGH * 1000000 + IBRANCH * 1000 + 7;
+	    ITNR[NR - 1] = -(IDAUGH*1000000+IBRANCH*1000+7);
 	    int NS;
 	    ATREL(IZD, 4, ES, PAGES, KPARS, ITR, NS, random);
 	    if (NS > 0)
@@ -914,7 +920,7 @@ void pennuc_specificSampler::PENNUC(int& IS,
 	    ISOTROP (UNR[NR - 1], VNR[NR - 1], WNR[NR - 1],random);
 	    AGENR[NR - 1] = DPAGE;
 	    KPNR[NR - 1] = 1;
-	    ITNR[NR - 1] = IDAUGH * 1000000 + IBRANCH * 1000 + 8;
+	    ITNR[NR - 1] = -(IDAUGH*1000000+IBRANCH*1000+8);
 	    int NS;
 	    ATREL(IZD, 5, ES, PAGES, KPARS, ITR, NS, random);
 	    if (NS > 0)
@@ -1127,7 +1133,7 @@ void pennuc_specificSampler::PENNUC0(const char* NUCFNAME,
 	fputc ('=', IWR);
       fputc ('\n', IWR);
     }
-  EPMAX = 0.0E0;
+  EPMAX = 2.0E5;
   //
   FILE *NRD;
   char straux[200];
