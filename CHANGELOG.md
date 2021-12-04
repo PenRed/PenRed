@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### To add
 - Mesh geometry simulation support
 
-## [1.4.0] - 
+## [1.4.0] - 2021-12-04
 
 ### Added
 - Capability to add dump files
