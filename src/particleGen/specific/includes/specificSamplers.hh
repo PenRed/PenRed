@@ -35,5 +35,6 @@
 #include "PSFsource.hh"
 #include "gammaPolarised.hh"
 #include "CTsource.hh"
+#include "pennuc.hh"
 
 #endif

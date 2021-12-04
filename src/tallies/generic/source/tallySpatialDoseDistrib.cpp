@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -21,8 +21,9 @@
 //
 //    contact emails:
 //
-//        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
+//        vicent.gimenez.alventosa@gmail.com  (Vicent Giménez Alventosa)
+//        vicente.gimenez@uv.es (Vicente Giménez Gómez)
+//        sanolgi@upvnet.upv.es (Sandra Oliver Gil)
 //    
 //
 
@@ -143,11 +144,12 @@ void pen_SpatialDoseDistrib::tally_beginPart(const unsigned long long nhist,
   updateEdepCounters(-state.E, nhist, state.X, state.Y, state.Z, state.WGHT, state.MAT);
 }
 
-void pen_SpatialDoseDistrib::tally_beginHist(const unsigned long long nhist,
-					     const unsigned /*kdet*/,
-					     const pen_KPAR /*kpar*/,
-					     const pen_particleState& state){
-
+void pen_SpatialDoseDistrib::tally_sampledPart(const unsigned long long nhist,
+					       const unsigned long long /*dhist*/,
+					       const unsigned /*kdet*/,
+					       const pen_KPAR /*kpar*/,
+					       const pen_particleState& state){
+  
   if(state.MAT > 0){
     //Particle created at non void volume. Add particle energy to compensate
     //substracted one when beginPart will be called.
@@ -176,10 +178,10 @@ void pen_SpatialDoseDistrib::tally_move2geo(const unsigned long long nhist,
 					    const double /*dstot*/){
 
   //Primary particle has been created at void volume. Check if
-  //after step call particle reached non void volume.
+  //after step call particle reached a non void volume.
   if(state.MAT > 0){
     //Non void volume reached. Add particle energy to compensate
-    //substracted one when beginPart will be called.
+    //substracted energy on beginPart call.
     updateEdepCounters(state.E, nhist, state.X, state.Y, state.Z, state.WGHT, state.MAT);
   }
 }

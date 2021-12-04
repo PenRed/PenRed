@@ -37,3 +37,4 @@
 #include "PSFsource.cpp"
 #include "gammaPolarised.cpp"
 #include "CTsource.cpp"
+#include "pennuc.cpp"

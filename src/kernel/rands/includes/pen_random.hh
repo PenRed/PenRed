@@ -131,20 +131,20 @@ void RNDG30(CRNDG3& rndg3);
 
 void RITA0(PDF_RITA PDF,
 	   void* arg,
-	   double XLOW,
-	   double XHIGH,
-	   int &N,
-	   int &NU,
+	   const double XLOW,
+	   const double XHIGH,
+	   const int N,
+	   const int NU,
 	   double &ERRM,
 	   int fileidx,
 	   CRITAA& ritaa);
 
 void RITAI0(PDF_RITA PDF,
 	    void* arg,
-	    double XLOW,
-	    double XHIGH,
-	    int N,
-	    int NU,
+	    const double XLOW,
+	    const double XHIGH,
+	    const int N,
+	    const int NU,
 	    double& ERRM,
 	    int fileidx,
 	    CRITA& rita);

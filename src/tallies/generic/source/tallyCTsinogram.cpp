@@ -291,14 +291,15 @@ void pen_CTsinogram::tally_beginPart(const unsigned long long nhist,
     edepMat[iproj].tally_beginPart(nhist,kdet,kpar,state);  
 }
 
-void pen_CTsinogram::tally_beginHist(const unsigned long long nhist,
-				  const unsigned kdet,
-				  const pen_KPAR kpar,
-				  const pen_particleState& state){
+void pen_CTsinogram::tally_sampledPart(const unsigned long long nhist,
+				       const unsigned long long dhist,
+				       const unsigned kdet,
+				       const pen_KPAR kpar,
+				       const pen_particleState& state){
     
   iproj = getProjection(state);
   if(iproj >= 0)
-    edepMat[iproj].tally_beginHist(nhist,kdet,kpar,state);
+    edepMat[iproj].tally_sampledPart(nhist,dhist,kdet,kpar,state);
 }
 
 void pen_CTsinogram::tally_step(const unsigned long long nhist,

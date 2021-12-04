@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2020 Universitat de València - UV
-//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2021 Universitat de València - UV
+//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -34,6 +34,7 @@
 #include <mutex>
 #include "pen_phaseSpaceFile.hh"
 #include "sharedFile.hh"
+#include <memory>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846

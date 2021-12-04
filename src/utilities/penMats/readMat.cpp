@@ -42,6 +42,7 @@ int main(int argc, char** argv)
       printf("Usage: %s ELOW EMAX material-file1 material-file2 ...\n",argv[0]);
       return 1;
     }
+    
 
   if(strcmp(argv[1],"--help") == 0 || strcmp(argv[1],"-help") == 0 || strcmp(argv[1],"-h") == 0 || strcmp(argv[1],"--h") == 0)
     {

@@ -2178,7 +2178,10 @@ void RNDG30(CRNDG3& rndg3)
 //  *********************************************************************
 //                       SUBROUTINE RITA0
 //  *********************************************************************
-void RITA0(PDF_RITA PDF, void* arg, double XLOW, double XHIGH, int &N, int &NU, double &ERRM, int fileidx, CRITAA& ritaa)
+void RITA0(PDF_RITA PDF, void* arg,
+	   const double XLOW, const double XHIGH,
+	   const int N, const int NU,
+	   double &ERRM, int fileidx, CRITAA& ritaa)
 {
   //  Initialisation of the RITA algorithm for random sampling of a
   //  continuous random variable X from a probability distribution function
@@ -2224,7 +2227,10 @@ void RITA0(PDF_RITA PDF, void* arg, double XLOW, double XHIGH, int &N, int &NU, 
 //  *********************************************************************
 //                       SUBROUTINE RITAI0
 //  *********************************************************************
-void RITAI0(PDF_RITA PDF, void* arg, double XLOW, double XHIGH, int N, int NU, double &ERRM, int fileidx, CRITA& rita)
+void RITAI0(PDF_RITA PDF, void* arg,
+	    const double XLOW, const double XHIGH,
+	    const int N, const int NU,
+	    double &ERRM, int fileidx, CRITA& rita)
 {
   //  Initialisation of the RITA algorithm for random sampling of a
   //  continuous random variable X from a probability distribution function

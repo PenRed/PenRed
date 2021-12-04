@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### To add
 - Mesh geometry simulation support
 
+## [1.4.0] - 
+
+### Added
+- Capability to add dump files
+- Capability to specify a different number of threads for each MPI rank
+- Cabability to dump final results of each thread
+- Automatic number of threads selection
+- PENNUC specific source
+
+### Fix
+- Bug: Erroneous history count when dumping a resumed simulation
+- Bug: When a specific sampler produce a secondary particle (dhist=0) in a void region and if the particle reaches a non void region, its kinetic energy is scored as deposited energy. However, this bug does not affect the particle tracking and other components, only energy counters of the first reached material.
+
+### Changed
+- Tally funcion "beginHist" has been replaced by the function "sampledPart". This one is called when a source samples a particle.
+
 ## [1.3.0b] - 2021-10-15
 
 ### Fix

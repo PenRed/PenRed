@@ -151,7 +151,8 @@ void simulate(const unsigned ithread,
 	      int* seed1, int* seed2,
 	      const double dumpTime,
 	      const std::string dumpFilename,
-	      unsigned long long* nsimulated,
+	      unsigned long long* nsimulated,               //Total number of simulated histories
+	      const unsigned long long initSourceSimulated, //Number of source histories already simulated
 	      const bool writePartial,
 	      const unsigned verbose){
 
@@ -309,8 +310,8 @@ void simulate(const unsigned ithread,
 
   //Get detector ID
   unsigned firstKdet = context.getDET(genState.IBODY);
-  //Tally first history begin
-  tallies.run_beginHist(hist,firstKdet,genKpar,genState);
+  //Tally first sampled particle
+  tallies.run_sampledPart(hist,dhist,firstKdet,genKpar,genState);
   
   for(;;){
 
@@ -335,13 +336,8 @@ void simulate(const unsigned ithread,
 	//Get detector ID
 	unsigned kdet = betaE.getDET();	
 
-	//Simulate primary particle
+	//Simulate sampled particle
 	tallies.run_beginPart(hist,kdet,PEN_ELECTRON,betaE.readState());
-	if(dhist == 0){
-	  //Compensate extracted energy on "beginPart" functions
-	  tallies.run_localEdep(hist,PEN_ELECTRON,betaE.readState(),
-				betaE.getState().E);
-	}
 	simulatePart(hist,betaE,tallies,random);
 	
       }
@@ -363,13 +359,8 @@ void simulate(const unsigned ithread,
 	//Get detector ID
 	unsigned kdet = gamma.getDET();
 	
-	//Simulate primary particle
+	//Simulate sampled particle
 	tallies.run_beginPart(hist,kdet,PEN_PHOTON,gamma.readState());
-	if(dhist == 0){
-	  //Compensate extracted energy on "beginPart" functions
-	  tallies.run_localEdep(hist,PEN_PHOTON,gamma.readState(),
-				gamma.getState().E);
-	}
 	simulatePart(hist,gamma,tallies,random);
 	
       }
@@ -391,13 +382,8 @@ void simulate(const unsigned ithread,
 	//Get detector ID
 	unsigned kdet = betaP.getDET();	
 	
-	//Simulate primary particle
+	//Simulate sampled particle
 	tallies.run_beginPart(hist,kdet,PEN_POSITRON,betaP.readState());
-	if(dhist == 0){
-	  //Compensate extracted energy on "beginPart" functions
-	  tallies.run_localEdep(hist,PEN_POSITRON,betaP.readState(),
-				betaP.getState().E);
-	}
 	simulatePart(hist,betaP,tallies,random);
 	
       }
@@ -566,7 +552,7 @@ void simulate(const unsigned ithread,
       //Check if elapsed time reaches dump interval
       if(dumpWatch.check(tnow)){
 	//Save dump
-	unsigned long long currentHists = hist-simulated;
+	unsigned long long currentHists = hist-simulated+initSourceSimulated;
 	printf("Dumping simulation with last hist %llu and seeds %d %d\n"
 	       "  source '%s' simulated %llu/%llu\n",
 	       hist,lseed1,lseed2,source.name.c_str(),currentHists,nhists);
@@ -622,13 +608,7 @@ void simulate(const unsigned ithread,
       hist += dhist;
 
       //Check history limit
-      if(hist < lastHist){
-	//Get detector ID
-	unsigned kdet = context.getDET(genState.IBODY);
-	//Tally new history
-	tallies.run_beginHist(hist,kdet,genKpar,genState);
-      }
-      else{
+      if(hist >= lastHist){
 	//End of simulation, ask permission to finish
 	if(source.handleFinish(ithread,hist-simulated,nhists,verbose)){
 	  //This worker can finish, exit from the simulation loop
@@ -650,6 +630,13 @@ void simulate(const unsigned ithread,
       }
       
     }
+
+    //Get detector ID
+    unsigned kdet = context.getDET(genState.IBODY);
+    //Tally new sampled particle
+    tallies.run_sampledPart(hist,dhist,kdet,genKpar,genState);
+    
+    
   }
 
   //Update seeds for next source
@@ -680,7 +667,7 @@ int main(int argc, char** argv){
   }
 	
   if(strcmp(argv[1],"--version") == 0 || strcmp(argv[1],"-v") == 0){
-    printf("PenRed 1.3.0b\n");
+    printf("PenRed 1.4.0\n");
     printf("Copyright (c) 2019-2021 Universitat Politecnica de Valencia\n");
     printf("Copyright (c) 2019-2021 Universitat de Valencia\n");
     printf("This is free software; see the source for copying conditions. "
@@ -690,7 +677,19 @@ int main(int argc, char** argv){
 	  "     https://github.com/PenRed/PenRed\n");
     return 0;
   }
-
+  
+  bool addDumps = false;
+  if(argc >= 3){
+    if(strcmp(argv[2],"--addDumps") == 0){ //The argv[1] contains the configuration file
+      printf("Adding specified dumps\n");
+      if(argc < 5){
+	printf("Error: At least two dumps are required\n");
+	return -1;
+      }
+      addDumps = true;
+    }
+  }
+  
   unsigned verbose = 2;
 
   // ******************************* MPI ************************************ //
@@ -779,21 +778,70 @@ int main(int argc, char** argv){
   // ************************** MULTI-THREADING ***************************** //
 #ifndef _PEN_USE_THREADS_
   else{
-    printf("\n\nMulti-threading has not been activated at compilation\n\n");
+    printf("\n\nMulti-threading has not been activated during compilation"
+	   ", only one thread will be used\n\n");
   }
   auxThreads = 1;
+#else
+
+  if(auxThreads <= 0){
+
+    if(verbose > 1)
+      printf("Automatic selection of threads enabled\n");
+    
+    unsigned int nConcurrency = std::thread::hardware_concurrency();
+
+    if(nConcurrency > 0)
+      auxThreads = nConcurrency;
+    else{
+      printf("The hardware concurrency value is not well defined or not computable."
+	     " One thread will be used");
+      auxThreads = 1;
+    }
+  }
+  
 #endif
   // ************************ MULTI-THREADING END *************************** //
-  
-  if(auxThreads <= 0){
-    if(verbose > 0){
-      printf("Warning: The simulation require as least one thread.\n");
-      printf("         Number of threads will be set to 1.\n");
-    }
-    auxThreads = 1;
+
+  // ******************************* MPI ************************************ //
+#ifdef _PEN_USE_MPI_
+
+  //Check if the number of threads has been specified for this rank
+  int auxThreadsMPI;
+  char keyMPIthreads[60];
+  if(sprintf(keyMPIthreads,"simulation/rank/%d/threads",rank) < 0){
+    if(verbose > 0)
+      printf("Error: Unable to create the configuration key to read the number of threads in the MPI rank %d\n",rank);
+    return -2;
   }
+  
+  if(config.read(keyMPIthreads,auxThreadsMPI) == INTDATA_SUCCESS){
+    if(verbose > 1){
+      printf("Number of threads in rank %d set to %d.\n",rank,auxThreadsMPI);
+    }
+
+    if(auxThreadsMPI <= 0){
+      if(verbose > 0)
+	printf("Warning: Invalid number of threads, the value will not be considered\n");
+    }else{
+      auxThreads = auxThreadsMPI;
+    }
+  }
+  
+#endif
+  // ***************************** MPI END ********************************** //
+  
   unsigned nthreads = (unsigned)auxThreads;
   
+  //If add dumps is enabled, set the number of
+  //threads to 2 to be able to add the dump files
+  if(addDumps){
+    if(verbose > 1){
+      printf("\n *** Number of simulating threads overwritten because 'addDumps' is enabled ***\n");
+    }
+    nthreads = 2;
+  }
+
   if(verbose > 1){
     printf("\nNumber of simulating threads: %u\n",nthreads);
     if(nthreads > 1){
@@ -874,6 +922,12 @@ int main(int argc, char** argv){
   else{
     printf("ASCII results write disabled\n");
   }
+
+  bool finalDump = false;
+  if(config.read("simulation/finalDump",finalDump) != INTDATA_SUCCESS){
+    finalDump = false;
+  }
+
   
   // Get time between dumps
   //*******************************
@@ -1027,13 +1081,25 @@ int main(int argc, char** argv){
 #ifdef _PEN_USE_MPI_
 
   //Each MPI process requires a couple of initial seeds
-  //equal to the number of threads.
+  //equal to the number of local threads.
 
-  nReqSeeds = nthreads*mpiSize;
-  if(seedPos0 >= 0)
-    seedPos0 = (seedPos0 + nthreads*rank) % nRand0Seeds;
-  else
-    seedPos0 = (nthreads*rank) % nRand0Seeds; //Avoid negative values of seedPos0
+  nReqSeeds = 0;
+  for(int irank = 0; irank < mpiSize; ++irank){
+
+    // Send/Receive the number of threads used by the rank 'irank'
+    unsigned iRankThreads = nthreads;
+    MPI_Bcast(&iRankThreads,1,MPI_UNSIGNED,irank,MPI_COMM_WORLD);
+
+    if(irank == rank){ //this rank did the last broadcast
+      //Store the the first seed position to be used
+      if(seedPos0 >= 0)
+	seedPos0 = (seedPos0 + nReqSeeds) % nRand0Seeds;
+      else
+	seedPos0 = nReqSeeds % nRand0Seeds; //Avoid negative values of seedPos0
+    }
+    
+    nReqSeeds += iRankThreads;
+  }
   
 #endif
   // ***************************** MPI END ********************************** //
@@ -1042,7 +1108,8 @@ int main(int argc, char** argv){
   //initial seeds for all MPI processes and threads.
   
   if(nReqSeeds > 1001){
-    printf("Error: Unsuficient initial seeds for all processes and seeds (%d required).\n        Please, use less threads to use, as maximum, 1001 initial seeds.\n",nReqSeeds);
+    printf("Error: Unsuficient initial seeds for all processes and seeds (%d required).\n"
+	   "        Please, use less threads to use, as maximum, 1001 initial seeds.\n",nReqSeeds);
     return -3;
   }
   
@@ -1316,11 +1383,98 @@ int main(int argc, char** argv){
     printf("The simulation will not extract any information.\n");
     return 0;
   }
+  
+  // Add dumps command option
+  //*******************************
+  if(addDumps){
+
+    bool firstLoad = true;
+    unsigned long long totalSimHists = 0;
+    for(int idump = 3; idump < argc; ++idump){
+
+      unsigned long long simulated;
+      int seed1,seed2;
+      int lastSource;
+      unsigned long long sourceHists;
+      
+      const char* filename = argv[idump];
+      
+      if(firstLoad){
+	firstLoad = false;
+	//Read the first dump file
+	printf("\nLoading first dump file: '%s'\n",filename);
+	int errDump = talliesVect[0].readDumpfile(filename,
+						  simulated,
+						  seed1,seed2,
+						  lastSource,
+						  sourceHists,
+						  verbose);
+
+	if(errDump != 0){
+	  if(verbose > 0){
+	    printf("Error loading dumped data file '%s': %d\n",filename,errDump);
+	  }
+	  return -10;
+	}	
+      }
+      else{
+
+	//Read and add the dump file
+	printf("\nAdding dump file: '%s'\n",filename);
+	int errDump = talliesVect[1].readDumpfile(filename,
+						  simulated,
+						  seed1,seed2,
+						  lastSource,
+						  sourceHists,
+						  verbose);	
+	if(errDump != 0){
+	  if(verbose > 0){
+	    printf("Error loading dumped data file '%s': %d\n",filename,errDump);
+	  }
+	  return -10;
+	}
+
+	int errSum = talliesVect[0].sum(talliesVect[1],verbose);
+
+	if(errSum != 0){
+	  if(verbose > 0){
+	    printf("Error adding dumped data from file '%s': %d\n",filename,errSum);
+	  }
+	  return -11;
+	}
+      }
+
+      totalSimHists += simulated;
+      if(lastSource >= 0){
+	if(verbose > 1){
+	  printf("Warning: Dump file '%s' generated from a non finished simulation\n",filename);
+	}
+      }
+      if(verbose > 1){
+	printf(" - Simulated histories: %llu\n",simulated);
+	printf(" - Last seeds: %d %d\n",seed1,seed2);
+      }
+    }
+
+    printf("\nTotal simulated histories: %llu\n",totalSimHists);
+    
+    if(ASCIIResults){
+      talliesVect[0].saveData(totalSimHists);
+    }
+    
+    talliesVect[0].dump2file("mergedDump.dump",totalSimHists,-1,-1,-1,0ull,verbose);
+
+    
+    
+    return 0;
+  }
+  //*******************************
 
   // Check if we are restoring a simulation from dumpfile
   std::vector<unsigned long long> simulated(nthreads,0);  
   std::vector<int> nextSource(nthreads,0);
   std::vector<unsigned long long> currentSourceDone(nthreads,0);
+  
   if(dump2read.length() > 0){
 
     if(verbose > 1){
@@ -1329,7 +1483,7 @@ int main(int argc, char** argv){
     //Read dump file for each thread
     for(unsigned i = 0; i < nthreads; i++){
       //Create filename
-
+      
   // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_
   
@@ -1479,6 +1633,7 @@ int main(int argc, char** argv){
 					 dumpTime,
 					 dump2write,
 					 &simulated[ithread],
+					 currentSourceDone[ithread],
 					 partialResults,
 					 verbose
 					 ));
@@ -1530,6 +1685,7 @@ int main(int argc, char** argv){
 	       dumpTime,
 	       dump2write,
 	       &simulated[0],
+	       currentSourceDone[0],
 	       partialResults,
 	       verbose);
 
@@ -1569,6 +1725,7 @@ int main(int argc, char** argv){
 					 dumpTime,
 					 dump2write,
 					 &simulated[ithread],
+					 currentSourceDone[ithread],
 					 partialResults,
 					 verbose
 					 ));
@@ -1620,6 +1777,7 @@ int main(int argc, char** argv){
 			       dumpTime,
 			       dump2write,
 			       &simulated[0],
+			       currentSourceDone[0],
 			       partialResults,
 			       verbose);
 #ifdef _PEN_USE_THREADS_
@@ -1653,8 +1811,16 @@ int main(int argc, char** argv){
     printf("Simulation finished, starting results reduce step\n");
 #endif
   }
+
+  //If enabled, print final dumps
+  if(finalDump){
+    for(unsigned ithread = 0; ithread < nthreads; ithread++){
+      talliesVect[ithread].dump2file(dump2write.c_str(),simulated[ithread],
+				     seeds1[ithread],seeds2[ithread],-1,0ull,verbose);
+    }
+  }
   
-  //Sum up tallies of all threads
+  //Sum tallies of all threads
   for(unsigned ithread = 1; ithread < nthreads; ithread++){
     talliesVect[0].sum(talliesVect[ithread],verbose);
   }
@@ -1672,7 +1838,7 @@ int main(int argc, char** argv){
     if(ASCIIResults)
       talliesVect[0].saveData(totalHists);
     else
-      talliesVect[0].dump2file("results.dump",totalHists,-1,-1,0,0ull,verbose);
+      talliesVect[0].dump2file("results.dump",totalHists,-1,-1,-1,0ull,verbose);
   }
 
   //Print local report information
