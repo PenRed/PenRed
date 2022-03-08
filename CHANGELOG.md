@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### To add
 - Mesh geometry simulation support
 
+## [1.5.0] - 2022-03-08
+
+### Added
+- Capability to simulate brachytherapy treatments via a specific source named "BRACHY"
+- Tally to score kerma on DICOM geometries and obtain Dose Volume Cummulative Histogram (DVH) for each provided contour
+- Capability to specify source material on PENNUC specific source
+- DICOM parser now creates also individual masks for each contour
+
+### Fix
+- Bug: DICOM parser erroneous seed information reading
+- Bug: DICOM structures, such as contours and seeds, were displaced half voxel in each axis
+
 ## [1.4.0] - 2021-12-04
 
 ### Added
