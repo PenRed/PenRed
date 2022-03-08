@@ -1,8 +1,8 @@
  
 //
 //
-//    Copyright (C) 2020-2021 Universitat de València - UV
-//    Copyright (C) 2020-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2020-2022 Universitat de València - UV
+//    Copyright (C) 2020-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -210,14 +210,19 @@ class pennuc_specificSampler : public abc_specificSampler<pen_particleState>{
   bool LAGE;
 
   int lastIDAUGH, lastIBRANCH, lastISA;
-  
+
+  unsigned sourceMaterial;
+  int sourceBody;
+
+  const wrapper_geometry* geometry;
+
   public:
 
   pennuc_specificSampler() : abc_specificSampler<pen_particleState>(USE_SPATIAL),
 			     DRTIME(5.0E-6),
 			     ECNUC(200.0E0),
 			     NIR(0),
-			     lastMETAST(0),LAGE(false){}
+			     lastMETAST(0),LAGE(false),sourceMaterial(0),sourceBody(-1),geometry(nullptr){}
   
   int configure(double& Emax,
 		const abc_spatialSampler* pSpatial,
@@ -234,6 +239,8 @@ class pennuc_specificSampler : public abc_specificSampler<pen_particleState>{
 	      pen_KPAR& genKpar,
 	      unsigned long long& dhist,
 	      pen_rand& random);
+
+  inline void updateGeometry(const wrapper_geometry* geometryIn){ geometry=geometryIn; }
   
   void PENNUC(int& IS, int& METAST, int& IER, pen_rand& random);
   

@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2021 Universitat de València - UV
-//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2022 Universitat de València - UV
+//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -46,6 +46,70 @@ template<class particleType, class contextType, class materialType> class abc_in
 template<class stateType, class contextType> class pen_particle;
 template<class stateType> class pen_particleStack;
 class wrapper_geometry;
+
+
+template<class T>
+struct vector3D{
+    T x,y,z;
+    
+    vector3D() : x(0), y(0), z(0){}
+    vector3D(T xin, T yin, T zin) : x(xin), y(yin), z(zin){}
+    
+    inline vector3D operator+(const vector3D& a) const{
+        return vector3D(x + a.x, y + a.y, z + a.z);
+    }
+
+    inline vector3D operator-(const vector3D& a) const{
+        return vector3D(x - a.x, y - a.y, z - a.z);
+    }
+    
+    inline T operator*(const vector3D& a) const{
+        return x*a.x + y*a.y + z*a.z;
+    }
+
+    inline T operator*(const double& a) const{
+        return vector3D (a*x, a*y, a*z);
+    }
+    
+    inline vector3D operator^(const vector3D& a) const{
+        return vector3D(y*a.z - z*a.y, z*a.x - x*a.z, x*a.y - y*a.x);
+    }
+    
+    inline void add(const vector3D& a){
+        x += a.x;
+        y += a.y;
+        z += a.z;
+    }
+
+    inline void add(const T a){
+        x += a;
+        y += a;
+        z += a;
+    }
+    
+    inline void subs(const vector3D& a){
+        x -= a.x;
+        y -= a.y;
+        z -= a.z;
+    }
+
+    inline void subs(const T a){
+        x -= a;
+        y -= a;
+        z -= a;
+    }
+    
+    
+    inline T mod2() const{
+        return pow(x,2) + pow(y,2) + pow(z,2);
+    }
+    
+    inline T mod() const{
+        return sqrt(mod2());
+    }
+    
+};
+
 
 //-------------------
 // Materials

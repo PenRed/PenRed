@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2020 Universitat de València - UV
-//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2022 Universitat de València - UV
+//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -1129,11 +1129,49 @@ int pen_dicom::loadDicom(const char* dirName,
 				  Item_ControlPoint->
 				    findAndGetFloat64(DCM_ControlPointRelativePosition,
 						      previousRelativePosition);
+                    
+                  //Find the next channel point on a different position
+                  DcmItem* Item_ControlPoint_AUX = nullptr;
+                  long int contCheckPointsAUX = 1;
+                  double nextPos[3] = {auxPos[0],auxPos[1],auxPos[2]+1.0};
+                  for(;;){
+                    if(Item_Channel->findAndGetSequenceItem(DCM_BrachyControlPointSequence,Item_ControlPoint_AUX,contCheckPointsAUX++).good()){
+                            double relativePositionAUX = -1;
+                            Item_ControlPoint_AUX->findAndGetFloat64(DCM_ControlPointRelativePosition,relativePositionAUX);
+                            if(previousRelativePosition != relativePositionAUX){
+                                    
+                                Item_ControlPoint_AUX->findAndGetFloat64(DCM_ControlPoint3DPosition,nextPos[0],0);
+                                Item_ControlPoint_AUX->findAndGetFloat64(DCM_ControlPoint3DPosition,nextPos[1],1);
+                                Item_ControlPoint_AUX->findAndGetFloat64(DCM_ControlPoint3DPosition,nextPos[2],2);
+                                
+                                nextPos[0] *= 0.1; //to cm
+                                nextPos[1] *= 0.1; //to cm
+                                nextPos[2] *= 0.1; //to cm
+                                
+                                break;
+                            }
+                    }else{
+                        //No other points in different positions
+                        break;
+                    }
+                  }
+                    
 				  //Channel init
-				  double auxDirection[3] = {0.0,0.0,1.0};
-				  seeds[nseed].setDistances(-1.0,seedCont);
-				  seeds[nseed].setDirections(auxDirection,seedCont);
-				  seeds[nseed].setWeights(0.0,seedCont);
+                  double u[3];
+                  u[0] = nextPos[0] - auxPos[0];
+                  u[1] = nextPos[1] - auxPos[1];
+                  u[2] = nextPos[2] - auxPos[2];
+
+                  double d = sqrt(pow(u[0],2) + pow(u[1],2) + pow(u[2],2));
+                      
+                  //Normalize direction
+                  u[0] /= d;
+                  u[1] /= d;
+                  u[2] /= d;
+				  
+				  seeds[nseed].setDistances(-1.0,seedCont); //First point has not distance
+				  seeds[nseed].setDirections(u,seedCont);
+				  seeds[nseed].setWeights(0.0,seedCont); //First point has null weight
 				}
 			      else
 				{
@@ -1198,6 +1236,11 @@ int pen_dicom::loadDicom(const char* dirName,
 				      u[2] = auxPos[2] - prevPos[2];
 
 				      double d = sqrt(pow(u[0],2) + pow(u[1],2) + pow(u[2],2));
+                      
+                      //Normalize direction
+                      u[0] /= d;
+                      u[1] /= d;
+                      u[2] /= d;
 				      
 				      //Seed moves to next point
 				      seeds[nseed].setDistances(d,seedCont);
@@ -1226,6 +1269,11 @@ int pen_dicom::loadDicom(const char* dirName,
 
 				      double d = sqrt( pow(u[0],2) + pow(u[1],2) + pow(u[2],2));
 
+                      //Normalize direction
+                      u[0] /= d;
+                      u[1] /= d;
+                      u[2] /= d;
+                      
 				      //Seed moves to next point
 				      seeds[nseed].setDistances(d,seedCont);
 				      //Store direction
@@ -1539,9 +1587,9 @@ int pen_dicom::loadDicom(const char* dirName,
       dimDicom[2] = static_cast<double>(nvox_z)*dvox_z;
 
       //Move dicom origin
-      //dicomOrigin[0] -= 0.5*dvox_x;
-      //dicomOrigin[1] -= 0.5*dvox_y;
-      //dicomOrigin[2] -= 0.5*dvox_z;
+      dicomOrigin[0] -= 0.5*dvox_x;
+      dicomOrigin[1] -= 0.5*dvox_y;
+      dicomOrigin[2] -= 0.5*dvox_z;
       
       if(verbose > 1){
 	printf("Voxel dimensions in x,y,z (cm):\n");
@@ -2002,8 +2050,16 @@ int pen_dicom::assignContours(){
       }
       //Clear auxiliar array
       memcpy(voxelContour2,voxelContour,sizeof(int)*tnvox);
+
+      //Initialize individual contour masks
+      contourMasks.clear();
+      contourMasks.resize(contours.size());
+
+      for(auto& contMask : contourMasks){
+	contMask.resize(tnvox,0);
+      }
       
-      //Now, assign a contour to each voxel      
+      //Now, assign a contour to each voxel
       for(unsigned long ipair = 0; ipair < contours.size(); ipair++){
 
 	//Get the corresponding contour index
@@ -2011,6 +2067,9 @@ int pen_dicom::assignContours(){
 	//Get contour reference
 	pen_contour& refCont = contours[icontour];
 
+	//Get individual contour mask for this contour
+	std::vector<unsigned char>& contourMask = contourMasks[icontour];
+	
 	//Iterate over all contour planes
 	for(unsigned nplane = 0; nplane < refCont.NPlanes(); nplane++){
 
@@ -2240,10 +2299,12 @@ int pen_dicom::assignContours(){
 			  //create a in-hole contour. So, we must remove this
 			  //voxel from this contour and restore previous one.
 			  voxelContour[index] = voxelContour2[index];
+			  contourMask[index] = 0;
 			}
 		      else
 			{
 			  voxelContour[index] = icontour;
+			  contourMask[index] = 1;
 			}
 		    }
 		}
@@ -2540,6 +2601,60 @@ int pen_dicom::transformContoursAndSeeds(const double* imageOrientation,
 }
 
 
+int pen_dicom::printContourMasks(const char* filename) const{
+
+  if(filename == nullptr)
+    return PEN_DICOM_ERROR_NULL_FILENAME;
+
+  for(size_t imask = 0; imask < contourMasks.size(); ++imask){
+
+    //Get mask
+    const std::vector<unsigned char>& mask = contourMasks[imask];
+    
+    //Create a file to store contour mask
+    std::string sfilename(filename);
+    sfilename.append("-");
+    sfilename.append(contours[imask].name.c_str());
+    
+    FILE* OutMask = nullptr;
+    OutMask = fopen(sfilename.c_str(),"w");
+    if(OutMask == nullptr){
+      return PEN_DICOM_ERROR_CREATING_FILE;
+    }
+    
+    unsigned long nInner=std::accumulate(mask.begin(),mask.end(),static_cast<unsigned long>(0));
+    
+    fprintf(OutMask,"# PenRed MASK DATA\n");
+    fprintf(OutMask,"# Inner voxels are flagged with a '1' in the mask.\n"
+	    "# Instead, outer voxels are flagged with a '0'.\n");
+    fprintf(OutMask,"#\n");
+    fprintf(OutMask,"# Contour Name:\n");    
+    fprintf(OutMask,"#    %s\n",contours[imask].name.c_str());
+    fprintf(OutMask,"#\n");    
+    fprintf(OutMask,"# Number of voxels:\n");
+    fprintf(OutMask,"#    %lu\n",static_cast<unsigned long>(mask.size()));
+    fprintf(OutMask,"# Number of inner voxels:\n");
+    fprintf(OutMask,"#    %lu\n", nInner);    
+    fprintf(OutMask,"#\n");
+    fprintf(OutMask,"# Volume (cm^3):\n");
+    fprintf(OutMask,"#    %E\n",
+	    voxVol*static_cast<double>(nInner));
+    fprintf(OutMask,"#\n");
+    fprintf(OutMask,"# n voxel |  mask \n");
+    
+    for(size_t i = 0; i < mask.size(); ++i){
+      fprintf(OutMask,"  %7lu     %u\n",i,mask[i]);
+    }
+    
+    fprintf(OutMask,"#\n");
+    fprintf(OutMask,"# End of mask data\n");
+    fclose(OutMask);  
+    
+  }
+  
+  return PEN_DICOM_SUCCESS;
+}
+
 int pen_dicom::printContours(const char* filename) const{
 
   if(filename == nullptr)
@@ -2661,9 +2776,9 @@ int pen_dicom::printSeeds(const char* filename) const{
 	      if(d > 0.0)
 		{
 		  fprintf(OutSeeds,"#         move to: ");
-		  center[0] = posPrev[0]+0.5*dir[0];
-		  center[1] = posPrev[1]+0.5*dir[1];
-		  center[2] = posPrev[2]+0.5*dir[2];
+		  center[0] = posPrev[0]+d*dir[0];
+		  center[1] = posPrev[1]+d*dir[1];
+		  center[2] = posPrev[2]+d*dir[2];
 		}
 	      else
 		{

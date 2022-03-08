@@ -1,7 +1,7 @@
 //
 //
-//    Copyright (C) 2020-2021 Universitat de València - UV
-//    Copyright (C) 2020-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2020-2022 Universitat de València - UV
+//    Copyright (C) 2020-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -101,6 +101,27 @@ int pennuc_specificSampler::configure(double& Emax,
     }
     return -3;
   }
+
+  sourceMaterial = 0;
+  int auxInt;
+  err = config.read("source-material",auxInt);
+  if(err == INTDATA_SUCCESS){
+
+    if(auxInt <= 0){
+      if(verbose > 0){
+        printf("pennuc_specificSampler:configure: Error: Material source index"
+               " must be greater than 0.\n");
+      }
+      return -4;
+    }
+
+    sourceMaterial = auxInt;
+
+    if(verbose > 1){
+      printf("Material %u selected as source.\n",sourceMaterial);
+    }
+  }
+
 
   // ** DRTIME
   DRTIME = 5.0E-6;
@@ -278,6 +299,16 @@ void pennuc_specificSampler::sample(pen_particleState& state,
   if(lastMETAST == 0){ //Nucleus is not in a metastable level
     //Sample a new position
     spatial()->sample(state,random);
+
+    //Check for specified material source
+    if(sourceMaterial > 0){
+      geometry->locate(state);
+      while(state.MAT != sourceMaterial){
+         spatial()->sample(state,random);
+         geometry->locate(state);
+      }
+    }
+
     //Save decay position
     x0 = state.X;
     y0 = state.Y;

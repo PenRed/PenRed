@@ -724,6 +724,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
     if(dicom.nContours() > 0){
       dicom.printContours("dicomContours.dat");
       dicom.printContourVox("dicomContourMask.dat");
+      dicom.printContourMasks("dicomMask");
     }
   }
   

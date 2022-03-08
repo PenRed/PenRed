@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2021 Universitat de València - UV
-//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2022 Universitat de València - UV
+//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -37,6 +37,7 @@
 #include <cstdint>
 #include <dirent.h>
 #include <cmath>
+#include <numeric>
 
 /* make sure OS specific configuration is included first */
 #include "dcmtk/config/osconfig.h"    
@@ -284,6 +285,7 @@ private:
     
   //Save container contour for each voxel (-1 for non contour)
   int* voxelContour;
+  std::vector<std::vector<unsigned char>> contourMasks;
   ////////////////
   // Seeds vars //
   ////////////////
@@ -340,6 +342,9 @@ public:
   
   inline const double* readImage() const {return dicomImage;}
   inline const int* readContour() const {return voxelContour;}
+  inline const std::vector<std::vector<unsigned char>> readContourMasks() const{
+    return contourMasks;
+  }
 
   inline unsigned long nContours() const {return contours.size();}
   inline unsigned long nSeeds() const {return seeds.size();}
@@ -367,6 +372,7 @@ public:
   }
 
   int printContours(const char* filename) const;
+  int printContourMasks(const char* filename) const;
   int printSeeds(const char* filename) const;
   int printImage(const char* filename) const;
   int printContourVox(const char* filename) const;

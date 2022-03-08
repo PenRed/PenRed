@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2021 Universitat de València - UV
-//    Copyright (C) 2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2021-2022 Universitat de València - UV
+//    Copyright (C) 2021-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -61,9 +61,9 @@ void image_spatialSampling::geoSampling(double pos[3], pen_rand& random) const{
     fprintf(outsampling,"   voxel number  :   %ld\n",ivox);
     fprintf(outsampling,"   voxel indices :  (%3ld,%3ld,%3ld)\n",ix,iy,iz);
     fprintf(outsampling,"   voxel center (image source coordinate system):  (%9.3lf,%9.3lf,%9.3lf)\n",
-	    dx*static_cast<double>(ix)+Ox-isocenter[0],
-	    dy*static_cast<double>(iy)+Oy-isocenter[1],
-	    dz*static_cast<double>(iz)+Oz-isocenter[2]);
+	    dx*static_cast<double>(ix)+Ox+dx/2.0-isocenter[0],
+	    dy*static_cast<double>(iy)+Oy+dy/2.0-isocenter[1],
+	    dz*static_cast<double>(iz)+Oz+dz/2.0-isocenter[2]);
     fprintf(outsampling,"   position (phantom coordinate system): (%9.3lf,%9.3lf,%9.3lf)\n",
 	    pos[0]+translation[0],pos[1]+translation[1],pos[2]+translation[2]);fflush(outsampling);
     count++;
@@ -459,9 +459,13 @@ void image_spatialSampling::updateGeometry(const wrapper_geometry* geometry){
       Ophy = dicom.getOriginY();
       Ophz = dicom.getOriginZ();
 
-      translation[0] = Ox-Ophx-(isocenter[0]-isocenterph[0])-(dx/2.0-dphx/2.0)+imageCx;
-      translation[1] = Oy-Ophy-(isocenter[1]-isocenterph[1])-(dy/2.0-dphy/2.0)+imageCy;
-      translation[2] = Oz-Ophz-(isocenter[2]-isocenterph[2])-(dz/2.0-dphz/2.0)+imageCz;
+      //translation[0] = Ox-Ophx-(isocenter[0]-isocenterph[0])-(dx/2.0-dphx/2.0)+imageCx;
+      //translation[1] = Oy-Ophy-(isocenter[1]-isocenterph[1])-(dy/2.0-dphy/2.0)+imageCy;
+      //translation[2] = Oz-Ophz-(isocenter[2]-isocenterph[2])-(dz/2.0-dphz/2.0)+imageCz;
+
+      translation[0] = Ox-Ophx-(isocenter[0]-isocenterph[0])+imageCx;
+      translation[1] = Oy-Ophy-(isocenter[1]-isocenterph[1])+imageCy;
+      translation[2] = Oz-Ophz-(isocenter[2]-isocenterph[2])+imageCz;
 
       if(verbose > 1){
 	printf("\nImage source attached to a phantom image with:\n");
@@ -471,8 +475,8 @@ void image_spatialSampling::updateGeometry(const wrapper_geometry* geometry){
 	       nphx,nphy,nphz);
 	printf(" Phantom Voxel sizes (dx,dy,dz):\n %14.6E %14.6E %14.6E\n",
 	       dphx,dphy,dphz);
-	printf(" Phantom Isocenter (Isox,Isoy,Isoz):\n %14.6E %14.6E %14.6E\n",
-	       isocenterph[0],isocenterph[1],isocenterph[2]);
+  printf(" Phantom Isocenter (Isox,Isoy,Isoz):\n %14.6E %14.6E %14.6E\n",
+         isocenterph[0],isocenterph[1],isocenterph[2]);
 	printf(" Final source image center (x,y,z):\n %14.6E %14.6E %14.6E\n\n",
 	       translation[0],translation[1],translation[2]);fflush(stdout);	
       }

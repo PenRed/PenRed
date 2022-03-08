@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2020 Universitat de València - UV
-//    Copyright (C) 2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2020-2022 Universitat de València - UV
+//    Copyright (C) 2020-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -374,6 +374,20 @@ public:
   void saveData(const unsigned long long nhist) const;
   int sumTally(const pen_tallyKermaTrackLength& tally);
 
+  inline const double* readCartesians() const { return cartesian; }
+  inline const double* readCartesians2() const { return cartesian2; }
+  inline bool enabledCart() const { return activeCart; }
+  
+  inline const double* readCyl() const { return cylindrical; }
+  inline const double* readCyl2() const { return cylindrical2; }
+  inline bool enabledCyl() const { return activeCyl; }
+  
+  inline const double* readSph() const { return spherical; }
+  inline const double* readSph2() const { return spherical2; }
+  inline bool enabledSph() const { return activeSph; }
+  
+  
+  
   ~pen_tallyKermaTrackLength();
 };
 
