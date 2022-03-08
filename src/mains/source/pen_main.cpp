@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2021 Universitat de València - UV
-//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2022 Universitat de València - UV
+//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -23,6 +23,7 @@
 //
 //        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
 //        vicente.gimenez@uv.es (Vicente Giménez Gómez)
+//        sanolgi@upvnet.upv.es (Sandra Oliver Gil)
 //    
 //
 
@@ -667,9 +668,9 @@ int main(int argc, char** argv){
   }
 	
   if(strcmp(argv[1],"--version") == 0 || strcmp(argv[1],"-v") == 0){
-    printf("PenRed 1.4.0\n");
-    printf("Copyright (c) 2019-2021 Universitat Politecnica de Valencia\n");
-    printf("Copyright (c) 2019-2021 Universitat de Valencia\n");
+    printf("PenRed 1.5.0\n");
+    printf("Copyright (c) 2019-2022 Universitat Politecnica de Valencia\n");
+    printf("Copyright (c) 2019-2022 Universitat de Valencia\n");
     printf("This is free software; see the source for copying conditions. "
 	   " There is NO\n warranty; not even for MERCHANTABILITY or "
            "FITNESS FOR A PARTICULAR PURPOSE.\n");
