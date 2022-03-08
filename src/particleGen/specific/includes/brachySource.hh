@@ -31,6 +31,8 @@
 #ifndef __BRACHY_SPECIFIC_SAMPLER__
 #define __BRACHY_SPECIFIC_SAMPLER__
 
+#ifdef _PEN_USE_DICOM_
+
 #include "PSFsource.hh"
 #include "pen_geometries.hh"
 
@@ -69,5 +71,7 @@ class brachy_specificSampler : public abc_specificSampler<pen_particleState>{
 
   void updateGeometry(const wrapper_geometry* geometryIn);
 };
+
+#endif
 
 #endif

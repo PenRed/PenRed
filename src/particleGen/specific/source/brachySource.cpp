@@ -27,6 +27,7 @@
 //    
 //
 
+#ifdef _PEN_USE_DICOM_
 
 #include "brachySource.hh"
 
@@ -221,3 +222,5 @@ void brachy_specificSampler::updateGeometry(const wrapper_geometry* geometryIn){
 
 
 REGISTER_SPECIFIC_SAMPLER(brachy_specificSampler,pen_particleState,BRACHY)
+
+#endif
