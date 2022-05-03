@@ -666,16 +666,21 @@ int main(int argc, char** argv){
     printf("usage: %s config-filename\n",argv[0]);
     return 0;
   }
-	
+
+	printf("***************************************************************\n");
+  printf(" PenRed version: 1.5.1 (3-May-2022) \n");
+  printf(" Copyright (c) 2019-2022 Universitat Politecnica de Valencia\n");
+  printf(" Copyright (c) 2019-2022 Universitat de Valencia\n");
+  printf(" Reference: Computer Physics Communications, 267 (2021) 108065\n"
+         "            https://doi.org/10.1016/j.cpc.2021.108065\n");
+  printf(" This is free software; see the source for copying conditions.\n"
+	       " There is NO warranty; not even for MERCHANTABILITY or\n"
+         " FITNESS FOR A PARTICULAR PURPOSE.\n");
+  printf(" Please, report bugs and suggestions at our github repository\n"
+	       "         https://github.com/PenRed/PenRed\n");
+	printf("***************************************************************\n\n");
+
   if(strcmp(argv[1],"--version") == 0 || strcmp(argv[1],"-v") == 0){
-    printf("PenRed 1.5.0\n");
-    printf("Copyright (c) 2019-2022 Universitat Politecnica de Valencia\n");
-    printf("Copyright (c) 2019-2022 Universitat de Valencia\n");
-    printf("This is free software; see the source for copying conditions. "
-	   " There is NO\n warranty; not even for MERCHANTABILITY or "
-           "FITNESS FOR A PARTICULAR PURPOSE.\n");
-    printf("Please, report bugs and suggestions at our github repository\n"
-	  "     https://github.com/PenRed/PenRed\n");
     return 0;
   }
   
@@ -970,6 +975,16 @@ int main(int argc, char** argv){
       printf("\n\nError: Conversion from dump to ascii required but no dump file specified (field 'simulation/dump2read').\n\n");
     }
     return -2;
+  }
+
+  // Get context log filename
+  //***************************************
+  std::string contextlogfile;  
+  if(config.read("simulation/contextlogfile",contextlogfile) != INTDATA_SUCCESS){
+    if(verbose > 0){
+      printf("\n\nNo context log filename specified.\n\n");
+    }
+    contextlogfile.clear();
   }
 
   // Get load balance configuration
@@ -1301,16 +1316,19 @@ int main(int argc, char** argv){
 
   //Initialize context with specified materials
   FILE* fcontext = nullptr;
-  fcontext = fopen("context.rep","w");
-  if(fcontext == nullptr){
-    printf("Error: unable to open file 'context.rep'\n");
+  if(contextlogfile.length() > 0){
+    //fcontext = fopen("context.rep","w");
+    fcontext = fopen(contextlogfile.c_str(),"w");
+    if(fcontext == nullptr){
+      printf("Error: unable to open context log file '%s'\n",contextlogfile.c_str());
+    }
   }
   if(context.init(globEmax,fcontext,verbose,matFilenames) != PEN_SUCCESS){
-    fclose(fcontext);
+    if(fcontext != nullptr) fclose(fcontext);
     printf("Error at context initialization.\n");
     return -5;
   }
-  fclose(fcontext);
+  if(fcontext != nullptr) fclose(fcontext);
   
   //****************************
   // Geometry parameters
@@ -1481,18 +1499,32 @@ int main(int argc, char** argv){
     if(verbose > 1){
       printf("Load dump files '%s' for %d threads\n",dump2read.c_str(), nthreads);
     }
+
+    std::string auxstr(dump2read); 
+    std::size_t found = auxstr.find_last_of("/\\");
+
     //Read dump file for each thread
     for(unsigned i = 0; i < nthreads; i++){
       //Create filename
-      
+
+      std::string filenameDump;
   // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_
-  
-      std::string filenameDump = std::string("MPI") + std::to_string(rank) +
-	std::string("-th") + std::to_string(i) + dump2read;
+
+      if(found != std::string::npos){
+	filenameDump = auxstr.substr(0,found+1) + std::string("MPI") + std::to_string(rank) +
+	  std::string("-th") + std::to_string(i) + auxstr.substr(found+1);
+      }else{
+	filenameDump = std::string("MPI") + std::to_string(rank) +
+	  std::string("-th") + std::to_string(i) + dump2read;
+      }
 #else
   // ***************************** MPI END ********************************** //
-      std::string filenameDump = std::string("th") + std::to_string(i) + dump2read;
+      if(found != std::string::npos){
+	filenameDump = auxstr.substr(0,found+1) + std::string("th") + std::to_string(i) + auxstr.substr(found+1);
+      } else{
+	filenameDump = std::string("th") + std::to_string(i) + dump2read;
+      }
 #endif      
       
       //Read dump file

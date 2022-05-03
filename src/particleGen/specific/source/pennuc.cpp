@@ -69,12 +69,33 @@ int pennuc_specificSampler::configure(double& Emax,
 
   int IER;
 
+  //Read the filename of the pennuc log file.
+  std::string PennuclogFilename ("pennuc.dat");
+  int err = config.read("pennuclog_filename",PennuclogFilename);
+  if(err != INTDATA_SUCCESS){
+    if(verbose > 0){
+      printf("pennuc_specificSampler:configure: Error: Unable to read "
+       "'pennuclog_filename' field from the configuration.\n "
+       "The default filename %s will be used.\n",PennuclogFilename.c_str());
+    }
+  }
+  else
+  {
+    if(verbose > 0){
+      printf("pennuc_specificSampler:configure: 'pennuclog_filename' field read from the configuration.\n "
+       "pennuclog_filename = %s.\n",PennuclogFilename.c_str());
+    }
+  }
+
   FILE* fout = nullptr;
-  fout = fopen("pennuc.dat", "w");
+  char straux[200];
+  strcpy (straux, PennuclogFilename.c_str());
+  //fout = fopen("pennuc.dat", "w");
+  fout = fopen(straux, "w");
   if(fout == nullptr){
     if(verbose > 0){
       printf("pennuc_specificSampler:configure: Error: Unable "
-	     "to open output file 'pennuc.dat'\n");
+	     "to open output file %s\n", PennuclogFilename.c_str());
     }
     return -1;
   }
@@ -92,7 +113,7 @@ int pennuc_specificSampler::configure(double& Emax,
   
   //Read the filename of the NUCLEIDE data file of the considered radionuclide
   std::string nucleideFilename;
-  int err = config.read("nucleide_filename",nucleideFilename);
+  err = config.read("nucleide_filename",nucleideFilename);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
       printf("pennuc_specificSampler:configure: Error: Unable to read "
@@ -100,6 +121,61 @@ int pennuc_specificSampler::configure(double& Emax,
 	     "String expected\n");
     }
     return -3;
+  }
+
+  //Read the filename of the atomic configuration and subshell binding energies data file.
+  std::string atomicFilename ("pdatconf.p14");
+  err = config.read("atomic_filename",atomicFilename);
+  if(err != INTDATA_SUCCESS){
+    if(verbose > 0){
+      printf("pennuc_specificSampler:configure: Error: Unable to read "
+       "'atomic_filename' field from the configuration.\n "
+       "The default filename %s will be used.\n",atomicFilename.c_str());
+    }
+  }
+  else
+  {
+    if(verbose > 0){
+      printf("pennuc_specificSampler:configure: 'atomic_filename' field read from the configuration.\n "
+       "atomic_filename = %s.\n",atomicFilename.c_str());
+    }
+  }
+
+  //Read the filename of the singly ionised atoms with the initial vacancy in one of the K, L,
+  //  M and N shells data file.
+  std::string relaxationFilename ("pdrelax.p11");
+  err = config.read("relaxation_filename",relaxationFilename);
+  if(err != INTDATA_SUCCESS){
+    if(verbose > 0){
+      printf("pennuc_specificSampler:configure: Error: Unable to read "
+       "'atomic_filename' field from the configuration.\n "
+       "The default filename %s will be used.\n",relaxationFilename.c_str());
+    }
+  }
+  else
+  {
+    if(verbose > 0){
+      printf("pennuc_specificSampler:configure: 'relaxation_filename' field read from the configuration.\n "
+       "relaxation_filename = %s.\n",relaxationFilename.c_str());
+    }
+  }
+
+  //Read the filename of the atreli log file.
+  std::string AtrelilogFilename ("atreli.dat");
+  err = config.read("atrelilog_filename",AtrelilogFilename);
+  if(err != INTDATA_SUCCESS){
+    if(verbose > 0){
+      printf("pennuc_specificSampler:configure: Error: Unable to read "
+       "'atrelilog_filename' field from the configuration.\n "
+       "The default filename %s will be used.\n",AtrelilogFilename.c_str());
+    }
+  }
+  else
+  {
+    if(verbose > 0){
+      printf("pennuc_specificSampler:configure: 'atrelilog_filename' field read from the configuration.\n "
+       "atrelilog_filename = %s.\n",AtrelilogFilename.c_str());
+    }
   }
 
   sourceMaterial = 0;
@@ -190,7 +266,7 @@ int pennuc_specificSampler::configure(double& Emax,
   NIR=0;
   NR = 0; //No particles in the storage
   lastMETAST = 0; //Nucleus is not in a metastable level 
-  PENNUC0(nucleideFilename.c_str(),auxEmax,fout,IER);
+  PENNUC0(nucleideFilename.c_str(),atomicFilename.c_str(),relaxationFilename.c_str(),AtrelilogFilename.c_str(),auxEmax,fout,IER);
   fclose(fout);
   Emax = 1.001E0*auxEmax;
   if(IER != 0)
@@ -1005,6 +1081,8 @@ void pennuc_specificSampler::ISOTROP(double &U,
 //                       SUBROUTINE PENNUC0
 //  *********************************************************************
 void pennuc_specificSampler::PENNUC0(const char* NUCFNAME,
+             const char* ATOMFNAME, const char* RELAXFNAME,
+             const char* ATRELIFNAME,
 				     double& EPMAX,
 				     FILE* IWR,
 				     int &IER){
@@ -1210,7 +1288,7 @@ void pennuc_specificSampler::PENNUC0(const char* NUCFNAME,
     }
   //
   int IZACT = IZNUC[NIR - 1];
-  ATRELI (IZACT, 1, IER);	// Parent nucleus.
+  ATRELI (ATRELIFNAME, ATOMFNAME, RELAXFNAME, IZACT, 1, IER);	// Parent nucleus.
   if (IER != 0)
     {
       return;
@@ -1219,7 +1297,7 @@ void pennuc_specificSampler::PENNUC0(const char* NUCFNAME,
   if (IZNUC[NIR - 1] > 2)
     {
       IZACT = IZNUC[NIR - 1] - 2;
-      ATRELI (IZACT, 1, IER);	// Daughter nucleus (alpha).
+      ATRELI (ATRELIFNAME, ATOMFNAME, RELAXFNAME, IZACT, 1, IER);	// Daughter nucleus (alpha).
       if (IER != 0)
 	{
 	  return;
@@ -1229,7 +1307,7 @@ void pennuc_specificSampler::PENNUC0(const char* NUCFNAME,
   if (IZNUC[NIR - 1] > 1)
     {
       IZACT = IZNUC[NIR - 1] - 1;
-      ATRELI (IZACT, 1, IER);	// Daughter (beta+ and el. capture).
+      ATRELI (ATRELIFNAME, ATOMFNAME, RELAXFNAME, IZACT, 1, IER);	// Daughter (beta+ and el. capture).
       if (IER != 0)
 	{
 	  return;
@@ -1237,7 +1315,7 @@ void pennuc_specificSampler::PENNUC0(const char* NUCFNAME,
     }
   //
   IZACT = IZNUC[NIR - 1] + 1;
-  ATRELI (IZACT, 1, IER);	// Daughter nucleus (beta-).
+  ATRELI (ATRELIFNAME, ATOMFNAME, RELAXFNAME, IZACT, 1, IER);	// Daughter nucleus (beta-).
   if (IER != 0)
     {
       return;
@@ -2066,7 +2144,9 @@ void pennuc_specificSampler::ATREL0(){
 //  *********************************************************************
 //                       SUBROUTINE ATRELI
 //  *********************************************************************
-void pennuc_specificSampler::ATRELI(int IZ,
+void pennuc_specificSampler::ATRELI(const char* ATRELIFNAME,
+            const char* ATOMFNAME, const char* RELAXFNAME,
+            int IZ,
 				    int IWR,
 				    int &IER){
   //
@@ -2094,7 +2174,7 @@ void pennuc_specificSampler::ATRELI(int IZ,
   //Uses PENNUC_mod, CATREL and CATRE2 common;
   //
   //      const double HBAR=6.58211928E-16;  // Planck's constant (eV*s)
-  char CH5[6], CH2[3], FNAME[46];
+  char CH5[6], CH2[3]; //, FNAME[46];
   char CSH5[30][6];
   double EB[30];
   int IFI[30], IKS[30];
@@ -2182,15 +2262,19 @@ void pennuc_specificSampler::ATRELI(int IZ,
   FILE* fileIWR = nullptr;
   if (IWR > 0)
     {
-      fileIWR = fopen ("atreli.dat", "w");
+      char straux[200];
+      strcpy (straux, ATRELIFNAME);
+      //fileIWR = fopen ("atreli.dat", "w");
+      fileIWR = fopen (straux, "w");
     }
   //
   //  ****  Loads atomic configuration and subshell binding energies.
   //
-  strcpy (FNAME, "pdatconf.p14");
+  //strcpy (FNAME, "pdatconf.p14");
   FILE *MRD;
   char straux[200];
-  strcpy (straux, FNAME);
+  //strcpy (straux, FNAME);
+  strcpy (straux, ATOMFNAME);
   MRD = fopen (straux, "r");
   if (MRD == NULL)
     {
@@ -2276,8 +2360,9 @@ void pennuc_specificSampler::ATRELI(int IZ,
     }
   fclose (MRD);
   //
-  strcpy (FNAME, "pdrelax.p11");
-  strcpy (straux, FNAME);
+  //strcpy (FNAME, "pdrelax.p11");
+  //strcpy (straux, FNAME);
+  strcpy (straux, RELAXFNAME);
   MRD = fopen (straux, "r");
   if (MRD == NULL)
     {

@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2020 Universitat de València - UV
-//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2022 Universitat de València - UV
+//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -138,6 +138,7 @@ private:
 
   unsigned nthread;
   std::string name;
+  std::string OutputDirPath;
   const __usedFunc usedFunctions;
   
 protected:
@@ -159,11 +160,11 @@ protected:
     //Add the MPI rank number to filename
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     
-    finalFilename = name + std::string("-MPI") + std::to_string(rank) + std::string("-th") + std::to_string(nthread) + std::string("-") + std::string(filename);    
+    finalFilename = OutputDirPath + name + std::string("-MPI") + std::to_string(rank) + std::string("-th") + std::to_string(nthread) + std::string("-") + std::string(filename);    
   // ***************************** MPI END ********************************** //
 #else
     
-    finalFilename = name + std::string("-th") + std::to_string(nthread) + std::string("-") + std::string(filename);
+    finalFilename = OutputDirPath + name + std::string("-th") + std::to_string(nthread) + std::string("-") + std::string(filename);
 
 #endif
     
@@ -180,8 +181,11 @@ public:
   virtual const char* readID() const = 0;
   inline const std::string& readName() const { return name;}
   inline unsigned getThread() const {return nthread;}
+  inline const std::string& readOutputDirPath() const { return OutputDirPath;}
   inline void setName(const char* newName) { name.assign(newName);}
   inline void setName(const std::string& newName) { name.assign(newName);}
+  inline void setOutputDirPath(const char* newName) { OutputDirPath.assign(newName);}
+  inline void setOutputDirPath(const std::string& newName) { OutputDirPath.assign(newName);}
   inline void setThread(const unsigned threadNum){nthread = threadNum;}
   
   void getUsedMethods(std::vector<std::string>& funcNames) const{
@@ -472,7 +476,7 @@ protected:
 
   pen_commonTallyCluster* mpiBuffer;
 
-  int createTally(const char* ID,
+  int createTally(const char* OutDir, const char* ID,
 		  const char* name,
 		  const wrapper_geometry& geometry,
 		  const abc_material* const materials[constants::MAXMAT], 
@@ -1391,7 +1395,17 @@ public:
       return -1;
     }
 
-    std::string dumpFilename = std::string("th") + std::to_string(nthread) + filename;
+    std::string auxstr(filename);
+    std::size_t found = auxstr.find_last_of("/\\");
+
+    std::string dumpFilename;
+
+    
+    if(found != std::string::npos){
+      dumpFilename = auxstr.substr(0,found+1) + std::string("th") + std::to_string(nthread) + auxstr.substr(found+1);
+    }else{
+      dumpFilename = std::string("th") + std::to_string(nthread) + filename;
+    }
 
     FILE* fdump = nullptr;
     fdump = fopen(dumpFilename.c_str(), "wb");

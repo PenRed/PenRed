@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2022 Universitat de València - UV
+//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -100,10 +100,24 @@ void pen_commonTallyCluster::configure(const wrapper_geometry* geometry,
 
     if(verbose > 1){
       printf("Tally type: '%s'\n\n",tallyID.c_str());
-    }    
+    } 
+
+    //Try to read tally output dir
+    std::string tallyOutDir;
+    if(tallySec.read("outputdir",tallyOutDir) != INTDATA_SUCCESS){
+      if(verbose > 0){
+	printf("commonTallyCluster: configure: Warning: unable to read field %s/outputdir. Assumed default output dir path ./\n",tallyNames[i].c_str());
+      }
+      tallyOutDir.clear();
+    }
+
+    if(verbose > 1){
+      printf("Tally outputdir: '%s'\n\n",tallyOutDir.c_str());
+    }
+   
     
     //Try to create and configure tally 'i'
-    if(createTally(tallyID.c_str(),tallyNames[i].c_str(),*geometry,materials,tallySec,verbose) != 0){
+    if(createTally(tallyOutDir.c_str(),tallyID.c_str(),tallyNames[i].c_str(),*geometry,materials,tallySec,verbose) != 0){
       if(verbose > 0){
 	printf("commonTallyCluster: configure: Error: Unable to create and configure tally '%s' of type '%s'.\n",tallyNames[i].c_str(),tallyID.c_str());
 	err++;
@@ -123,9 +137,10 @@ void pen_commonTallyCluster::configure(const wrapper_geometry* geometry,
   if(verbose > 1){
     printf("\nCreated common tallies (name and type):\n\n");
     for(unsigned i = 0; i < tallies.size(); i++){
-      printf("  %20s -> %20s\n",
+      printf("  %20s -> %20s  %-60s\n",
 	     tallies[i]->readName().c_str(),
-	     tallies[i]->readID());
+	     tallies[i]->readID(),
+       tallies[i]->readOutputDirPath().c_str());
     }
   }
 
@@ -160,7 +175,7 @@ void pen_commonTallyCluster::configure(const wrapper_geometry* geometry,
   // ***************************** MPI END ********************************** //
 }
 
-int pen_commonTallyCluster::createTally(const char* ID,
+int pen_commonTallyCluster::createTally(const char* tallyOutDir, const char* ID,
 					const char* tallyname,
 					const wrapper_geometry& geometry,
 					const abc_material* const materials[constants::MAXMAT],
@@ -200,6 +215,9 @@ int pen_commonTallyCluster::createTally(const char* ID,
 
   //Set thread
   ptally->setThread(nthread);
+
+  //Set OutDir
+  ptally->setOutputDirPath(tallyOutDir);
   
   //Configure tally
   int errConfig = ptally->configure(geometry,materials,config,verbose);
@@ -502,18 +520,30 @@ int pen_commonTallyCluster::dump2file(const char* filename,
     return -1;
   }
 
-  
+    std::string auxstr(filename); 
+    std::size_t found = auxstr.find_last_of("/\\");
+
+    std::string dumpFilename;
   // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_
   int rank;
   //Add the MPI rank number to filename
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   
-  std::string dumpFilename = std::string("MPI") + std::to_string(rank) +
-    std::string("-th") + std::to_string(nthread) + filename;
+      if(found != std::string::npos){
+	dumpFilename = auxstr.substr(0,found+1) + std::string("MPI") + std::to_string(rank) +
+	  std::string("-th") + std::to_string(nthread) + auxstr.substr(found+1);
+      }else{
+	dumpFilename = std::string("MPI") + std::to_string(rank) +
+	  std::string("-th") + std::to_string(nthread) + filename;
+      }
 #else
-  // ***************************** MPI END ********************************** //
-  std::string dumpFilename = std::string("th") + std::to_string(nthread) + filename;
+      // ***************************** MPI END ********************************** //
+      if(found != std::string::npos){
+	dumpFilename = auxstr.substr(0,found+1) + std::string("th") + std::to_string(nthread) + auxstr.substr(found+1);
+      }else{
+	dumpFilename = std::string("th") + std::to_string(nthread) + filename;
+      }
 #endif
   
   FILE* fdump = nullptr;

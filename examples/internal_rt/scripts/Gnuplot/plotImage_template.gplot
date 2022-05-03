@@ -1,0 +1,89 @@
+#  20470   77.0   54.0   84.0
+#   7124   82.0   60.0   83.0
+#   6245   98.0   58.0   89.0
+#   3680   66.0   62.0   71.0
+#   1946  135.0   58.0   38.0
+#   1653  137.0   69.0   85.0
+#   1555  131.0   51.0   44.0
+#   1525  131.0   55.0   84.0
+#   1472   84.0   77.0   60.0
+#   1130  135.0   59.0   37.0
+#   1072  129.0   67.0   34.0
+#   1008   99.0   63.0   91.0
+
+set terminal pdf
+
+set output "image.pdf"
+set multiplot layout 2,2
+
+nvoxy = __nx__*__ny__ 
+
+#set size square
+
+unset xtics
+set xrange[*:*]
+
+unset ytics
+set yrange[*:*]
+
+set logscale cb
+
+set cbrange [1.0:__cb1__]
+
+plane=__pl1__
+
+set title '{/:Bold __title1__ Slice Z=__pl1__}' font "Helvetica,9"
+plot "merged.dat" u 1:2:4 every ::((plane-1)*nvoxy)::(plane*nvoxy-1) w image notitle 
+set title '{/:Bold __title2__ Slice Z=__pl1__}' font "Helvetica,9"
+plot "merged.dat" u 1:2:5 every ::((plane-1)*nvoxy)::(plane*nvoxy-1) w image notitle
+
+set cbrange [1.0:__cb2__]
+
+plane=__pl2__
+
+set title '{/:Bold __title1__ Slice Z=__pl2__}' font "Helvetica,9"
+plot "merged.dat" u 1:2:4 every ::((plane-1)*nvoxy)::(plane*nvoxy-1) w image notitle
+set title '{/:Bold __title2__ Slice Z=__pl2__}' font "Helvetica,9"
+plot "merged.dat" u 1:2:5 every ::((plane-1)*nvoxy)::(plane*nvoxy-1) w image notitle
+
+unset multiplot
+set multiplot layout 2,2
+
+set cbrange [1.0:__cb3__]
+
+plane=__pl3__
+
+set title '{/:Bold __title1__ Slice Z=__pl3__}' font "Helvetica,9"
+plot "merged.dat" u 1:2:4 every ::((plane-1)*nvoxy)::(plane*nvoxy-1) w image notitle
+set title '{/:Bold __title2__ Slice Z=__pl3__}' font "Helvetica,9"
+plot "merged.dat" u 1:2:5 every ::((plane-1)*nvoxy)::(plane*nvoxy-1) w image notitle
+
+set cbrange [1.0:__cb4__]
+
+plane=__pl4__
+
+set title '{/:Bold __title1__ Slice Z=__pl4__}' font "Helvetica,9"
+plot "merged.dat" u 1:2:4 every ::((plane-1)*nvoxy)::(plane*nvoxy-1) w image notitle
+set title '{/:Bold __title2__ Slice Z=__pl4__}' font "Helvetica,9"
+plot "merged.dat" u 1:2:5 every ::((plane-1)*nvoxy)::(plane*nvoxy-1) w image notitle
+
+unset multiplot
+set multiplot layout 2,2
+
+set cbrange [1.0:__cb5__]
+
+plane=__pl5__
+
+set title '{/:Bold __title1__ Slice Z=__pl5__}' font "Helvetica,9"
+plot "merged.dat" u 1:2:4 every ::((plane-1)*nvoxy)::(plane*nvoxy-1) w image notitle
+set title '{/:Bold __title2__ Slice Z=__pl5__}' font "Helvetica,9"
+plot "merged.dat" u 1:2:5 every ::((plane-1)*nvoxy)::(plane*nvoxy-1) w image notitle
+
+set cbrange [1.0:__cb6__]
+
+plane=__pl6__
+
+set title '{/:Bold __title1__ Slice Z=__pl6__}' font "Helvetica,9"
+plot "merged.dat" u 1:2:4 every ::((plane-1)*nvoxy)::(plane*nvoxy-1) w image notitle
+set title '{/:Bold __title2__ Slice Z=__pl6__}' font "Helvetica,9"
+plot "merged.dat" u 1:2:5 every ::((plane-1)*nvoxy)::(plane*nvoxy-1) w image notitle
