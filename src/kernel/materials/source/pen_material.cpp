@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2021 Universitat de València - UV
-//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2022 Universitat de València - UV
+//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -111,25 +111,26 @@ void pen_material::load(FILE* IRD,
   
   if(strcmp(NAME, LNAME) != 0)
   {
-    fprintf(IWR, "\n I/O error. Corrupt material data file.\n      The first line is: %55s\n      ... and should be: %55s\n",NAME, LNAME);
+    if (IWR != nullptr) fprintf(IWR, "\n I/O error. Corrupt material data file.\n      The first line is: %55s\n      ... and should be: %55s\n",NAME, LNAME);
     penError(ERR_PEMATR_CORRUPT_MAT_FILE);
     return;
   }
-  fprintf(IWR, "%55s\n", NAME);
+  if (IWR != nullptr) fprintf(IWR, "%55s\n", NAME);
 
   fscanf(IRD,"%*11c%62[^\n]%*[^\n]",LNAME);
   getc(IRD);
-  fprintf(IWR, " Material: %62s\n", LNAME);
+  if (IWR != nullptr) fprintf(IWR, " Material: %62s\n", LNAME);
   
   fscanf(IRD, "%*15c%lf%*[^\n]", &(mat.RHO));
   getc(IRD);
   
-  fprintf(IWR, " Mass density =%15.8E g/cm**3\n", mat.RHO);
+  if (IWR != nullptr) fprintf(IWR, " Mass density =%15.8E g/cm**3\n", mat.RHO);
   
   fscanf(IRD, "%*37c%3d%*[^\n]", &mat.NELEM);
   getc(IRD);
-  fprintf(IWR, " Number of elements in the molecule = %2d\n", mat.NELEM);fflush(IWR);
-  if(mat.NELEM > 30){ fprintf(IWR, "To many elements in material %s\n", NAME); penError(ERR_PEMATR_2_MANY_ELEMENTS);
+  if (IWR != nullptr) fprintf(IWR, " Number of elements in the molecule = %2d\n", mat.NELEM); 
+  if (IWR != nullptr) fflush(IWR);
+  if(mat.NELEM > 30){ if (IWR != nullptr) fprintf(IWR, "To many elements in material %s\n", NAME); penError(ERR_PEMATR_2_MANY_ELEMENTS);
     return;}
   
   mat.ZT = 0.0;
@@ -139,7 +140,8 @@ void pen_material::load(FILE* IRD,
   {
     fscanf(IRD, "%*18c%d,%*19c%lf%*[^\n]", &mat.IZ[I], &mat.STF[I]);
     getc(IRD);
-    fprintf(IWR, "    Element: %s (Z=%2d), atoms/molecule =%15.8E\n", elements.LASYMB[mat.IZ[I]-1], mat.IZ[I], mat.STF[I]);fflush(IWR);
+    if (IWR != nullptr) fprintf(IWR, "    Element: %s (Z=%2d), atoms/molecule =%15.8E\n", elements.LASYMB[mat.IZ[I]-1], mat.IZ[I], mat.STF[I]);
+    if (IWR != nullptr) fflush(IWR);
       
     mat.ZT = mat.ZT+mat.STF[I]*mat.IZ[I];
     int IZZ = mat.IZ[I];
@@ -147,7 +149,7 @@ void pen_material::load(FILE* IRD,
   }
   mat.VMOL = constants::AVOG*mat.RHO/mat.AT;
 
-  if(INFO >= 2){ fprintf(IWR, "\n Molecular density = %15.8E 1/cm**3\n", mat.VMOL);}
+  if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "\n Molecular density = %15.8E 1/cm**3\n", mat.VMOL);}
   
   mat.OP2 = FOURPI*mat.ZT*mat.VMOL*pow(constants::A0B,3)*pow(constants::HREV,2);
   double OMEGA = sqrt(mat.OP2);
@@ -157,22 +159,22 @@ void pen_material::load(FILE* IRD,
 
   if(INFO >= 2)
   {
-    fprintf(IWR, "\n *** Electron/positron inelastic scattering.\n");
-    fprintf(IWR, " Plasma energy = %15.8E eV\n", OMEGA);
+    if (IWR != nullptr) fprintf(IWR, "\n *** Electron/positron inelastic scattering.\n");
+    if (IWR != nullptr) fprintf(IWR, " Plasma energy = %15.8E eV\n", OMEGA);
   }
   
   fscanf(IRD, "%*25c%lf%*[^\n]", &mat.EXPOT);
   getc(IRD);
-  fprintf(IWR, " Mean excitation energy =%15.8E eV\n", mat.EXPOT);
+  if (IWR != nullptr) fprintf(IWR, " Mean excitation energy =%15.8E eV\n", mat.EXPOT);
 
   //  ****  E/P inelastic collisions.
 
   fscanf(IRD, "%*24c%3d%*[^\n]", &mat.NOSC);
   getc(IRD);
-  if(INFO >= 2 || (unsigned)mat.NOSC > constants::NO){ fprintf(IWR, " Number of oscillators =%4d\n", mat.NOSC);}
+  if(INFO >= 2 || (unsigned)mat.NOSC > constants::NO){ if (IWR != nullptr) fprintf(IWR, " Number of oscillators =%4d\n", mat.NOSC);}
   if((unsigned)mat.NOSC > constants::NO){ penError(ERR_PEMATR_2_MANY_OSCILLATORS);
     return;}
-  if(INFO >= 2){ fprintf(IWR, "\n           Fi            Ui (eV)         Wi (eV)      KZ  KS\n ------------------------------------------------------------\n");}
+  if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "\n           Fi            Ui (eV)         Wi (eV)      KZ  KS\n ------------------------------------------------------------\n");}
   double EXPT = 0.0;
   for(int I = 0; I < mat.NOSC; I++)
   {
@@ -183,14 +185,14 @@ void pen_material::load(FILE* IRD,
     {
       mat.UI[I] = 0.0;
     }
-    if(INFO >= 2){ fprintf(IWR, "%4d%16.8E%16.8E%16.8E%4d%4d\n", I+1, mat.F[I], mat.UI[I], mat.WRI[I], mat.KZ[I], mat.KS[I]);}
+    if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "%4d%16.8E%16.8E%16.8E%4d%4d\n", I+1, mat.F[I], mat.UI[I], mat.WRI[I], mat.KZ[I], mat.KS[I]);}
     EXPT = EXPT+mat.F[I]*log(mat.WRI[I]);
   }
   EXPT = exp(EXPT/mat.ZT);
 
   if(fabs(EXPT-mat.EXPOT) > 1.0E-6*mat.EXPOT)
   {
-    fprintf(IWR, "EXPT      =%.5E\nEXPOT (M) =%.5E\nInconsistent oscillator data.\n", EXPT, mat.EXPOT);
+    if (IWR != nullptr) fprintf(IWR, "EXPT      =%.5E\nEXPOT (M) =%.5E\nInconsistent oscillator data.\n", EXPT, mat.EXPOT);
     penError(ERR_PEMATR_INCONSISTENT_OSCILLATOR);
     return;
   }
@@ -201,18 +203,18 @@ void pen_material::load(FILE* IRD,
   getc(IRD);
   if(INFO >= 2 || (unsigned)mat.NOSCCO > constants::NOCO)
   {
-    fprintf(IWR, "\n *** Compton scattering (Impulse Approximation).\n");
-    fprintf(IWR, " Number of shells =%4d\n", mat.NOSCCO);
+    if (IWR != nullptr) fprintf(IWR, "\n *** Compton scattering (Impulse Approximation).\n");
+    if (IWR != nullptr) fprintf(IWR, " Number of shells =%4d\n", mat.NOSCCO);
     if((unsigned)mat.NOSCCO > constants::NOCO){ penError(ERR_PEMATR_2_MANY_SHELLS);
       return;}
   }
-  if(INFO >= 2){ fprintf(IWR, "\n           Fi            Ui (eV)         Ji(0)        KZ  KS\n ------------------------------------------------------------\n");}
+  if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "\n           Fi            Ui (eV)         Ji(0)        KZ  KS\n ------------------------------------------------------------\n");}
 
   for(int I = 0; I < mat.NOSCCO; I++)
   {
     fscanf(IRD, "%*4c%lf %lf %lf %d %d%*[^\n]", &mat.FCO[I], &mat.UICO[I], &mat.FJ0[I], &mat.KZCO[I], &mat.KSCO[I]);
     getc(IRD);
-    if(INFO >= 2){ fprintf(IWR, "%4d %15.8E %15.8E %15.8E%4d%4d\n", I+1, mat.FCO[I], mat.UICO[I], mat.FJ0[I], mat.KZCO[I], mat.KSCO[I]);}
+    if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "%4d %15.8E %15.8E %15.8E%4d%4d\n", I+1, mat.FCO[I], mat.UICO[I], mat.FJ0[I], mat.KZCO[I], mat.KSCO[I]);}
     mat.FJ0[I] = mat.FJ0[I]*constants::SL;
   }
 
@@ -264,17 +266,17 @@ void pen_material::load(FILE* IRD,
   fscanf(IRD, "%*58c%4d%*[^\n]", &NDATA);
   getc(IRD);
   
-  if(INFO >= 2){ fprintf(IWR, "\n *** Stopping powers for electrons and positrons,  NDATA =%4d\n", NDATA);}
+  if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "\n *** Stopping powers for electrons and positrons,  NDATA =%4d\n", NDATA);}
   if((unsigned)NDATA > constants::NEGP){ penError(ERR_PEMATR_2_MANY_DP_1);
     return;}
-  if(INFO >= 2){ fprintf(IWR, "\n  Energy     Scol,e-     Srad,e-     Scol,e+     Srad,e+\n   (eV)     (MeV/mtu)   (MeV/mtu)   (MeV/mtu)   (MeV/mtu)\n ----------------------------------------------------------\n");}
+  if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "\n  Energy     Scol,e-     Srad,e-     Scol,e+     Srad,e+\n   (eV)     (MeV/mtu)   (MeV/mtu)   (MeV/mtu)   (MeV/mtu)\n ----------------------------------------------------------\n");}
 
   for(int I = 0; I < NDATA; I++)
   {
     fscanf(IRD, "%lf %lf %lf %lf %lf%*[^\n]", &EIT[I], &F1[I], &F2[I], &F3[I], &F4[I]);
     getc(IRD);
     
-    if(INFO >= 2){ fprintf(IWR, "%10.3E%12.5E%12.5E%12.5E%12.5E\n", EIT[I], F1[I], F2[I], F3[I], F4[I]);}
+    if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "%10.3E%12.5E%12.5E%12.5E%12.5E\n", EIT[I], F1[I], F2[I], F3[I], F4[I]);}
     EITL[I] = log(EIT[I]);
   }
 
@@ -1018,11 +1020,11 @@ void pen_material::load(FILE* IRD,
 
   if(INFO >= 3)
   {
-    fprintf(IWR, "\n PENELOPE >>>  Stopping powers for electrons\n");
-    fprintf(IWR, "\n   Energy        Scol         Srad         range     Rad. Yield   PhotonYield    delta\n    (eV)       (eV/mtu)     (eV/mtu)       (mtu)                    (W>WCR)\n ------------------------------------------------------------------------------------------\n");
+    if (IWR != nullptr) fprintf(IWR, "\n PENELOPE >>>  Stopping powers for electrons\n");
+    if (IWR != nullptr) fprintf(IWR, "\n   Energy        Scol         Srad         range     Rad. Yield   PhotonYield    delta\n    (eV)       (eV/mtu)     (eV/mtu)       (mtu)                    (W>WCR)\n ------------------------------------------------------------------------------------------\n");
     for(unsigned int I = 0; I < constants::NEGP; I++)
     {
-      fprintf(IWR, "%12.5E %12.5E %12.5E %12.5E %12.5E %12.5E %12.5E\n", grid.ET[I], mat.CSTPE[I]/mat.RHO, mat.RSTPE[I]/mat.RHO, mat.RANGE[PEN_ELECTRON][I]*mat.RHO, RADY[I]/grid.ET[I], RADN[I], mat.DEL[I]);
+      if (IWR != nullptr) fprintf(IWR, "%12.5E %12.5E %12.5E %12.5E %12.5E %12.5E %12.5E\n", grid.ET[I], mat.CSTPE[I]/mat.RHO, mat.RSTPE[I]/mat.RHO, mat.RANGE[PEN_ELECTRON][I]*mat.RHO, RADY[I]/grid.ET[I], RADN[I], mat.DEL[I]);
     }
   }
     
@@ -1158,18 +1160,18 @@ void pen_material::load(FILE* IRD,
 
   if(INFO >= 3)
   {
-    fprintf(IWR, "\n PENELOPE >>>  Stopping powers for positrons\n");
-    fprintf(IWR, "\n   Energy        Scol         Srad         range     Rad. Yield   PhotonYield  annih. mfp\n    (eV)       (eV/mtu)     (eV/mtu)       (mtu)                    (W>WCR)      (mtu)\n ------------------------------------------------------------------------------------------\n");
+    if (IWR != nullptr) fprintf(IWR, "\n PENELOPE >>>  Stopping powers for positrons\n");
+    if (IWR != nullptr) fprintf(IWR, "\n   Energy        Scol         Srad         range     Rad. Yield   PhotonYield  annih. mfp\n    (eV)       (eV/mtu)     (eV/mtu)       (mtu)                    (W>WCR)      (mtu)\n ------------------------------------------------------------------------------------------\n");
     for(unsigned int I = 0; I < constants::NEGP; I++)
     {
-      fprintf(IWR, "%12.5E %12.5E %12.5E %12.5E %12.5E %12.5E %12.5E\n", grid.ET[I], mat.CSTPP[I]/mat.RHO, mat.RSTPP[I]/mat.RHO, mat.RANGE[PEN_POSITRON][I]*mat.RHO, RADY[I]/grid.ET[I], RADN[I], mat.RHO/exp(mat.SPAN[I]));
+      if (IWR != nullptr) fprintf(IWR, "%12.5E %12.5E %12.5E %12.5E %12.5E %12.5E %12.5E\n", grid.ET[I], mat.CSTPP[I]/mat.RHO, mat.RSTPP[I]/mat.RHO, mat.RANGE[PEN_POSITRON][I]*mat.RHO, RADY[I]/grid.ET[I], RADN[I], mat.RHO/exp(mat.SPAN[I]));
     }
   }
 
   if(INFO >= 3)
   {
-    fprintf(IWR, "\n PENELOPE >>>  Soft stopping power and energy straggling\n");
-    fprintf(IWR, "\n   Energy       SStp,e-      SStr,e-     STP,e-     SStp,e+      SStr,e+     Stp,e+\n    (eV)       (eV/mtu)    (eV**2/mtu)  soft/tot   (eV/mtu)    (eV**2/mtu)  soft/tot\n ------------------------------------------------------------------------------------\n");
+    if (IWR != nullptr) fprintf(IWR, "\n PENELOPE >>>  Soft stopping power and energy straggling\n");
+    if (IWR != nullptr) fprintf(IWR, "\n   Energy       SStp,e-      SStr,e-     STP,e-     SStp,e+      SStr,e+     Stp,e+\n    (eV)       (eV/mtu)    (eV**2/mtu)  soft/tot   (eV/mtu)    (eV**2/mtu)  soft/tot\n ------------------------------------------------------------------------------------\n");
   }
   double FMTU = 1.0/mat.RHO;
   double FSOFTE;
@@ -1215,7 +1217,7 @@ void pen_material::load(FILE* IRD,
       mat.W1P[I] = -100.0;
       mat.W2P[I] = -100.0;
     }
-    if(INFO >= 3){ fprintf(IWR, "%12.5E%13.5E%13.5E%10.2E%13.5E%13.5E%10.2E\n", grid.ET[I], W1EW*FMTU, W2EW*FMTU, FSOFTE, W1PW*FMTU, W2PW*FMTU, FSOFTP);}
+    if(INFO >= 3){ if (IWR != nullptr) fprintf(IWR, "%12.5E%13.5E%13.5E%10.2E%13.5E%13.5E%10.2E\n", grid.ET[I], W1EW*FMTU, W2EW*FMTU, FSOFTE, W1PW*FMTU, W2PW*FMTU, FSOFTP);}
   }
 
   //  ****  Elastic scattering of electrons and positrons.
@@ -1235,11 +1237,11 @@ void pen_material::load(FILE* IRD,
       
   if(INFO >= 3)
   {
-    fprintf(IWR, "\n PENELOPE >>>  Soft angular transport coefficients\n");
-    fprintf(IWR, "\n   Energy      SITMFP1,e-   SITMFP2,e-   SITMFP1,e+   SITMFP2,e+\n    (eV)        (1/mtu)      (1/mtu)      (1/mtu)      (1/mtu)\n ----------------------------------------------------------------\n");
+    if (IWR != nullptr) fprintf(IWR, "\n PENELOPE >>>  Soft angular transport coefficients\n");
+    if (IWR != nullptr) fprintf(IWR, "\n   Energy      SITMFP1,e-   SITMFP2,e-   SITMFP1,e+   SITMFP2,e+\n    (eV)        (1/mtu)      (1/mtu)      (1/mtu)      (1/mtu)\n ----------------------------------------------------------------\n");
     for(unsigned int I = 0; I < constants::NEGP; I++)
     {
-      fprintf(IWR, "%12.5E%13.5E%13.5E%13.5E%13.5E\n", grid.ET[I], exp(mat.T1E[I])*FMTU, exp(mat.T2E[I])*FMTU, exp(mat.T1P[I])*FMTU, exp(mat.T2P[I])*FMTU);
+      if (IWR != nullptr) fprintf(IWR, "%12.5E%13.5E%13.5E%13.5E%13.5E\n", grid.ET[I], exp(mat.T1E[I])*FMTU, exp(mat.T2E[I])*FMTU, exp(mat.T1P[I])*FMTU, exp(mat.T2P[I])*FMTU);
     }
   }
     
@@ -1247,8 +1249,8 @@ void pen_material::load(FILE* IRD,
 
   if(INFO >= 3)
   {
-    fprintf(IWR, "\n PENELOPE >>>  Electron mean free paths (hard events)\n *** NOTE: The MFP for inner-shell ionisation (isi) is listed only for\n           completeness. The MFP for inelastic collisions (in) has been\n           calculated by considering all inelastic events, including isi.\n");
-    fprintf(IWR, "\n   Energy        MFPel        MFPin        MFPbr       MFPtot       MFPisi\n    (eV)         (mtu)        (mtu)        (mtu)        (mtu)        (mtu)\n -----------------------------------------------------------------------------\n");
+    if (IWR != nullptr) fprintf(IWR, "\n PENELOPE >>>  Electron mean free paths (hard events)\n *** NOTE: The MFP for inner-shell ionisation (isi) is listed only for\n           completeness. The MFP for inelastic collisions (in) has been\n           calculated by considering all inelastic events, including isi.\n");
+    if (IWR != nullptr) fprintf(IWR, "\n   Energy        MFPel        MFPin        MFPbr       MFPtot       MFPisi\n    (eV)         (mtu)        (mtu)        (mtu)        (mtu)        (mtu)\n -----------------------------------------------------------------------------\n");
   }
 
   double FPEL;
@@ -1263,7 +1265,7 @@ void pen_material::load(FILE* IRD,
     FPIN = exp(mat.SEHIN[I])+FPSI;
     FPBR = exp(mat.SEHBR[I]);
     FPTOT = FPEL+FPIN+FPBR;
-    if(INFO >= 3){ fprintf(IWR, "%12.5E %12.5E %12.5E %12.5E %12.5E %12.5E\n", grid.ET[I], mat.RHO/FPEL, mat.RHO/FPIN, mat.RHO/FPBR, mat.RHO/FPTOT, mat.RHO/FPSI);}
+    if(INFO >= 3){ if (IWR != nullptr) fprintf(IWR, "%12.5E %12.5E %12.5E %12.5E %12.5E %12.5E\n", grid.ET[I], mat.RHO/FPEL, mat.RHO/FPIN, mat.RHO/FPBR, mat.RHO/FPTOT, mat.RHO/FPSI);}
     mat.SETOT[I] = log(FPTOT);
   }
 
@@ -1271,7 +1273,7 @@ void pen_material::load(FILE* IRD,
   {
     if(exp(mat.SETOT[I]) > 1.005*exp(mat.SETOT[I-1]) && exp(mat.SETOT[I]) > 1.005*exp(mat.SETOT[I+1]) && grid.ET[I] > mat.EABS[PEN_ELECTRON] && grid.ET[I] < 1.0E6)
     {
-      fprintf(IWR, "\n WARNING: The electron hard IMFP has a maximum at E = %13.6E eV\n", grid.ET[I]);
+      if (IWR != nullptr) fprintf(IWR, "\n WARNING: The electron hard IMFP has a maximum at E = %13.6E eV\n", grid.ET[I]);
     }
   }
 
@@ -1279,8 +1281,8 @@ void pen_material::load(FILE* IRD,
 
   if(INFO >= 3)
   {
-    fprintf(IWR, "\n PENELOPE >>>  Positron mean free paths (hard events)\n *** NOTE: The MFP for inner-shell ionisation (isi) is listed only for\n           completeness. The MFP for inelastic collisions (in) has been\n           calculated by considering all inelastic events, including isi.\n");
-    fprintf(IWR, "\n   Energy        MFPel        MFPin        MFPbr        MFPan       MFPtot       MFPisi\n    (eV)         (mtu)        (mtu)        (mtu)        (mtu)        (mtu)        (mtu)\n ------------------------------------------------------------------------------------------\n");
+    if (IWR != nullptr) fprintf(IWR, "\n PENELOPE >>>  Positron mean free paths (hard events)\n *** NOTE: The MFP for inner-shell ionisation (isi) is listed only for\n           completeness. The MFP for inelastic collisions (in) has been\n           calculated by considering all inelastic events, including isi.\n");
+    if (IWR != nullptr) fprintf(IWR, "\n   Energy        MFPel        MFPin        MFPbr        MFPan       MFPtot       MFPisi\n    (eV)         (mtu)        (mtu)        (mtu)        (mtu)        (mtu)        (mtu)\n ------------------------------------------------------------------------------------------\n");
   }
   for(unsigned int I = 0; I < constants::NEGP; I++)
   {
@@ -1290,7 +1292,7 @@ void pen_material::load(FILE* IRD,
     FPBR = exp(mat.SPHBR[I]);
     double FPAN = exp(mat.SPAN[I]);
     FPTOT = FPEL+FPIN+FPBR+FPAN;
-    if(INFO >= 3){ fprintf(IWR, "%12.5E %12.5E %12.5E %12.5E %12.5E %12.5E %12.5E\n", grid.ET[I], mat.RHO/FPEL, mat.RHO/FPIN, mat.RHO/FPBR, mat.RHO/FPAN, mat.RHO/FPTOT, mat.RHO/FPSI);}
+    if(INFO >= 3){ if (IWR != nullptr) fprintf(IWR, "%12.5E %12.5E %12.5E %12.5E %12.5E %12.5E %12.5E\n", grid.ET[I], mat.RHO/FPEL, mat.RHO/FPIN, mat.RHO/FPBR, mat.RHO/FPAN, mat.RHO/FPTOT, mat.RHO/FPSI);}
     mat.SPTOT[I] = log(FPTOT);
   }
 
@@ -1298,7 +1300,7 @@ void pen_material::load(FILE* IRD,
   {
     if(exp(mat.SPTOT[I]) > 1.005*exp(mat.SPTOT[I-1]) && exp(mat.SPTOT[I]) > 1.005*exp(mat.SPTOT[I+1]) && grid.ET[I] > mat.EABS[PEN_POSITRON] && grid.ET[I] < 1.0E6)
     {
-      fprintf(IWR, "\n WARNING: The positron hard IMFP has a maximum at E = %13.6E eV\n", grid.ET[I]);
+      if (IWR != nullptr) fprintf(IWR, "\n WARNING: The positron hard IMFP has a maximum at E = %13.6E eV\n", grid.ET[I]);
     }
   }
 
@@ -1329,16 +1331,16 @@ void pen_material::load(FILE* IRD,
   fscanf(IRD, "%*57c%4d%*[^\n]", &NDATA);
   getc(IRD);
   
-  if(INFO >= 2){ fprintf(IWR, "\n *** Compton and pair-production cross sections,  NDATA =%4d\n", NDATA);}
+  if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "\n *** Compton and pair-production cross sections,  NDATA =%4d\n", NDATA);}
   if((unsigned)NDATA > constants::NEGP){ penError(ERR_PEMATR_2_MANY_DP_2);
     return;}
-  if(INFO >= 2){ fprintf(IWR, "\n  Energy     CS-Comp     CS-pair   CS-triplet\n   (eV)      (cm**2)     (cm**2)     (cm**2)\n ----------------------------------------------\n");}
+  if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "\n  Energy     CS-Comp     CS-pair   CS-triplet\n   (eV)      (cm**2)     (cm**2)     (cm**2)\n ----------------------------------------------\n");}
   for(int I = 0; I < NDATA; I++)
   {
     fscanf(IRD, "%lf %lf %lf %lf%*[^\n]", &EIT[I], &F2[I], &F3[I], &F4[I]);
     getc(IRD);
     
-    if(INFO >= 2){ fprintf(IWR, "%10.3E%12.5E%12.5E%12.5E\n", EIT[I], F2[I], F3[I], F4[I]);}
+    if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "%10.3E%12.5E%12.5E%12.5E\n", EIT[I], F2[I], F3[I], F4[I]);}
     EITL[I] = log(EIT[I]);
   }
 
@@ -1482,8 +1484,8 @@ void pen_material::load(FILE* IRD,
 
   if(INFO >= 3)
   {
-    fprintf(IWR, "\n PENELOPE >>>  Photon mass attenuation coefficients\n");
-    fprintf(IWR, "\n   Energy      Rayleigh      Compton    Photoelect.     Pair         Total\n    (eV)        (1/mtu)      (1/mtu)      (1/mtu)      (1/mtu)      (1/mtu)\n -----------------------------------------------------------------------------\n");
+    if (IWR != nullptr) fprintf(IWR, "\n PENELOPE >>>  Photon mass attenuation coefficients\n");
+    if (IWR != nullptr) fprintf(IWR, "\n   Energy      Rayleigh      Compton    Photoelect.     Pair         Total\n    (eV)        (1/mtu)      (1/mtu)      (1/mtu)      (1/mtu)      (1/mtu)\n -----------------------------------------------------------------------------\n");
   }
   for(int I = 0; I < cgph01.NPHD; I++)
   {
@@ -1509,7 +1511,7 @@ void pen_material::load(FILE* IRD,
       PT = PRAY+PCO+PPP+PPH;
       if(INFO >= 3)
       {
-        fprintf(IWR, "%12.5E%13.5E%13.5E%13.5E%13.5E%13.5E\n", cgph01.ER[I], PRAY, PCO, PPH, PPP, PT);
+        if (IWR != nullptr) fprintf(IWR, "%12.5E%13.5E%13.5E%13.5E%13.5E%13.5E\n", cgph01.ER[I], PRAY, PCO, PPH, PPP, PT);
       }
     }
   }
@@ -1582,13 +1584,13 @@ void pen_material::load(FILE* IRD,
   getc(IRD);
   if(strcmp(NAME,LNAME) != 0)
   {
-    fprintf(IWR, "\n I/O error. Corrupt material data file.\n");
-    fprintf(IWR, "       The last line is: [%s]\n", NAME);
-    fprintf(IWR, "      ... and should be: [%s]\n", LNAME);
+    if (IWR != nullptr) fprintf(IWR, "\n I/O error. Corrupt material data file.\n");
+    if (IWR != nullptr) fprintf(IWR, "       The last line is: [%s]\n", NAME);
+    if (IWR != nullptr) fprintf(IWR, "      ... and should be: [%s]\n", LNAME);
     penError(ERR_PEMATR_CORRUPT_MAT_FILE);
     return;
   }
-  fprintf(IWR, "%55s\n", NAME);
+  if (IWR != nullptr) fprintf(IWR, "%55s\n", NAME);
 
 }
 
@@ -1838,17 +1840,17 @@ void RELAXR(pen_elementDataBase& elements, FILE* IRD, FILE* IWR, int INFO)
   int IZ, NSHR, NT;
   fscanf(IRD, "%*16c%3d%*18c%3d%*23c%5d%*[^\n]", &IZ, &NSHR, &NT);
   getc(IRD);
-  if(INFO >= 2){ fprintf(IWR, "\n *** RELAX:  Z =%3d,  no. of shells =%3d,  no. of transitions =%5d", IZ, NSHR, NT);}
+  if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "\n *** RELAX:  Z =%3d,  no. of shells =%3d,  no. of transitions =%5d", IZ, NSHR, NT);}
 
   if(NT > NTRAN){ penError(ERR_RELAXR_NTRAN); return;}
   if(elements.NRELAX+NT > int(constants::NRX))
   {
-    fprintf(IWR, "Insufficient memory storage in RELAXR.\n");
-    fprintf(IWR, "Increase the value of the parameter NRX to %d\n", elements.NRELAX+NT);
+    if (IWR != nullptr) fprintf(IWR, "Insufficient memory storage in RELAXR.\n");
+    if (IWR != nullptr) fprintf(IWR, "Increase the value of the parameter NRX to %d\n", elements.NRELAX+NT);
     penError(ERR_RELAXR_MEM); return;
   }
   
-  if(INFO >= 2){ fprintf(IWR, "\n\n  i   Shell    f    Ui (eV)    Gamma(1/eV)  lifetime (s)    Ji(0)\n --------------------------------------------------------------------\n");}
+  if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "\n\n  i   Shell    f    Ui (eV)    Gamma(1/eV)  lifetime (s)    Ji(0)\n --------------------------------------------------------------------\n");}
 
   for(int IS = 0; IS < NSHR; IS++)
   {
@@ -1863,20 +1865,20 @@ void RELAXR(pen_elementDataBase& elements, FILE* IRD, FILE* IWR, int INFO)
     {
       ALTIME = 0.0;
     }
-    if(INFO >= 2){ fprintf(IWR, " %3d %5s %2s  %1d %12.5E %12.5E %12.5E %12.5E\n", ISR[IS], CH5, LSHELL[ISR[IS]], IQQ[IS], EE[IS], ALWR[IS], ALTIME, CP0P[IS]);}
+    if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, " %3d %5s %2s  %1d %12.5E %12.5E %12.5E %12.5E\n", ISR[IS], CH5, LSHELL[ISR[IS]], IQQ[IS], EE[IS], ALWR[IS], ALTIME, CP0P[IS]);}
   }
 
   if(NT > 0)
   {
-    if(INFO >= 2){ fprintf(IWR, "\n  S0 S1 S2   Probability     Energy (eV)\n ----------------------------------------\n");}
+    if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "\n  S0 S1 S2   Probability     Energy (eV)\n ----------------------------------------\n");}
     for(int I = 0; I < NT; I++)
     {
       fscanf(IRD, "%d %d %d %lf %lf%*[^\n]", &JS0[I], &JS1[I], &JS2[I], &PR[I], &ER[I]);
       getc(IRD);
-      if(INFO >= 2){ fprintf(IWR, "  %2s %2s %2s %15.8E %15.8E\n", LSHELL[JS0[I]], LSHELL[JS1[I]], LSHELL[JS2[I]], PR[I], ER[I]);}
+      if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "  %2s %2s %2s %15.8E %15.8E\n", LSHELL[JS0[I]], LSHELL[JS1[I]], LSHELL[JS2[I]], PR[I], ER[I]);}
       if(PR[I] < 1.0E-35)
       {
-        if(INFO < 2){ fprintf(IWR, "  %2s %2s %2s %15.8E %15.8E\n", LSHELL[JS0[I]],LSHELL[JS1[I]], LSHELL[JS2[I]], PR[I], ER[I]);}
+        if(INFO < 2){ if (IWR != nullptr) fprintf(IWR, "  %2s %2s %2s %15.8E %15.8E\n", LSHELL[JS0[I]],LSHELL[JS1[I]], LSHELL[JS2[I]], PR[I], ER[I]);}
         penError(ERR_RELAXR_NEG_TRANS); return;
       }
     }
@@ -2037,7 +2039,7 @@ void ESIaR(pen_material& mat, pen_elementDataBase& elemDB, CESI0& esi0, FILE* IR
     fscanf(IRD, "%*46c%3d%*11c%3d%*10c%4d%*[^\n]", &IZZ, &NSHR, &NDATA);
     getc(IRD);
     
-    if(INFO >= 2){ fprintf(IWR, "\n *** Electron impact ionisation cross sections,  IZ =%3d,  NSHELL =%3d,  NDATA =%4d", IZZ, NSHR, NDATA);}
+    if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "\n *** Electron impact ionisation cross sections,  IZ =%3d,  NSHELL =%3d,  NDATA =%4d", IZZ, NSHR, NDATA);}
 
     if(IZZ != mat.IZ[IEL]){ penError(ERR_ESIaR_MATERIAL_DF); return;}
     if(NDATA > NDIN){ penError(ERR_ESIaR_DP); return;}
@@ -2080,12 +2082,12 @@ void ESIaR(pen_material& mat, pen_elementDataBase& elemDB, CESI0& esi0, FILE* IR
     double TCS;
     if(INFO >= 2)
     {
-      fprintf(IWR, "\n\n   Energy");
+      if (IWR != nullptr) fprintf(IWR, "\n\n   Energy");
       for(int IS = 0; IS < NSHR; IS++)
       {
-        fprintf(IWR, "       %s", CS5[IS]);
+        if (IWR != nullptr) fprintf(IWR, "       %s", CS5[IS]);
       }
-      fprintf(IWR,"\n");
+      if (IWR != nullptr) fprintf(IWR,"\n");
       for(int IE = 0; IE < NDATA; IE++)
       {
         TCS = 0.0;
@@ -2094,12 +2096,12 @@ void ESIaR(pen_material& mat, pen_elementDataBase& elemDB, CESI0& esi0, FILE* IR
           TCS = TCS+XESIR[IE][IS];
         }
         
-        fprintf(IWR, " %11.5E", E[IE]);
+        if (IWR != nullptr) fprintf(IWR, " %11.5E", E[IE]);
         for(int IS = 0; IS < NSHR; IS++)
         {
-          fprintf(IWR, " %11.5E", XESIR[IE][IS]);
+          if (IWR != nullptr) fprintf(IWR, " %11.5E", XESIR[IE][IS]);
         }
-        fprintf(IWR, " %11.5E\n", TCS);
+        if (IWR != nullptr) fprintf(IWR, " %11.5E\n", TCS);
       }
     }
 
@@ -2111,7 +2113,7 @@ void ESIaR(pen_material& mat, pen_elementDataBase& elemDB, CESI0& esi0, FILE* IR
       esi0.IESIF[IZZ-1] = esi0.NCURE+1;
       if(esi0.NCURE+constants::NEGP > esi0.NRP)
       {
-        fprintf(IWR, "\nInsufficient memory storage in ESIaR. \nIncrease the value of the parameter NRP to %d\n", esi0.NCURE+constants::NEGP);
+        if (IWR != nullptr) fprintf(IWR, "\nInsufficient memory storage in ESIaR. \nIncrease the value of the parameter NRP to %d\n", esi0.NCURE+constants::NEGP);
         penError(ERR_ESIaR_MEMORY); return;
       }
       for(int IS = 0; IS < NSHR; IS++)
@@ -2212,7 +2214,7 @@ void PSIaR(pen_elementDataBase& elements, pen_material& mat, pen_logGrid& grid, 
     fscanf(IRD, "%*46c%3d%*11c%3d%*10c%4d%*[^\n]", &IZZ, &NSHR, &NDATA);
     getc(IRD);
 
-    if(INFO >= 2){ fprintf(IWR, "\n *** Positron impact ionisation cross sections,  IZ =%3d,  NSHELL =%3d,  NDATA =%4d\n", IZZ, NSHR, NDATA);}
+    if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "\n *** Positron impact ionisation cross sections,  IZ =%3d,  NSHELL =%3d,  NDATA =%4d\n", IZZ, NSHR, NDATA);}
 
     if(IZZ != mat.IZ[IEL]){ penError(ERR_PSIaR_CORRUPTED_FILE); return;}
     if(NDATA > NDIN){ penError(ERR_PSIaR_DP); return;}
@@ -2254,12 +2256,12 @@ void PSIaR(pen_elementDataBase& elements, pen_material& mat, pen_logGrid& grid, 
     double TCS;
     if(INFO >= 2)
     {
-      fprintf(IWR, "\n   Energy");
+      if (IWR != nullptr) fprintf(IWR, "\n   Energy");
       for(int IS = 0; IS < NSHR; IS++)
       {
-        fprintf(IWR, "       %s", CS5[IS]);
+        if (IWR != nullptr) fprintf(IWR, "       %s", CS5[IS]);
       }
-      fprintf(IWR,"\n");
+      if (IWR != nullptr) fprintf(IWR,"\n");
       for(int IE = 0; IE < NDATA; IE++)
       { 
         TCS = 0.0;
@@ -2267,12 +2269,12 @@ void PSIaR(pen_elementDataBase& elements, pen_material& mat, pen_logGrid& grid, 
         {
           TCS = TCS+XPSIR[IE][IS];
         }
-        fprintf(IWR, " %11.5E", E[IE]);
+        if (IWR != nullptr) fprintf(IWR, " %11.5E", E[IE]);
         for(int IS = 0; IS < NSHR; IS++)
         {
-          fprintf(IWR, " %11.5E", XPSIR[IE][IS]);
+          if (IWR != nullptr) fprintf(IWR, " %11.5E", XPSIR[IE][IS]);
         }
-        fprintf(IWR, " %11.5E\n", TCS);
+        if (IWR != nullptr) fprintf(IWR, " %11.5E\n", TCS);
       }
     }
 
@@ -2284,8 +2286,8 @@ void PSIaR(pen_elementDataBase& elements, pen_material& mat, pen_logGrid& grid, 
       cpsi0.IPSIF[IZZ-1] = cpsi0.NCURP+1;
       if(cpsi0.NCURP+constants::NEGP > CESI0::NRP)
       {
-        fprintf(IWR, "\nInsufficient memory storage in PSIaR.");
-        fprintf(IWR,"\nIncrease the value of the parameter NRP to %d\n", cpsi0.NCURP+constants::NEGP);
+        if (IWR != nullptr) fprintf(IWR, "\nInsufficient memory storage in PSIaR.");
+        if (IWR != nullptr) fprintf(IWR,"\nIncrease the value of the parameter NRP to %d\n", cpsi0.NCURP+constants::NEGP);
         penError(ERR_PSIaR_MEM); return;
       }
       for(int IS = 0; IS < NSHR; IS++)
@@ -2365,7 +2367,8 @@ void EBRaR(pen_material& mat, CEBR01& cebr01, double &WCRM, FILE* IRD, FILE* IWR
   fscanf(IRD, "%*45c%lf%*10c%4d%*[^\n]", &ZBR, &NBER);
   getc(IRD);
   
-  if(INFO >= 2){ fprintf(IWR, "\n *** Electron scaled bremss x-section,  ZEQ =%12.5E,  NDATA =%4d\n", ZBR, NBER);fflush(IWR);}
+  if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "\n *** Electron scaled bremss x-section,  ZEQ =%12.5E,  NDATA =%4d\n", ZBR, NBER);
+  if (IWR != nullptr) fflush(IWR);}
   if(NBER != constants::NBE){ penError(ERR_EBRaR_FORMAT); return;}
   mat.ZBR2 = ZBR*ZBR;
 
@@ -2384,19 +2387,19 @@ void EBRaR(pen_material& mat, CEBR01& cebr01, double &WCRM, FILE* IRD, FILE* IWR
     getc(IRD);
     if(INFO >= 2)
     {
-      fprintf(IWR, "%9.2E", cebr01.EBT[IE]);
+      if (IWR != nullptr) fprintf(IWR, "%9.2E", cebr01.EBT[IE]);
       int contador_salt = 0;
       for(unsigned int IW = 0; IW < constants::NBW; IW++)
       {
-        fprintf(IWR, " %11.5E", cebr01.XS[IE][IW]);
+        if (IWR != nullptr) fprintf(IWR, " %11.5E", cebr01.XS[IE][IW]);
         contador_salt++;
         if(contador_salt == 5)
         {
-          fprintf(IWR, "\n         ");
+          if (IWR != nullptr) fprintf(IWR, "\n         ");
           contador_salt = 0;
         }
       }
-      fprintf(IWR, "                                    %10.3E\n", cebr01.TXS[IE]);
+      if (IWR != nullptr) fprintf(IWR, "                                    %10.3E\n", cebr01.TXS[IE]);
     }
     cebr01.X[IE] = log(cebr01.EBT[IE]);
   }
@@ -2536,7 +2539,7 @@ void BRaAR(pen_material& mat, FILE* IRD, FILE* IWR, int INFO)
   fscanf(IRD, "%*40c%lf%*10c%4d%*[^\n]", &ZEQ, &NDATA);
   getc(IRD);
   
-  if(INFO >= 2){ fprintf(IWR,"\n *** Bremss angular distribution,  ZEQ =%12.5E,  NDATA =%4d\n", ZEQ, NDATA);}
+  if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR,"\n *** Bremss angular distribution,  ZEQ =%12.5E,  NDATA =%4d\n", ZEQ, NDATA);}
   if(NDATA != 70){ penError(ERR_BRAR_INCONSISTENT_DATA); return;}
   if(ZEQ > 1.0){ mat.ZBEQ = ZEQ;}
   else{ mat.ZBEQ = 1.0;}
@@ -2570,7 +2573,7 @@ void BRaAR(pen_material& mat, FILE* IRD, FILE* IWR, int INFO)
     {
       for(int IK = 0; IK < NK; IK++)
       {
-        fprintf(IWR, "%10.3E %10.3E %14.7E %14.7E\n", E[IE], XK[IK], Q1R[IE][IK], Q2R[IE][IK]);
+        if (IWR != nullptr) fprintf(IWR, "%10.3E %10.3E %14.7E %14.7E\n", E[IE], XK[IK], Q1R[IE][IK], Q2R[IE][IK]);
       }
     }
   }
@@ -3723,15 +3726,15 @@ void EELaR(pen_material& mat, FILE* IRD, FILE* IWR, int INFO, CEEL00& eel00, CEI
   
   if(INFO >= 2)
   {
-    fprintf(IWR, "\n *** Electron and positron elastic cross sections,  NDATA =%4d\n", NDATA);
-    fprintf(IWR, "\n  Energy       CS0,e-      CS1,e-      CS2,e-      CS0,e+      CS1,e+      CS2,e+\n   (eV)        (cm**2)     (cm**2)     (cm**2)     (cm**2)     (cm**2)     (cm**2)\n ------------------------------------------------------------------------------------\n");
+    if (IWR != nullptr) fprintf(IWR, "\n *** Electron and positron elastic cross sections,  NDATA =%4d\n", NDATA);
+    if (IWR != nullptr) fprintf(IWR, "\n  Energy       CS0,e-      CS1,e-      CS2,e-      CS0,e+      CS1,e+      CS2,e+\n   (eV)        (cm**2)     (cm**2)     (cm**2)     (cm**2)     (cm**2)     (cm**2)\n ------------------------------------------------------------------------------------\n");
   }
   for(int I = 0; I < NDATA; I++)
   {
     fscanf(IRD, "%lf %lf %lf %lf %lf %lf %lf%*[^\n]", &EJT[I], &XE0[I], &XE1[I], &XE2[I], &XP0[I], &XP1[I], &XP2[I]);
     getc(IRD);
     
-    if(INFO >= 2){ fprintf(IWR,"%12.5E%12.5E%12.5E%12.5E%12.5E%12.5E%12.5E\n", EJT[I], XE0[I], XE1[I], XE2[I], XP0[I], XP1[I], XP2[I]);}
+    if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR,"%12.5E%12.5E%12.5E%12.5E%12.5E%12.5E%12.5E\n", EJT[I], XE0[I], XE1[I], XE2[I], XP0[I], XP1[I], XP2[I]);}
     EJTL[I] = log(EJT[I]);
   }
 
@@ -3812,8 +3815,8 @@ void EELaR(pen_material& mat, FILE* IRD, FILE* IWR, int INFO, CEEL00& eel00, CEI
 
   if(INFO >= 3)
   {
-    fprintf(IWR, "\n PENELOPE >>>  Elastic scattering of electrons\n");
-    fprintf(IWR, "\n   E (eV)      MFP (mtu)   TMFP1 (mtu)  MFPh (mtu)        A           B           RNDC\n ------------------------------------------------------------------------------------------\n");
+    if (IWR != nullptr) fprintf(IWR, "\n PENELOPE >>>  Elastic scattering of electrons\n");
+    if (IWR != nullptr) fprintf(IWR, "\n   E (eV)      MFP (mtu)   TMFP1 (mtu)  MFPh (mtu)        A           B           RNDC\n ------------------------------------------------------------------------------------------\n");
   }
   double FP0, FP1;
   double HMFP;
@@ -3822,7 +3825,7 @@ void EELaR(pen_material& mat, FILE* IRD, FILE* IWR, int INFO, CEEL00& eel00, CEI
     FP0 = mat.RHO/(XE0[I]*mat.VMOL);
     FP1 = mat.RHO/(XE1[I]*mat.VMOL);
     HMFP = mat.RHO/mat.SEHEL[I];
-    if(INFO >= 3){ fprintf(IWR, "%12.5E %12.5E %12.5E %12.5E %12.5E %12.5E %12.5E\n", ET[I], FP0, FP1, HMFP, mat.AE[I], mat.BE[I], mat.RNDCE[I]);}
+    if(INFO >= 3){ if (IWR != nullptr) fprintf(IWR, "%12.5E %12.5E %12.5E %12.5E %12.5E %12.5E %12.5E\n", ET[I], FP0, FP1, HMFP, mat.AE[I], mat.BE[I], mat.RNDCE[I]);}
     mat.SEHEL[I] = log(mat.SEHEL[I]);
     mat.AE[I] = log(mat.AE[I]);
       //  ****  Soft scattering events are switched off when T1E is too small.
@@ -3914,15 +3917,15 @@ void EELaR(pen_material& mat, FILE* IRD, FILE* IWR, int INFO, CEEL00& eel00, CEI
 
   if(INFO >= 3)
   {
-    fprintf(IWR, "\n PENELOPE >>>  Elastic scattering of positrons\n");
-    fprintf(IWR, "\n   E (eV)      MFP (mtu)   TMFP1 (mtu)  MFPh (mtu)        A           B           RNDC\n ------------------------------------------------------------------------------------------\n");
+    if (IWR != nullptr) fprintf(IWR, "\n PENELOPE >>>  Elastic scattering of positrons\n");
+    if (IWR != nullptr) fprintf(IWR, "\n   E (eV)      MFP (mtu)   TMFP1 (mtu)  MFPh (mtu)        A           B           RNDC\n ------------------------------------------------------------------------------------------\n");
   }
   for(unsigned int I = 0; I < constants::NEGP; I++)
   {
     FP0 = mat.RHO/(XP0[I]*mat.VMOL);
     FP1 = mat.RHO/(XP1[I]*mat.VMOL);
     HMFP = mat.RHO/mat.SPHEL[I];
-    if(INFO >= 3){ fprintf(IWR, "%12.5E %12.5E %12.5E %12.5E %12.5E %12.5E %12.5E\n", ET[I], FP0, FP1, HMFP, mat.AP[I], mat.BP[I], mat.RNDCP[I]);}
+    if(INFO >= 3){ if (IWR != nullptr) fprintf(IWR, "%12.5E %12.5E %12.5E %12.5E %12.5E %12.5E %12.5E\n", ET[I], FP0, FP1, HMFP, mat.AP[I], mat.BP[I], mat.RNDCP[I]);}
     mat.SPHEL[I] = log(mat.SPHEL[I]);
     mat.AP[I] = log(mat.AP[I]);
       
@@ -4085,7 +4088,7 @@ void EELdR(pen_material& mat, FILE* IRD, FILE* IWR, int &INFO, CDCSEP& dcsep, CR
 
   //  ****  Read elastic DCS tables.
 
-  if(INFO > 3){ fprintf(IWR, "\n *** Electron elastic differential cross sections\n");}
+  if(INFO > 3){ if (IWR != nullptr) fprintf(IWR, "\n *** Electron elastic differential cross sections\n");}
   int IELEC = -1;
   fscanf(IRD, "%50[^\n]%*[^\n]", CTEXT);
   getc(IRD);
@@ -4094,11 +4097,11 @@ void EELdR(pen_material& mat, FILE* IRD, FILE* IWR, int &INFO, CDCSEP& dcsep, CR
     double ETSIE;
     fscanf(IRD, "%d %lf %lf %lf %lf%*[^\n]", &IELEC, &ETSIE, &ECS[IE], &ETCS1[IE], &ETCS2[IE]);
     getc(IRD);
-    if(INFO > 3){ fprintf(IWR, "%3d%10.3E%12.5E%12.5E%12.5E\n", IELEC, ETS[IE], ECS[IE], ETCS1[IE], ETCS2[IE]);}
-    fflush(IWR);
+    if(INFO > 3){ if (IWR != nullptr) fprintf(IWR, "%3d%10.3E%12.5E%12.5E%12.5E\n", IELEC, ETS[IE], ECS[IE], ETCS1[IE], ETCS2[IE]);}
+    if (IWR != nullptr) fflush(IWR);
     if(IELEC != -1 || fabs(ETSIE-ETS[IE]) > 0.1)
     {
-      fprintf(IWR, "\n Error reading electron elastic DCS data.\n");
+      if (IWR != nullptr) fprintf(IWR, "\n Error reading electron elastic DCS data.\n");
       penError(ERR_EELdR_em_EL_DCS); return;
     }
     for(unsigned int K = 0; K < NA; K++)
@@ -4112,8 +4115,8 @@ void EELdR(pen_material& mat, FILE* IRD, FILE* IWR, int &INFO, CDCSEP& dcsep, CR
     {
       for(unsigned int K = 0; K < NA; K++)
       {
-        if((K+1)%10==0 || K==NA-1){fprintf(IWR, " %11.5E\n", dcsep.EDCS[IE][K]);}
-        else{fprintf(IWR, " %11.5E", dcsep.EDCS[IE][K]);}
+        if((K+1)%10==0 || K==NA-1){if (IWR != nullptr) fprintf(IWR, " %11.5E\n", dcsep.EDCS[IE][K]);}
+        else{if (IWR != nullptr) fprintf(IWR, " %11.5E", dcsep.EDCS[IE][K]);}
       }
     }
   //  ****  Consistency test.
@@ -4135,13 +4138,13 @@ void EELdR(pen_material& mat, FILE* IRD, FILE* IWR, int &INFO, CDCSEP& dcsep, CR
     if(TSTE < fabs(TS2)){ TSTE = fabs(TS2);}
     if(TSTE > 1.0E-4)
     {
-      fprintf(IWR, "\n E=%12.5E\n", ETS[IE]);
-      fprintf(IWR, " Electron cross section data are corrupt.\n");
+      if (IWR != nullptr) fprintf(IWR, "\n E=%12.5E\n", ETS[IE]);
+      if (IWR != nullptr) fprintf(IWR, " Electron cross section data are corrupt.\n");
       penError(ERR_EELdR_em_CS_DB); return;
     }
   }
 
-  if(INFO > 3){ fprintf(IWR, "\n *** Positron elastic differential cross sections\n");}
+  if(INFO > 3){ if (IWR != nullptr) fprintf(IWR, "\n *** Positron elastic differential cross sections\n");}
   IELEC = +1;
   fscanf(IRD, "%50[^\n]%*[^\n]", CTEXT);
   getc(IRD);
@@ -4150,10 +4153,10 @@ void EELdR(pen_material& mat, FILE* IRD, FILE* IWR, int &INFO, CDCSEP& dcsep, CR
     double ETSIE;
     fscanf(IRD, "%d %lf %lf %lf %lf%*[^\n]", &IELEC, &ETSIE, &PCS[IE], &PTCS1[IE], &PTCS2[IE]);
     getc(IRD);
-    if(INFO > 3){ fprintf(IWR, "%3d%10.3E%12.5E%12.5E%12.5E\n",IELEC,ETS[IE],PCS[IE],PTCS1[IE],PTCS2[IE]);}
+    if(INFO > 3){ if (IWR != nullptr) fprintf(IWR, "%3d%10.3E%12.5E%12.5E%12.5E\n",IELEC,ETS[IE],PCS[IE],PTCS1[IE],PTCS2[IE]);}
     if(IELEC != +1 || fabs(ETSIE-ETS[IE]) > 0.1)
     {
-      fprintf(IWR, "\n Error reading positron elastic DCS data.\n");
+      if (IWR != nullptr) fprintf(IWR, "\n Error reading positron elastic DCS data.\n");
       penError(ERR_EELdR_ep_EL_DCS); return;
     }
     for(unsigned int K = 0; K < NA; K++)
@@ -4167,8 +4170,8 @@ void EELdR(pen_material& mat, FILE* IRD, FILE* IWR, int &INFO, CDCSEP& dcsep, CR
     {
       for(unsigned int K = 0; K < NA; K++)
       {
-        if((K+1)%10==0 || K==NA-1){fprintf(IWR, " %11.5E\n", dcsep.PDCS[IE][K]);}
-        else{fprintf(IWR, " %11.5E", dcsep.PDCS[IE][K]);}
+        if((K+1)%10==0 || K==NA-1){if (IWR != nullptr) fprintf(IWR, " %11.5E\n", dcsep.PDCS[IE][K]);}
+        else{if (IWR != nullptr) fprintf(IWR, " %11.5E", dcsep.PDCS[IE][K]);}
       }
     }
       //  ****  Consistency test.
@@ -4192,8 +4195,8 @@ void EELdR(pen_material& mat, FILE* IRD, FILE* IWR, int &INFO, CDCSEP& dcsep, CR
 
     if(TSTE > 1.0E-4)
     {
-      fprintf(IWR, "\n E=%11.5E\n", ETS[IE]);
-      fprintf(IWR, " Positron cross section data are corrupt.\n");
+      if (IWR != nullptr) fprintf(IWR, "\n E=%11.5E\n", ETS[IE]);
+      if (IWR != nullptr) fprintf(IWR, " Positron cross section data are corrupt.\n");
       penError(ERR_EELdR_ep_CS_DB); return;
     }
   }
@@ -4298,14 +4301,14 @@ void EELdR(pen_material& mat, FILE* IRD, FILE* IWR, int &INFO, CDCSEP& dcsep, CR
   
   //  ****  Print electron elastic scattering tables.
 
-  if(INFO >= 3){ fprintf(IWR, "\n PENELOPE >>>  Elastic scattering of electrons (ELSEPA database)\n");}
-  if(INFO >= 3){ fprintf(IWR, "\n   E (eV)      MFP (mtu)   TMFP1 (mtu)  MFPh (mtu)\n --------------------------------------------------\n");}
+  if(INFO >= 3){ if (IWR != nullptr) fprintf(IWR, "\n PENELOPE >>>  Elastic scattering of electrons (ELSEPA database)\n");}
+  if(INFO >= 3){ if (IWR != nullptr) fprintf(IWR, "\n   E (eV)      MFP (mtu)   TMFP1 (mtu)  MFPh (mtu)\n --------------------------------------------------\n");}
   for(I = 0; I < IEME; I++)
   {
     double FP0 = mat.RHO/(XE0[I]*mat.VMOL);
     double FP1 = mat.RHO/(XE1[I]*mat.VMOL);
     double HMFP = mat.RHO/mat.SEHEL[I];
-    if(INFO >= 3){ fprintf(IWR, "%12.5E %12.5E %12.5E %12.5E\n", ET[I], FP0, FP1, HMFP);}
+    if(INFO >= 3){ if (IWR != nullptr) fprintf(IWR, "%12.5E %12.5E %12.5E %12.5E\n", ET[I], FP0, FP1, HMFP);}
     mat.SEHEL[I] = log(mat.SEHEL[I]);
       //  ****  Soft scattering events are switched off when T1E is too small.
     if(mat.T1E[I] > 1.0E-6*XE1[I]*mat.VMOL)
@@ -4420,14 +4423,14 @@ void EELdR(pen_material& mat, FILE* IRD, FILE* IWR, int &INFO, CDCSEP& dcsep, CR
 
   //  ****  Print positron elastic scattering tables.
 
-  if(INFO >= 3){ fprintf(IWR, "\n PENELOPE >>>  Elastic scattering of positrons (ELSEPA database)\n");}
-  if(INFO >= 3){ fprintf(IWR, "\n   E (eV)      MFP (mtu)   TMFP1 (mtu)  MFPh (mtu)\n --------------------------------------------------\n");}
+  if(INFO >= 3){ if (IWR != nullptr) fprintf(IWR, "\n PENELOPE >>>  Elastic scattering of positrons (ELSEPA database)\n");}
+  if(INFO >= 3){ if (IWR != nullptr) fprintf(IWR, "\n   E (eV)      MFP (mtu)   TMFP1 (mtu)  MFPh (mtu)\n --------------------------------------------------\n");}
   for(I = 0; I < IEMP; I++)
   {
     double FP0 = mat.RHO/(XP0[I]*mat.VMOL);
     double FP1 = mat.RHO/(XP1[I]*mat.VMOL);
     double HMFP = mat.RHO/mat.SPHEL[I];
-    if(INFO >= 3){ fprintf(IWR, "%12.5E %12.5E %12.5E %12.5E\n", ET[I], FP0, FP1, HMFP);}
+    if(INFO >= 3){ if (IWR != nullptr) fprintf(IWR, "%12.5E %12.5E %12.5E %12.5E\n", ET[I], FP0, FP1, HMFP);}
     mat.SPHEL[I] = log(mat.SPHEL[I]);
       //  ****  Soft scattering events are switched off when T1P is too small.
     if(mat.T1P[I] > 1.0E-6*XP1[I]*mat.VMOL)
@@ -4468,7 +4471,7 @@ int GRAaR(pen_logGrid& grid, pen_material& mat, CRITA& rita, FILE* IRD, FILE* IW
   
   fscanf(IRD, "%*32c%d%*8c%d%*[^\n]", &NQQ, &mat.NE);
   getc(IRD);
-  if(INFO >= 2){ fprintf(IWR, "\n *** Rayleigh scattering.  NQ = %3d,  NE = %4d\n", constants::NQ, mat.NE);}
+  if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "\n *** Rayleigh scattering.  NQ = %3d,  NE = %4d\n", constants::NQ, mat.NE);}
   for(unsigned int I = 0; I < constants::NQ; I++)
   {
     fscanf(IRD, "%lf %lf%*[^\n]", &Q[I], &FFI[I]);
@@ -4554,15 +4557,15 @@ int GRAaR(pen_logGrid& grid, pen_material& mat, CRITA& rita, FILE* IRD, FILE* IW
 
   if(INFO >= 2)
   {
-    fprintf(IWR, "\n   Q/me*c     Form factor\n -------------------------\n");
+    if (IWR != nullptr) fprintf(IWR, "\n   Q/me*c     Form factor\n -------------------------\n");
     for(unsigned int I = 0; I < constants::NQ; I++)
     {
-      fprintf(IWR, "%12.5E%13.5E\n", Q[I], FFI[I]);
+      if (IWR != nullptr) fprintf(IWR, "%12.5E%13.5E\n", Q[I], FFI[I]);
     }
-    fprintf(IWR, "\n   Energy       CS-Rayl\n    (eV)        (cm**2)\n -------------------------\n");
+    if (IWR != nullptr) fprintf(IWR, "\n   Energy       CS-Rayl\n    (eV)        (cm**2)\n -------------------------\n");
     for(int I = 0; I < mat.NE; I++)
     {
-      fprintf(IWR, "%12.5E%13.5E\n", ER[I], exp(mat.XSRA[I])/mat.VMOL);
+      if (IWR != nullptr) fprintf(IWR, "%12.5E%13.5E\n", ER[I], exp(mat.XSRA[I])/mat.VMOL);
     }
   }
   //
@@ -4723,7 +4726,7 @@ void GPHaR(pen_material& mat, pen_elementDataBase& elemDB, FILE* IRD, FILE* IWR,
     fscanf(IRD, "%*40c%d%*11c%d%*10c%d%*[^\n]", &IZZ, &NSHR, &NDATA);
     getc(IRD);
     
-    if(INFO >= 2){ fprintf(IWR, "\n *** Photoelectric cross sections,  IZ =%3d,  NSHELL =%3d,  NDATA =%5d\n", IZZ, NSHR, NDATA);}
+    if(INFO >= 2){ if (IWR != nullptr) fprintf(IWR, "\n *** Photoelectric cross sections,  IZ =%3d,  NSHELL =%3d,  NDATA =%5d\n", IZZ, NSHR, NDATA);}
 
     if(IZZ != mat.IZ[IEL]){ penError(ERR_GPHaR_MAT_DF); return;}
     if(NDATA > (int)gph01.NDIM){ penError(ERR_GPHaR_DP); return;}
@@ -4771,20 +4774,20 @@ void GPHaR(pen_material& mat, pen_elementDataBase& elemDB, FILE* IRD, FILE* IWR,
   
     if(INFO >= 2)
     {
-      fprintf(IWR, "\n   Energy       ");
+      if (IWR != nullptr) fprintf(IWR, "\n   Energy       ");
       for(int IS = 0; IS < NSHR+1; IS++)
       {
-        if(IS<NSHR+1-1){fprintf(IWR, "%s       ", CS5[ISH[IS]]);}
-        else{fprintf(IWR, "%s\n", CS5[ISH[IS]]);}
+        if(IS<NSHR+1-1){if (IWR != nullptr) fprintf(IWR, "%s       ", CS5[ISH[IS]]);}
+        else{if (IWR != nullptr) fprintf(IWR, "%s\n", CS5[ISH[IS]]);}
       }
       for(int IE = 0; IE < NDATA; IE++)
       {
-        fprintf(IWR, "%12.5E", gph01.ER[IE]);
+        if (IWR != nullptr) fprintf(IWR, "%12.5E", gph01.ER[IE]);
         for(int IS = 0; IS < NSHR+1; IS++)
         {
-          fprintf(IWR, "%12.5E", XGPHR[IE][IS]);
+          if (IWR != nullptr) fprintf(IWR, "%12.5E", XGPHR[IE][IS]);
         }
-        fprintf(IWR, "\n");
+        if (IWR != nullptr) fprintf(IWR, "\n");
       }
     }
 
@@ -4795,8 +4798,8 @@ void GPHaR(pen_material& mat, pen_elementDataBase& elemDB, FILE* IRD, FILE* IWR,
       elemDB.IPHF[IZZ-1] = elemDB.NCUR;
       if(elemDB.NCUR+NDATA > constants::NTP)
       {
-        fprintf(IWR, "Insufficient memory storage in GPHaR.\n");
-        fprintf(IWR, "Increase the value of the parameter NTP to %d\n", elemDB.NCUR+NDATA);
+        if (IWR != nullptr) fprintf(IWR, "Insufficient memory storage in GPHaR.\n");
+        if (IWR != nullptr) fprintf(IWR, "Increase the value of the parameter NTP to %d\n", elemDB.NCUR+NDATA);
         penError(ERR_GPHaR_MEM); return;
       }
       for(int IE = 0; IE < NDATA; IE++)

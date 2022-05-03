@@ -246,7 +246,7 @@ class pennuc_specificSampler : public abc_specificSampler<pen_particleState>{
   
   void ISOTROP(double& U, double& V, double& W, pen_rand& random) const;
   
-  void PENNUC0(const char* NUCFNAME, double& EPMAX, FILE* IWR, int& IER);
+  void PENNUC0(const char* NUCFNAME, const char* ATOMFNAME, const char* RELAXFNAME, const char* ATRELIFNAME, double& EPMAX, FILE* IWR, int& IER);
   
   void READSKP(FILE * NRD, char WCODE[4], char TEMPBUF[100]) const;
   
@@ -255,7 +255,7 @@ class pennuc_specificSampler : public abc_specificSampler<pen_particleState>{
   
   void ATREL0();
   
-  void ATRELI(int IZ, int IWR, int &IER);  
+  void ATRELI(const char* ATRELIFNAME, const char* ATOMFNAME, const char* RELAXFNAME, int IZ, int IWR, int &IER);  
 
   double SBETAS(int IDT, pen_rand& random);
   

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### To add
 - Mesh geometry simulation support
 
+## [1.5.1] - 2022-05-03
+
+### Added
+- Support to redirect output files to user defined directories
+- Support to disable context report creation
+- Complete DICOM example consisting of a internal-rt treatment. Can be found in *examples/internal_rt*.
+
 ## [1.5.0] - 2022-03-08
 
 ### Added

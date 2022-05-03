@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2021 Universitat de València - UV
-//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2022 Universitat de València - UV
+//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -68,8 +68,8 @@ int pen_context::init(double EMAX, FILE *IWR, int INFO, std::string PMFILE[const
   //  ****  Simulation parameters.
   double EABS0[constants::nParTypes][constants::MAXMAT];
   
-  fprintf(IWR ,"\n **********************************\n **   PENELOPE  (version 2018)   **");
-  fprintf(IWR ,"\n **********************************\n");
+  if (IWR != nullptr) fprintf(IWR  ,"\n **********************************\n **   PENELOPE  (version 2018)   **");
+  if (IWR != nullptr) fprintf(IWR  ,"\n **********************************\n");
 
   //Check material absortion energies
   for(unsigned M = 0; M < getNMats(); M++)
@@ -78,7 +78,7 @@ int pen_context::init(double EMAX, FILE *IWR, int INFO, std::string PMFILE[const
       
       if(mat.EABS[PEN_ELECTRON] < 49.999)
 	{
-	  fprintf(IWR, "\nMaterial %3d, EABS(%d,%2d) = %11.4E eV\n *** ERROR: electron absorption energy cannot be less than %.5E eV\n",
+	  if (IWR != nullptr) fprintf(IWR , "\nMaterial %3d, EABS(%d,%2d) = %11.4E eV\n *** ERROR: electron absorption energy cannot be less than %.5E eV\n",
 		  PEN_ELECTRON,M, M, mat.EABS[PEN_ELECTRON], double(constants::MINEABSE));
 	  penError(ERR_PEINIT_ELECTRON_ENERGY);
 	  return ERR_PEINIT_ELECTRON_ENERGY;
@@ -86,7 +86,7 @@ int pen_context::init(double EMAX, FILE *IWR, int INFO, std::string PMFILE[const
       EABS0[PEN_ELECTRON][M] = mat.EABS[PEN_ELECTRON];
       if(mat.EABS[PEN_PHOTON] < 49.999)
 	{
-	  fprintf(IWR, "\nMaterial %3d, EABS(%d,%2d) = %11.4E eV\n *** ERROR: photon absorption energy cannot be less than %.5E eV\n",
+	  if (IWR != nullptr) fprintf(IWR , "\nMaterial %3d, EABS(%d,%2d) = %11.4E eV\n *** ERROR: photon absorption energy cannot be less than %.5E eV\n",
 		  PEN_PHOTON,M, M, mat.EABS[PEN_PHOTON], double(constants::MINEABSPh));
 	  penError(ERR_PEINIT_GAMMA_ENERGY);
 	  return ERR_PEINIT_GAMMA_ENERGY;
@@ -94,7 +94,7 @@ int pen_context::init(double EMAX, FILE *IWR, int INFO, std::string PMFILE[const
       EABS0[PEN_PHOTON][M] = mat.EABS[PEN_PHOTON]; 
       if(mat.EABS[PEN_POSITRON] < 49.999)
 	{
-	  fprintf(IWR, "\nMaterial %3d, EABS(%d,%2d) = %11.4E eV\n *** ERROR: positron absorption energy cannot be less than %.5E eV\n",
+	  if (IWR != nullptr) fprintf(IWR , "\nMaterial %3d, EABS(%d,%2d) = %11.4E eV\n *** ERROR: positron absorption energy cannot be less than %.5E eV\n",
 		  PEN_POSITRON,M, M, mat.EABS[PEN_POSITRON], double(constants::MINEABSPo));
 	  penError(ERR_PEINIT_POSITRON_ENERGY);
 	  return ERR_PEINIT_POSITRON_ENERGY;
@@ -112,17 +112,17 @@ int pen_context::init(double EMAX, FILE *IWR, int INFO, std::string PMFILE[const
       if(mat.EABS[PEN_ELECTRON] >= EMAX)
 	{
 	  mat.EABS[PEN_ELECTRON] = EMAX*(double)0.9999;
-	  fprintf(IWR, "\n WARNING: EABS(%d,%2d) has been modified because is greater than EMAX\n", PEN_ELECTRON,M);
+	  if (IWR != nullptr) fprintf(IWR , "\n WARNING: EABS(%d,%2d) has been modified because is greater than EMAX\n", PEN_ELECTRON,M);
 	}
       if(mat.EABS[PEN_PHOTON] >= EMAX)
 	{
 	  mat.EABS[PEN_PHOTON] = EMAX*(double)0.9999;
-	  fprintf(IWR, "\n WARNING: EABS(%d,%2d) has been modified because is greater than EMAX\n", PEN_PHOTON,M);
+	  if (IWR != nullptr) fprintf(IWR , "\n WARNING: EABS(%d,%2d) has been modified because is greater than EMAX\n", PEN_PHOTON,M);
 	}
       if(mat.EABS[PEN_POSITRON] >= EMAX)
 	{
 	  mat.EABS[PEN_POSITRON] = EMAX*(double)0.9999;
-	  fprintf(IWR, "\n WARNING: EABS(%d,%2d) has been modified because is greater than EMAX\n", PEN_POSITRON,M);
+	  if (IWR != nullptr) fprintf(IWR , "\n WARNING: EABS(%d,%2d) has been modified because is greater than EMAX\n", PEN_POSITRON,M);
 	}
       if(mat.EABS[PEN_ELECTRON] < EMIN)
 	{
@@ -140,16 +140,16 @@ int pen_context::init(double EMAX, FILE *IWR, int INFO, std::string PMFILE[const
       
   if(EMIN < (double)constants::MINEGRID){ EMIN = (double)constants::MINEGRID;}
 
-  fprintf(IWR, "\n EMIN =%11.4E eV,  EMAX =%11.4E eV\n", EMIN, EMAX);
+  if (IWR != nullptr) fprintf(IWR , "\n EMIN =%11.4E eV,  EMAX =%11.4E eV\n", EMIN, EMAX);
   
   if(EMAX < EMIN+(double)constants::MINDIMGRID)
     {
-      fprintf(IWR, "\n ERROR: The energy interval between EMIN and EMAX is less than %.5E eV\n", constants::MINDIMGRID);
+      if (IWR != nullptr) fprintf(IWR , "\n ERROR: The energy interval between EMIN and EMAX is less than %.5E eV\n", constants::MINDIMGRID);
       penError(ERR_PEINIT_ENERGY_INTERVAL);
       return ERR_PEINIT_ENERGY_INTERVAL;
     }
       
-  if(INFO > 2){ fprintf(IWR, "\n NOTE: 1 mtu = 1 g/cm**2\n");}
+  if(INFO > 2){ if (IWR != nullptr) fprintf(IWR , "\n NOTE: 1 mtu = 1 g/cm**2\n");}
 		     
   grid.init(EMIN,EMAX);  // Defines the simulation energy grid.
   elements.GPHa0();  // Initialises photoelectric routines.
@@ -166,24 +166,24 @@ int pen_context::init(double EMAX, FILE *IWR, int INFO, std::string PMFILE[const
       if(M == 2){ LIT[0]='r'; LIT[1]='d';}
       if(M > 2){ LIT[0]='t'; LIT[1]='h';}
       LIT[2]='\0';
-      fprintf(IWR, "\n\n **********************\n **  %2d%s material   **\n **********************\n", M+1, LIT);
+      if (IWR != nullptr) fprintf(IWR , "\n\n **********************\n **  %2d%s material   **\n **********************\n", M+1, LIT);
 	  
-      fprintf(IWR, "\n Material data file: %-20s\n", PMFILE[M].c_str());
+      if (IWR != nullptr) fprintf(IWR , "\n Material data file: %-20s\n", PMFILE[M].c_str());
       FILE* IRD = nullptr;
       IRD = fopen(PMFILE[M].c_str(),"r");
       if(IRD == nullptr)
 	{
-	  fprintf(IWR, "Error: Material file %s could not be opened\n", PMFILE[M].c_str());
+	  if (IWR != nullptr) fprintf(IWR , "Error: Material file %s could not be opened\n", PMFILE[M].c_str());
 	  penError(ERR_PEINIT_MATERIAL_FILE);
 	  return ERR_PEINIT_MATERIAL_FILE;
 	}
 	  
       //  ****  Energy limits and thresholds.
 	  
-      fprintf(IWR, "\n *** Simulation parameters:\n");
-      fprintf(IWR, "     Electron absorption energy =%11.4E eV\n", mat.EABS[PEN_ELECTRON]);
-      fprintf(IWR, "       Photon absorption energy =%11.4E eV\n", mat.EABS[PEN_PHOTON]);
-      fprintf(IWR, "     Positron absorption energy =%11.4E eV\n", mat.EABS[PEN_POSITRON]);
+      if (IWR != nullptr) fprintf(IWR , "\n *** Simulation parameters:\n");
+      if (IWR != nullptr) fprintf(IWR , "     Electron absorption energy =%11.4E eV\n", mat.EABS[PEN_ELECTRON]);
+      if (IWR != nullptr) fprintf(IWR , "       Photon absorption energy =%11.4E eV\n", mat.EABS[PEN_PHOTON]);
+      if (IWR != nullptr) fprintf(IWR , "     Positron absorption energy =%11.4E eV\n", mat.EABS[PEN_POSITRON]);
 
       if(fabs(mat.C1) < 0.2){mat.C1 = fabs(mat.C1);}
       else{mat.C1 = 0.2;}
@@ -197,10 +197,10 @@ int pen_context::init(double EMAX, FILE *IWR, int INFO, std::string PMFILE[const
 //      if(mat.WCC > mat.EABS[PEN_ELECTRON]){ mat.WCC = mat.EABS[PEN_ELECTRON];}
 //      if(mat.WCR > mat.EABS[PEN_PHOTON]){ mat.WCR = mat.EABS[PEN_PHOTON];}
       if(mat.WCR < 0.0){
-	fprintf(IWR, "*** Warning: soft radiative losses are switched off in material number %3d\n", M);
+	if (IWR != nullptr) fprintf(IWR , "*** Warning: soft radiative losses are switched off in material number %3d\n", M);
       }
 	  
-      fprintf(IWR, "      C1 =%11.4E,       C2 =%11.4E\n     WCC =%11.4E eV,   WCR =%11.4E eV\n\n",
+      if (IWR != nullptr) fprintf(IWR , "      C1 =%11.4E,       C2 =%11.4E\n     WCC =%11.4E eV,   WCR =%11.4E eV\n\n",
 	      mat.C1, mat.C2, mat.WCC, (mat.WCR>10.0 ? mat.WCR:10.0));
 
       initStructs initStore;

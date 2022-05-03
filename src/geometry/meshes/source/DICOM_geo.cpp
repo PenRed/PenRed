@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2021 Universitat de València - UV
-//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2022 Universitat de València - UV
+//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -40,7 +40,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   std::string directoryPath;
   if(config.read("directory",directoryPath) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("pen_dicomGeo:configure:Error: Unable to read field 'directory'. String spected.\n");
+      printf("pen_dicomGeo:configure:Error: Unable to read field 'directory'. String expected.\n");
     }
     configStatus = 1;
     return 1;
@@ -509,6 +509,19 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
     printf("\nNo density ranges specified to assign materials.\n");
   }
   
+  //Try to read print-ASCII output dir
+  std::string OutputDirPath;
+  if(config.read("outputdir",OutputDirPath) != INTDATA_SUCCESS){
+      if(verbose > 0){
+  printf("pen_dicomGeo: configure: Warning: unable to read field geometry/outputdir. Assumed default output dir path ./\n");
+      }
+  }
+
+  if(verbose > 1){
+      printf("geometry print-ASCII outputdir: '%s'\n\n",OutputDirPath.c_str());
+  }    
+   
+
   //*******************
   // Try to load DICOM
   //*******************
@@ -719,12 +732,19 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   }
 
   if(toASCII){
-    printImage("dicomASCII.rep");
-    dicom.printSeeds("dicomSeeds.dat");
+
+    std::string finalFilename;
+    finalFilename = OutputDirPath + std::string("dicomASCII.rep");
+    printImage(finalFilename.c_str());
+    finalFilename = OutputDirPath + std::string("dicomSeeds.dat");
+    dicom.printSeeds(finalFilename.c_str());
     if(dicom.nContours() > 0){
-      dicom.printContours("dicomContours.dat");
-      dicom.printContourVox("dicomContourMask.dat");
-      dicom.printContourMasks("dicomMask");
+      finalFilename = OutputDirPath + std::string("dicomContours.dat");
+      dicom.printContours(finalFilename.c_str());
+      finalFilename = OutputDirPath + std::string("dicomContourMask.dat");
+      dicom.printContourVox(finalFilename.c_str());
+      finalFilename = OutputDirPath + std::string("dicomMask");
+      dicom.printContourMasks(finalFilename.c_str());
     }
   }
   

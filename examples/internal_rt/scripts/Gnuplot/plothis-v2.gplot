@@ -1,0 +1,77 @@
+
+mean=20470*0.001
+#mean=1.0e-3
+nvox=299647
+f(x,y)= (y > mean && x > mean) ? (x-y)/y : -100.0
+f2(x,y,s)= (y > mean && x > mean) ? (y-x)/s : -100.0
+
+stats "merged.dat" u (f($4,$5))
+total=STATS_records
+sum=floor(STATS_records/100.)
+
+width=0.05 #interval width
+
+hist(x,width)=width*(floor(x/width)+0.5)
+
+set boxwidth width*0.9
+set style fill solid 0.5 # fill style
+
+set xtics 0.25
+
+set table "table.dat"
+set xrange [-2:2]
+plot "merged.dat" u (hist(f($4,$5),width)):(1) smooth freq w boxes lc rgb"red" notitle
+unset table
+
+
+set terminal pdf
+set output "hist.pdf"
+set xrange [-1.5:1.5]
+plot "merged.dat" u (hist(f($4,$5),width)):(1) smooth freq w boxes lc rgb"red" notitle
+
+set xrange [*:*]
+stats "table.dat" u ($2/nvox)
+
+u=0.04
+s=0.05
+A=0.006
+#gauss(x) = 1.0/(s*2.5066282746310002)*exp(-0.5*(x-u)**2/(s*s))
+gauss(x) = A*exp(-0.5*(x-u)**2/(s*s))
+
+FIT_LIMIT = 1e-6
+set xrange [-1.5:1.5]
+fit gauss(x) "table.dat" u 1:($2/nvox) via A,u,s
+
+set output "histTable.pdf"
+set xrange [-1.5:1.5]
+plot "table.dat" u 1:($2/nvox) w boxes lc rgb"red" notitle, "" u 1:(gauss($1)) w l notitle
+
+set output "histTableSigma.pdf"
+
+width=0.2 #interval width
+hist(x,width)=width*(floor(x/width)+0.5)
+set boxwidth width*0.9
+
+u2=0.04
+s2=1.0
+A2=1.0
+gauss2(x) = A2*exp(-0.5*(x-u2)**2/(s2*s2))
+
+set xtics 1.0
+
+set table "tableSigma.dat"
+set xrange [-6.0:6.0]
+plot "merged.dat" u (hist(f($4,$5)/s,width)):(1) smooth freq w boxes lc rgb"red" notitle
+unset table
+
+fit gauss2(x) "tableSigma.dat" u 1:($2) every ::1 via A2,u2,s2
+
+stats "tableSigma.dat" u 2 every ::1
+sum=STATS_sum
+
+set output "histTableSigma.pdf"
+set xrange [-6.0:6.0]
+set xlabel "{/Symbol s}"
+set ylabel "Normalized frequency"
+plot "tableSigma.dat" u 1:($2/sum) w boxes lc rgb"red" notitle, "" u 1:(gauss2($1)/sum) w l lc rgb"dark-blue" lw 4 notitle
+

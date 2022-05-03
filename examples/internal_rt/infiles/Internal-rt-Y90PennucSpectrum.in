@@ -1,0 +1,838 @@
+
+#
+#
+#    Copyright (C) 2019 Universitat de València - UV
+#    Copyright (C) 2019 Universitat Politècnica de València - UPV
+#
+#    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
+#
+#    PenRed is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    PenRed is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with PenRed.  If not, see <https://www.gnu.org/licenses/>. 
+#
+#
+#    contact emails:
+#
+#        vicent.gimenez.alventosa@gmail.com
+#        vicente.gimenez@uv.es
+#    
+#
+
+#########################
+##  SOURCES           ###
+#########################
+
+#------------------------
+#  Source 1
+#########################
+
+sources/generic/source1/nhist 4.0e6 
+sources/generic/source1/kpar "electron"
+
+# Spatial sampling
+#########################
+
+# Set image size
+sources/generic/source1/spatial/type "IMAGE"
+sources/generic/source1/spatial/directory "data/Dicom/SPECT"
+
+# Set image center 
+#sources/generic/source1/spatial/position/x  24.918781 
+#sources/generic/source1/spatial/position/y  10.793281
+#sources/generic/source1/spatial/position/z  37.955624
+
+sources/generic/source1/spatial/isocenter/x 0.0
+sources/generic/source1/spatial/isocenter/y 0.0
+sources/generic/source1/spatial/isocenter/z 0.0
+
+sources/generic/source1/spatial/phantom-isocenter/x 0.0
+sources/generic/source1/spatial/phantom-isocenter/y 0.0
+sources/generic/source1/spatial/phantom-isocenter/z 0.0
+
+sources/generic/source1/spatial/ActivityDistribution/read "data/WalkerAliasing/ActivityInitialization.dat"
+sources/generic/source1/spatial/ActivityDistribution/save "output/ActivityInitialization-check.dat"
+
+#sources/generic/source1/spatial/ActivityDistribution/save "data/WalkerAliasing/ActivityInitialization.dat"
+
+sources/generic/source1/spatial/SpatialSamplingInfo true
+sources/generic/source1/spatial/SpatialSamplingInfoSaveTo "output/SpatialSampling.dat"
+
+# Specific sampling
+#########################
+
+sources/generic/source1/specific/type "PENNUC"
+
+sources/generic/source1/specific/nucleide_filename "data/PennucSpectrum/Y-90.nuc"
+sources/generic/source1/specific/age false
+#sources/generic/source1/specific/source-material 8
+sources/generic/source1/specific/atomic_filename "data/PennucSpectrum/pdatconf.p14"
+sources/generic/source1/specific/relaxation_filename "data/PennucSpectrum/pdrelax.p11"
+sources/generic/source1/specific/pennuclog_filename "output/pennuc.dat"
+sources/generic/source1/specific/atrelilog_filename "output/atreli.dat"
+
+#########################
+##  TALLIES           ###
+#########################
+
+tallies/secondary/type "SECONDARY_GEN"
+tallies/secondary/outputdir "output/"
+
+#tallies/track/type "TRACK"
+#tallies/track/nhists 25
+
+tallies/Dose/type "SPATIAL_DOSE_DISTRIB"
+tallies/Dose/outputdir "output/"
+tallies/Dose/print-xyz true 
+tallies/Dose/xmin 0.0
+tallies/Dose/xmax 49.60
+tallies/Dose/nx 124
+tallies/Dose/ymin   0.0
+tallies/Dose/ymax   28.80
+tallies/Dose/ny 72
+tallies/Dose/zmin   0.0
+tallies/Dose/zmax   76.00
+tallies/Dose/nz 190
+
+#tallies/ContourDose/type "DICOM_DOSE_DISTRIB"
+
+tallies/matEDep/type "EDEP_MAT"
+tallies/matEDep/outputdir "output/"
+tallies/matEDep/nmat 44
+
+#########################
+#  GEOMETRY PARAMETERS  #
+#########################
+
+geometry/type "DICOM"
+geometry/directory "data/Dicom/CT"
+geometry/processed-geo-file "outputs/report.geo"
+
+geometry/isocenter/x 0.0
+geometry/isocenter/y 0.0
+geometry/isocenter/z 0.0
+
+geometry/intensity-ranges/Air_0/material 1
+geometry/intensity-ranges/Air_0/low -1050.000
+geometry/intensity-ranges/Air_0/top -950.000
+geometry/intensity-ranges/Air_0/density 1.210000E-03
+
+geometry/intensity-ranges/Lung_1/material 2
+geometry/intensity-ranges/Lung_1/low -950.000
+geometry/intensity-ranges/Lung_1/top -852.884
+geometry/intensity-ranges/Lung_1/density 1.026950E-01
+
+geometry/intensity-ranges/Lung_2/material 3
+geometry/intensity-ranges/Lung_2/low -852.884
+geometry/intensity-ranges/Lung_2/top -755.769
+geometry/intensity-ranges/Lung_2/density 2.026950E-01
+
+geometry/intensity-ranges/Lung_3/material 4
+geometry/intensity-ranges/Lung_3/low -755.769
+geometry/intensity-ranges/Lung_3/top -658.653
+geometry/intensity-ranges/Lung_3/density 3.026950E-01
+
+geometry/intensity-ranges/Lung_4/material 5
+geometry/intensity-ranges/Lung_4/low -658.653
+geometry/intensity-ranges/Lung_4/top -561.538
+geometry/intensity-ranges/Lung_4/density 4.026950E-01
+
+geometry/intensity-ranges/Lung_5/material 6
+geometry/intensity-ranges/Lung_5/low -561.538
+geometry/intensity-ranges/Lung_5/top -464.422
+geometry/intensity-ranges/Lung_5/density 5.026950E-01
+
+geometry/intensity-ranges/Lung_6/material 7
+geometry/intensity-ranges/Lung_6/low -464.422
+geometry/intensity-ranges/Lung_6/top -367.306
+geometry/intensity-ranges/Lung_6/density 6.026950E-01
+
+geometry/intensity-ranges/Lung_7/material 8
+geometry/intensity-ranges/Lung_7/low -367.306
+geometry/intensity-ranges/Lung_7/top -270.191
+geometry/intensity-ranges/Lung_7/density 7.026950E-01
+
+geometry/intensity-ranges/Lung_8/material 9
+geometry/intensity-ranges/Lung_8/low -270.191
+geometry/intensity-ranges/Lung_8/top -173.075
+geometry/intensity-ranges/Lung_8/density 8.026950E-01
+
+geometry/intensity-ranges/Lung_9/material 10
+geometry/intensity-ranges/Lung_9/low -173.075
+geometry/intensity-ranges/Lung_9/top -120.000
+geometry/intensity-ranges/Lung_9/density 8.800210E-01
+
+geometry/intensity-ranges/AT_AG_SI1_10/material 11
+geometry/intensity-ranges/AT_AG_SI1_10/low -120.000
+geometry/intensity-ranges/AT_AG_SI1_10/top -82.000
+geometry/intensity-ranges/AT_AG_SI1_10/density 9.269110E-01
+
+geometry/intensity-ranges/AT_AG_SI2_11/material 12
+geometry/intensity-ranges/AT_AG_SI2_11/low -82.000
+geometry/intensity-ranges/AT_AG_SI2_11/top -52.000
+geometry/intensity-ranges/AT_AG_SI2_11/density 9.573820E-01
+
+geometry/intensity-ranges/AT_AG_SI3_12/material 13
+geometry/intensity-ranges/AT_AG_SI3_12/low -52.000
+geometry/intensity-ranges/AT_AG_SI3_12/top -22.000
+geometry/intensity-ranges/AT_AG_SI3_12/density 9.842770E-01
+
+geometry/intensity-ranges/AT_AG_SI4_13/material 14
+geometry/intensity-ranges/AT_AG_SI4_13/low -22.000
+geometry/intensity-ranges/AT_AG_SI4_13/top 8.000
+geometry/intensity-ranges/AT_AG_SI4_13/density 1.011170E+00
+
+geometry/intensity-ranges/AT_AG_SI5_14/material 15
+geometry/intensity-ranges/AT_AG_SI5_14/low 8.000
+geometry/intensity-ranges/AT_AG_SI5_14/top 19.000
+geometry/intensity-ranges/AT_AG_SI5_14/density 1.029550E+00
+
+geometry/intensity-ranges/SoftTissus_15/material 16
+geometry/intensity-ranges/SoftTissus_15/low 19.000
+geometry/intensity-ranges/SoftTissus_15/top 80.000
+geometry/intensity-ranges/SoftTissus_15/density 1.061600E+00
+
+geometry/intensity-ranges/ConnectiveTissue_16/material 17
+geometry/intensity-ranges/ConnectiveTissue_16/low 80.000
+geometry/intensity-ranges/ConnectiveTissue_16/top 120.000
+geometry/intensity-ranges/ConnectiveTissue_16/density 1.119900E+00
+
+geometry/intensity-ranges/Marrow_Bone01_17/material 18
+geometry/intensity-ranges/Marrow_Bone01_17/low 120.000
+geometry/intensity-ranges/Marrow_Bone01_17/top 200.000
+geometry/intensity-ranges/Marrow_Bone01_17/density 1.111150E+00
+
+geometry/intensity-ranges/Marrow_Bone02_18/material 19
+geometry/intensity-ranges/Marrow_Bone02_18/low 200.000
+geometry/intensity-ranges/Marrow_Bone02_18/top 300.000
+geometry/intensity-ranges/Marrow_Bone02_18/density 1.164470E+00
+
+geometry/intensity-ranges/Marrow_Bone03_19/material 20
+geometry/intensity-ranges/Marrow_Bone03_19/low 300.000
+geometry/intensity-ranges/Marrow_Bone03_19/top 400.000
+geometry/intensity-ranges/Marrow_Bone03_19/density 1.223710E+00
+
+geometry/intensity-ranges/Marrow_Bone04_20/material 21
+geometry/intensity-ranges/Marrow_Bone04_20/low 400.000
+geometry/intensity-ranges/Marrow_Bone04_20/top 500.000
+geometry/intensity-ranges/Marrow_Bone04_20/density 1.282950E+00
+
+geometry/intensity-ranges/Marrow_Bone05_21/material 22
+geometry/intensity-ranges/Marrow_Bone05_21/low 500.000
+geometry/intensity-ranges/Marrow_Bone05_21/top 600.000
+geometry/intensity-ranges/Marrow_Bone05_21/density 1.342190E+00
+
+geometry/intensity-ranges/Marrow_Bone06_22/material 23
+geometry/intensity-ranges/Marrow_Bone06_22/low 600.000
+geometry/intensity-ranges/Marrow_Bone06_22/top 700.000
+geometry/intensity-ranges/Marrow_Bone06_22/density 1.401420E+00
+
+geometry/intensity-ranges/Marrow_Bone07_23/material 24
+geometry/intensity-ranges/Marrow_Bone07_23/low 700.000
+geometry/intensity-ranges/Marrow_Bone07_23/top 800.000
+geometry/intensity-ranges/Marrow_Bone07_23/density 1.460660E+00
+
+geometry/intensity-ranges/Marrow_Bone08_24/material 25
+geometry/intensity-ranges/Marrow_Bone08_24/low 800.000
+geometry/intensity-ranges/Marrow_Bone08_24/top 900.000
+geometry/intensity-ranges/Marrow_Bone08_24/density 1.519900E+00
+
+geometry/intensity-ranges/Marrow_Bone09_25/material 26
+geometry/intensity-ranges/Marrow_Bone09_25/low 900.000
+geometry/intensity-ranges/Marrow_Bone09_25/top 1000.000
+geometry/intensity-ranges/Marrow_Bone09_25/density 1.579140E+00
+
+geometry/intensity-ranges/Marrow_Bone10_26/material 27
+geometry/intensity-ranges/Marrow_Bone10_26/low 1000.000
+geometry/intensity-ranges/Marrow_Bone10_26/top 1100.000
+geometry/intensity-ranges/Marrow_Bone10_26/density 1.638380E+00
+
+geometry/intensity-ranges/Marrow_Bone11_27/material 28
+geometry/intensity-ranges/Marrow_Bone11_27/low 1100.000
+geometry/intensity-ranges/Marrow_Bone11_27/top 1200.000
+geometry/intensity-ranges/Marrow_Bone11_27/density 1.697620E+00
+
+geometry/intensity-ranges/Marrow_Bone12_28/material 29
+geometry/intensity-ranges/Marrow_Bone12_28/low 1200.000
+geometry/intensity-ranges/Marrow_Bone12_28/top 1300.000
+geometry/intensity-ranges/Marrow_Bone12_28/density 1.756860E+00
+
+geometry/intensity-ranges/Marrow_Bone13_29/material 30
+geometry/intensity-ranges/Marrow_Bone13_29/low 1300.000
+geometry/intensity-ranges/Marrow_Bone13_29/top 1400.000
+geometry/intensity-ranges/Marrow_Bone13_29/density 1.816100E+00
+
+geometry/intensity-ranges/Marrow_Bone14_30/material 31
+geometry/intensity-ranges/Marrow_Bone14_30/low 1400.000
+geometry/intensity-ranges/Marrow_Bone14_30/top 1500.000
+geometry/intensity-ranges/Marrow_Bone14_30/density 1.875340E+00
+
+geometry/intensity-ranges/Marrow_Bone15_31/material 32
+geometry/intensity-ranges/Marrow_Bone15_31/low 1500.000
+geometry/intensity-ranges/Marrow_Bone15_31/top 1640.000
+geometry/intensity-ranges/Marrow_Bone15_31/density 1.946430E+00
+
+geometry/intensity-ranges/AmalgamTooth_32/material 33
+geometry/intensity-ranges/AmalgamTooth_32/low 1640.000
+geometry/intensity-ranges/AmalgamTooth_32/top 1807.500
+geometry/intensity-ranges/AmalgamTooth_32/density 2.038080E+00
+
+geometry/intensity-ranges/AmalgamTooth_33/material 34
+geometry/intensity-ranges/AmalgamTooth_33/low 1807.500
+geometry/intensity-ranges/AmalgamTooth_33/top 1975.010
+geometry/intensity-ranges/AmalgamTooth_33/density 2.138080E+00
+
+geometry/intensity-ranges/AmalgamTooth_34/material 35
+geometry/intensity-ranges/AmalgamTooth_34/low 1975.010
+geometry/intensity-ranges/AmalgamTooth_34/top 2142.510
+geometry/intensity-ranges/AmalgamTooth_34/density 2.238080E+00
+
+geometry/intensity-ranges/AmalgamTooth_35/material 36
+geometry/intensity-ranges/AmalgamTooth_35/low 2142.510
+geometry/intensity-ranges/AmalgamTooth_35/top 2300.000
+geometry/intensity-ranges/AmalgamTooth_35/density 2.335090E+00
+
+geometry/intensity-ranges/MetallImplants_36/material 37
+geometry/intensity-ranges/MetallImplants_36/low 2300.000
+geometry/intensity-ranges/MetallImplants_36/top 2467.500
+geometry/intensity-ranges/MetallImplants_36/density 2.432100E+00
+
+geometry/intensity-ranges/MetallImplants_37/material 38
+geometry/intensity-ranges/MetallImplants_37/low 2467.500
+geometry/intensity-ranges/MetallImplants_37/top 2635.010
+geometry/intensity-ranges/MetallImplants_37/density 2.532100E+00
+
+geometry/intensity-ranges/MetallImplants_38/material 39
+geometry/intensity-ranges/MetallImplants_38/low 2635.010
+geometry/intensity-ranges/MetallImplants_38/top 2802.510
+geometry/intensity-ranges/MetallImplants_38/density 2.632100E+00
+
+geometry/intensity-ranges/MetallImplants_39/material 40
+geometry/intensity-ranges/MetallImplants_39/low 2802.510
+geometry/intensity-ranges/MetallImplants_39/top 2970.020
+geometry/intensity-ranges/MetallImplants_39/density 2.732100E+00
+
+geometry/intensity-ranges/MetallImplants_40/material 41
+geometry/intensity-ranges/MetallImplants_40/low 2970.020
+geometry/intensity-ranges/MetallImplants_40/top 3000.000
+geometry/intensity-ranges/MetallImplants_40/density 2.791050E+00
+
+geometry/intensity-ranges/MetallImplants_41/material 42
+geometry/intensity-ranges/MetallImplants_41/low 3000.000
+geometry/intensity-ranges/MetallImplants_41/top 4000.000
+geometry/intensity-ranges/MetallImplants_41/density 2.900000E+00
+
+geometry/intensity-ranges/MetallImplants_42/material 43
+geometry/intensity-ranges/MetallImplants_42/low 4000.000
+geometry/intensity-ranges/MetallImplants_42/top 4001.000
+geometry/intensity-ranges/MetallImplants_42/density 2.900000E+00
+
+geometry/materials/Default/ID 44
+geometry/materials/Default/density 0.5
+
+geometry/dsmax/1 0.04
+geometry/dsmax/2 0.04
+geometry/dsmax/3 0.04
+geometry/dsmax/4 0.04
+geometry/dsmax/5 0.04
+geometry/dsmax/6 0.04
+geometry/dsmax/7 0.04
+geometry/dsmax/8 0.04
+geometry/dsmax/9 0.04
+geometry/dsmax/10 0.04
+geometry/dsmax/11 0.04
+geometry/dsmax/12 0.04
+geometry/dsmax/13 0.04
+geometry/dsmax/14 0.04
+geometry/dsmax/15 0.04
+geometry/dsmax/16 0.04
+geometry/dsmax/17 0.04
+geometry/dsmax/18 0.04
+geometry/dsmax/19 0.04
+geometry/dsmax/20 0.04
+geometry/dsmax/21 0.04
+geometry/dsmax/22 0.04
+geometry/dsmax/23 0.04
+geometry/dsmax/24 0.04
+geometry/dsmax/25 0.04
+geometry/dsmax/26 0.04
+geometry/dsmax/27 0.04
+geometry/dsmax/28 0.04
+geometry/dsmax/29 0.04
+geometry/dsmax/30 0.04
+geometry/dsmax/31 0.04
+geometry/dsmax/32 0.04
+geometry/dsmax/33 0.04
+geometry/dsmax/34 0.04
+geometry/dsmax/35 0.04
+geometry/dsmax/36 0.04
+geometry/dsmax/37 0.04
+geometry/dsmax/38 0.04
+geometry/dsmax/39 0.04
+geometry/dsmax/40 0.04
+geometry/dsmax/41 0.04
+geometry/dsmax/42 0.04
+geometry/dsmax/43 0.04
+geometry/dsmax/44 0.04
+
+#########################
+#       MATERIALS       #
+#########################
+
+materials/Air_0/number 1
+materials/Air_0/eabs_e- 1e3
+materials/Air_0/eabs_e+ 1e3
+materials/Air_0/eabs_gamma 1e3
+materials/Air_0/C1 0.05
+materials/Air_0/C2 0.05
+materials/Air_0/WCC 1e3
+materials/Air_0/WCR 1e3
+materials/Air_0/filename "data/Materials/Air_0.mat"
+
+materials/Lung_1/number 2
+materials/Lung_1/eabs_e- 1e3
+materials/Lung_1/eabs_e+ 1e3
+materials/Lung_1/eabs_gamma 1e3
+materials/Lung_1/C1 0.05
+materials/Lung_1/C2 0.05
+materials/Lung_1/WCC 1e3
+materials/Lung_1/WCR 1e3
+materials/Lung_1/filename "data/Materials/Lung_1.mat"
+
+materials/Lung_2/number 3
+materials/Lung_2/eabs_e- 1e3
+materials/Lung_2/eabs_e+ 1e3
+materials/Lung_2/eabs_gamma 1e3
+materials/Lung_2/C1 0.05
+materials/Lung_2/C2 0.05
+materials/Lung_2/WCC 1e3
+materials/Lung_2/WCR 1e3
+materials/Lung_2/filename "data/Materials/Lung_2.mat"
+
+materials/Lung_3/number 4
+materials/Lung_3/eabs_e- 1e3
+materials/Lung_3/eabs_e+ 1e3
+materials/Lung_3/eabs_gamma 1e3
+materials/Lung_3/C1 0.05
+materials/Lung_3/C2 0.05
+materials/Lung_3/WCC 1e3
+materials/Lung_3/WCR 1e3
+materials/Lung_3/filename "data/Materials/Lung_3.mat"
+
+materials/Lung_4/number 5
+materials/Lung_4/eabs_e- 1e3
+materials/Lung_4/eabs_e+ 1e3
+materials/Lung_4/eabs_gamma 1e3
+materials/Lung_4/C1 0.05
+materials/Lung_4/C2 0.05
+materials/Lung_4/WCC 1e3
+materials/Lung_4/WCR 1e3
+materials/Lung_4/filename "data/Materials/Lung_4.mat"
+
+materials/Lung_5/number 6
+materials/Lung_5/eabs_e- 1e3
+materials/Lung_5/eabs_e+ 1e3
+materials/Lung_5/eabs_gamma 1e3
+materials/Lung_5/C1 0.05
+materials/Lung_5/C2 0.05
+materials/Lung_5/WCC 1e3
+materials/Lung_5/WCR 1e3
+materials/Lung_5/filename "data/Materials/Lung_5.mat"
+
+materials/Lung_6/number 7
+materials/Lung_6/eabs_e- 1e3
+materials/Lung_6/eabs_e+ 1e3
+materials/Lung_6/eabs_gamma 1e3
+materials/Lung_6/C1 0.05
+materials/Lung_6/C2 0.05
+materials/Lung_6/WCC 1e3
+materials/Lung_6/WCR 1e3
+materials/Lung_6/filename "data/Materials/Lung_6.mat"
+
+materials/Lung_7/number 8
+materials/Lung_7/eabs_e- 1e3
+materials/Lung_7/eabs_e+ 1e3
+materials/Lung_7/eabs_gamma 1e3
+materials/Lung_7/C1 0.05
+materials/Lung_7/C2 0.05
+materials/Lung_7/WCC 1e3
+materials/Lung_7/WCR 1e3
+materials/Lung_7/filename "data/Materials/Lung_7.mat"
+
+materials/Lung_8/number 9
+materials/Lung_8/eabs_e- 1e3
+materials/Lung_8/eabs_e+ 1e3
+materials/Lung_8/eabs_gamma 1e3
+materials/Lung_8/C1 0.05
+materials/Lung_8/C2 0.05
+materials/Lung_8/WCC 1e3
+materials/Lung_8/WCR 1e3
+materials/Lung_8/filename "data/Materials/Lung_8.mat"
+
+materials/Lung_9/number 10
+materials/Lung_9/eabs_e- 1e3
+materials/Lung_9/eabs_e+ 1e3
+materials/Lung_9/eabs_gamma 1e3
+materials/Lung_9/C1 0.05
+materials/Lung_9/C2 0.05
+materials/Lung_9/WCC 1e3
+materials/Lung_9/WCR 1e3
+materials/Lung_9/filename "data/Materials/Lung_9.mat"
+
+materials/AT_AG_SI1_10/number 11
+materials/AT_AG_SI1_10/eabs_e- 1e3
+materials/AT_AG_SI1_10/eabs_e+ 1e3
+materials/AT_AG_SI1_10/eabs_gamma 1e3
+materials/AT_AG_SI1_10/C1 0.05
+materials/AT_AG_SI1_10/C2 0.05
+materials/AT_AG_SI1_10/WCC 1e3
+materials/AT_AG_SI1_10/WCR 1e3
+materials/AT_AG_SI1_10/filename "data/Materials/AT_AG_SI1_10.mat"
+
+materials/AT_AG_SI2_11/number 12
+materials/AT_AG_SI2_11/eabs_e- 1e3
+materials/AT_AG_SI2_11/eabs_e+ 1e3
+materials/AT_AG_SI2_11/eabs_gamma 1e3
+materials/AT_AG_SI2_11/C1 0.05
+materials/AT_AG_SI2_11/C2 0.05
+materials/AT_AG_SI2_11/WCC 1e3
+materials/AT_AG_SI2_11/WCR 1e3
+materials/AT_AG_SI2_11/filename "data/Materials/AT_AG_SI2_11.mat"
+
+materials/AT_AG_SI3_12/number 13
+materials/AT_AG_SI3_12/eabs_e- 1e3
+materials/AT_AG_SI3_12/eabs_e+ 1e3
+materials/AT_AG_SI3_12/eabs_gamma 1e3
+materials/AT_AG_SI3_12/C1 0.05
+materials/AT_AG_SI3_12/C2 0.05
+materials/AT_AG_SI3_12/WCC 1e3
+materials/AT_AG_SI3_12/WCR 1e3
+materials/AT_AG_SI3_12/filename "data/Materials/AT_AG_SI3_12.mat"
+
+materials/AT_AG_SI4_13/number 14
+materials/AT_AG_SI4_13/eabs_e- 1e3
+materials/AT_AG_SI4_13/eabs_e+ 1e3
+materials/AT_AG_SI4_13/eabs_gamma 1e3
+materials/AT_AG_SI4_13/C1 0.05
+materials/AT_AG_SI4_13/C2 0.05
+materials/AT_AG_SI4_13/WCC 1e3
+materials/AT_AG_SI4_13/WCR 1e3
+materials/AT_AG_SI4_13/filename "data/Materials/AT_AG_SI4_13.mat"
+
+materials/AT_AG_SI5_14/number 15
+materials/AT_AG_SI5_14/eabs_e- 1e3
+materials/AT_AG_SI5_14/eabs_e+ 1e3
+materials/AT_AG_SI5_14/eabs_gamma 1e3
+materials/AT_AG_SI5_14/C1 0.05
+materials/AT_AG_SI5_14/C2 0.05
+materials/AT_AG_SI5_14/WCC 1e3
+materials/AT_AG_SI5_14/WCR 1e3
+materials/AT_AG_SI5_14/filename "data/Materials/AT_AG_SI5_14.mat"
+
+materials/SoftTissus_15/number 16
+materials/SoftTissus_15/eabs_e- 1e3
+materials/SoftTissus_15/eabs_e+ 1e3
+materials/SoftTissus_15/eabs_gamma 1e3
+materials/SoftTissus_15/C1 0.05
+materials/SoftTissus_15/C2 0.05
+materials/SoftTissus_15/WCC 1e3
+materials/SoftTissus_15/WCR 1e3
+materials/SoftTissus_15/filename "data/Materials/SoftTissus_15.mat"
+
+materials/ConnectiveTissue_16/number 17
+materials/ConnectiveTissue_16/eabs_e- 1e3
+materials/ConnectiveTissue_16/eabs_e+ 1e3
+materials/ConnectiveTissue_16/eabs_gamma 1e3
+materials/ConnectiveTissue_16/C1 0.05
+materials/ConnectiveTissue_16/C2 0.05
+materials/ConnectiveTissue_16/WCC 1e3
+materials/ConnectiveTissue_16/WCR 1e3
+materials/ConnectiveTissue_16/filename "data/Materials/ConnectiveTissue_16.mat"
+
+materials/Marrow_Bone01_17/number 18
+materials/Marrow_Bone01_17/eabs_e- 1e3
+materials/Marrow_Bone01_17/eabs_e+ 1e3
+materials/Marrow_Bone01_17/eabs_gamma 1e3
+materials/Marrow_Bone01_17/C1 0.05
+materials/Marrow_Bone01_17/C2 0.05
+materials/Marrow_Bone01_17/WCC 1e3
+materials/Marrow_Bone01_17/WCR 1e3
+materials/Marrow_Bone01_17/filename "data/Materials/Marrow_Bone01_17.mat"
+
+materials/Marrow_Bone02_18/number 19
+materials/Marrow_Bone02_18/eabs_e- 1e3
+materials/Marrow_Bone02_18/eabs_e+ 1e3
+materials/Marrow_Bone02_18/eabs_gamma 1e3
+materials/Marrow_Bone02_18/C1 0.05
+materials/Marrow_Bone02_18/C2 0.05
+materials/Marrow_Bone02_18/WCC 1e3
+materials/Marrow_Bone02_18/WCR 1e3
+materials/Marrow_Bone02_18/filename "data/Materials/Marrow_Bone02_18.mat"
+
+materials/Marrow_Bone03_19/number 20
+materials/Marrow_Bone03_19/eabs_e- 1e3
+materials/Marrow_Bone03_19/eabs_e+ 1e3
+materials/Marrow_Bone03_19/eabs_gamma 1e3
+materials/Marrow_Bone03_19/C1 0.05
+materials/Marrow_Bone03_19/C2 0.05
+materials/Marrow_Bone03_19/WCC 1e3
+materials/Marrow_Bone03_19/WCR 1e3
+materials/Marrow_Bone03_19/filename "data/Materials/Marrow_Bone03_19.mat"
+
+materials/Marrow_Bone04_20/number 21
+materials/Marrow_Bone04_20/eabs_e- 1e3
+materials/Marrow_Bone04_20/eabs_e+ 1e3
+materials/Marrow_Bone04_20/eabs_gamma 1e3
+materials/Marrow_Bone04_20/C1 0.05
+materials/Marrow_Bone04_20/C2 0.05
+materials/Marrow_Bone04_20/WCC 1e3
+materials/Marrow_Bone04_20/WCR 1e3
+materials/Marrow_Bone04_20/filename "data/Materials/Marrow_Bone04_20.mat"
+
+materials/Marrow_Bone05_21/number 22
+materials/Marrow_Bone05_21/eabs_e- 1e3
+materials/Marrow_Bone05_21/eabs_e+ 1e3
+materials/Marrow_Bone05_21/eabs_gamma 1e3
+materials/Marrow_Bone05_21/C1 0.05
+materials/Marrow_Bone05_21/C2 0.05
+materials/Marrow_Bone05_21/WCC 1e3
+materials/Marrow_Bone05_21/WCR 1e3
+materials/Marrow_Bone05_21/filename "data/Materials/Marrow_Bone05_21.mat"
+
+materials/Marrow_Bone06_22/number 23
+materials/Marrow_Bone06_22/eabs_e- 1e3
+materials/Marrow_Bone06_22/eabs_e+ 1e3
+materials/Marrow_Bone06_22/eabs_gamma 1e3
+materials/Marrow_Bone06_22/C1 0.05
+materials/Marrow_Bone06_22/C2 0.05
+materials/Marrow_Bone06_22/WCC 1e3
+materials/Marrow_Bone06_22/WCR 1e3
+materials/Marrow_Bone06_22/filename "data/Materials/Marrow_Bone06_22.mat"
+
+materials/Marrow_Bone07_23/number 24
+materials/Marrow_Bone07_23/eabs_e- 1e3
+materials/Marrow_Bone07_23/eabs_e+ 1e3
+materials/Marrow_Bone07_23/eabs_gamma 1e3
+materials/Marrow_Bone07_23/C1 0.05
+materials/Marrow_Bone07_23/C2 0.05
+materials/Marrow_Bone07_23/WCC 1e3
+materials/Marrow_Bone07_23/WCR 1e3
+materials/Marrow_Bone07_23/filename "data/Materials/Marrow_Bone07_23.mat"
+
+materials/Marrow_Bone08_24/number 25
+materials/Marrow_Bone08_24/eabs_e- 1e3
+materials/Marrow_Bone08_24/eabs_e+ 1e3
+materials/Marrow_Bone08_24/eabs_gamma 1e3
+materials/Marrow_Bone08_24/C1 0.05
+materials/Marrow_Bone08_24/C2 0.05
+materials/Marrow_Bone08_24/WCC 1e3
+materials/Marrow_Bone08_24/WCR 1e3
+materials/Marrow_Bone08_24/filename "data/Materials/Marrow_Bone08_24.mat"
+
+materials/Marrow_Bone09_25/number 26
+materials/Marrow_Bone09_25/eabs_e- 1e3
+materials/Marrow_Bone09_25/eabs_e+ 1e3
+materials/Marrow_Bone09_25/eabs_gamma 1e3
+materials/Marrow_Bone09_25/C1 0.05
+materials/Marrow_Bone09_25/C2 0.05
+materials/Marrow_Bone09_25/WCC 1e3
+materials/Marrow_Bone09_25/WCR 1e3
+materials/Marrow_Bone09_25/filename "data/Materials/Marrow_Bone09_25.mat"
+
+materials/Marrow_Bone10_26/number 27
+materials/Marrow_Bone10_26/eabs_e- 1e3
+materials/Marrow_Bone10_26/eabs_e+ 1e3
+materials/Marrow_Bone10_26/eabs_gamma 1e3
+materials/Marrow_Bone10_26/C1 0.05
+materials/Marrow_Bone10_26/C2 0.05
+materials/Marrow_Bone10_26/WCC 1e3
+materials/Marrow_Bone10_26/WCR 1e3
+materials/Marrow_Bone10_26/filename "data/Materials/Marrow_Bone10_26.mat"
+
+materials/Marrow_Bone11_27/number 28
+materials/Marrow_Bone11_27/eabs_e- 1e3
+materials/Marrow_Bone11_27/eabs_e+ 1e3
+materials/Marrow_Bone11_27/eabs_gamma 1e3
+materials/Marrow_Bone11_27/C1 0.05
+materials/Marrow_Bone11_27/C2 0.05
+materials/Marrow_Bone11_27/WCC 1e3
+materials/Marrow_Bone11_27/WCR 1e3
+materials/Marrow_Bone11_27/filename "data/Materials/Marrow_Bone11_27.mat"
+
+materials/Marrow_Bone12_28/number 29
+materials/Marrow_Bone12_28/eabs_e- 1e3
+materials/Marrow_Bone12_28/eabs_e+ 1e3
+materials/Marrow_Bone12_28/eabs_gamma 1e3
+materials/Marrow_Bone12_28/C1 0.05
+materials/Marrow_Bone12_28/C2 0.05
+materials/Marrow_Bone12_28/WCC 1e3
+materials/Marrow_Bone12_28/WCR 1e3
+materials/Marrow_Bone12_28/filename "data/Materials/Marrow_Bone12_28.mat"
+
+materials/Marrow_Bone13_29/number 30
+materials/Marrow_Bone13_29/eabs_e- 1e3
+materials/Marrow_Bone13_29/eabs_e+ 1e3
+materials/Marrow_Bone13_29/eabs_gamma 1e3
+materials/Marrow_Bone13_29/C1 0.05
+materials/Marrow_Bone13_29/C2 0.05
+materials/Marrow_Bone13_29/WCC 1e3
+materials/Marrow_Bone13_29/WCR 1e3
+materials/Marrow_Bone13_29/filename "data/Materials/Marrow_Bone13_29.mat"
+
+materials/Marrow_Bone14_30/number 31
+materials/Marrow_Bone14_30/eabs_e- 1e3
+materials/Marrow_Bone14_30/eabs_e+ 1e3
+materials/Marrow_Bone14_30/eabs_gamma 1e3
+materials/Marrow_Bone14_30/C1 0.05
+materials/Marrow_Bone14_30/C2 0.05
+materials/Marrow_Bone14_30/WCC 1e3
+materials/Marrow_Bone14_30/WCR 1e3
+materials/Marrow_Bone14_30/filename "data/Materials/Marrow_Bone14_30.mat"
+
+materials/Marrow_Bone15_31/number 32
+materials/Marrow_Bone15_31/eabs_e- 1e3
+materials/Marrow_Bone15_31/eabs_e+ 1e3
+materials/Marrow_Bone15_31/eabs_gamma 1e3
+materials/Marrow_Bone15_31/C1 0.05
+materials/Marrow_Bone15_31/C2 0.05
+materials/Marrow_Bone15_31/WCC 1e3
+materials/Marrow_Bone15_31/WCR 1e3
+materials/Marrow_Bone15_31/filename "data/Materials/Marrow_Bone15_31.mat"
+
+materials/AmalgamTooth_32/number 33
+materials/AmalgamTooth_32/eabs_e- 1e3
+materials/AmalgamTooth_32/eabs_e+ 1e3
+materials/AmalgamTooth_32/eabs_gamma 1e3
+materials/AmalgamTooth_32/C1 0.05
+materials/AmalgamTooth_32/C2 0.05
+materials/AmalgamTooth_32/WCC 1e3
+materials/AmalgamTooth_32/WCR 1e3
+materials/AmalgamTooth_32/filename "data/Materials/AmalgamTooth_32.mat"
+
+materials/AmalgamTooth_33/number 34
+materials/AmalgamTooth_33/eabs_e- 1e3
+materials/AmalgamTooth_33/eabs_e+ 1e3
+materials/AmalgamTooth_33/eabs_gamma 1e3
+materials/AmalgamTooth_33/C1 0.05
+materials/AmalgamTooth_33/C2 0.05
+materials/AmalgamTooth_33/WCC 1e3
+materials/AmalgamTooth_33/WCR 1e3
+materials/AmalgamTooth_33/filename "data/Materials/AmalgamTooth_33.mat"
+
+materials/AmalgamTooth_34/number 35
+materials/AmalgamTooth_34/eabs_e- 1e3
+materials/AmalgamTooth_34/eabs_e+ 1e3
+materials/AmalgamTooth_34/eabs_gamma 1e3
+materials/AmalgamTooth_34/C1 0.05
+materials/AmalgamTooth_34/C2 0.05
+materials/AmalgamTooth_34/WCC 1e3
+materials/AmalgamTooth_34/WCR 1e3
+materials/AmalgamTooth_34/filename "data/Materials/AmalgamTooth_34.mat"
+
+materials/AmalgamTooth_35/number 36
+materials/AmalgamTooth_35/eabs_e- 1e3
+materials/AmalgamTooth_35/eabs_e+ 1e3
+materials/AmalgamTooth_35/eabs_gamma 1e3
+materials/AmalgamTooth_35/C1 0.05
+materials/AmalgamTooth_35/C2 0.05
+materials/AmalgamTooth_35/WCC 1e3
+materials/AmalgamTooth_35/WCR 1e3
+materials/AmalgamTooth_35/filename "data/Materials/AmalgamTooth_35.mat"
+
+materials/MetallImplants_36/number 37
+materials/MetallImplants_36/eabs_e- 1e3
+materials/MetallImplants_36/eabs_e+ 1e3
+materials/MetallImplants_36/eabs_gamma 1e3
+materials/MetallImplants_36/C1 0.05
+materials/MetallImplants_36/C2 0.05
+materials/MetallImplants_36/WCC 1e3
+materials/MetallImplants_36/WCR 1e3
+materials/MetallImplants_36/filename "data/Materials/MetallImplants_36.mat"
+
+materials/MetallImplants_37/number 38
+materials/MetallImplants_37/eabs_e- 1e3
+materials/MetallImplants_37/eabs_e+ 1e3
+materials/MetallImplants_37/eabs_gamma 1e3
+materials/MetallImplants_37/C1 0.05
+materials/MetallImplants_37/C2 0.05
+materials/MetallImplants_37/WCC 1e3
+materials/MetallImplants_37/WCR 1e3
+materials/MetallImplants_37/filename "data/Materials/MetallImplants_37.mat"
+
+materials/MetallImplants_38/number 39
+materials/MetallImplants_38/eabs_e- 1e3
+materials/MetallImplants_38/eabs_e+ 1e3
+materials/MetallImplants_38/eabs_gamma 1e3
+materials/MetallImplants_38/C1 0.05
+materials/MetallImplants_38/C2 0.05
+materials/MetallImplants_38/WCC 1e3
+materials/MetallImplants_38/WCR 1e3
+materials/MetallImplants_38/filename "data/Materials/MetallImplants_38.mat"
+
+materials/MetallImplants_39/number 40
+materials/MetallImplants_39/eabs_e- 1e3
+materials/MetallImplants_39/eabs_e+ 1e3
+materials/MetallImplants_39/eabs_gamma 1e3
+materials/MetallImplants_39/C1 0.05
+materials/MetallImplants_39/C2 0.05
+materials/MetallImplants_39/WCC 1e3
+materials/MetallImplants_39/WCR 1e3
+materials/MetallImplants_39/filename "data/Materials/MetallImplants_39.mat"
+
+materials/MetallImplants_40/number 41
+materials/MetallImplants_40/eabs_e- 1e3
+materials/MetallImplants_40/eabs_e+ 1e3
+materials/MetallImplants_40/eabs_gamma 1e3
+materials/MetallImplants_40/C1 0.05
+materials/MetallImplants_40/C2 0.05
+materials/MetallImplants_40/WCC 1e3
+materials/MetallImplants_40/WCR 1e3
+materials/MetallImplants_40/filename "data/Materials/MetallImplants_40.mat"
+
+materials/MetallImplants_41/number 42
+materials/MetallImplants_41/eabs_e- 1e3
+materials/MetallImplants_41/eabs_e+ 1e3
+materials/MetallImplants_41/eabs_gamma 1e3
+materials/MetallImplants_41/C1 0.05
+materials/MetallImplants_41/C2 0.05
+materials/MetallImplants_41/WCC 1e3
+materials/MetallImplants_41/WCR 1e3
+materials/MetallImplants_41/filename "data/Materials/MetallImplants_41.mat"
+
+materials/MetallImplants_42/number 43
+materials/MetallImplants_42/eabs_e- 1e3
+materials/MetallImplants_42/eabs_e+ 1e3
+materials/MetallImplants_42/eabs_gamma 1e3
+materials/MetallImplants_42/C1 0.05
+materials/MetallImplants_42/C2 0.05
+materials/MetallImplants_42/WCC 1e3
+materials/MetallImplants_42/WCR 1e3
+materials/MetallImplants_42/filename "data/Materials/MetallImplants_42.mat"
+
+#########################
+# SIMULATION PARAMETERS #
+#########################
+
+simulation/threads 1
+simulation/thread-affinity true 
+simulation/seed1 1 
+simulation/seed2 1 
+simulation/seedPair 169
+#simulation/dump-interval 3600 
+simulation/dump-interval 1e32
+#simulation/dump2read "oldoutput/dump.dat"
+simulation/dump2write "output/dump.dat"
+#simulation/ascii-results true
+simulation/partial-results true 
+simulation/finalDump true
+simulation/dump2ascii false
+#simulation/contextlogfile "output/context.rep"
+simulation/verbose 2
