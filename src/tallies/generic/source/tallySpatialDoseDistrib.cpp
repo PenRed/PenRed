@@ -645,7 +645,15 @@ void pen_SpatialDoseDistrib::saveData(const unsigned long long nhist) const{
   //***************************
 
   out = fopen("depth-dose.dat","w");
-
+  if (out == NULL)
+    {
+      printf("*********************************************\n");
+      printf("pen_SpatialDoseDistrib: Error: Cannot open output data file\n");
+      printf("*********************************************\n");
+      fclose(out);                            
+      return;                      
+    }
+  
   fprintf(out,"#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
   fprintf(out,"# [SECTION REPORT DEPTH DOSE DISTRIB]\n");
   fprintf(out,"# Dose units are: eV/(g/cm^2) per history\n");
