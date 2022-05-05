@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2022 Universitat de València - UV
+//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -51,24 +51,27 @@ int sphereSection_directionSampling::configure(const pen_parserSection& config, 
   int err;
   //Store cosines (u,v,w)
   double dir[3];
-  err = config.read("direction/u",dir[0]);
+  err = config.read("u",dir[0]);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("sphereSection:configure:unable to read 'direction/u' in configuration. Double expected\n");
+      printf("sphereSection:configure:unable to read 'u' in "
+	     "configuration. Double expected\n");
     }
     return -1;
   }
-  err = config.read("direction/v",dir[1]);
+  err = config.read("v",dir[1]);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("sphereSection:configure:unable to read 'direction/v' in configuration. Double expected\n");
+      printf("sphereSection:configure:unable to read 'v' in "
+	     "configuration. Double expected\n");
     }
     return -1;
   }
-  err = config.read("direction/w",dir[2]);
+  err = config.read("w",dir[2]);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("sphereSection:configure:unable to read 'direction/w' in configuration. Double expected\n");
+      printf("sphereSection:configure:unable to read 'w' in "
+	     "configuration. Double expected\n");
     }
     return -1;
   }
@@ -95,17 +98,19 @@ int sphereSection_directionSampling::configure(const pen_parserSection& config, 
   //Get polar angle interval
   double theta0,theta1;
 
-  err = config.read("polar-oberture/theta0",theta0);
+  err = config.read("theta0",theta0);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("sphereSection:configure:unable to read 'polar-oberture/theta0' in configuration. Double expected\n");
+      printf("sphereSection:configure:unable to read 'theta0' in "
+	     "configuration. Double expected\n");
     }
     return -3;
   }
-  err = config.read("polar-oberture/theta1",theta1);
+  err = config.read("theta1",theta1);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("sphereSection:configure:unable to read 'polar-oberture/theta1' in configuration. Double expected\n");
+      printf("sphereSection:configure:unable to read 'theta1' "
+	     "in configuration. Double expected\n");
     }
     return -3;
   }
@@ -115,17 +120,19 @@ int sphereSection_directionSampling::configure(const pen_parserSection& config, 
 
   
   //Store azimutal angle interval
-  err = config.read("azimutal-oberture/phi0",phi0);
+  err = config.read("phi0",phi0);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("sphereSection:configure:unable to read 'azimutal-oberture/phi0' in configuration. Double expected\n");
+      printf("sphereSection:configure:unable to read 'phi0' in "
+	     "configuration. Double expected\n");
     }
     return -4;
   }
-  err = config.read("azimutal-oberture/dphi",dphi);
+  err = config.read("dphi",dphi);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("sphereSection:configure:unable to read 'azimutal-oberture/dphi' in configuration. Double expected\n");
+      printf("sphereSection:configure:unable to read 'dphi' "
+	     "in configuration. Double expected\n");
     }
     return -4;
   }
@@ -147,7 +154,7 @@ int sphereSection_directionSampling::configure(const pen_parserSection& config, 
   if(verbose > 1){
     printf("Polar interval (rad)   : %12.4E - %12.4E\n", theta0, theta1);
     printf("Azimutal angle (rad)   : %12.4E\n", phi0);
-    printf("Azimutal oberture (rad): %12.4E\n", dphi);
+    printf("Azimutal overture (rad): %12.4E\n", dphi);
   }
     
   return 0;
