@@ -154,21 +154,57 @@ protected:
       return nullptr;
 
     std::string finalFilename;
+    FILE* fout = nullptr;
+    
   // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_
     int rank;
     //Add the MPI rank number to filename
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     
-    finalFilename = OutputDirPath + name + std::string("-MPI") + std::to_string(rank) + std::string("-th") + std::to_string(nthread) + std::string("-") + std::string(filename);    
+    finalFilename = OutputDirPath + name + std::string("-MPI") +
+      std::to_string(rank) + std::string("-th") + std::to_string(nthread) +
+      std::string("-") + std::string(filename);
+
   // ***************************** MPI END ********************************** //
 #else
     
-    finalFilename = OutputDirPath + name + std::string("-th") + std::to_string(nthread) + std::string("-") + std::string(filename);
+    finalFilename = OutputDirPath + name + std::string("-th") +
+      std::to_string(nthread) + std::string("-") + std::string(filename);
 
 #endif
-    
-    return ::fopen(finalFilename.c_str(),mode);
+
+
+    fout = ::fopen(finalFilename.c_str(),mode);
+    //Check if the file can be opened
+    if(fout == nullptr){
+      //Try to open the same file name but with a 'not-found' prefix
+      printf("pen_genericTally: fopen: Error: Unable to open "
+	     "file ('%s'): \n%s\n",
+	     mode, finalFilename.c_str());
+      
+  // ******************************* MPI ************************************ //
+#ifdef _PEN_USE_MPI_
+
+      finalFilename = std::string("not-found-") + name + std::string("-MPI") +
+	std::to_string(rank) + std::string("-th") + std::to_string(nthread) +
+	std::string("-") + std::string(filename);
+      
+  // ***************************** MPI END ********************************** //
+#else
+      
+      finalFilename = std::string("not-found-") + name + std::string("-th") +
+	std::to_string(nthread) + std::string("-") + std::string(filename);
+      
+#endif
+
+      printf("Trying to redirect to: '%s'\n",finalFilename.c_str());
+      fflush(stdout);
+
+      fout = ::fopen(finalFilename.c_str(),mode);
+    }
+    //Return resulting file pointer
+    return fout;
   }
   
 public:

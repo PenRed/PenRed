@@ -13,7 +13,7 @@ This example consists on an internal RT treatment adapted from the Gate examples
     
  * *infiles*: Contains two configuration files, one to use the Pennuc source and another one to use an aproximated spectrum.
  
- * *Output* and *outputs*: Auxiliary folders to be filled with the simulation results.
+ * *Output* and *outputs*: Auxiliary folders to be filled with the simulation results (must be created).
  
  * *scripts* Postprocessing scripts to plot and compare the results of both codes, PenRed and Gate.
 
@@ -21,18 +21,22 @@ This example consists on an internal RT treatment adapted from the Gate examples
 
 1. Compile PenRed with DICOM support (with the DCMTK library). The compilation process is described in the documentation. Once compiled, copy the executable to this folder.
 
-2. Extract/decompress the dicom, material and Walker algorithm tar and xz files:
+2. Create output directories:
+
+        mkdir output outputs
+
+3. Extract/decompress the dicom, material and Walker algorithm tar and xz files:
 
         cd data/Dicom/; tar -xvf dicoms.tar.xz; cd ../..
         cd data/Materials/; tar -xvf materials.tar.xz; cd ../..
         cd data/Mhd/; tar -xvf Mhd.tar.xz; cd ../..
         xz -dk data/WalkerAliasing/ActivityInitialization.dat.xz 
 
-3. Extract also the gate tar in *Gate* folder to compare the results
+4. Extract also the gate tar in *Gate* folder to compare the results
 
         cd Gate/; tar -xvf gate.tar.xz; cd ..      
 
-4. Execute *pen_main* executable with one of the configuration files of the folder "infiles". The default number of threads to use in the configuration file is 1, but can be changed modifing the line
+5. Execute *pen_main* executable with one of the configuration files of the folder "infiles". The default number of threads to use in the configuration file is 1, but can be changed modifing the line
 
         simulation/threads 1
 
@@ -46,12 +50,12 @@ This example consists on an internal RT treatment adapted from the Gate examples
 
     The tally and output files generated will be saved in the output folder. 
       
-5. Use the bash script *Check-Gate_PenRed.sh* to verify the PenRed results against Gate. To execute the comparison with verbose output use:
+6. Use the bash script *Check-Gate_PenRed.sh* to verify the PenRed results against Gate. To execute the comparison with verbose output use:
 
-        ./scripts/Activity-Dose_DistributionChecker.sh -c all -q all -r Gate -t output.gcc9.3.1-pennuc -R Gate -T PenRed
+        ./scripts/Activity-Dose_DistributionChecker.sh -c all -q all -r Gate -t output -R Gate -T PenRed
      instead, for a less verbose output use:
 
-        ./scripts/Activity-Dose_DistributionChecker.sh -c all -q all -r Gate -t output.gcc9.3.1-pennuc -R Gate -T PenRed -s
+        ./scripts/Activity-Dose_DistributionChecker.sh -c all -q all -r Gate -t output -R Gate -T PenRed -s
         
      For further help details, enter 
      
