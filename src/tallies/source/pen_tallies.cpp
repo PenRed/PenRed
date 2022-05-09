@@ -105,8 +105,8 @@ void pen_commonTallyCluster::configure(const wrapper_geometry* geometry,
     //Try to read tally output dir
     std::string tallyOutDir;
     if(tallySec.read("outputdir",tallyOutDir) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("commonTallyCluster: configure: Warning: unable to read field %s/outputdir. Assumed default output dir path ./\n",tallyNames[i].c_str());
+      if(verbose > 2){
+	printf("commonTallyCluster: configure: Warning: Unable to read field %s/outputdir. Assumed default output dir path ./\n",tallyNames[i].c_str());
       }
       tallyOutDir.clear();
     }
