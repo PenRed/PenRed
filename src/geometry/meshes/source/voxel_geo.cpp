@@ -568,7 +568,7 @@ void pen_voxelGeo::stepInMesh(pen_particleState& state,
 		  DS,ivox,ix,DSEF,DSTOT,NCROSS,state)){
 	//Particle cross an interface or consumed the step
           if(state.IBODY == 0) //The particle escapes to the enclosure
-              state.X = std::signbit(ix) ? -1.0e-6 : Mdx + 1.0e-6;
+              state.X = ix < 0 ? -1.0e-6 : Mdx + 1.0e-6;
 	return;
       }
 
@@ -584,7 +584,7 @@ void pen_voxelGeo::stepInMesh(pen_particleState& state,
 		  DS,ivox,iy,DSEF,DSTOT,NCROSS,state)){
 	//Particle cross an interface or consumed the step
           if(state.IBODY == 0) //The particle escapes to the enclosure
-              state.Y = std::signbit(iy) ? -1.0e-6 : Mdy + 1.0e-6;          
+              state.Y = iy < 0 ? -1.0e-6 : Mdy + 1.0e-6;          
 	return;
       }
       //Update distances until next walls
@@ -599,7 +599,7 @@ void pen_voxelGeo::stepInMesh(pen_particleState& state,
 		  DS,ivox,iz,DSEF,DSTOT,NCROSS,state)){
 	//Particle cross an interface or consumed the step
           if(state.IBODY == 0) //The particle escapes to the enclosure
-              state.Z = std::signbit(iz) ? -1.0e-6 : Mdz + 1.0e-6;                    
+              state.Z = iz < 0 ? -1.0e-6 : Mdz + 1.0e-6;                    
 	return;
       }
       
