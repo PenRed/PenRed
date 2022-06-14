@@ -43,17 +43,17 @@ sources/generic/source1/kpar "electron"
 
 sources/generic/source1/direction/type "SOLID_ANGLE"
 
-sources/generic/source1/direction/direction/u 0.0
-sources/generic/source1/direction/direction/v 0.0
-sources/generic/source1/direction/direction/w 1.0
+sources/generic/source1/direction/u 0.0
+sources/generic/source1/direction/v 0.0
+sources/generic/source1/direction/w 1.0
 
 # Set theta
-sources/generic/source1/direction/polar-oberture/theta0 0.0
-sources/generic/source1/direction/polar-oberture/theta1 180.0
+sources/generic/source1/direction/theta0 0.0
+sources/generic/source1/direction/theta1 180.0
 
 # Set phi
-sources/generic/source1/direction/azimutal-oberture/phi0 0.0
-sources/generic/source1/direction/azimutal-oberture/dphi 360.0
+sources/generic/source1/direction/phi0 0.0
+sources/generic/source1/direction/dphi 360.0
 
 # Energy sampling
 #########################
@@ -136,6 +136,9 @@ tallies/matEDep/nmat 44
 geometry/type "DICOM"
 geometry/directory "data/Dicom/CT"
 geometry/processed-geo-file "outputs/report.geo"
+
+geometry/enclosure-margin 20
+geometry/enclosure-material 1
 
 geometry/isocenter/x 0.0
 geometry/isocenter/y 0.0
@@ -842,7 +845,7 @@ materials/MetallImplants_42/filename "data/Materials/MetallImplants_42.mat"
 # SIMULATION PARAMETERS #
 #########################
 
-simulation/threads 16
+simulation/threads 4
 simulation/thread-affinity true 
 simulation/seed1 1 
 simulation/seed2 1 

@@ -187,6 +187,62 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
       }
     }
   }
+  
+  // Read enclosure information
+  ///////////////////////////////
+  double dr;
+  if(config.read("enclosure-margin",dr) != INTDATA_SUCCESS){
+      if(verbose > 0){
+        printf("pen_voxelGeo:configure:Error: Enclosure margin value"
+        " 'enclosure-margin' not found. "
+        "Double expected.\n");
+      }
+      err++;
+  }else{
+      if(dr < 1.0e-6){
+          if(verbose > 0){
+            printf("pen_voxelGeo:configure:Error: Enclosure "
+            "margin value must be greater than zero\n");
+          }
+          err++;
+      }
+      
+    double dx05 = dx/2.0+dr;
+    double dy05 = dy/2.0+dr;
+    double dz05 = dz/2.0+dr;
+    
+    enclosureR2 = dx05*dx05 + dy05*dy05 + dz05*dz05;
+    
+    enclosureOx = dx/2.0;
+    enclosureOy = dy/2.0;
+    enclosureOz = dz/2.0;
+  }
+  
+  // Material enclosure
+   //**********
+	
+    //Read material ID
+    int auxMat;
+    if(config.read("enclosure-material",auxMat) != INTDATA_SUCCESS){
+      if(verbose > 0){
+        printf("pen_dicomGeo:configure: Error: Unable to read enclosure material ID for material. Integer expecteed");
+      }
+      err++;
+    }
+    //Check material ID
+    if(auxMat < 1 || auxMat > (int)constants::MAXMAT){
+      if(verbose > 0){
+        printf("pen_dicomGeo:configure: Error: Invalid ID specified for enclosure material.");
+        printf("                         ID: %d\n",aux);
+        printf("Maximum number of materials: %d\n",constants::MAXMAT);
+      }
+      err++;
+    }
+    else
+        enclosureMat=auxMat;
+    //Create a interface between the enclosure and the mesh
+    //assigning a detector to the enclosure
+    KDET[0] = 1;
 
   // Check print image option
   //***************************
@@ -224,8 +280,29 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
   return err;
 }
 
-
 void pen_voxelGeo::locate(pen_particleState& state) const{
+    
+    //Check if is in the voxel mesh
+    locateInMesh(state);
+    if(state.MAT == 0){
+        double dxt = state.X-enclosureOx;
+        double dyt = state.Y-enclosureOy;
+        double dzt = state.Z-enclosureOz;
+        //Is not in the mesh, check if is in the enclosure
+        if(dxt*dxt + dyt*dyt + dzt*dzt < enclosureR2){
+            state.MAT = enclosureMat;
+            state.IBODY = 0;
+        }
+        else{
+            state.MAT = 0;
+            state.IBODY = constants::MAXMAT+1;
+        }
+    }
+    
+}
+
+
+void pen_voxelGeo::locateInMesh(pen_particleState& state) const{
 
   long int ix, iy, iz;
 
@@ -237,7 +314,7 @@ void pen_voxelGeo::locate(pen_particleState& state) const{
      iy < 0 || (long unsigned)iy >= ny ||
      iz < 0 || (long unsigned)iz >= nz){
     //Particle scapes from geometry mesh
-    state.IBODY = constants::MAXMAT;
+    state.IBODY = constants::MAXMAT+1;
     state.MAT = 0;
   }
   else{
@@ -245,7 +322,7 @@ void pen_voxelGeo::locate(pen_particleState& state) const{
     //index and its material
     long int index = iz*nxy + iy*nx + ix;
     state.MAT = mesh[index].MATER;
-    state.IBODY = state.MAT-1;
+    state.IBODY = state.MAT;
   }
   
 }
@@ -255,66 +332,141 @@ void pen_voxelGeo::step(pen_particleState& state,
 			double &DSEF,
 			double &DSTOT,
 			int &NCROSS) const{
-  
-  //Check if particle is out of geometry mesh
-  if(state.MAT == 0){
     
-    //Check if the particle reaches the mesh in
-    //each axis
-    double dsxIn, dsyIn, dszIn;
-    double dsxOut, dsyOut, dszOut;
-    if(!moveIn(state.X, state.U, dsxIn, dsxOut, Mdx) ||
-       !moveIn(state.Y, state.V, dsyIn, dsyOut, Mdy) ||
-       !moveIn(state.Z, state.W, dszIn, dszOut, Mdz)){
-    
-      state.IBODY = constants::MAXMAT;
-      state.MAT = 0;
-      DSEF = 1.0e35;
-      DSTOT = 1.0e35;
-      NCROSS = 0; //No interface crossed
-
-      move(inf,state);
-      return;
-    }
-
-    //Move the particle the required distance to reach
-    //geometry mesh on all axis.
-    double ds2allIn = std::max(std::max(dsxIn,dsyIn),dszIn);
-    //Check if the particle go out of the mesh when this distance is traveled
-    if(ds2allIn > 0.0){
-      double ds2someOut = std::min(std::min(dsxOut,dsyOut),dszOut);
-      if(ds2allIn >= ds2someOut){
-	//The particle doesn't reaches the mesh
-	state.IBODY = constants::MAXMAT;
-	state.MAT = 0;
-	DSEF = 1.0e35;
-	DSTOT = 1.0e35;
-	NCROSS = 0; //No interface crossed
-
-	move(inf,state);	
-	return;
-      }
-    }    
-    move(ds2allIn,state);
-
-    //Get voxel index and material 
-    locate(state);
+    //Check if the particle is outside the enclosure
     if(state.MAT == 0){
-      DSEF = 1.0e35;
-      DSTOT = 1.0e35;
-      NCROSS = 0; //No interface crossed
+        
+        //Calculate the cross points with the enclosure
+        double t1,t2;
+        crossEnclosure(state.X,state.Y,state.Z,
+                       state.U,state.V,state.W,
+                       t1,t2);
+        
+        //Check if can cross
+        if((std::signbit(t1) && std::signbit(t2)) ||
+            fabs(t1 - t2) < 1.0e-6 ){
+            //Don't cross or the sphere is crossed in a single point. 
+            //Thus the particle scapes
 
-      move(inf,state);
-      return;      
+            state.MAT = 0;
+            state.IBODY = constants::MAXMAT+1;
+            
+            DSEF = 1.0e35;
+            DSTOT = 1.0e35;
+            NCROSS = 0; //No interface crossed
+
+            move(inf,state);
+            return;
+        }
+        
+        //The particle reaches the enclosure
+        state.MAT = enclosureMat;
+        state.IBODY = 0;
+        NCROSS = 1;
+        //Get the closest point
+        if(t1 < t2){
+            DSEF = DSTOT = t1;
+            move(t1,state);            
+        }else{
+            DSEF = DSTOT = t2;
+            move(t2,state);            
+        }
+        
+        if(std::signbit(DSEF)){
+            printf("pen_voxelGeo:step: Unexpected Error. "
+            "Negative DSEF obtained, revise the voxel step code\n");
+        }
+        return;        
     }
     
-    NCROSS = 1; //Interface crossed
-    DSEF = ds2allIn; //Distance traveled in void
-    DSTOT = ds2allIn; //Total distance traveled
+    //Check if the particle is inside the enclosure,
+    //but not in the mesh
+    if(state.IBODY == 0){
+        //Is inside the enclosure, get distance to cross the mesh
+        DSEF = DSTOT = 0.0;
+        double ds2mesh;
+        if(crossMesh(state.X,state.Y,state.Z,
+                       state.U,state.V,state.W,
+                       ds2mesh)){
+            //Aim to the mesh
+            if(DS < ds2mesh){
+                
+                //No reaches the mesh
+                move(DS,state);
+                DSEF = DS;
+                DSTOT = DS;
+                NCROSS = 0; //No interface crossed
+                return;
+            }
+            
+            //Reaches the mesh
+            move(ds2mesh,state);
+            
+            //Locate the particle in the mesh
+            locate(state);
+            if(state.IBODY != 0){
+                //Has been located in the mesh
+                DSEF = ds2mesh;
+                DSTOT = ds2mesh;
+                NCROSS = 1;
+                return;      
+            }
+            
+            //Still remains in the enclosure, move ahead
+            DS -= ds2mesh; //Remove traveled distance
+            DSEF += ds2mesh;
+            DSTOT += ds2mesh;
+        }
+        
+        //The mesh has not been crossed, move inside the enclosure
+
+        //Calculate the cross points with the enclosure
+        double t1,t2;
+        crossEnclosure(state.X,state.Y,state.Z,
+                        state.U,state.V,state.W,
+                        t1,t2);            
+            
+        //As we are inside the enclosure, only 
+        //one point could be positive
+        double ds2enclosure;
+        if(t1 > t2)
+            ds2enclosure = t1;
+        else
+            ds2enclosure = t2;
+        
+        //Check the enclosure limit
+        if(ds2enclosure > DS){
+            //The enclosure limit has not been reached, the
+            //particle remains inside
+            move(DS,state);
+            DSEF += DS;
+            DSTOT += DS;
+            NCROSS = 0;            
+        } else{
+            //The enclosure limit has been reached, the particle
+            //scapes to void
+            move(inf,state);
+            DSEF += ds2enclosure;
+            DSTOT = 1.0e35;
+            NCROSS = 1;
+            
+            state.MAT = 0;
+            state.IBODY = constants::MAXMAT+1;
+        }
+        return;      
+    }
     
-    return;
-  }
+    //The particle is moving inside the mesh
+    stepInMesh(state,DS,DSEF,DSTOT,NCROSS);
+}
+
+void pen_voxelGeo::stepInMesh(pen_particleState& state,
+			double DS,
+			double &DSEF,
+			double &DSTOT,
+			int &NCROSS) const{
   
+                
   //Get voxel index for x, y and z axis
   long int ix, iy, iz;
   unsigned long ivox;
@@ -415,6 +567,8 @@ void pen_voxelGeo::step(pen_particleState& state,
       if(crossVox(ds_x,imat,nx,voxInc_x,voxIncGlob_x,
 		  DS,ivox,ix,DSEF,DSTOT,NCROSS,state)){
 	//Particle cross an interface or consumed the step
+          if(state.IBODY == 0) //The particle escapes to the enclosure
+              state.X = ix < 0 ? -1.0e-6 : Mdx + 1.0e-6;
 	return;
       }
 
@@ -429,6 +583,8 @@ void pen_voxelGeo::step(pen_particleState& state,
       if(crossVox(ds_y,imat,ny,voxInc_y,voxIncGlob_y,
 		  DS,ivox,iy,DSEF,DSTOT,NCROSS,state)){
 	//Particle cross an interface or consumed the step
+          if(state.IBODY == 0) //The particle escapes to the enclosure
+              state.Y = iy < 0 ? -1.0e-6 : Mdy + 1.0e-6;          
 	return;
       }
       //Update distances until next walls
@@ -442,6 +598,8 @@ void pen_voxelGeo::step(pen_particleState& state,
       if(crossVox(ds_z,imat,nz,voxInc_z,voxIncGlob_z,
 		  DS,ivox,iz,DSEF,DSTOT,NCROSS,state)){
 	//Particle cross an interface or consumed the step
+          if(state.IBODY == 0) //The particle escapes to the enclosure
+              state.Z = iz < 0 ? -1.0e-6 : Mdz + 1.0e-6;                    
 	return;
       }
       
@@ -527,7 +685,7 @@ int pen_voxelGeo::setVoxels(const unsigned nvox[3],
     }
     else{
       //The number of bodies is equal to
-      //the greater material index
+      //the greater material index plus one for the enclosure
       if(nBodies < mats[i]){
 	nBodies = mats[i];
       }
@@ -536,6 +694,9 @@ int pen_voxelGeo::setVoxels(const unsigned nvox[3],
     }
   }
   
+  //Add an extra body to allocate the enclosure
+  nBodies += 1;
+  
   return err;
   
 }
@@ -543,10 +704,10 @@ int pen_voxelGeo::setVoxels(const unsigned nvox[3],
 unsigned pen_voxelGeo::getIBody(const char* bname) const {
 
   int index = atoi(bname);
-  if(index < 1 || index > (int)nBodies)
-    return constants::MAXMAT;
+  if(index >= (int)nBodies)
+    return constants::MAXMAT+1;
   else
-    return unsigned(index-1);
+    return unsigned(index);
 }
 
 int pen_voxelGeo::loadData(const unsigned char* data,

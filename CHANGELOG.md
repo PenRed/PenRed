@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### To add
-- Mesh geometry simulation support
+- Triangular mesh geometry simulation support
+
+## [1.5.2] - 2022-06-14
+
+### Added
+- Enclosures to mesh based geometries to consider backscattering effects at boundaries.
+
+### Changed
+- Mesh based geometries IBODY 0 is reserved for the enclosure
+- Body identifiers of mesh based geometries are now equal to the material index, i.e. (IBODY = MAT) instead of (IBODY = MAT + 1)
 
 ## [1.5.1] - 2022-05-03
 

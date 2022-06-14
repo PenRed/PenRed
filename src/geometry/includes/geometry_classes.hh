@@ -189,9 +189,11 @@ protected:
   unsigned long meshDim;
   unsigned long nElements;
 
-  double DSMAX[constants::MAXMAT];
-  unsigned KDET[constants::MAXMAT];
+  double DSMAX[constants::MAXMAT+1];  //+1 for the enclosure
+  unsigned KDET[constants::MAXMAT+1]; //+1 for the enclosure
   unsigned nBodies;
+  
+  unsigned enclosureMat;
   
   void clearMesh(){
     if(mesh != nullptr){
@@ -236,7 +238,7 @@ public:
 	printf("          To avoid this warning change the value of 'checkMesh' flag in abc_mesh class.\n");
       }
     }
-    for(unsigned i = 0; i < constants::MAXMAT; i++){
+    for(unsigned i = 0; i <= constants::MAXMAT; i++){
       DSMAX[i] = 1.0e35;
       KDET[i] = 0;
     }
@@ -254,9 +256,11 @@ public:
   }
 
   inline unsigned getMat(const unsigned ibody) const{
+    if(ibody == 0)
+        return enclosureMat;
     if(ibody >= nBodies)
       return 0;
-    return ibody+1;
+    return ibody;
   }
   
   inline double getDSMAX(const unsigned ibody) const{
@@ -282,6 +286,9 @@ public:
 	if(!used[matIndex])
 	  used[matIndex] = true;
     }
+    
+    //Add enclosure material as used
+    used[enclosureMat] = true;
   }
   virtual double getEabs(const unsigned /*index*/, const unsigned /*kpar*/) const{
     return 1.0e-15;

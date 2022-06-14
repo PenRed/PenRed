@@ -116,6 +116,9 @@ geometry/type "DICOM"
 geometry/directory "data/Dicom/CT"
 geometry/processed-geo-file "outputs/report.geo"
 
+geometry/enclosure-margin 20
+geometry/enclosure-material 1
+
 geometry/isocenter/x 0.0
 geometry/isocenter/y 0.0
 geometry/isocenter/z 0.0
@@ -821,7 +824,7 @@ materials/MetallImplants_42/filename "data/Materials/MetallImplants_42.mat"
 # SIMULATION PARAMETERS #
 #########################
 
-simulation/threads 1
+simulation/threads 4
 simulation/thread-affinity true 
 simulation/seed1 1 
 simulation/seed2 1 

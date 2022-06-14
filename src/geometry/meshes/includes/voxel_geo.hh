@@ -58,6 +58,10 @@ class pen_voxelGeo : public abc_mesh<pen_voxel>{
   double idx, idy, idz;
   //Geometry limits (low limits are 0,0,0 for each axy)
   double Mdx, Mdy, Mdz;
+  
+  //Enclosure variables
+  double enclosureR2;
+  double enclosureOx, enclosureOy, enclosureOz;
 
   void move(const double ds, pen_particleState& state) const;
   bool crossVox(const double ds,
@@ -97,12 +101,30 @@ public:
   virtual int configure(const pen_parserSection& config, const unsigned verbose);
 
   void locate(pen_particleState& state) const final override;
+  void locateInMesh(pen_particleState& state) const;
 
   void step(pen_particleState& state,
 	    double DS,
 	    double &DSEF,
 	    double &DSTOT,
 	    int &NCROSS) const final override;
+  void stepInMesh(pen_particleState& state,
+	    double DS,
+	    double &DSEF,
+	    double &DSTOT,
+	    int &NCROSS) const;
+        
+  void crossEnclosure(const double x, const double y, const double z,
+                      const double u, const double v, const double w,
+                      double &t1, double&t2) const;
+        
+  bool crossMesh(const double x,
+                 const double y,
+                 const double z,
+                 const double u,
+                 const double v,
+                 const double w,
+                 double& ds) const;  
   
   int setVoxels(const unsigned nvox[3],
 		const double size[3],
@@ -169,7 +191,7 @@ inline bool pen_voxelGeo::crossVox(const double ds,
       DSEF += remaining/mesh[ivox].densityFact;
       DSTOT = DSEF;
       // Update IBODY and material indexes
-      state.IBODY = imat-1;
+      state.IBODY = imat;
       state.MAT = imat;
 
       // Update position
@@ -185,13 +207,17 @@ inline bool pen_voxelGeo::crossVox(const double ds,
 
   iaxis += dvox1D;  // Update axis voxel index
   if(iaxis < 0 || iaxis >=(long int)nvoxAxis){ // Particle scapes from geometry	
+      
+    // Crossing the enclosure counts as an interface, regardless the
+    // material of the enclosure
     NCROSS = 1;
-    state.IBODY = constants::MAXMAT;
-    state.MAT = 0;
-    DSTOT = inf; //Particle scape, move it to "inf"
+    
+    state.IBODY = 0; //Go to enclosure
+    state.MAT = enclosureMat;
+    DSTOT = DSEF; //Particle scape to the enclosure
 
     // Update position
-    move(inf,state);
+    move(DSEF,state);
 	
     return true;
   }
@@ -201,7 +227,7 @@ inline bool pen_voxelGeo::crossVox(const double ds,
   unsigned vmat = mesh[ivox].MATER;
   if(imat != vmat){ //Material changed, finish step	
     NCROSS = 1;
-    state.IBODY = vmat-1;
+    state.IBODY = vmat;
     state.MAT = vmat;
     DSTOT = DSEF;
     
@@ -214,10 +240,78 @@ inline bool pen_voxelGeo::crossVox(const double ds,
   return false;
 }
 
-
 bool moveIn(double pos,
 	    const double dir,
 	    double& ds2in,
 	    double& ds2out,
 	    const double max);
+
+inline void pen_voxelGeo::crossEnclosure(const double x, 
+                                         const double y, 
+                                         const double z,
+                                         const double u,
+                                         const double v, 
+                                         const double w,
+                                         double &t1, double&t2) const{
+      
+      //Calculate the intersection points of the line with the enclosure
+      double dx0 = x-enclosureOx;
+      double dy0 = y-enclosureOy;
+      double dz0 = z-enclosureOz;
+      
+      double dx02 = dx0*dx0;
+      double dy02 = dy0*dy0;
+      double dz02 = dz0*dz0;
+      
+      double B05 = u*dx0 + v*dy0 + w*dz0;
+      double B052 = B05*B05;
+      double C = dx02 + dy02 + dz02 - enclosureR2;
+      
+      double disc = B052 - C;
+      if(std::signbit(disc)){
+          t1 = t2 = -1.0e35;
+          return;
+      }
+      disc = sqrt(disc);
+      
+      t1 = -B05 + disc;
+      t2 = -B05 - disc;
+      
+  }
+  
+inline bool pen_voxelGeo::crossMesh(const double x, 
+                                    const double y, 
+                                    const double z,
+                                    const double u,
+                                    const double v, 
+                                    const double w,
+                                    double& ds) const{
+        
+    //Check if the particle reaches the mesh in
+    //each axis
+    double dsxIn, dsyIn, dszIn;
+    double dsxOut, dsyOut, dszOut;
+    if(!moveIn(x, u, dsxIn, dsxOut, Mdx) ||
+       !moveIn(y, v, dsyIn, dsyOut, Mdy) ||
+       !moveIn(z, w, dszIn, dszOut, Mdz)){
+    
+      return false;
+    }
+
+    //Move the particle the required distance to reach
+    //geometry mesh on all axis.
+    double ds2allIn = std::max(std::max(dsxIn,dsyIn),dszIn);
+    //Check if the particle go out of the mesh when this distance is traveled
+    if(ds2allIn > 0.0){
+      double ds2someOut = std::min(std::min(dsxOut,dsyOut),dszOut);
+      if(ds2allIn >= ds2someOut){
+        return false;
+      }
+    }
+    
+    ds = ds2allIn;
+    
+    return true;
+}
+
 #endif

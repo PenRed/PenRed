@@ -724,6 +724,64 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
     return 9;
   }
 
+  // Read enclosure information
+  ///////////////////////////////
+  double dr;
+  if(config.read("enclosure-margin",dr) != INTDATA_SUCCESS){
+      if(verbose > 0){
+        printf("pen_voxelGeo:configure:Error: Enclosure margin value"
+        " 'enclosure-margin' not found. "
+        "Double expected.\n");
+      }
+      err++;
+  }else{
+      if(dr < 1.0e-6){
+          if(verbose > 0){
+            printf("pen_voxelGeo:configure:Error: Enclosure "
+            "margin value must be greater than zero\n");
+          }
+          err++;
+      }
+      
+    double dx05 = dx/2.0+dr;
+    double dy05 = dy/2.0+dr;
+    double dz05 = dz/2.0+dr;
+    
+    enclosureR2 = dx05*dx05 + dy05*dy05 + dz05*dz05;
+    
+    enclosureOx = dx/2.0;
+    enclosureOy = dy/2.0;
+    enclosureOz = dz/2.0;
+  }  
+  
+  
+  
+   // Material enclosure
+   //**********
+	
+    //Read material ID
+    int auxMat;
+    if(config.read("enclosure-material",auxMat) != INTDATA_SUCCESS){
+      if(verbose > 0){
+        printf("pen_dicomGeo:configure: Error: Unable to read enclosure material ID for material. Integer expecteed");
+      }
+      err++;
+    }
+    //Check material ID
+    if(auxMat < 1 || auxMat > (int)constants::MAXMAT){
+      if(verbose > 0){
+        printf("pen_dicomGeo:configure: Error: Invalid ID specified for enclosure material.");
+        printf("                         ID: %d\n",auxMat);
+        printf("Maximum number of materials: %d\n",constants::MAXMAT);
+      }
+      err++;
+    }
+    else
+        enclosureMat=auxMat;
+    //Create a interface between the enclosure and the mesh
+    //assigning a detector to the enclosure
+    KDET[0] = 1;  
+  
   // Check print image option
   //***************************
   bool toASCII = true;
