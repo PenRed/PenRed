@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2021 Universitat de València - UV
-//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2022 Universitat de València - UV
+//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -375,6 +375,42 @@ int pen_SphericalDoseDistrib::configure(const wrapper_geometry& geometry,
   dump.toDump(&nbins,1);  
     
     
+  //Register data to create images
+  unsigned elements[] = {
+    static_cast<unsigned>(nr),
+    static_cast<unsigned>(ntheta),
+    static_cast<unsigned>(nphi)};
+  
+  float delements[] = {
+    static_cast<float>(dr),
+    static_cast<float>(dtheta),
+    static_cast<float>(dphi)};
+
+  // ** Calculate the origin
+  double origin[3];
+  // Add the mesh origin
+  origin[0] = rmin;
+  origin[1] = 0.0;
+  origin[2] = 0.0;
+
+  addImage<double>("spatialDose",3,elements,delements,origin,
+		   [=](unsigned long long nhist,
+		       size_t i, double& sigma) -> double{
+
+		     const double dhists = static_cast<double>(nhist);
+		     const double fact = imass[i];             
+
+		     const double q = edep[i]/dhists;
+		     sigma = edep2[i]/dhists-q*q;
+		     if(sigma > 0.0){
+		       sigma = fact*sqrt(sigma/dhists);
+		     }
+		     else{
+		       sigma = 0.0;
+		     }
+		     
+		     return q*fact;
+		   });
     
   return 0;   
     

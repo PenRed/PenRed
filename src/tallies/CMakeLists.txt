@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019-2021 Universitat de València - UV
-#    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2022 Universitat de València - UV
+#    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -89,6 +89,7 @@ target_link_libraries(tallies pen_internalData)
 target_link_libraries(tallies pen_splittedFile)
 target_link_libraries(tallies pen_psf)
 target_link_libraries(tallies pen_grids)
+target_link_libraries(tallies pen_image)
 
 if(WITH_MULTI_THREADING)
     #Link thread libs

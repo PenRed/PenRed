@@ -68,6 +68,8 @@ CMAKE_DEPENDENT_OPTION(DICOM_KERNELS "Compile DICOM kernels utility" ON
                        "BUILD_UTILITIES;WITH_DICOM" OFF)
                        
 CMAKE_DEPENDENT_OPTION(MUTREN "Compile mutren" ON
+                       "BUILD_UTILITIES" OFF) 
+CMAKE_DEPENDENT_OPTION(VIEWERS "Compile viewers" ON
                        "BUILD_UTILITIES" OFF)                       
                        
 #       EXECUTABLES         #
@@ -413,3 +415,12 @@ if(MUTREN)
     )
 endif(MUTREN)
 #-----------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------
+#  VIEWERS
+#############################
+
+# bindings folder
+if(VIEWERS)
+    add_subdirectory(viewers)
+endif(VIEWERS)

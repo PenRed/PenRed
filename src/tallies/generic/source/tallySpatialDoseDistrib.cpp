@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2021 Universitat de València - UV
-//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2022 Universitat de València - UV
+//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -253,6 +253,11 @@ int pen_SpatialDoseDistrib::configure(const wrapper_geometry& geometry,
   //Clear previous configuration
   clear();
 
+  // ** Read if print depth dose is required
+  if(config.read("print-depthDose", printDepthDose) != INTDATA_SUCCESS){
+    printDepthDose = false;    
+  }
+  
   //**********************
   //* Material densities *
   //**********************
@@ -264,7 +269,7 @@ int pen_SpatialDoseDistrib::configure(const wrapper_geometry& geometry,
   
   int err;
   double xmax,ymax,zmax;
-
+  
   //*******
   //*  X  *
   //*******
@@ -530,8 +535,46 @@ int pen_SpatialDoseDistrib::configure(const wrapper_geometry& geometry,
   dump.toDump(edepth,nz);
   dump.toDump(edepth2,nz);
     
-    
-    
+  //Register data to create images
+  unsigned elements[] = {
+    static_cast<unsigned>(nx),
+    static_cast<unsigned>(ny),
+    static_cast<unsigned>(nz)};
+  
+  float delements[] = {
+    static_cast<float>(dx),
+    static_cast<float>(dy),
+    static_cast<float>(dz)};
+
+  // ** Calculate the origin
+  double origin[3];
+  // Get geometry offset
+  geometry.getOffset(origin);
+  // Add the mesh origin
+  origin[0] += xmin;
+  origin[1] += ymin;
+  origin[2] += zmin;
+
+  addImage<double>("spatialDoseDistrib",3,elements,delements,origin,
+		   [=](unsigned long long nhist,
+		       size_t i, double& sigma) -> double{
+
+		     const double dhists = static_cast<double>(nhist);
+		     const double fact = ivoxMass[i];
+		     const double q = edep[i]/dhists;
+		     sigma = edep2[i]/dhists - q*q;
+		     if(sigma > 0.0)
+		       {
+			 sigma = fact*sqrt(sigma/dhists);
+		       }
+		     else
+		       {
+			 sigma = 0.0;
+		       }
+		     
+		     return q*fact;
+		   });
+  
   return 0; 
     
             
@@ -644,54 +687,57 @@ void pen_SpatialDoseDistrib::saveData(const unsigned long long nhist) const{
   //* DEPTH DOSE DISTRIBUTION *
   //***************************
 
-  out = fopen("depth-dose.dat","w");
-  if (out == NULL)
-    {
-      printf("*********************************************\n");
-      printf("pen_SpatialDoseDistrib: Error: Cannot open output data file\n");
-      printf("*********************************************\n");
-      fclose(out);                            
-      return;                      
+  if(printDepthDose){
+  
+    out = fopen("depth-dose.dat","w");
+    if (out == NULL)
+      {
+	printf("*********************************************\n");
+	printf("pen_SpatialDoseDistrib: Error: Cannot open output data file\n");
+	printf("*********************************************\n");
+	fclose(out);                            
+	return;                      
+      }
+  
+    fprintf(out,"#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+    fprintf(out,"# [SECTION REPORT DEPTH DOSE DISTRIB]\n");
+    fprintf(out,"# Dose units are: eV/(g/cm^2) per history\n");
+
+    fprintf(out,"#\n");
+    fprintf(out,"# No. of Z bins:\n");
+    fprintf(out,"#  %d\n",nz);
+    fprintf(out,"# Min value for z(cm):\n");
+    fprintf(out,"#  %12.5E\n",zmin);
+    fprintf(out,"# Bin widths for z(cm):\n");
+    fprintf(out,"#  %12.5E\n",dz);
+    fprintf(out,"#\n");
+    fprintf(out,"#\n");
+    fprintf(out,"# ");
+    fprintf(out,"zBinIndex : zLow(cm) : zMiddle(cm) : ");
+    fprintf(out,"dose : +-2sigma\n");
+  
+    for(int k = 0; k < nz; k++){
+    
+      z = zmin+dz*static_cast<double>(k);
+      zmiddle = z+dz*0.5;
+      fprintf(out," %5d %12.5E %12.5E",k,z,zmiddle);
+    
+      q = edepth[k]*invn;
+      sigma = edepth2[k]*invn - q*q;
+      if(sigma > 0.0)
+	{
+	  sigma = sqrt(sigma*invn)*idz;
+	}
+      else
+	{
+	  sigma = 0.0;
+	}
+      q *= idz;
+      fprintf(out," %12.5E %7.1E\n",q,2.0*sigma);    
     }
-  
-  fprintf(out,"#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
-  fprintf(out,"# [SECTION REPORT DEPTH DOSE DISTRIB]\n");
-  fprintf(out,"# Dose units are: eV/(g/cm^2) per history\n");
 
-  fprintf(out,"#\n");
-  fprintf(out,"# No. of Z bins:\n");
-  fprintf(out,"#  %d\n",nz);
-  fprintf(out,"# Min value for z(cm):\n");
-  fprintf(out,"#  %12.5E\n",zmin);
-  fprintf(out,"# Bin widths for z(cm):\n");
-  fprintf(out,"#  %12.5E\n",dz);
-  fprintf(out,"#\n");
-  fprintf(out,"#\n");
-  fprintf(out,"# ");
-  fprintf(out,"zBinIndex : zLow(cm) : zMiddle(cm) : ");
-  fprintf(out,"dose : +-2sigma\n");
-  
-  for(int k = 0; k < nz; k++){
-    
-    z = zmin+dz*static_cast<double>(k);
-    zmiddle = z+dz*0.5;
-    fprintf(out," %5d %12.5E %12.5E",k,z,zmiddle);
-    
-    q = edepth[k]*invn;
-    sigma = edepth2[k]*invn - q*q;
-    if(sigma > 0.0)
-      {
-	sigma = sqrt(sigma*invn)*idz;
-      }
-    else
-      {
-	sigma = 0.0;
-      }
-    q *= idz;
-    fprintf(out," %12.5E %7.1E\n",q,2.0*sigma);    
+    fclose(out);
   }
-
-  fclose(out);
 }
  
  

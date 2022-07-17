@@ -1655,7 +1655,7 @@ void pen_tallyKermaTrackLength::tally_step(const unsigned long long nhist,
   }
 }
   
-int pen_tallyKermaTrackLength::configure(const wrapper_geometry& /*geometry*/,
+int pen_tallyKermaTrackLength::configure(const wrapper_geometry& geometry,
 				      const abc_material* const /*materials*/[constants::MAXMAT],
 				      const pen_parserSection& config,
 				      const unsigned verbose){
@@ -2372,6 +2372,120 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& /*geometry*/,
     dump.toDump(spherical,nbins);
     dump.toDump(spherical2,nbins);
   }  
+
+
+  //Register data to create images
+  if(activeCart){
+
+    unsigned elements[] = {
+      static_cast<unsigned>(nbinsCart.x),
+      static_cast<unsigned>(nbinsCart.y),
+      static_cast<unsigned>(nbinsCart.z)};
+  
+    float delements[] = {
+      static_cast<float>(dbinCart.x),
+      static_cast<float>(dbinCart.y),
+      static_cast<float>(dbinCart.z)};
+
+    // ** Calculate the origin
+    double origin[3];
+    // Get geometry offset
+    geometry.getOffset(origin);
+    // Add the mesh origin
+    origin[0] += minsCart.x;
+    origin[1] += minsCart.y;
+    origin[2] += minsCart.z;
+
+    addImage<double>("kermaTrackLength-cartesian",3,elements,delements,origin,
+		     [=](unsigned long long nhist,
+			 size_t i, double& sigma) -> double{
+
+		       const double dhists = static_cast<double>(nhist);
+
+		       double q = cartesian[i]/dhists;
+		       sigma = (cartesian2[i]/dhists - q*q);
+		       sigma = sigma > 0.0 ? sqrt(sigma/dhists) : 0.0;
+
+		       q /= volumeCart;
+		       sigma /= volumeCart;
+		       
+		       return q;
+		     });
+  }
+
+  if(activeCyl){
+    unsigned elements[] = {
+      static_cast<unsigned>(nbinsCyl.x),
+      static_cast<unsigned>(nbinsCyl.y),
+      static_cast<unsigned>(nbinsCyl.z)};
+  
+    float delements[] = {
+      static_cast<float>(dbinCyl.x),
+      static_cast<float>(dbinCyl.y),
+      static_cast<float>(dbinCyl.z)};
+
+    // ** Calculate the origin
+    double origin[3];
+    origin[0] = radCylmin;
+    origin[1] = 0.0;
+    origin[2] = zminCyl;
+
+    addImage<double>("kermaTrackLength-cylindrical",3,elements,delements,origin,
+		     [=](unsigned long long nhist,
+			 size_t i, double& sigma) -> double{
+
+		       const double dhists = static_cast<double>(nhist);
+		       const size_t ir = i % nbinsCyl.x;
+
+		       double q = cylindrical[i]/dhists;
+		       sigma = (cylindrical2[i]/dhists - q*q);
+		       sigma = sigma > 0.0 ? sqrt(sigma/dhists) : 0.0;
+		       
+		       const double volume = pvolumesCyl[ir];
+		       q /= volume;
+		       sigma /= volume;
+		       
+		       return q;
+		     });    
+  }
+
+  if(activeSph){
+
+    unsigned elements[] = {
+      static_cast<unsigned>(nbinsSph.x),
+      static_cast<unsigned>(nbinsSph.y),
+      static_cast<unsigned>(nbinsSph.z)};
+  
+    float delements[] = {
+      static_cast<float>(dbinSph.x),
+      static_cast<float>(dbinSph.y),
+      static_cast<float>(dbinSph.z)};
+
+    // ** Calculate the origin
+    double origin[3];
+    origin[0] = radSphmin;
+    origin[1] = 0.0;
+    origin[2] = 0.0;
+
+    addImage<double>("kermaTrackLength-spherical",3,elements,delements,origin,
+		     [=](unsigned long long nhist,
+			 size_t i, double& sigma) -> double{
+
+		       const double dhists = static_cast<double>(nhist);
+		       const size_t itheta = i % nbinsCyl.y;
+		       const size_t ir = i % nbinsCyl.x;
+
+		       double q = spherical[i]/dhists;
+		       sigma = (spherical2[i]/dhists - q*q);
+		       sigma = sigma > 0.0 ? sqrt(sigma/dhists) : 0.0;
+	  
+		       double volume = pvolumesSph[itheta+ir];
+		       q /= volume;
+		       sigma /= volume;
+		       
+		       return q;
+		     });    
+  }
   
   return 0;
 }

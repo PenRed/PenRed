@@ -31,32 +31,103 @@
 #include "CTsource.hh"
 
 void ct_specificSampler::skip(const unsigned long long dhists){
-  psf.skip(dhists);
+  if(!genericSource)
+    psf.skip(dhists);
 }
 
 int ct_specificSampler::configure(double& Emax,
-				  const abc_spatialSampler* /*pSpatial*/,
-				  const abc_directionSampler* /*pDirection*/,
-				  const abc_energySampler* /*pEnergy*/,
-				  const abc_timeSampler* /*pTime*/,
 				  const pen_parserSection& config,
 				  const unsigned verbose){
-
+  
   //First, initialize the phase space file sampler
   psf.setThread(getThread());
-  int err = psf.configure(Emax,nullptr,nullptr,nullptr,nullptr,config,verbose);
-  if(err != 0){
-    if(verbose > 0)
-      printf("ctSource:configure: Error: Unable to configure psf.\n"
-	     "               error code: %d\n",err);
-    return err;
+  
+  //Check if the CT source will use generic samplers or a psf
+  if(spatial() != nullptr || direction() != nullptr || energy() != nullptr || time() != nullptr){
+    //Generic samplers will be used
+    
+    genericSource = true;
+    if(spatial() == nullptr || direction() == nullptr || energy() == nullptr){
+      
+      if(verbose > 0){
+	printf("ctSource:configure: Error: Spatial, direction and energy sources are "
+	       "mandatory to use generic sources within the CT source. Specified generic sources:\n"
+	       " Spatial   : %s\n"
+	       " Direction : %s\n"
+	       " Energy    : %s\n"
+	       " Time      : %s\n",
+	       spatial() == nullptr ? "Null" : spatial()->readID(),
+	       direction() == nullptr ? "Null" : direction()->readID(),
+	       energy() == nullptr ? "Null" : energy()->readID(),
+	       time() == nullptr ? "Null" : time()->readID());
+      }
+      return 1;
+    }
+    
+    //All mandatory samplers have been specified, read the number of particles per history
+    
+    // Number of particles per history
+    //**********************************
+    int partPerHistAux;
+    int err = config.read("nSecondaries", partPerHistAux);
+    if(err != INTDATA_SUCCESS){
+      if(verbose > 0){
+	printf("ctSource:configure: Error: Unable to read 'nSecondaries' "
+	       "in configuration. Integer expected\n");
+      }
+      return -2;
+    }
+
+    if(partPerHistAux < 1){
+      if(verbose > 0){
+	printf("ctSource:configure: Error: The number of secondary "
+	       "particles per history must be greater than zero\n");
+      }
+      return -3;
+    }
+    
+    partPerHist = static_cast<unsigned int>(partPerHistAux);
+    
+    if(verbose > 1){
+      printf("\nNumber of secondary particles per history: %u\n",partPerHist);
+    }
+    
+  }
+  else{
+    
+    //No generic sampler specified, a psf source will be used
+    //genericSource = false;
+    
+    if(verbose > 1)
+      printf("CT with phase space file source enabled.\n");
+    
+    //Get psf subsection
+    pen_parserSection psfSection;
+    int err = config.readSubsection("psf",psfSection);
+    if(err != INTDATA_SUCCESS){
+      if(verbose > 0)
+	printf("ctSource:configure: Error: Unable to read 'psf' configuration section.\n"
+	       "               error code: %d\n",err);
+      return err;
+    }
+    
+    err = psf.configure(Emax,psfSection,verbose);
+    if(err != 0){
+      if(verbose > 0)
+	printf("ctSource:configure: Error: Unable to configure psf.\n"
+	       "               error code: %d\n",err);
+      return err;
+    }
+
+    if(verbose > 1)
+      printf("Phase space file source configured.\n");
+    
   }
 
-  if(verbose > 1)
-    printf("Phase space file source configured.\n");
+  //Continue with common CT configuration for both source types
 
   double  phi0, phif, dphi;
-  err = config.read("rad", r);
+  int err = config.read("rad", r);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
       printf("ctSource:configure: Error: Unable to read 'rad' in "
@@ -117,85 +188,11 @@ int ct_specificSampler::configure(double& Emax,
     printf("Number of total angular positions (projections):, \n");
     printf(" %lu \n\n",nphi);
   }
-
-  double errx, erry, errz;
-  double psfOrigin[3];
-  errx = config.read("psfx0",psfOrigin[0]);
-  erry = config.read("psfy0",psfOrigin[1]);
-  errz = config.read("psfz0",psfOrigin[2]);
-  
-
-  if(errx != INTDATA_SUCCESS ||
-     erry != INTDATA_SUCCESS ||
-     errz != INTDATA_SUCCESS){
-    if(verbose > 0)
-      printf("ctsource:configure:Error: Unable to read 'psfx0,psfy0,psfz0'. "
-	     " Doubles expected.\n");
-    return -6;
-  }
-  
-  double errDirx, errDiry, errDirz;
-  double psfOriginDir[3];
-  errDirx = config.read("psfDirx0",psfOriginDir[0]);
-  errDiry = config.read("psfDiry0",psfOriginDir[1]);
-  errDirz = config.read("psfDirz0",psfOriginDir[2]);
-  
-  if(errDirx != INTDATA_SUCCESS ||
-     errDiry != INTDATA_SUCCESS ||
-     errDirz != INTDATA_SUCCESS){
-    if(verbose > 0)
-      printf("ctsource:configure:Error: Unable to read 'psfDirx0,psfDiry0,psfDirz0'. "
-	     " Doubles expected.\n");
-    return -7;
-  }
-  
-  //Normalize direction of the PSF
-  double psfOriginDirModule = sqrt(pow(psfOriginDir[0],2) + pow(psfOriginDir[1],2) + pow(psfOriginDir[2],2));
-  
-  double psfOriginDirNorm[3];
-  psfOriginDirNorm[0] = psfOriginDir[0]/psfOriginDirModule;
-  psfOriginDirNorm[1] = psfOriginDir[1]/psfOriginDirModule;
-  psfOriginDirNorm[2] = psfOriginDir[2]/psfOriginDirModule;
-  
-  //thetaX=acos(-psfOriginDirNorm[0]/psfOriginDirModule);
-  
-  //Obtain polar and azimutal angle of the original PSF direction
-  if(fabs(psfOriginDirNorm[0]) > 1.0e-10 || fabs(psfOriginDirNorm[1]) > 1.0e-10)
-  {
-      //Azimutal
-      azim = atan2(psfOriginDirNorm[1],psfOriginDirNorm[0]);
-      if(std::signbit(azim))
-        azim += 2.0*M_PI;
-      
-      //Polar
-      polar=acos(psfOriginDirNorm[2]);
-  }
-  else
-  {
-      //Azimutal
-      azim = 0.0;
-      //Polar
-      if(fabs(psfOriginDirNorm[2]) < 1.0e-10)
-          polar = 0.0;
-      else
-      {
-          polar = acos(psfOriginDirNorm[2]);
-      }
-      
-  }
-  
-  //printf("%14.5E, %14.5E degrees \n\n",polar*180.0/M_PI, azim*180.0/M_PI);
-  
-  //Angles to rotate the vector of the PSF
-  polarRot = M_PI*0.5 - polar; //If polar > PI/2, the rotation will be negative
-  azimRot = - azim; //If azim > PI, the rotation will be negative
-
-  createRotationZYZ(azimRot,polarRot,M_PI,particleRot);
-  
+    
   double ctOrigin[3];
-  errx = config.read("CTx0",ctOrigin[0]);
-  erry = config.read("CTy0",ctOrigin[1]);
-  errz = config.read("CTz0",ctOrigin[2]);
+  int errx = config.read("CTx0",ctOrigin[0]);
+  int erry = config.read("CTy0",ctOrigin[1]);
+  int errz = config.read("CTz0",ctOrigin[2]);
 
   if(errx != INTDATA_SUCCESS ||
      erry != INTDATA_SUCCESS ||
@@ -204,25 +201,7 @@ int ct_specificSampler::configure(double& Emax,
       printf("ctsource:configure:Error: Unable to read 'CTx0,CTy0,CTz0'. "
 	     " Doubles expected.\n");
     return -8;
-  }  
-
-  //Calculate the total translation
-  // 1- Move particle of psf to origin (using psf Origin information)
-  part2psfOrigin.x = -psfOrigin[0];
-  part2psfOrigin.y = -psfOrigin[1];
-  part2psfOrigin.z = -psfOrigin[2];
-  
- if(verbose > 1){
-     printf("Translation values of the PSF particle to origin\n");
-     printf("(%12.5E, %12.5E, %12.5E) \n\n",part2psfOrigin.x,part2psfOrigin.y, part2psfOrigin.z);
- }
- 
-  if(verbose > 1){
-     printf("Normalized original direction of the PSF\n");
-     printf("(%12.5E, %12.5E, %12.5E) \n\n",psfOriginDirNorm[0],psfOriginDirNorm[1],psfOriginDirNorm[2]);
-     printf("Rotation needed for -x PSF direction, polar and azimutal angles\n");
-     printf("%14.5E, %14.5E degrees \n\n",polarRot*180.0/M_PI, azimRot*180.0/M_PI);
- }  
+  }
 
   //After the rotation, we need to move the psf to
   //the CT center:
@@ -232,9 +211,9 @@ int ct_specificSampler::configure(double& Emax,
   origin2CT.z = ctOrigin[2];
   
   
-    if(verbose > 1){
-      printf("Translation values of the PSF to the CT origin\n");
-      printf("(%12.5E, %12.5E, %12.5E) \n\n",origin2CT.x ,origin2CT.y, origin2CT.z);
+  if(verbose > 1){
+    printf("CT origin:\n");
+    printf("(%12.5E, %12.5E, %12.5E) \n\n",origin2CT.x ,origin2CT.y, origin2CT.z);
   }
   
   // Time window
@@ -258,6 +237,7 @@ int ct_specificSampler::configure(double& Emax,
     return -10;
   }
 
+  
   //pre-calculate all required rotation cosinus and sinus
   rotations.resize(nphi);
   for(size_t i = 0; i < nphi; ++i){
@@ -272,121 +252,152 @@ int ct_specificSampler::configure(double& Emax,
   //will not work properly
   savedDhist = 0;
   actualCTpos = 0;
-  actualState = 0;
+  //If a generic sampler is used, force the first sampled particle to be a new history
+  actualState = genericSource ? partPerHist : 0;
   
   return 0;  
 }
 
 void ct_specificSampler::sample(pen_particleState& state,
-				 pen_KPAR& genKpar,
-				 unsigned long long& dhist,
-				 pen_rand& random){
-
-    if(savedDhist == 0){
-        //Read first history
-        for(;;){
-            unsigned long long localdhist = 0;
-            pen_particleState localstate;
-            pen_KPAR localgenKpar;
-            psf.sample(localstate,localgenKpar,localdhist,random);
-            if(localdhist != 0 || localgenKpar == ALWAYS_AT_END){
-                nextHistFirstState.first  = localstate;
-                nextHistFirstState.second = localgenKpar;
-                savedDhist = localdhist;
-                if(savedDhist == 0)
-                    savedDhist = 1;
-                break;
-            }
-            else{
-                histStates.push_back(
-                    std::pair<pen_particleState,pen_KPAR>
-                    (localstate,localgenKpar));
-            }
-        }
+				pen_KPAR& genKpar,
+				unsigned long long& dhist,
+				pen_rand& random){
+  
+  //Check if the source is using a generic or a psf sampler
+  if(genericSource){
+      
+    //Generic source      
+    sampleGeneric(state, random);
+    state.ILB[0] = 2; //Flag particles as secondaries
+      
+    //Check if the number of particles sampled in this history reaches the limit
+    if(actualState >= partPerHist){
+      //Increase history number
+      dhist = 1;
+      //Increment CT position
+      ++actualCTpos;
+      if(actualCTpos >= nphi){
+	actualCTpos = 0;
+      }
+      //Reset number of particles sampled in this history
+      actualState = 0;
     }
-  //First, get a particle from buffer
-  if(actualState < histStates.size()){
+    else{
+      dhist = 0;
+    }
+    //Increase number of particles sampled in this history
+    ++actualState;
+      
+  }
+  else{
+      
+    //PSF sources. In this sampling method, each history will be simulated on each CT position
+      
+    //Check if no history increment has been saved, i.e. the next history must be read
+    if(savedDhist == 0){
+      //Read all particles belonging to the next history
+      for(;;){
+	unsigned long long localdhist = 0;
+	pen_particleState localstate;
+	pen_KPAR localgenKpar;
+	psf.sample(localstate,localgenKpar,localdhist,random);
+	      
+	//Check if the history or the psf ends
+	if(localdhist != 0 || localgenKpar == ALWAYS_AT_END){
+
+	  //Check if the buffer is empty
+	  if(histStates.size() == 0){
+	    //The buffer is empty because the first psf particle
+	    //skips one or more histories. Save that new history
+	    histStates.push_back(std::pair<pen_particleState,pen_KPAR>
+				 (localstate,localgenKpar));
+	    continue; //Continue to read the whole history
+	    
+	  }
+	  
+	  //Save the first state of the next history, because has been already read
+	  nextHistFirstState.first  = localstate;
+	  nextHistFirstState.second = localgenKpar;
+	  //Save the history increment to be applied on history finish
+	  savedDhist = localdhist;
+	  if(savedDhist == 0)
+	    savedDhist = 1;
+	  break;
+	}
+	else{
+	  //Save particle state in the buffer and read the next state
+	  histStates.push_back(
+			       std::pair<pen_particleState,pen_KPAR>
+			       (localstate,localgenKpar));
+	}
+      }
+    }
+      
+    //Get the next particle state from the buffer
+    if(actualState < histStates.size()){
       //Get next state
       state   = histStates[actualState].first;
       genKpar = histStates[actualState].second;
       dhist = 0;
       ++actualState;
-  }
-  else{
-      //Increment CT position
+    }
+    else{
+      //All states in the buffer have been simulated on this
+      //CT position. Therefore, increase the CT position
       ++actualCTpos;
       dhist = savedDhist;
+      //Check if we are on the last CT position
       if(actualCTpos < nphi){
-          //Change projection and reset buffer read
-          state   = histStates[0].first;
-          genKpar = histStates[0].second;
-          actualState = 1;
+	//Change projection and reset buffer read
+	state   = histStates[0].first;
+	genKpar = histStates[0].second;
+	actualState = 1;
       }
       else{
-        //Finished buffer and projections, get next hist first state
-        if(nextHistFirstState.second == ALWAYS_AT_END){
-            genKpar = ALWAYS_AT_END;
-            return;
-        }
-        state   = nextHistFirstState.first;
-        genKpar = nextHistFirstState.second;
+	//Finished buffer and projections, get next hist first state
+	if(nextHistFirstState.second == ALWAYS_AT_END){
+	  //The psf end has been reached, finish the sampling
+	  genKpar = ALWAYS_AT_END;
+	  return;
+	}
+	    
+	//The next history must be read, return the first history state and read the
+	//whole history on the next sample call
+	state   = nextHistFirstState.first;
+	genKpar = nextHistFirstState.second;
 
-        //Clear previous buffer
-        histStates.clear();
-        //Add next hist first state
-        histStates.push_back(nextHistFirstState);
-        
-        actualState = 1;        
-        savedDhist = 0;
-        actualCTpos = 0;
+	//Clear previous buffer
+	histStates.clear();
+	//Add next hist first state
+	histStates.push_back(nextHistFirstState);
+	    
+	//Reset sampling state values
+	actualState = 1;        
+	savedDhist = 0;
+	actualCTpos = 0;
       }
+    }
+      
   }
-  
+    
+  //Once the particle state has been read/sampled, rotate and translate it to fit the CT movement
+    
   //Get the CT position
   const unsigned long CTpos = actualCTpos;
 
   //Add the corresponding time
   state.PAGE += tmin+CTpos*dt;
   state.LAGE = true;
-  
-  //printf(out,"#CTpos = %lu\n", CTpos);
-  
-  //printf(out,"#Original state:   state.X   state.Y   state.Z    state.U    state.V    state.W\n");
-  //printf(out,"                  %14.5E    %14.5E    %14.5E     %14.5E    %14.5E    %14.5E\n", state.X, state.Y, state.Z,  state.U, state.V, state.W);
-  
-  
-  //Apply the corresponding translations and rotations to the particle
-  //First, move it to the psf center 
-  part2psfOrigin.translate(state);
-  
-
-  
-  //Apply the corresponding rotation in y axis due the angle between x direction
-  //of the psf and their module
-  double pos[3] = {state.X,state.Y,state.Z};
-  double dir[3] = {state.U,state.V,state.W};
-  matmul3D(particleRot,pos);
-  matmul3D(particleRot,dir);
-
-  state.X = pos[0];
-  state.Y = pos[1];
-  state.Z = pos[2];
-
-  state.U = dir[0];
-  state.V = dir[1];
-  state.W = dir[2];
-  
+      
   //Apply the corresponding translation to R x+=r
   state.X += r;
-  
   
   //Apply the corresponding rotation according to CT position
   rotations[CTpos].rotate(state);
 
-  
-  
   //Finally, move the particle to the CT
   origin2CT.translate(state);
+
 }
 
 REGISTER_SPECIFIC_SAMPLER(ct_specificSampler,pen_particleState, CT)

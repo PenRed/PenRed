@@ -342,7 +342,7 @@ public:
   
   inline const double* readImage() const {return dicomImage;}
   inline const int* readContour() const {return voxelContour;}
-  inline const std::vector<std::vector<unsigned char>> readContourMasks() const{
+  inline const std::vector<std::vector<unsigned char>>& readContourMasks() const{
     return contourMasks;
   }
 
@@ -373,6 +373,7 @@ public:
 
   int printContours(const char* filename) const;
   int printContourMasks(const char* filename) const;
+  int printContourMasksMHD(const char* filename) const;
   int printSeeds(const char* filename) const;
   int printImage(const char* filename) const;
   int printContourVox(const char* filename) const;

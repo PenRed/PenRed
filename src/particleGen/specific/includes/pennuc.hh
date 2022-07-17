@@ -225,10 +225,6 @@ class pennuc_specificSampler : public abc_specificSampler<pen_particleState>{
 			     lastMETAST(0),LAGE(false),sourceMaterial(0),sourceBody(-1),geometry(nullptr){}
   
   int configure(double& Emax,
-		const abc_spatialSampler* pSpatial,
-		const abc_directionSampler* /*pDirection*/,
-		const abc_energySampler* /*pEnergy*/,
-		const abc_timeSampler* /*pTime*/,
 		const pen_parserSection& config,
 		const unsigned verbose);
 

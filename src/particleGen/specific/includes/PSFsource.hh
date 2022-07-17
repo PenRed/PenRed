@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2021 Universitat de València - UV
-//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2022 Universitat de València - UV
+//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -114,15 +114,11 @@ class psf_specificSampler : public abc_specificSampler<pen_particleState>{
   void sample(pen_particleState& state,
 	      pen_KPAR& genKpar,
 	      unsigned long long& dhist,
-	      pen_rand& /*random*/);
+	      pen_rand& random);
   
   int configure(double& Emax,
-		const abc_spatialSampler* /*pSpatial*/,
-		const abc_directionSampler* /*pDirection*/,
-		const abc_energySampler* /*pEnergy*/,
-		const abc_timeSampler* /*pTime*/,
-		const pen_parserSection& /*config*/,
-		const unsigned /*verbose*/);
+		const pen_parserSection& config,
+		const unsigned verbose);
 
   ~psf_specificSampler(){
     if(buffer != nullptr){

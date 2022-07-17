@@ -70,11 +70,7 @@ class ct_specificSampler : public abc_specificSampler<pen_particleState>{
   double polarRot, azimRot;
   double azim, polar, r;
 
-  //CTsource::trans psf2originRing;
-  CTsource::trans part2psfOrigin;
   CTsource::trans origin2CT;
-  //CTsource::rotz particleRotPolar;
-  double particleRot[9];
   
   std::vector<CTsource::rotz> rotations;
   std::vector<std::pair<pen_particleState,pen_KPAR>> histStates;
@@ -83,18 +79,17 @@ class ct_specificSampler : public abc_specificSampler<pen_particleState>{
   unsigned long actualCTpos;
   size_t actualState;
   
+  unsigned partPerHist;
+  bool genericSource;
+  
 public:
     
     
-ct_specificSampler() :abc_specificSampler<pen_particleState>(USE_NONE){}    
+ct_specificSampler() :abc_specificSampler<pen_particleState>(USE_NONE), genericSource(false){}    
     
 void skip(const unsigned long long dhists);
     
 int configure(double& Emax,
-	      const abc_spatialSampler* /*pSpatial*/,
-	      const abc_directionSampler* /*pDirection*/,
-	      const abc_energySampler* /*pEnergy*/,
-	      const abc_timeSampler* /*pTime*/,
 	      const pen_parserSection& config,
 	      const unsigned verbose);  
 

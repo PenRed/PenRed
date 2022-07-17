@@ -39,12 +39,8 @@ void brachy_specificSampler::skip(const unsigned long long dhists){
 
 
 int brachy_specificSampler::configure(double& Emax,
-	      const abc_spatialSampler* /*pSpatial*/,
-	      const abc_directionSampler* /*pDirection*/,
-	      const abc_energySampler* /*pEnergy*/,
-	      const abc_timeSampler* /*pTime*/,
-	      const pen_parserSection& config,
-	      const unsigned verbose){
+				      const pen_parserSection& config,
+				      const unsigned verbose){
     
   //First, initialize the phase space file sampler
   psf.setThread(getThread());
@@ -59,7 +55,7 @@ int brachy_specificSampler::configure(double& Emax,
     return err;
   }
   
-  err = psf.configure(Emax,nullptr,nullptr,nullptr,nullptr,psfSection,verbose);
+  err = psf.configure(Emax,psfSection,verbose);
   if(err != 0){
     if(verbose > 0)
       printf("brachySource:configure: Error: Unable to configure psf.\n"

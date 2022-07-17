@@ -743,15 +743,17 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
           err++;
       }
       
-    double dx05 = dx/2.0+dr;
-    double dy05 = dy/2.0+dr;
-    double dz05 = dz/2.0+dr;
+    enclosureMargin = dr;
     
-    enclosureR2 = dx05*dx05 + dy05*dy05 + dz05*dz05;
-    
-    enclosureOx = dx/2.0;
-    enclosureOy = dy/2.0;
-    enclosureOz = dz/2.0;
+    //Precalculate enclosure high margins (+x,+y,+z)
+    enclosureXlimit = Mdx + dr;
+    enclosureYlimit = Mdy + dr;
+    enclosureZlimit = Mdz + dr;
+
+    //Precalculate the enclosure limits x,y,z moving it to the origin (0,0,0)
+    enclosureXlimit0 = enclosureXlimit + dr;
+    enclosureYlimit0 = enclosureYlimit + dr;
+    enclosureZlimit0 = enclosureZlimit + dr;
   }  
   
   
@@ -789,6 +791,11 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
     toASCII = false;
   }
 
+  bool mhdMasks = true;
+  if(config.read("mhd-masks",mhdMasks) != INTDATA_SUCCESS){
+    mhdMasks = false;
+  }  
+
   if(toASCII){
 
     std::string finalFilename;
@@ -801,9 +808,57 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
       dicom.printContours(finalFilename.c_str());
       finalFilename = OutputDirPath + std::string("dicomContourMask.dat");
       dicom.printContourVox(finalFilename.c_str());
-      finalFilename = OutputDirPath + std::string("dicomMask");
-      dicom.printContourMasks(finalFilename.c_str());
+      finalFilename = OutputDirPath + std::string("roi");
+      printContourMasks(finalFilename.c_str());
     }
+  }
+
+  if(mhdMasks){
+
+    unsigned nElements[3] = {
+      static_cast<unsigned>(dicom.getNX()),
+      static_cast<unsigned>(dicom.getNY()),
+      static_cast<unsigned>(dicom.getNZ())};
+    
+    float elementSizes[3] = {
+      static_cast<float>(dicom.getDX()),
+      static_cast<float>(dicom.getDY()),
+      static_cast<float>(dicom.getDZ())};
+    double origin[3];
+    getOffset(origin);
+    
+    size_t cont = 0;
+    for(const std::vector<unsigned char>& mask : dicom.readContourMasks()){
+
+      //Get contour name and remove white spaces
+      std::string name = dicom.contour(cont).name;
+      name.erase(std::remove(name.begin(),name.end(),' '),name.end());
+
+      std::string filename =
+	OutputDirPath + std::string("roi_") + name;
+
+      std::function<std::uint8_t(unsigned long long, size_t)> f =
+	[=, &mask](unsigned long long,
+		   size_t i) -> std::uint8_t{
+	  
+	  return static_cast<std::uint8_t>(mask[i]);
+	  
+	};
+      
+      pen_imageExporter exporter(f);
+
+      exporter.baseName = filename;
+      exporter.setDimensions(3,nElements,elementSizes);
+      exporter.setOrigin(origin);
+
+      exporter.exportImage(1,pen_imageExporter::formatTypes::MHD);
+      ++cont;
+    }
+  }
+
+  if(toASCII || mhdMasks){
+    std::string finalFilename = OutputDirPath + std::string("roi");
+    printContourMaskSummary(finalFilename.c_str());
   }
   
   configStatus = 0;
@@ -859,6 +914,166 @@ int pen_dicomGeo::printImage(const char* filename) const{
 
   return 0;
 }
+
+int pen_dicomGeo::printContourMasks(const char* filename) const{
+
+  if(filename == nullptr)
+    return PEN_DICOM_ERROR_NULL_FILENAME;
+
+  double voxVol = dicom.getVoxVol();
+
+  std::vector<std::vector<unsigned char>> contourMasks;
+  contourMasks = dicom.readContourMasks();
+
+  for(size_t imask = 0; imask < contourMasks.size(); ++imask){
+
+    //Get mask
+    const std::vector<unsigned char>& mask = contourMasks[imask];
+    
+    pen_contour contour;
+    contour = dicom.contour(imask);
+
+    //Create a file to store contour mask
+    std::string sfilename(filename);
+    sfilename.append("_");
+    //remove white spaces
+    std::string auxstr(contour.name.c_str());
+    auxstr.erase(std::remove(auxstr.begin(),auxstr.end(),' '),auxstr.end());
+    //sfilename.append(contours[imask].name.c_str());
+    sfilename.append(auxstr.c_str());
+    std::string sfilenameORIG=sfilename;
+    sfilename.append(".dat");
+    
+    FILE* OutMask = nullptr;
+    OutMask = fopen(sfilename.c_str(),"w");
+    if(OutMask == nullptr){
+      return PEN_DICOM_ERROR_CREATING_FILE;
+    }
+    
+    unsigned long nInner=std::accumulate(mask.begin(),mask.end(),static_cast<unsigned long>(0));
+    
+    //Count number of contour points
+    unsigned long nPoints = 0;
+
+    for(unsigned j = 0; j < contour.NPlanes(); j++)
+      {
+        nPoints += contour.nPoints(j);
+      }
+
+    long int nbin = dicom.getNVox();
+    double contMass = 0.0;
+    for(long int i = 0; i < nbin; ++i){
+      if(mask[i] == 1){
+        contMass += densities[mesh[i].MATER-1]*mesh[i].densityFact;
+      }
+    }    
+
+    fprintf(OutMask,"# PenRed MASK DATA\n");
+    fprintf(OutMask,"# Inner voxels are flagged with a '1' in the mask.\n"
+      "# Instead, outer voxels are flagged with a '0'.\n");
+    fprintf(OutMask,"#\n");
+    fprintf(OutMask,"# Contour Name:\n");    
+    fprintf(OutMask,"#    %s\n",contour.name.c_str());
+    fprintf(OutMask,"#\n");    
+    fprintf(OutMask,"# Number of voxels:\n");
+    fprintf(OutMask,"#    %lu\n",static_cast<unsigned long>(mask.size()));
+    fprintf(OutMask,"# Number of inner voxels:\n");
+    fprintf(OutMask,"#    %lu\n", nInner);    
+    fprintf(OutMask,"# Number contour points:\n");
+    fprintf(OutMask,"#    %lu\n", nPoints);    
+    fprintf(OutMask,"#\n");
+    fprintf(OutMask,"# Mass (g):\n");
+    fprintf(OutMask,"#    %E\n",
+      voxVol*contMass);
+    fprintf(OutMask,"#\n");
+    fprintf(OutMask,"# Volume (cm^3):\n");
+    fprintf(OutMask,"#    %E\n",
+      voxVol*static_cast<double>(nInner));
+    fprintf(OutMask,"#\n");
+    fprintf(OutMask,"# Mean density (g/cm^3):\n");
+    fprintf(OutMask,"#    %E\n",
+      contMass/static_cast<double>(nInner));
+    fprintf(OutMask,"#\n");
+    fprintf(OutMask,"# n voxel |  mask \n");
+    
+    for(size_t i = 0; i < mask.size(); ++i){
+      fprintf(OutMask,"  %7lu     %u\n",i,mask[i]);
+    }
+    
+    fprintf(OutMask,"#\n");
+    fprintf(OutMask,"# End of mask data\n");
+    fclose(OutMask);  
+
+  }
+    
+  return 0;
+}
+
+int pen_dicomGeo::printContourMaskSummary(const char* filename) const{
+
+  if(filename == nullptr)
+    return PEN_DICOM_ERROR_NULL_FILENAME;
+
+  std::string sfilenameSum(filename);
+  sfilenameSum.append("-summary.dat");
+    
+  FILE* OutSumMask = nullptr;
+  OutSumMask = fopen(sfilenameSum.c_str(),"w");
+  if(OutSumMask == nullptr){
+    return PEN_DICOM_ERROR_CREATING_FILE;
+  }
+
+  fprintf(OutSumMask,"# PenRed MASK SUMMARY\n");
+  fprintf(OutSumMask,"#\n");
+  fprintf(OutSumMask,"# Number of contours:\n");
+  fprintf(OutSumMask,"#    %lu\n",dicom.nContours());
+  fprintf(OutSumMask,"#\n");
+  fprintf(OutSumMask,"# Note that overlapping/contour priority is NOT taking into account.\n");
+  fprintf(OutSumMask,"#\n");
+  fprintf(OutSumMask,"# Name, number of voxels in contour, contour mass (g), contour volume (cm^3), average density (g/cm^3), number of contour points\n");
+  fprintf(OutSumMask,"#\n");
+
+  double voxVol = dicom.getVoxVol();
+
+  std::vector<std::vector<unsigned char>> contourMasks;
+  contourMasks = dicom.readContourMasks();
+
+  for(size_t imask = 0; imask < contourMasks.size(); ++imask){
+
+    //Get mask
+    const std::vector<unsigned char>& mask = contourMasks[imask];
+     
+    unsigned long nInner=std::accumulate(mask.begin(),mask.end(),static_cast<unsigned long>(0));
+        
+    //Count number of contour points
+    unsigned long nPoints = 0;
+    pen_contour contour;
+    contour = dicom.contour(imask);
+
+    for(unsigned j = 0; j < contour.NPlanes(); j++)
+      {
+        nPoints += contour.nPoints(j);
+      }
+
+    long int nbin = dicom.getNVox();
+    double contMass = 0.0;
+    for(long int i = 0; i < nbin; ++i){
+      if(mask[i] == 1){
+        contMass += densities[mesh[i].MATER-1]*mesh[i].densityFact;
+      }
+    }    
+
+    fprintf(OutSumMask,"#    Contour %li: %s %lu %.5E %.5E %.5E %ld\n",
+              imask, contour.name.c_str(), nInner,voxVol*contMass,
+              voxVol*static_cast<double>(nInner), contMass/static_cast<double>(nInner),
+              nPoints);
+  }
+  fprintf(OutSumMask,"#\n");
+  fclose(OutSumMask);  
+  
+  return 0;
+}
+
 
 
 REGISTER_GEOMETRY(pen_dicomGeo,DICOM)

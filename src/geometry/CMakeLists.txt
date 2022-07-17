@@ -61,6 +61,7 @@ target_link_libraries (pen_geos pen_internalData)
 target_link_libraries (pen_geos pen_aux)
 target_link_libraries (pen_geos pen_math)
 target_link_libraries (pen_geos pen_dump)
+target_link_libraries (pen_geos pen_image)
 
 #Check if DICOM option has been enabled
 if(WITH_DICOM)

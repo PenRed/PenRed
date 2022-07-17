@@ -95,11 +95,13 @@ void createRotationZYZ(const double omega, const double theta, const double phi,
   rotation[8] = ctheta;
 }
 
-void rollAlign(const double u,
-	       const double v,
-	       const double w,
-	       const double omega,
-	       double rotation[9]){
+double rollAlign(const double u,
+		 const double v,
+		 const double w,
+		 const double omega,
+		 double rotation[9],
+		 const double phiAux,
+		 const double threshold){
   //*******************************************************************
   //*    Computes the required rotation matrix to align the vector    *
   //*    (0,0,1) to the direction (u,v,w) with a initial Z rotation   *
@@ -120,12 +122,12 @@ void rollAlign(const double u,
   // sphi * stheta = v
   // ctheta = w
   
-  double somega,comega,stheta,ctheta,sphi,cphi;
+  double somega,comega,stheta,ctheta,sphi,cphi,phi;
   
   ctheta = w;
   
-  if(fabs(ctheta) < 0.99999999999){
-    double phi = atan2(v,u);
+  if(fabs(ctheta) < 1.0-threshold){
+    phi = atan2(v,u);
     cphi = cos(phi);
     sphi = sin(phi);
     
@@ -133,10 +135,12 @@ void rollAlign(const double u,
     //sphi = v/stheta;
   }
   else{
+    ctheta = std::copysign(1.0,ctheta);
     stheta = 0.0;
-    ctheta = 1.0;
-    cphi = 1.0;
-    sphi = 0.0;
+
+    phi = phiAux;
+    cphi = cos(phi);
+    sphi = sin(phi);
   }
   
   somega = sin(omega);
@@ -153,13 +157,17 @@ void rollAlign(const double u,
   rotation[6] = -stheta*comega;
   rotation[7] = stheta*somega;
   rotation[8] = ctheta;
+
+  return phi;
 }
 
-void rollAlignf(const float u,
-		const float v,
-		const float w,
-		const float omega,
-		float rotation[9]){
+float rollAlignf(const float u,
+		 const float v,
+		 const float w,
+		 const float omega,
+		 float rotation[9],
+		 const float phiAux,
+		 const float threshold){
   //*******************************************************************
   //*    Computes the required rotation matrix to align the vector    *
   //*    (0,0,1) to the direction (u,v,w) with a initial Z rotation   *
@@ -180,23 +188,26 @@ void rollAlignf(const float u,
   // sphi * stheta = v
   // ctheta = w
   
-  float somega,comega,stheta,ctheta,sphi,cphi;
+  float somega,comega,stheta,ctheta,sphi,cphi,phi;
   
   ctheta = w;
   
-  if(fabs(ctheta) < 0.99999999999){
-    float phi = atan2(v,u);
+  if(fabs(ctheta) < 1.0-threshold){
+    phi = atan2(v,u);
     cphi = cos(phi);
     sphi = sin(phi);
     
     stheta = fabs(cphi) > fabs(sphi) ? u/cphi : v/sphi;
     //sphi = v/stheta;
+    
   }
   else{
-    stheta = 0.0;
-    ctheta = 1.0;
-    cphi = 1.0;
-    sphi = 0.0;
+    ctheta = std::copysignf(1.0f,ctheta);
+    stheta = 0.0f;
+
+    phi = phiAux;
+    cphi = cos(phi);
+    sphi = sin(phi);
   }
   
   somega = sin(omega);
@@ -213,4 +224,6 @@ void rollAlignf(const float u,
   rotation[6] = -stheta*comega;
   rotation[7] = stheta*somega;
   rotation[8] = ctheta;
+
+  return phi;
 }

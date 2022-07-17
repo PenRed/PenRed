@@ -38,16 +38,20 @@ void matmul3D(const float A[9], float B[3]);
 
 void createRotationZYZ(const double omega, const double theta, const double phi, double rotation[9]);
 
-void rollAlign(const double u,
-	       const double v,
-	       const double w,
-	       const double omega,
-	       double rotation[9]);
+double rollAlign(const double u,
+		 const double v,
+		 const double w,
+		 const double omega,
+		 double rotation[9],
+		 const double phiAux = 0.0,
+		 const double threshold = 1.0e-2);
 
-void rollAlignf(const float u,
-		const float v,
-		const float w,
-		const float omega,
-		float rotation[9]);
+float rollAlignf(const float u,
+		 const float v,
+		 const float w,
+		 const float omega,
+		 float rotation[9],
+		 const float phiAux = 0.0,
+		 const float threshold = 1.0e-2);
 
 #endif

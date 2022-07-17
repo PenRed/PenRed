@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2020 Universitat de València - UV
-#    Copyright (C) 2020 Universitat Politècnica de València - UPV
+#    Copyright (C) 2021 Universitat de València - UV
+#    Copyright (C) 2021 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -24,12 +24,32 @@
 #
 #        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
 #        vicente.gimenez@uv.es (Vicente Giménez Gómez)
-#    
+#        sanolgi@upvnet.upv.es (Sandra Oliver Gil)
 #
 
-#LB bindings
-if(WITH_LB)
-    add_subdirectory(LB)
-endif(WITH_LB)
-#Viewers bindings
-add_subdirectory(viewers)
+
+
+#############################
+#  GEOMETRY VIEWERS
+#############################
+
+# Create geoView lib
+add_library(geoViewLib STATIC ${PROJECT_SOURCE_DIR}/utilities/viewers/geometry/source/pen_geoView.cpp)
+
+target_include_directories(geoViewLib PUBLIC ${PROJECT_SOURCE_DIR}/utilities/viewers/geometry/includes)
+
+#target libs
+target_link_libraries(geoViewLib pen_geos)
+
+
+# Create geoView executable
+add_executable(geoView ${PROJECT_SOURCE_DIR}/utilities/viewers/geometry/asciiView.cpp)
+
+#target libs
+target_link_libraries(geoView geoViewLib)
+
+# Install readMat executable
+install(
+    TARGETS geoView
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/viewers/geometry/geoView
+)

@@ -60,8 +60,9 @@ class pen_voxelGeo : public abc_mesh<pen_voxel>{
   double Mdx, Mdy, Mdz;
   
   //Enclosure variables
-  double enclosureR2;
-  double enclosureOx, enclosureOy, enclosureOz;
+  double enclosureMargin;
+  double enclosureXlimit, enclosureYlimit, enclosureZlimit;
+  double enclosureXlimit0, enclosureYlimit0, enclosureZlimit0;
 
   void move(const double ds, pen_particleState& state) const;
   bool crossVox(const double ds,
@@ -114,9 +115,13 @@ public:
 	    double &DSTOT,
 	    int &NCROSS) const;
         
-  void crossEnclosure(const double x, const double y, const double z,
+  bool enterEnclosure(const double x, const double y, const double z,
                       const double u, const double v, const double w,
-                      double &t1, double&t2) const;
+                      double &ds) const;
+
+  void exitEnclosure(const double x, const double y, const double z,
+		     const double u, const double v, const double w,
+		     double &ds) const;
         
   bool crossMesh(const double x,
                  const double y,
@@ -245,39 +250,6 @@ bool moveIn(double pos,
 	    double& ds2in,
 	    double& ds2out,
 	    const double max);
-
-inline void pen_voxelGeo::crossEnclosure(const double x, 
-                                         const double y, 
-                                         const double z,
-                                         const double u,
-                                         const double v, 
-                                         const double w,
-                                         double &t1, double&t2) const{
-      
-      //Calculate the intersection points of the line with the enclosure
-      double dx0 = x-enclosureOx;
-      double dy0 = y-enclosureOy;
-      double dz0 = z-enclosureOz;
-      
-      double dx02 = dx0*dx0;
-      double dy02 = dy0*dy0;
-      double dz02 = dz0*dz0;
-      
-      double B05 = u*dx0 + v*dy0 + w*dz0;
-      double B052 = B05*B05;
-      double C = dx02 + dy02 + dz02 - enclosureR2;
-      
-      double disc = B052 - C;
-      if(std::signbit(disc)){
-          t1 = t2 = -1.0e35;
-          return;
-      }
-      disc = sqrt(disc);
-      
-      t1 = -B05 + disc;
-      t2 = -B05 - disc;
-      
-  }
   
 inline bool pen_voxelGeo::crossMesh(const double x, 
                                     const double y, 
@@ -312,6 +284,62 @@ inline bool pen_voxelGeo::crossMesh(const double x,
     ds = ds2allIn;
     
     return true;
+}
+
+inline bool pen_voxelGeo::enterEnclosure(const double x, 
+					 const double y, 
+					 const double z,
+					 const double u,
+					 const double v, 
+					 const double w,
+					 double& ds) const{
+        
+  //Check if the particle reaches the mesh in
+  //each axis
+  double dsxIn, dsyIn, dszIn;
+  double dsxOut, dsyOut, dszOut;
+  if(!moveIn(x+enclosureMargin, u, dsxIn, dsxOut, enclosureXlimit0) ||
+     !moveIn(y+enclosureMargin, v, dsyIn, dsyOut, enclosureYlimit0) ||
+     !moveIn(z+enclosureMargin, w, dszIn, dszOut, enclosureZlimit0)){
+    
+    return false;
+  }
+
+  //Move the particle the required distance to reach
+  //geometry mesh on all axis.
+  double ds2allIn = std::max(std::max(dsxIn,dsyIn),dszIn);
+  //Check if the particle go out of the mesh when this distance is traveled
+  if(ds2allIn > 0.0){
+    double ds2someOut = std::min(std::min(dsxOut,dsyOut),dszOut);
+    if(ds2allIn >= ds2someOut){
+      return false;
+    }
+  }
+    
+  ds = ds2allIn;
+    
+  return true;
+}
+
+inline void pen_voxelGeo::exitEnclosure(const double x, 
+					const double y, 
+					const double z,
+					const double u,
+					const double v, 
+					const double w,
+					double& ds) const{
+        
+  //Check if the particle reaches the mesh in
+  //each axis
+  double dsxIn, dsyIn, dszIn;
+  double dsxOut, dsyOut, dszOut;
+  moveIn(x+enclosureMargin, u, dsxIn, dsxOut, enclosureXlimit0);
+  moveIn(y+enclosureMargin, v, dsyIn, dsyOut, enclosureYlimit0);
+  moveIn(z+enclosureMargin, w, dszIn, dszOut, enclosureZlimit0);
+
+  //Move the particle the required distance to reach
+  //geometry mesh on some axis.
+  ds = std::min(std::min(dsxOut,dsyOut),dszOut);
 }
 
 #endif
