@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2021 Universitat de València - UV
-#    Copyright (C) 2021 Universitat Politècnica de València - UPV
+#    Copyright (C) 2021-2022 Universitat de València - UV
+#    Copyright (C) 2021-2022 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -33,23 +33,30 @@
 #  GEOMETRY VIEWERS
 #############################
 
-# Create geoView lib
-add_library(geoViewLib STATIC ${PROJECT_SOURCE_DIR}/utilities/viewers/geometry/source/pen_geoView.cpp)
+if(WITH_MULTI_THREADING)
+    #Find threads package
+    find_package (Threads REQUIRED)
 
-target_include_directories(geoViewLib PUBLIC ${PROJECT_SOURCE_DIR}/utilities/viewers/geometry/includes)
+    # Create geoView lib
+    add_library(geoViewLib STATIC ${PROJECT_SOURCE_DIR}/utilities/viewers/geometry/source/pen_geoView.cpp)
 
-#target libs
-target_link_libraries(geoViewLib pen_geos)
+    target_include_directories(geoViewLib PUBLIC ${PROJECT_SOURCE_DIR}/utilities/viewers/geometry/includes)
 
+    #target libs
+    target_link_libraries(geoViewLib pen_geos)
+    #Link thread libs
+    target_link_libraries(geoViewLib ${CMAKE_THREAD_LIBS_INIT})
 
-# Create geoView executable
-add_executable(geoView ${PROJECT_SOURCE_DIR}/utilities/viewers/geometry/asciiView.cpp)
+    # Create geoView executable
+    add_executable(geoView ${PROJECT_SOURCE_DIR}/utilities/viewers/geometry/asciiView.cpp)
 
-#target libs
-target_link_libraries(geoView geoViewLib)
+    #target libs
+    target_link_libraries(geoView geoViewLib)
 
-# Install readMat executable
-install(
-    TARGETS geoView
-    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/viewers/geometry/geoView
-)
+    # Install readMat executable
+    install(
+        TARGETS geoView
+        DESTINATION ${PROJECT_SOURCE_DIR}/compiled/viewers/geometry/geoView
+    )
+endif(WITH_MULTI_THREADING)
+
