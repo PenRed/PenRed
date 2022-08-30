@@ -30,6 +30,7 @@
 
 #include <thread>
 #include <limits>
+#include <cctype>
 #include "pen_loops.hh"
 
 int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>>& genericSources,
@@ -668,7 +669,7 @@ int main(int argc, char** argv){
   }
 
 	printf("***************************************************************\n");
-  printf(" PenRed version: 1.5.2 (14-June-2022) \n");
+  printf(" PenRed version: 1.6.0 (14-July-2022) \n");
   printf(" Copyright (c) 2019-2022 Universitat Politecnica de Valencia\n");
   printf(" Copyright (c) 2019-2022 Universitat de Valencia\n");
   printf(" Reference: Computer Physics Communications, 267 (2021) 108065\n"
@@ -769,6 +770,61 @@ int main(int argc, char** argv){
     verbose = static_cast<unsigned>(auxVerbose);
     if(verbose > 1){
       printf("Verbose level set to %u\n",verbose);
+    }
+  }
+
+  // Get export image formats
+  //***************************
+  pen_parserSection formatsSection;
+  std::vector<std::string> imageFormats;
+  std::array<bool,pen_imageExporter::nFormats()> enabledFormats = {false};
+  if(config.read("simulation/images",formatsSection) != INTDATA_SUCCESS){
+    if(verbose > 1){
+      printf("No image format specified to export . Specify a format via the "
+	     "'simulation/images' section to enable image export.\n");
+    }
+  }else{
+
+    //Get keys in the format section
+    formatsSection.ls(imageFormats);
+
+    for(std::string& format : imageFormats){
+
+      //Read if this format is enabled
+      bool enabled;
+      if(formatsSection.read(format.c_str(),enabled) != INTDATA_SUCCESS){
+	enabled = false;
+      }
+
+      if(enabled){
+	std::transform(format.begin(), format.end(), format.begin(),
+		       [](unsigned char c){ return std::toupper(c); });
+
+	//Check if this format exists
+	if(!pen_imageExporter::isFormat(format.c_str())){
+	  if(verbose > 0){
+	    printf("Error: Unknown image format '%s'\n"
+		   " Available formats:\n",format.c_str());
+	    for(const char* formatName : pen_imageExporter::formatNames){
+	      printf(" -%s\n",formatName);
+	    }
+	  }
+	  return -2;	  
+	}
+
+	//Enable it
+	enabledFormats[static_cast<int>(pen_imageExporter::toFormat(format.c_str()))] = true;
+      }
+    }
+
+    if(verbose > 1){
+      printf("Image export enabled for the following formats:\n");
+      for(size_t i = 0; i < enabledFormats.size(); ++i){
+	if(enabledFormats[i]){
+	  printf(" -%s\n",
+		 pen_imageExporter::toString(static_cast<pen_imageExporter::formatTypes>(i)));
+	}
+      }
     }
   }
   
@@ -1955,6 +2011,12 @@ int main(int argc, char** argv){
     talliesVect[0].saveData(totalHists);
   else
     talliesVect[0].dump2file("results.dump",totalHists,-1,-1,0,0ull,verbose);
+
+  for(size_t i = 0; i < enabledFormats.size(); ++i){
+    if(enabledFormats[i]){
+      talliesVect[0].exportImage(totalHists,static_cast<pen_imageExporter::formatTypes>(i),false);
+    }
+  }
   
   printf("\n\nSimulated histories: %20llu\n",totalHists);
   printf("Simulation real time: %12.4E s\n",simtime);

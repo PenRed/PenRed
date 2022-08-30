@@ -1,8 +1,7 @@
-
 //
 //
-//    Copyright (C) 2019-2022 Universitat de València - UV
-//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2021-2022 Universitat de València - UV
+//    Copyright (C) 2021-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -21,32 +20,17 @@
 //
 //    contact emails:
 //
-//        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
-//    
+//        vicent.gimenez.alventosa@gmail.com  (Vicent Giménez Alventosa)
+//        vicente.gimenez@uv.es (Vicent Giménez Gómez)
+//        sanolgi@upvnet.upv.es (Sandra Olver Gil)
 //
+ 
+#include "pen_geoView.hh"
 
-
-
-#ifndef __RANDOM_SPECIFIC_SAMPLER__
-#define __RANDOM_SPECIFIC_SAMPLER__
-
-class random_specificSampler : public abc_specificSampler<pen_particleState>{
-  DECLARE_SAMPLER(random_specificSampler)
-  private:
-  public:
-
-  random_specificSampler() : abc_specificSampler<pen_particleState>(USE_NONE)
-  {}
+extern "C"{
+    
+  pen_geoView* pen_geoView_new(){return new pen_geoView;}
   
-  void sample(pen_particleState& state,
-	      pen_KPAR& genKpar,
-	      unsigned long long& dhist,
-	      pen_rand& random);
-  
-  int configure(double& Emax,
-		const pen_parserSection& /*config*/,
-		const unsigned /*verbose*/);
-};
+  void pen_geoView_delete(pen_geoView* i){delete i;}
 
-#endif
+}

@@ -2014,19 +2014,9 @@ int pen_dicom::assignContours(){
   if( tnvox > 0 )
     {
 
-      //To know if a voxel is in a contour the algorithm is as follows:
-      //For each contour plane create one line per
-      //dicom image row. This lines have 'Y' value
-      //equal to row center. Next, for each points pair
-      //on the contour plane check if previous
-      //lines cuts the segmet formed between both points.
-      //The voxels before first cut are out of contour,
-      //between first and second cut are in contour and so on.
-      /*             __
-      |             /  \
-      | ------0----|-1--|---0-------
-      |             \__/
-      */
+      //To know if a voxel is in a contour the algorithm is the solution 1 (2D)
+      //described in the notes on "Determining if a point lies on the interior
+      //of a polygon" written by Paul Bourke 1997.
 
       //Fill pairs priority/index with the information of each contour
       std::vector<std::pair<float,unsigned>> pairs;
@@ -2100,225 +2090,77 @@ int pen_dicom::assignContours(){
 	      unsigned long rowIndex = i*nvox_x;
 	      //Calculate central point of row 'i'
 	      double yCenter = ((double)i+0.5)*dvox_y;
-	      //Check all pair of contour points
-	      long int previousPointCut = -6;
-	      //Stores if the first pair has been cutted
-	      bool firstPairCutted = false;
+              for(unsigned long j = 0; j < nvox_x; j++)
+                {
+                  unsigned long index = zIndex + rowIndex + j;
+                  //Calculate central point of column 'j'
+                  double xCenter = ((double)j+0.5)*dvox_x;
+                  //Iterate over all contour plane segments
+                  int counter = 0;
+                  for(unsigned long npoint = 0; npoint < refCont.nPoints(nplane); npoint++)
+                    {
+                      //Calculate next point index
+                      unsigned long nextPoint = npoint+1;
+                      if(npoint == refCont.nPoints(nplane)-1){
+                        //Final point must be connected with initial one
+                        nextPoint = 0; 
+                      }
+                      //Get actual and next point
+                      double p1[3], p2[3];
+                      refCont.getPoint(p1,nplane,npoint);
+                      refCont.getPoint(p2,nplane,nextPoint);
+                      
+                      //Calculate the vector between these 2 points on z plane
+                      double u[2];
+                      u[0] = p2[0] - p1[0];
+                      u[1] = p2[1] - p1[1];
 
-	      //Create a vector to store X values where the imaginary
-	      //line cuts the segments between sucesive contour points
-	      std::vector<double> cutsX;
-	      
-	      //Iterate over all contour plane segments
-	      for(unsigned long npoint = 0; npoint < refCont.nPoints(nplane); npoint++)
-		{
-		  //Calculate nex point index
-		  unsigned long nextPoint = npoint+1;
-		  if(npoint == refCont.nPoints(nplane)-1){
-		    //Final point must be connected with initial one
-		    nextPoint = 0; 
-		  }
+                      if(yCenter > std::min(p1[1],p2[1])){
+                        if(yCenter <= std::max(p1[1],p2[1])){
+                          if(xCenter <= std::max(p1[0],p2[0])){
+                            if(p1[1] != p2[1]){
+                              double xinters = (yCenter-p1[1])*u[0]/u[1]+p1[0];
+                              if(p1[0] == p2[0] || xCenter <= xinters){
+                                counter++;
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
 
-		  //Get actual and next point
-		  double p1[3], p2[3];
-		  refCont.getPoint(p1,nplane,npoint);
-		  refCont.getPoint(p2,nplane,nextPoint);
-		      
-		  //Calculate the vector between these 2 points on z plane
-		  double u[2];
-		  u[0] = p2[0] - p1[0];
-		  u[1] = p2[1] - p1[1];
+                  if(counter % 2 != 0)
+                    {
 
-		  //Check if the two points have the same Y value,
-		  //thus the line can't cross the contour
-		  if(fabs(u[1]) < 1.0e-10)
-		    continue;  
-
-		  //Calculate line parameter (alpha) where the segment
-		  //get "yCenter" as 'y' component
-		  double alpha = (yCenter-p1[1])/u[1];
-
-		  if(alpha <= -1.0e-6 || alpha >= 1.0+1e-6) //For rounding errors
-		    {
-		      //The line doesn't cross this pair of points
-		      continue;
-		    }
-		      
-		  //Calculate and store the X value of the segment
-		  //when Y=yCenter
-		  cutsX.push_back(p1[0] + alpha*u[0]);
-
-		  //Check if is not the first cutted segment
-		  if(cutsX.size() > 1)
-		    {
-		      //Consecutive cutted segments could provide the same
-		      //segment cut two times because rounding errors. In that cases,
-		      //we must remove the last one. However, we must take care of
-		      //peaks where the two cuts on successive segments are legitime.
-		      //If we don't take care about succesive segments cuts we could
-		      //get the following erroneous effect:
-		      /*       ________
-		              /        \
-		         __0__\___0____/___1_______
-		               \______/
-		        
-		        ---------------------------
-		      */
-		      // However, if we remove cutts on successive
-		      // segments with no care about peaks, we could
-		      // get the following error behaviour:
-		      /*
-		               / \
-		        ______/_1_\___0________ Well handled
-		             /     \
-		        
-		        ---------------------------
-		        
-		        ___0___1____1___
-		              /\             Bad handled
-		             /  \           
-		        
-		      */
-
-		      //Create arrays to store possible peak vertex
-		      
-		      /*     v2
-		             /\
-		            /  \
-		           v1  v3
-		      */
-
-		      //Nottice that this check can't be done on the first
-		      //point (0) because segment Npoints-1 to 0 has not
-		      //calculated yet. This segment will be calculated when
-		      //last segment is computed
-		      
-		      
-		      if(nextPoint == 0 && firstPairCutted) 
-			{
-			  //Now, we can check the possible peak created with
-			  //points Npoints-1 (v1), 0 (v2) and 1 (v3). Check if
-			  //corresponding "cuts" are close enough.
-			  if(fabs(cutsX[cutsX.size()-1] - cutsX[0]) < 1.0e-5)
-			    {
-			      //v1 is the actual point (npoints-1)
-			      double* v1 = p1;
-			      //v2 is the point with index 0
-			      //v3 is the point with index 1
-			      double v3[3];
-			      refCont.getPoint(v3,nplane,1);
-			      
-			      //Check if v2 is a peak or not. If is a peak,
-			      //v1 and v3 must be at the same side of the yCenter
-			      //line. Is not required to check at which side is v2
-			      //because because both segments (v1-v2, v2-v3) have been
-			      //crosed.
-			      if(((v1[1] - yCenter > 0.0 && v3[1] - yCenter > 0.0) ||
-				  (v1[1] - yCenter < 0.0 && v3[1] - yCenter < 0.0))&&
-				  fabs(alpha - 1.0) < alpha) 
-				{
-				  //Is a peak and alpha is nearer 1 than 0.
-				  //So, the cutted point is on v2 (the peak)
-				  //because actual segment goes from v1 to v2. 
-				  //Both cuts must be stored.
-				}
-			      else
-				{
-				  //Is not a peak, or is not cutted at v2.
-				  //Only one cut must be stored
-				  cutsX.pop_back();
-				  continue;
-				}
-			    }
-			}
-
-		      //Check the peak created with actual point (npoint), npoint-1 and
-		      //npoint+1. First, check if last cutted segment is the one formed
-		      //by npoint-1 to npoint. Also, check if actual cut and previous are
-		      //close enough
-		      if(previousPointCut == (int)npoint-1 &&
-			 fabs(cutsX[cutsX.size()-1] - cutsX[cutsX.size()-2]) < 1.0e-5)
-			{
-
-			  //v1 is the previous point (npoint-1).
-			  //Notice that if npoint is 0 the program
-			  //never will pass the condition 'cutsX.size() > 1' 
-			  double v1[3];
-			  refCont.getPoint(v1,nplane,npoint-1);
-			  //v2 is the actual point (npoint)
-			  //v3 is the next point (nextPoint)
-			  double* v3 = p2;
-			  
-			  //Check if this point is a peak or not
-			  if( ((v1[1] - yCenter > 0.0 && v3[1] - yCenter > 0.0) ||
-			       (v1[1] - yCenter < 0.0 && v3[1] - yCenter < 0.0))&&
-			      fabs(alpha - 1.0) > alpha) 
-			    {
-			      //Is a peak and alpha is nearer 0 than 1.
-			      //So, the cutted point is on 'npoint' (the peak),
-			      //because actual segment goes from v2 to v3.
-			      //Need to store both cuts
-			    }
-			  else
-			    {
-			      //Is not a peak, or is not cutted at v2.
-			      //Only one cut must be stored
-			      cutsX.pop_back();
-			      continue;
-			    }
-			}
-		    }
-		  previousPointCut = npoint;
-		  if(previousPointCut == 0) //First pair has been cutted
-		    firstPairCutted = true;
-		}
-
-	      if(cutsX.size() == 0) //This column don't cut the contour
-		continue;
-
-	      //order cuts on x coordinates
-	      std::sort(cutsX.begin(),cutsX.end());
-
-	      //Iterate over contour cut pairs (0-1,2-3,4-5...)
-	      for(size_t ncut = 1; ncut < cutsX.size(); ncut += 2) 
-		{
-		  //Get the voxel index corrsponding to first cut
-		  unsigned long j = (unsigned long)(cutsX[ncut-1]/dvox_x); 
-		  //Calculate last voxel between actual cut and next cut
-		  unsigned long nextJ = (unsigned long)(cutsX[ncut]/dvox_x);
-		  nextJ = nextJ >= nvox_x ? nvox_x-1 : nextJ;
-		  for(unsigned long n = j; n <= nextJ; n++)
-		    {
-		      unsigned long index = zIndex + rowIndex + n;
-		      //Check if this voxel is already in this contour
-		      if(voxelContour[index] == (int)icontour)
-			{
-			  //This can happen because contour 'icontour' have 2 or more
-			  //sequences at the same plane. If this sequences
-			  //intersect, the program will consider that this sequences
-			  //create a in-hole contour. So, we must remove this
-			  //voxel from this contour and restore previous one.
-			  voxelContour[index] = voxelContour2[index];
-			  contourMask[index] = 0;
-			}
-		      else
-			{
-			  voxelContour[index] = icontour;
-			  contourMask[index] = 1;
-			}
-		    }
-		}
-	    }
-	}
-
-	//Copy actual voxel contour data to auxiliar array
-	memcpy(voxelContour2,voxelContour,sizeof(int)*tnvox);
-	
+                      if(voxelContour[index] == (int)icontour)
+                        {
+                          //This can happen because contour 'icontour' have 2 or more
+                          //sequences at the same plane. If this sequences
+                          //intersect, the program will consider that this sequences
+                          //create a in-hole contour. So, we must remove this
+                          //voxel from this contour and restore previous one.
+                          voxelContour[index] = voxelContour2[index];
+                          contourMask[index] = 0;
+                        }
+                      else
+                        {
+                          voxelContour[index] = icontour;
+                          contourMask[index] = 1;
+                        }
+                    }
+                }
+             }
+          }   
+               
+        //Copy actual voxel contour data to auxiliar array
+        memcpy(voxelContour2,voxelContour,sizeof(int)*tnvox);
       }
 
-      free(voxelContour2);
+      free(voxelContour2);	
       
       //Calculate number of voxels in each contour
+      //Note that contourMasks does not take into account the contour priority; i.e., no overlap is considered.
+      //On the contrary, voxelContour, and thus also nVoxContour, do take overlapping into account.
       for(unsigned long i = 0; i < tnvox; i++)
 	if(voxelContour[i] > -1)
 	  nVoxContour[voxelContour[i]]++;
@@ -2600,7 +2442,6 @@ int pen_dicom::transformContoursAndSeeds(const double* imageOrientation,
   return PEN_DICOM_SUCCESS;
 }
 
-
 int pen_dicom::printContourMasks(const char* filename) const{
 
   if(filename == nullptr)
@@ -2613,8 +2454,14 @@ int pen_dicom::printContourMasks(const char* filename) const{
     
     //Create a file to store contour mask
     std::string sfilename(filename);
-    sfilename.append("-");
-    sfilename.append(contours[imask].name.c_str());
+    sfilename.append("_");
+    //remove white spaces
+    std::string auxstr(contours[imask].name.c_str());
+    auxstr.erase(std::remove(auxstr.begin(),auxstr.end(),' '),auxstr.end());
+    //sfilename.append(contours[imask].name.c_str());
+    sfilename.append(auxstr.c_str());
+    std::string sfilenameORIG=sfilename;
+    sfilename.append(".dat");
     
     FILE* OutMask = nullptr;
     OutMask = fopen(sfilename.c_str(),"w");
@@ -2649,8 +2496,90 @@ int pen_dicom::printContourMasks(const char* filename) const{
     fprintf(OutMask,"#\n");
     fprintf(OutMask,"# End of mask data\n");
     fclose(OutMask);  
-    
+
   }
+    
+  return PEN_DICOM_SUCCESS;
+}
+
+int pen_dicom::printContourMasksMHD(const char* filename) const{
+
+  if(filename == nullptr)
+    return PEN_DICOM_ERROR_NULL_FILENAME;
+
+  FILE* OutMask = nullptr;
+
+  for(size_t imask = 0; imask < contourMasks.size(); ++imask){
+
+    //Get mask
+    const std::vector<unsigned char>& mask = contourMasks[imask];
+    
+    //Create a file to store contour mask
+    std::string sfilename(filename);
+    sfilename.append("_");
+    //remove white spaces
+    std::string auxstr(contours[imask].name.c_str());
+    auxstr.erase(std::remove(auxstr.begin(),auxstr.end(),' '),auxstr.end());
+    //sfilename.append(contours[imask].name.c_str());
+    sfilename.append(auxstr.c_str());
+        
+      //**************************
+      //*  RAW IMAGE OF THE MASK *
+      //**************************
+
+      // Write header .mhd
+  
+      std::string sfilenameORIG=sfilename;
+      sfilename.append(".mhd");
+      OutMask = fopen(sfilename.c_str(),"w");
+      if(OutMask == nullptr){
+        printf("****************************************************\n");
+        printf("pen_dicom: Error: Cannot open output mhd image mask\n");
+        printf("****************************************************\n");
+        return PEN_DICOM_ERROR_CREATING_FILE;
+      }
+
+      fprintf(OutMask,"ObjectType = Image\n");
+      fprintf(OutMask,"NDims = 3\n");
+      fprintf(OutMask,"BinaryData = True\n");
+      fprintf(OutMask,"BinaryDataByteOrderMSB = False\n");
+      fprintf(OutMask,"CompressedData = False\n");
+      fprintf(OutMask,"TransformMatrix = 1 0 0 0 1 0 0 0 1\n");
+      fprintf(OutMask,"Offset = %6.2f %6.2f %6.2f\n",(dicomOrigin[0]+dvox_x/2.0)*10.,(dicomOrigin[1]+dvox_y/2.0)*10.,(dicomOrigin[2]+dvox_z/2.0)*10.);
+      fprintf(OutMask,"CenterOfRotation = 0 0 0\n");
+      fprintf(OutMask,"AnatomicalOrientation = RAI\n");
+      fprintf(OutMask,"ElementSpacing = %10.6f %10.6f %10.6f\n",dvox_x*10.,dvox_y*10.,dvox_z*10.);
+      fprintf(OutMask,"DimSize = %lu %lu %lu\n",nvox_x,nvox_y,nvox_z);
+      fprintf(OutMask,"ElementType = MET_UCHAR\n");
+
+      sfilename = sfilenameORIG;
+      std::size_t found = sfilename.find_last_of("/\\");
+      fprintf(OutMask,"ElementDataFile = %-s\n",((sfilename.substr(found+1)).append(".raw")).c_str());
+      fclose(OutMask);
+
+      // Write data .raw
+
+      sfilename = sfilenameORIG;
+
+      sfilename.append(".raw");
+      OutMask = fopen(sfilename.c_str(),"wb");
+      if(OutMask == nullptr){
+        printf("****************************************************\n");
+        printf("pen_dicom: Error: Cannot open output raw image mask\n");
+        printf("****************************************************\n");
+        return PEN_DICOM_ERROR_CREATING_FILE;
+      }
+     
+
+      //Write data
+    
+      for(size_t i = 0; i < mask.size(); ++i){
+          unsigned char q = static_cast<unsigned char>(mask[i]);
+          fwrite(&q,sizeof(q),1,OutMask);
+      }
+
+      fclose(OutMask);  
+    }
   
   return PEN_DICOM_SUCCESS;
 }
@@ -2671,6 +2600,8 @@ int pen_dicom::printContours(const char* filename) const{
   fprintf(OutContorns,"#\n");
   fprintf(OutContorns,"# Number of contours:\n");
   fprintf(OutContorns,"#    %lu\n",contours.size());
+  fprintf(OutContorns,"#\n");
+  fprintf(OutContorns,"# Note that overlapping/contour priority is taking into account.\n");
   fprintf(OutContorns,"#\n");
   fprintf(OutContorns,"# Name, number of voxels in contour, volume of each contour (cm^3), number of contour points\n");
   fprintf(OutContorns,"#\n");
@@ -2702,7 +2633,7 @@ int pen_dicom::printContours(const char* filename) const{
 	      double p[3];
 	      contours[i].getPoint(p,j,k);
 	      fprintf(OutContorns," %7lu          %8u          %.5E  %.5E  %.5E\n",
-		      i+1,j+1,p[2],p[0],p[1]);
+		      i,j+1,p[2],p[0],p[1]);
 	    }
 	}
     }
@@ -2859,8 +2790,30 @@ int pen_dicom::printContourVox(const char* filename) const{
     return PEN_DICOM_ERROR_CREATING_FILE;
   }
 
+  fprintf(OutImage,"# PenRed CONTOUR VOXEL DATA\n");
+  fprintf(OutImage,"#\n");
+  fprintf(OutImage,"# Number of contours:\n");
+  fprintf(OutImage,"#    %lu\n",contours.size());
+  fprintf(OutImage,"#\n");
+  fprintf(OutImage,"# Note that overlapping/contour priority is taking into account.\n");
+  fprintf(OutImage,"#\n");
+  fprintf(OutImage,"# Name, number of voxels in contour, volume of each contour (cm^3), number of contour points\n");
+  fprintf(OutImage,"#\n");
+  for(size_t i = 0; i < contours.size(); i++)
+    {
+      //Count number of contour points
+      unsigned long nPoints = 0;
+      for(unsigned j = 0; j < contours[i].NPlanes(); j++)
+        {
+          nPoints += contours[i].nPoints(j);
+        }
+      
+      fprintf(OutImage,"#    Contour %li: %s %lu %.5E %ld\n",
+              i, contours[i].name.c_str(), nVoxContour[i],
+              nVoxContour[i]*voxVol,nPoints);
+    }
+
   fprintf(OutImage,"# \n");
-  fprintf(OutImage,"# DICOM processed with PenRed\n");
   fprintf(OutImage,"# Nº of voxels (nx,ny,nz):\n");  
   fprintf(OutImage,"# %5lu %5lu %5lu\n",nvox_x,nvox_y,nvox_z);
   fprintf(OutImage,"# %8.5E %8.5E %8.5E\n",dvox_x,dvox_y,dvox_z);

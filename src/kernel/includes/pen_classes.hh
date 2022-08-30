@@ -47,6 +47,10 @@ template<class stateType, class contextType> class pen_particle;
 template<class stateType> class pen_particleStack;
 class wrapper_geometry;
 
+//--------------------------------
+// Auxiliar structs and classes
+//--------------------------------
+
 
 template<class T>
 struct vector3D{
@@ -107,6 +111,16 @@ struct vector3D{
     inline T mod() const{
         return sqrt(mod2());
     }
+    
+};
+
+
+template<class T>
+struct triangle{
+    
+    vector3D<T> v1;
+    vector3D<T> v2;
+    vector3D<T> v3;
     
 };
 
@@ -187,6 +201,7 @@ public:
   virtual unsigned long getElements() const = 0;
   virtual unsigned getBodies() const = 0;
   virtual unsigned getIBody(const char* elementName) const = 0;
+  virtual void getOffset(double* offset) const { offset[0] = 0.0; offset[1] = 0.0; offset[2] = 0.0; }
   virtual ~wrapper_geometry(){}
   
 };

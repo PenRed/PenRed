@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2021 Universitat de València - UV
-//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2022 Universitat de València - UV
+//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -244,14 +244,13 @@ public:
 		      pen_KPAR& genKpar,
 		      unsigned long long& dhist,
 		      pen_rand& random) = 0;  
+		      
+		      
+  void sampleGeneric(pen_particleState& state, pen_rand& random) const;
   
   virtual void skip(const unsigned long long /*dhists*/){}
   
   virtual int configure(double&,
-			const abc_spatialSampler*,
-			const abc_directionSampler*,
-			const abc_energySampler*,
-			const abc_timeSampler*,
 			const pen_parserSection&,
 			const unsigned = 0) = 0;
 
@@ -1185,11 +1184,13 @@ public:
     //******************************
     unsigned auxVerbose = verbose;
     for(unsigned i = 0; i < nthreads; i++){
+      
+      specificSamplerVect[i]->setSpatial(spatial());
+      specificSamplerVect[i]->setDirection(direction());
+      specificSamplerVect[i]->setEnergy(energy());
+      specificSamplerVect[i]->setTime(time());
+  
       int errConfig = specificSamplerVect[i]->configure(Emax,
-							spatial(),
-							direction(),
-							energy(),
-							time(),
 							config,
 							auxVerbose);
       if(errConfig != 0){
@@ -1463,6 +1464,36 @@ static int registerSpecificSampler(const char* typeID){
     //Unknown sampler type
     return -99;
   }
+}
+
+// ** Inline functions
+template<class particleState>
+inline void abc_specificSampler<particleState>::sampleGeneric(pen_particleState& state, pen_rand& random) const{
+
+    //Requires non null spatial, direction and energy samplers
+    
+    //Reset state
+    state.reset();
+
+    
+    //Perform time sampling if exists
+    if(pTime != nullptr){
+      pTime->sample(state,random);
+    } else {
+      state.PAGE = 0.0;
+    }
+
+    //Perform direction sampling
+    pDirection->sample(state,random);
+    
+    //Perform spatial sampling and locate the particle
+    pSpatial->sample(state,random);
+    
+    //Perform energy sampling
+    pEnergy->sample(state,random);
+
+    //Its a primary (source) particle, set ILB[0] = 1
+    state.ILB[0] = 1;
 }
 
 //Include defined samplers

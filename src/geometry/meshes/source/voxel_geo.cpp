@@ -43,7 +43,7 @@ pen_voxelGeo::pen_voxelGeo() : nx(0), ny(0), nz(0), nxy(0),
 
 
 int pen_voxelGeo::configure(const pen_parserSection& config,
-			     const unsigned verbose){
+			    const unsigned verbose){
 
   int err = 0;
 
@@ -192,57 +192,59 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
   ///////////////////////////////
   double dr;
   if(config.read("enclosure-margin",dr) != INTDATA_SUCCESS){
+    if(verbose > 0){
+      printf("pen_voxelGeo:configure:Error: Enclosure margin value"
+	     " 'enclosure-margin' not found. "
+	     "Double expected.\n");
+    }
+    err++;
+  }else{
+    if(dr < 1.0e-6){
       if(verbose > 0){
-        printf("pen_voxelGeo:configure:Error: Enclosure margin value"
-        " 'enclosure-margin' not found. "
-        "Double expected.\n");
+	printf("pen_voxelGeo:configure:Error: Enclosure "
+	       "margin value must be greater than zero\n");
       }
       err++;
-  }else{
-      if(dr < 1.0e-6){
-          if(verbose > 0){
-            printf("pen_voxelGeo:configure:Error: Enclosure "
-            "margin value must be greater than zero\n");
-          }
-          err++;
-      }
+    }
       
-    double dx05 = dx/2.0+dr;
-    double dy05 = dy/2.0+dr;
-    double dz05 = dz/2.0+dr;
+    enclosureMargin = dr;
     
-    enclosureR2 = dx05*dx05 + dy05*dy05 + dz05*dz05;
-    
-    enclosureOx = dx/2.0;
-    enclosureOy = dy/2.0;
-    enclosureOz = dz/2.0;
+    //Precalculate enclosure high margins (+x,+y,+z)
+    enclosureXlimit = Mdx + dr;
+    enclosureYlimit = Mdy + dr;
+    enclosureZlimit = Mdz + dr;
+
+    //Precalculate the enclosure limits x,y,z moving it to the origin (0,0,0)
+    enclosureXlimit0 = enclosureXlimit + dr;
+    enclosureYlimit0 = enclosureYlimit + dr;
+    enclosureZlimit0 = enclosureZlimit + dr;
   }
   
   // Material enclosure
-   //**********
+  //**********
 	
-    //Read material ID
-    int auxMat;
-    if(config.read("enclosure-material",auxMat) != INTDATA_SUCCESS){
-      if(verbose > 0){
-        printf("pen_dicomGeo:configure: Error: Unable to read enclosure material ID for material. Integer expecteed");
-      }
-      err++;
+  //Read material ID
+  int auxMat;
+  if(config.read("enclosure-material",auxMat) != INTDATA_SUCCESS){
+    if(verbose > 0){
+      printf("pen_dicomGeo:configure: Error: Unable to read enclosure material ID for material. Integer expecteed");
     }
-    //Check material ID
-    if(auxMat < 1 || auxMat > (int)constants::MAXMAT){
-      if(verbose > 0){
-        printf("pen_dicomGeo:configure: Error: Invalid ID specified for enclosure material.");
-        printf("                         ID: %d\n",aux);
-        printf("Maximum number of materials: %d\n",constants::MAXMAT);
-      }
-      err++;
+    err++;
+  }
+  //Check material ID
+  if(auxMat < 1 || auxMat > (int)constants::MAXMAT){
+    if(verbose > 0){
+      printf("pen_dicomGeo:configure: Error: Invalid ID specified for enclosure material.");
+      printf("                         ID: %d\n",aux);
+      printf("Maximum number of materials: %d\n",constants::MAXMAT);
     }
-    else
-        enclosureMat=auxMat;
-    //Create a interface between the enclosure and the mesh
-    //assigning a detector to the enclosure
-    KDET[0] = 1;
+    err++;
+  }
+  else
+    enclosureMat=auxMat;
+  //Create a interface between the enclosure and the mesh
+  //assigning a detector to the enclosure
+  KDET[0] = 1;
 
   // Check print image option
   //***************************
@@ -282,22 +284,23 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
 
 void pen_voxelGeo::locate(pen_particleState& state) const{
     
-    //Check if is in the voxel mesh
-    locateInMesh(state);
-    if(state.MAT == 0){
-        double dxt = state.X-enclosureOx;
-        double dyt = state.Y-enclosureOy;
-        double dzt = state.Z-enclosureOz;
-        //Is not in the mesh, check if is in the enclosure
-        if(dxt*dxt + dyt*dyt + dzt*dzt < enclosureR2){
-            state.MAT = enclosureMat;
-            state.IBODY = 0;
-        }
-        else{
-            state.MAT = 0;
-            state.IBODY = constants::MAXMAT+1;
-        }
+  //Check if it is in the voxel mesh
+  locateInMesh(state);
+  if(state.MAT == 0){
+    //It is not in the mesh, check if it is in the enclosure
+    if(state.X > -enclosureMargin && state.X < enclosureXlimit &&
+       state.Y > -enclosureMargin && state.Y < enclosureYlimit &&
+       state.Z > -enclosureMargin && state.Z < enclosureZlimit){
+
+      //It is in the enclosure
+      state.MAT = enclosureMat;
+      state.IBODY = 0;
     }
+    else{
+      state.MAT = 0;
+      state.IBODY = constants::MAXMAT+1;
+    }
+  }
     
 }
 
@@ -335,48 +338,34 @@ void pen_voxelGeo::step(pen_particleState& state,
     
     //Check if the particle is outside the enclosure
     if(state.MAT == 0){
-        
-        //Calculate the cross points with the enclosure
-        double t1,t2;
-        crossEnclosure(state.X,state.Y,state.Z,
-                       state.U,state.V,state.W,
-                       t1,t2);
-        
-        //Check if can cross
-        if((std::signbit(t1) && std::signbit(t2)) ||
-            fabs(t1 - t2) < 1.0e-6 ){
-            //Don't cross or the sphere is crossed in a single point. 
-            //Thus the particle scapes
 
-            state.MAT = 0;
-            state.IBODY = constants::MAXMAT+1;
-            
-            DSEF = 1.0e35;
-            DSTOT = 1.0e35;
-            NCROSS = 0; //No interface crossed
+      //The particle is out, check if it enters the enclosure
+      double ds2enclosure;
+      if(!enterEnclosure(state.X,state.Y,state.Z,
+			 state.U,state.V,state.W,
+			 ds2enclosure)){
+	
+	//Do not enters the enclosure
+	state.MAT = 0;
+	state.IBODY = constants::MAXMAT+1;
+	
+	DSEF = 1.0e35;
+	DSTOT = 1.0e35;
+	NCROSS = 0; //No interface crossed
+	
+	move(inf,state);
+	return;
+      }
+              
+      //The particle reaches the enclosure
+      state.MAT = enclosureMat;
+      state.IBODY = 0;
+      DSEF = DSTOT = ds2enclosure;
+      NCROSS = 1;
 
-            move(inf,state);
-            return;
-        }
+      move(ds2enclosure,state);
         
-        //The particle reaches the enclosure
-        state.MAT = enclosureMat;
-        state.IBODY = 0;
-        NCROSS = 1;
-        //Get the closest point
-        if(t1 < t2){
-            DSEF = DSTOT = t1;
-            move(t1,state);            
-        }else{
-            DSEF = DSTOT = t2;
-            move(t2,state);            
-        }
-        
-        if(std::signbit(DSEF)){
-            printf("pen_voxelGeo:step: Unexpected Error. "
-            "Negative DSEF obtained, revise the voxel step code\n");
-        }
-        return;        
+      return;        
     }
     
     //Check if the particle is inside the enclosure,
@@ -420,19 +409,11 @@ void pen_voxelGeo::step(pen_particleState& state,
         
         //The mesh has not been crossed, move inside the enclosure
 
-        //Calculate the cross points with the enclosure
-        double t1,t2;
-        crossEnclosure(state.X,state.Y,state.Z,
-                        state.U,state.V,state.W,
-                        t1,t2);            
-            
-        //As we are inside the enclosure, only 
-        //one point could be positive
+        //Calculate the distance to exit the enclosure
         double ds2enclosure;
-        if(t1 > t2)
-            ds2enclosure = t1;
-        else
-            ds2enclosure = t2;
+        exitEnclosure(state.X,state.Y,state.Z,
+		      state.U,state.V,state.W,
+		      ds2enclosure);            
         
         //Check the enclosure limit
         if(ds2enclosure > DS){
@@ -1030,7 +1011,7 @@ bool moveIn(double pos,
     // position component is out of geometry,
     // check if is moving to it
     if(dir == 0.0){
-      //Particle is not moving on this axy, so never will reaches the mesh
+      //Particle is not moving on this axis, so never will reaches the mesh
       ds2in = ds2out = inf;	 
       return false;
     }

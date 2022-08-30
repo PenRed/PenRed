@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2020 Universitat de València - UV
-#    Copyright (C) 2020 Universitat Politècnica de València - UPV
+#    Copyright (C) 2022 Universitat de València - UV
+#    Copyright (C) 2022 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -22,14 +22,19 @@
 #
 #    contact emails:
 #
-#        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
+#        vicent.gimenez.alventosa@gmail.com  (Vicent Giménez Alventosa)
+#        sanolgi@upvnet.upv.es (Sandra Oliver Gil)
 #        vicente.gimenez@uv.es (Vicente Giménez Gómez)
-#    
+#
 #
 
-#LB bindings
-if(WITH_LB)
-    add_subdirectory(LB)
-endif(WITH_LB)
-#Viewers bindings
-add_subdirectory(viewers)
+
+
+#############################
+#  IMAGE
+#############################
+
+# Create lib
+add_library(pen_image STATIC ${PROJECT_SOURCE_DIR}/lib/image/source/pen_image.cpp)
+
+target_include_directories(pen_image PUBLIC ${PROJECT_SOURCE_DIR}/lib/image/includes)

@@ -57,10 +57,6 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 #include "pennuc.hh"
 
 int pennuc_specificSampler::configure(double& Emax,
-				      const abc_spatialSampler* pSpatialIn,
-				      const abc_directionSampler* /*pDirection*/,
-				      const abc_energySampler* /*pEnergy*/,
-				      const abc_timeSampler* /*pTime*/,
 				      const pen_parserSection& config,
 				      const unsigned verbose){
 
@@ -100,16 +96,13 @@ int pennuc_specificSampler::configure(double& Emax,
     return -1;
   }
 
-  if(pSpatialIn == nullptr){
+  if(spatial() == nullptr){
     if(verbose > 0){
       printf("pennuc_specificSampler:configure: Error: Expected "
 	     "spatial sampler not provided\n");
     }
     return -2;
   }
-
-  //Save spatial sampler
-  setSpatial(pSpatialIn);
   
   //Read the filename of the NUCLEIDE data file of the considered radionuclide
   std::string nucleideFilename;

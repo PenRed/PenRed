@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2021 Universitat de València - UV
-//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2022 Universitat de València - UV
+//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -391,8 +391,46 @@ int pen_DICOMDoseDistrib::configure(const wrapper_geometry& geometry,
     dump.toDump(contEdep,ncontours);
     dump.toDump(contEdep2,ncontours);
   }
-    
-    
+
+  
+  //Register data to create images
+  unsigned elements[] = {
+    static_cast<unsigned>(nx),
+    static_cast<unsigned>(ny),
+    static_cast<unsigned>(nz)};
+  
+  float delements[] = {
+    static_cast<float>(dx),
+    static_cast<float>(dy),
+    static_cast<float>(dz)};
+
+  // ** Calculate the origin
+  double origin[3];
+  // Get geometry offset
+  geometry.getOffset(origin);
+
+  addImage<double>("DICOMDose",3,elements,delements,origin,
+		   [=](unsigned long long nhist,
+		       size_t i, double& sigma) -> double{
+
+		     const double dhists = static_cast<double>(nhist);
+		     const double ev2Gy = 1.60217662E-16;
+
+		     const double fact = ivoxMass[i]*ev2Gy;
+		     double q = edep[i]/dhists;
+		     sigma = edep2[i]/dhists - q*q;
+		     if(sigma > 0.0)
+		       {
+			 sigma = sqrt(sigma/dhists)*fact;
+		       }
+		     else
+		       {
+			 sigma = 0.0;
+		       }
+		     
+		     return q*fact;
+		   });
+  
   return 0; 
     
             

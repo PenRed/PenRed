@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### To add
 - Triangular mesh geometry simulation support
 
+## [1.6.0] - 2022-07-14
+
+### Added
+- Image exporter library for tally results. Actually, only MHD and gnuplot formats are implemented
+- Support for CT source to use generic samplers instead of a PSF
+- Library with C bindings to render geometries in 2D and 3D
+
+### Changed
+- Voxel based geometries now use a box enclosure instead of a spherical enclosure
+- spatial, direction, energy and time sampler pointers are not passed as arguments of the specific sampler configuration anymore
+- Spatial dose now do not print depth dose results by default, but can be enabled.
+- DICOM contour detection voxels algorithm
+
+### Fix
+- Bug: Errors on tracking transport for voxelized geometries when the particle source is outside the enclosure
+- Bug: Specific sources do not update their generic samplers pointers (spatial, direction, energy and time) before the configuration call
+
 ## [1.5.2] - 2022-06-14
 
 ### Added

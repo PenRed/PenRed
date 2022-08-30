@@ -52,6 +52,7 @@
 #include "instantiator.hh"
 #include "pen_data.hh"
 #include "pen_dump.hh"
+#include "pen_image.hh"
 #include "pen_geometries.hh"
 #include "pen_states.hh"
 
@@ -140,12 +141,39 @@ private:
   std::string name;
   std::string OutputDirPath;
   const __usedFunc usedFunctions;
+
+  //Create a vector of image exporters
+  std::vector<pen_imageExporter> imageExporters;
   
 protected:
 
   //Create dump instance
   pen_dump dump;
 
+  //Create filenames with output dir path, thread and MPI number
+  std::string createFilename(const char* filename) const{
+
+    // ******************************* MPI ********************************** //
+#ifdef _PEN_USE_MPI_
+    int rank;
+    //Add the MPI rank number to filename
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    
+    return std::string(OutputDirPath + name + std::string("-MPI") +
+		       std::to_string(rank) + std::string("-th") +
+		       std::to_string(nthread) + std::string("-") +
+		       std::string(filename));
+
+    // ***************************** MPI END ******************************** //
+#else
+    
+    return std::string(OutputDirPath + name + std::string("-th") +
+		       std::to_string(nthread) + std::string("-") +
+		       std::string(filename));
+
+#endif    
+  }  
+  
   //Create private fopen method to append tally name and thread
   //identifier to generated and read files
   inline FILE* fopen(const char* filename, const char* mode) const{
@@ -223,6 +251,38 @@ public:
   inline void setOutputDirPath(const char* newName) { OutputDirPath.assign(newName);}
   inline void setOutputDirPath(const std::string& newName) { OutputDirPath.assign(newName);}
   inline void setThread(const unsigned threadNum){nthread = threadNum;}
+
+  template<class T>
+  inline void addImage(const char* filename,
+		       const unsigned nDim,
+		       const unsigned* elements,
+		       const float* delements,
+		       const double* origin,
+		       std::function<T(unsigned long long, size_t)> fin){
+    imageExporters.emplace(imageExporters.end(), fin);
+    imageExporters.back().setDimensions(nDim,elements,delements);
+    imageExporters.back().setOrigin(origin);
+    imageExporters.back().baseName = createFilename(filename);
+  }
+
+  template<class T>
+  inline void addImage(const char* filename,
+		       const unsigned nDim,
+		       const unsigned* elements,
+		       const float* delements,
+		       const double* origin,
+		       std::function<T(unsigned long long, size_t, T&)> fin){
+    imageExporters.emplace(imageExporters.end(), fin);
+    imageExporters.back().setDimensions(nDim,elements,delements);
+    imageExporters.back().setOrigin(origin);
+    imageExporters.back().baseName = createFilename(filename);
+  }  
+
+  inline void exportImage(const unsigned long long nhists,
+			  const pen_imageExporter::formatTypes format) const {
+    for(auto& exporter : imageExporters)
+      exporter.exportImage(nhists,format);
+  }
   
   void getUsedMethods(std::vector<std::string>& funcNames) const{
     if(has_beginSim())
@@ -698,6 +758,18 @@ public:
       (*i)->saveData(nhist);
     }
   }
+
+  inline void exportImage(const unsigned long long nhist,
+			  const pen_imageExporter::formatTypes format,
+			  const bool doflush = true){
+
+    for(tallyIterator i = tallies.begin();
+	i != tallies.end(); ++i){
+      if(doflush)
+	(*i)->flush();
+      (*i)->exportImage(nhist,format);
+    }
+  }  
   
   int writeDump(unsigned char*& pdump,
 		size_t& dim,
@@ -1215,7 +1287,17 @@ public:
     }
   }
 
-  
+  inline void exportImage(const unsigned long long nhist,
+			  const pen_imageExporter::formatTypes format,
+			  const bool doflush = true){
+
+    for(tallyIterator i = tallies.begin();
+	i != tallies.end(); ++i){
+      if(doflush)
+	(*i)->flush();
+      (*i)->exportImage(nhist,format);
+    }
+  }  
 
   int writeDump(unsigned char*& pdump,
 		size_t& dim,

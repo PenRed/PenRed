@@ -57,12 +57,8 @@ class brachy_specificSampler : public abc_specificSampler<pen_particleState>{
   void skip(const unsigned long long dhists);
 
   int configure(double& Emax,
-	      const abc_spatialSampler* /*pSpatial*/,
-	      const abc_directionSampler* /*pDirection*/,
-	      const abc_energySampler* /*pEnergy*/,
-	      const abc_timeSampler* /*pTime*/,
-	      const pen_parserSection& config,
-	      const unsigned verbose);  
+		const pen_parserSection& config,
+		const unsigned verbose);  
 
   void sample(pen_particleState& state,
 	      pen_KPAR& genKpar,

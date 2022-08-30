@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019-2020 Universitat de València - UV
-#    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2022 Universitat de València - UV
+#    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -58,6 +58,9 @@ add_subdirectory(auxiliar)
 
 # TCP folder
 add_subdirectory(tcp)
+
+# image folder
+add_subdirectory(image)
 
 # load balance folder
 if(WITH_LB)

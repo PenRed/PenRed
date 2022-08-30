@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2020 Universitat de València - UV
-#    Copyright (C) 2020 Universitat Politècnica de València - UPV
+#    Copyright (C) 2021 Universitat de València - UV
+#    Copyright (C) 2021 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -24,12 +24,31 @@
 #
 #        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
 #        vicente.gimenez@uv.es (Vicente Giménez Gómez)
-#    
+#        sanolgi@upvnet.upv.es (Sandra Oliver Gil)
 #
 
-#LB bindings
-if(WITH_LB)
-    add_subdirectory(LB)
-endif(WITH_LB)
-#Viewers bindings
-add_subdirectory(viewers)
+# Create C warper shared library
+#############################
+
+if(NOT BUILD_STATIC)
+    target_compile_options(geoViewLib PRIVATE -fPIC)
+    target_compile_options(pen_geos PRIVATE -fPIC)
+    target_compile_options(pen_internalData PRIVATE -fPIC)
+    target_compile_options(pen_dump PRIVATE -fPIC)
+    target_compile_options(pen_aux PRIVATE -fPIC)
+    target_compile_options(pen_math PRIVATE -fPIC)    
+endif(NOT BUILD_STATIC)
+
+
+if(BUILD_STATIC)
+    add_library(geoView_C STATIC geoView_C.cpp)
+else(BUILD_STATIC)
+    add_library(geoView_C SHARED geoView_C.cpp)
+endif(BUILD_STATIC)
+
+target_link_libraries(geoView_C geoViewLib)
+
+install(
+TARGETS geoView_C
+DESTINATION ${PROJECT_SOURCE_DIR}/bindings/C/viewers/geometry
+)

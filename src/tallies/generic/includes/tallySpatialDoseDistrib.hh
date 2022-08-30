@@ -51,6 +51,7 @@ class pen_SpatialDoseDistrib: public pen_genericTally<pen_particleState> {
   double* edepthtmp;
   double* edepth;
   double* edepth2;
+  bool printDepthDose;
   
   double imatDens[constants::MAXMAT];
 public:
@@ -78,7 +79,9 @@ public:
       nlastdepth = nullptr;
       edepthtmp = nullptr;
       edepth = nullptr;
-      edepth2 = nullptr;      
+      edepth2 = nullptr;
+
+      printDepthDose = false;
 }
   
   void updateEdepCounters(const double dE,
