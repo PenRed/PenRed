@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Triangular mesh geometry simulation support
+- Blender plugin to construct Quadric and Triangular Mesh based geometries
 
 ## [1.6.0] - 2022-07-14
 

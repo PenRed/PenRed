@@ -34,6 +34,11 @@
 #  GEOMETRY 
 #############################
 
+if(WITH_MULTI_THREADING)
+    #Find threads package
+    find_package (Threads REQUIRED)
+endif(WITH_MULTI_THREADING)
+
 # Create geo lib
 add_library(pen_geos STATIC ${PROJECT_SOURCE_DIR}/geometry/source/pen_geometries.cpp)
 
@@ -62,6 +67,11 @@ target_link_libraries (pen_geos pen_aux)
 target_link_libraries (pen_geos pen_math)
 target_link_libraries (pen_geos pen_dump)
 target_link_libraries (pen_geos pen_image)
+
+if(WITH_MULTI_THREADING)
+    #Link thread libs
+    target_link_libraries (pen_geos ${CMAKE_THREAD_LIBS_INIT})
+endif(WITH_MULTI_THREADING)
 
 #Check if DICOM option has been enabled
 if(WITH_DICOM)

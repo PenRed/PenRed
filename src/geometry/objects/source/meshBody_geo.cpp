@@ -706,6 +706,9 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
   }
 
   //Split regions
+
+#ifdef _PEN_USE_THREADS_
+  
   unsigned int nSplitThreads =
     std::max(static_cast<unsigned int>(2),
 	     std::thread::hardware_concurrency());
@@ -782,6 +785,51 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
   for(std::thread& t : splitThreads){
     t.join();
   }
+
+#else
+
+  for(std::size_t ibody = 0; ibody < getElements(); ++ibody){
+
+	if(verbose > 2){
+	  printf("   - Body %u split begins\n",ibody);
+	  fflush(stdout);
+	}
+
+	//Split the body regions
+	pen_meshBody& body = bodies[ibody];
+    
+	//Check if a region size has been specified for this body
+	if(body.meanTrianglesRegion == 0){
+	  body.meanTrianglesRegion =
+	    std::max(static_cast<unsigned long>(40),
+		     body.nTriangles/static_cast<unsigned long>(pen_meshBody::MAX_REGIONS/2));
+	}
+
+	if(body.meanRegionsSuperRegion == 0){
+	  body.meanRegionsSuperRegion = 20;
+	}
+
+	//Check if this body requires more regions
+	pen_meshBody::superRegion& superRegion = body.regions[0];
+
+	pen_meshBody::triangleRegion::splitUntil(body.meanTrianglesRegion,
+						 pen_meshBody::crossThreshold,
+						 superRegion.elements,
+						 pen_meshBody::MAX_REGIONS);
+
+	pen_meshBody::superRegion::splitUntil(body.meanRegionsSuperRegion,
+					      pen_meshBody::crossThreshold,
+					      body.regions,
+					      pen_meshBody::MAX_SUP_REGIONS);
+
+	if(verbose > 2){
+	  printf("   + Body %u split completed\n",ibody);
+	  fflush(stdout);
+	}
+    
+  }
+  
+#endif
   
   // Load Absortion Energies
   //*************************
