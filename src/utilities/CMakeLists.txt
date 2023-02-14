@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019-2021 Universitat de València - UV
-#    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2023 Universitat de València - UV
+#    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -142,7 +142,11 @@ if(TALLIES_REGISTER)
 		set_target_properties(regTallies PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WHOLEARCHIVE:tallies")
 
 	else(MSVC)
-		target_link_libraries(regTallies -Wl,--whole-archive tallies -Wl,--no-whole-archive)
+        if(APPLE) #Check if is an Apple OS
+            target_link_libraries(regTallies -Wl,-force_load tallies -Wl,--noforce_load)
+        else(APPLE) #By default assume a Unix OS
+            target_link_libraries(regTallies -Wl,--whole-archive tallies -Wl,--no-whole-archive)
+        endif(APPLE)
 	endif(MSVC)
 
     # Install registered tallies executable
