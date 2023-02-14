@@ -177,13 +177,13 @@ if(WITH_HTTP)
 endif(WITH_HTTP)
 
 # Check platform
-if(UNIX)
-  add_definitions(-D_PEN_UNIX_=1) #enable Unix
-elseif(WIN32)
+if(WIN32)
   
 elseif(APPLE)
-  
-endif(UNIX)
+
+elseif(UNIX)
+  add_definitions(-D_PEN_UNIX_=1) #enable Unix only if it is not an Apple
+endif(WIN32)
   
 #-----------------------------------------------------------------------------
 #############################
