@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2022 Universitat de València - UV
-//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2023 Universitat de València - UV
+//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -2495,7 +2495,7 @@ void BRaAR(pen_material& mat, FILE* IRD, FILE* IWR, int INFO)
   
   const int NE = 7;
   const int NK = 10;
-  double E[NE], BET[mat.NET], XK[NK], Q1R[NE][NK], Q2R[NE][NK], Q1[NE][mat.NKT], Q2[NE][mat.NKT];
+  double E[NE], BET[pen_material::NET], XK[NK], Q1R[NE][NK], Q2R[NE][NK], Q1[NE][pen_material::NKT], Q2[NE][pen_material::NKT];
   double X[NK], A[NK], B[NK], C[NK], D[NK];
 
   double ZEQ;
@@ -2527,7 +2527,7 @@ void BRaAR(pen_material& mat, FILE* IRD, FILE* IWR, int INFO)
 
   //  ****  Grid of reduced photon energies.
 
-  double BK[mat.NKT];
+  double BK[pen_material::NKT];
   double DDK = 1.0E0 / double (mat.NKT - 1);
   for(unsigned int IK = 0; IK < mat.NKT; IK++)
   {
@@ -2751,7 +2751,7 @@ void EINaT(const pen_material& mat, CEIN00& cein00, const double E, double &WCCM
   XS0 = 0.0;
   XS1 = 0.0;
   XS2 = 0.0;
-  double XT0 = 0.0;
+  //double XT0 = 0.0;
   XT1 = 0.0;
   XT2 = 0.0;
 
@@ -2777,7 +2777,7 @@ void EINaT(const pen_material& mat, CEIN00& cein00, const double E, double &WCCM
     XS0 += cein00.SES0[K];
     XS1 += cein00.SES1[K];
     XS2 += cein00.SES2[K];
-    XT0 += cein00.SET0[K];
+    //XT0 += cein00.SET0[K];
     XT1 += cein00.SET1[K];
     XT2 += cein00.SET2[K];
   }
@@ -4698,7 +4698,7 @@ void GPHaR(pen_material& mat, pen_elementDataBase& elemDB, FILE* IRD, FILE* IWR,
   
   char CS5[17][6];
 
-  double XGPHR[gph01.NDIM][17], X1[gph01.NDIM], Y1[gph01.NDIM], X2[gph01.NDIM], Y2[gph01.NDIM];
+  double XGPHR[CGPH01::NDIM][17], X1[CGPH01::NDIM], Y1[CGPH01::NDIM], X2[CGPH01::NDIM], Y2[CGPH01::NDIM];
   int ISH[17], IZZ, NSHR, NDATA;
   
   strcpy(CS5[0], "total");
@@ -5238,8 +5238,8 @@ void DCSEL0(const double E, int IELEC, CDCSEP& dcsep)
   //  prepared by subroutine ELINIT.
 
 
-  const unsigned int NE = dcsep.NE;
-  const unsigned int NA = dcsep.NA;
+  const unsigned int NE = CDCSEP::NE;
+  const unsigned int NA = CDCSEP::NA;
   
   double Y[NE], A[NE], B[NE], C[NE], D[NE];
 

@@ -2284,7 +2284,7 @@ void RITAI0(PDF_RITA PDF, void* arg,
   int* IL   = rita.IL;
   int* IU   = rita.IU;
   
-  double ERR[rita.NM], C[rita.NM];
+  double ERR[CRITA::NM], C[CRITA::NM];
   const int NIP = 51;
   double XS[NIP], YS[NIP], SUMI[NIP];
   int NUNIF, NP_RITA;

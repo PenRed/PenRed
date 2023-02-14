@@ -39,7 +39,7 @@ include(CMakeDependentOption)
 
 CMAKE_DEPENDENT_OPTION(READ_MAT  "Compile read material utility" ON 
                        "BUILD_UTILITIES" OFF)
-CMAKE_DEPENDENT_OPTION(MAT_RANGE "Compile material range utility" OFF
+CMAKE_DEPENDENT_OPTION(MAT_RANGE "Compile material range utility" ON
                        "BUILD_UTILITIES" OFF)
 CMAKE_DEPENDENT_OPTION(TALLIES_REGISTER "Compile tallies register" ON
                        "BUILD_UTILITIES" OFF)

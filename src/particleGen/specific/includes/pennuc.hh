@@ -212,7 +212,6 @@ class pennuc_specificSampler : public abc_specificSampler<pen_particleState>{
   int lastIDAUGH, lastIBRANCH, lastISA;
 
   unsigned sourceMaterial;
-  int sourceBody;
 
   const wrapper_geometry* geometry;
 
@@ -222,7 +221,7 @@ class pennuc_specificSampler : public abc_specificSampler<pen_particleState>{
 			     DRTIME(5.0E-6),
 			     ECNUC(200.0E0),
 			     NIR(0),
-			     lastMETAST(0),LAGE(false),sourceMaterial(0),sourceBody(-1),geometry(nullptr){}
+			     lastMETAST(0),LAGE(false),sourceMaterial(0),geometry(nullptr){}
   
   int configure(double& Emax,
 		const pen_parserSection& config,

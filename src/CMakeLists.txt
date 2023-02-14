@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019-2020 Universitat de València - UV
-#    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2023 Universitat de València - UV
+#    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -87,22 +87,39 @@ endif(WITH_DEBUG)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   # using GCC
+
   if (WITH_NATIVE)
         add_compile_options(-march=native)
   endif (WITH_NATIVE)
+
   if (DEVELOPMENT_WARNINGS)
   	add_compile_options(-std=c++11 -Wall -Wpedantic -Wextra -Wshadow -O2 -Wno-unused-result -Wno-deprecated-copy -frecord-gcc-switches)
   else (DEVELOPMENT_WARNINGS)
 	add_compile_options(-std=c++11 -Wall -O2 -frecord-gcc-switches)
   endif (DEVELOPMENT_WARNINGS)
+
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # using Clang
+
+  if (WITH_NATIVE)
+        add_compile_options(-march=native)
+  endif (WITH_NATIVE)
+
+  if (DEVELOPMENT_WARNINGS)
+  	add_compile_options(-std=c++11 -Wall -Wpedantic -Wextra -Wshadow -Wc++11-compat -Wc++11-compat-pedantic -O2 -Wno-unused-result -Wno-deprecated-copy)
+  else (DEVELOPMENT_WARNINGS)
+	add_compile_options(-std=c++11 -Wall -O2)
+  endif (DEVELOPMENT_WARNINGS)
+
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
   # using Intel C++
+
   if (WITH_NATIVE)
         add_compile_options(-xHost)
   endif (WITH_NATIVE)
+
   add_compile_options(-std=c++11 -O2 -no-prec-div -fp-model precise -prec-sqrt)
+
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   # using Visual Studio C++
 endif()
