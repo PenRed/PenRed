@@ -47,14 +47,14 @@ jobs:
     - name: Print PenRed registered tallies
       run: |
         ./regTallies
-      working-directory: ${{ github.workspace }}/src/compiled/mains/registers
+      working-directory: ${{ github.workspace }}/src/compiled/registers
       
     - name: Print PenRed registered geometries
       run: |
         ./regGeometries
-      working-directory: ${{ github.workspace }}/src/compiled/mains/registers
+      working-directory: ${{ github.workspace }}/src/compiled/registers
       
     - name: Print PenRed registered particle samplers
       run: |
         ./regSamplers
-      working-directory: ${{ github.workspace }}/src/compiled/mains/registers
+      working-directory: ${{ github.workspace }}/src/compiled/registers
