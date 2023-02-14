@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019-2020 Universitat de València - UV
-#    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2023 Universitat de València - UV
+#    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -87,22 +87,39 @@ endif(WITH_DEBUG)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   # using GCC
+
   if (WITH_NATIVE)
         add_compile_options(-march=native)
   endif (WITH_NATIVE)
+
   if (DEVELOPMENT_WARNINGS)
   	add_compile_options(-std=c++11 -Wall -Wpedantic -Wextra -Wshadow -O2 -Wno-unused-result -Wno-deprecated-copy -frecord-gcc-switches)
   else (DEVELOPMENT_WARNINGS)
 	add_compile_options(-std=c++11 -Wall -O2 -frecord-gcc-switches)
   endif (DEVELOPMENT_WARNINGS)
+
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # using Clang
+
+  if (WITH_NATIVE)
+        add_compile_options(-march=native)
+  endif (WITH_NATIVE)
+
+  if (DEVELOPMENT_WARNINGS)
+  	add_compile_options(-std=c++11 -Wall -Wpedantic -Wextra -Wshadow -Wc++11-compat -Wc++11-compat-pedantic -O2 -Wno-unused-result -Wno-deprecated-copy)
+  else (DEVELOPMENT_WARNINGS)
+	add_compile_options(-std=c++11 -Wall -O2)
+  endif (DEVELOPMENT_WARNINGS)
+
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
   # using Intel C++
+
   if (WITH_NATIVE)
         add_compile_options(-xHost)
   endif (WITH_NATIVE)
+
   add_compile_options(-std=c++11 -O2 -no-prec-div -fp-model precise -prec-sqrt)
+
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   # using Visual Studio C++
 endif()
@@ -110,6 +127,14 @@ endif()
 if (MSVC) 
   # using Visual Studio C++
   add_compile_options(/arch:AVX2)
+
+  # Disable some warnings
+  add_compile_options(/wd4267) #Conversion from size_t to uintn_t, unsigned int or int
+  add_compile_options(/wd4244) #Conversion from double to float
+  add_compile_options(/wd4305) #Truncate double to const float
+  add_compile_options(/wd4244) #Conversion from double to int, possible loss of data
+  add_compile_options(/wd4018) #Signed and unsigned comparison
+
   # Check if MPI option has been enabled
   if(WITH_MPI)
 	add_compile_options(/MP) #enable MPI
@@ -160,13 +185,13 @@ if(WITH_HTTP)
 endif(WITH_HTTP)
 
 # Check platform
-if(UNIX)
-  add_definitions(-D_PEN_UNIX_=1) #enable Unix
-elseif(WIN32)
+if(WIN32)
   
 elseif(APPLE)
-  
-endif(UNIX)
+
+elseif(UNIX)
+  add_definitions(-D_PEN_UNIX_=1) #enable Unix only if it is not an Apple
+endif(WIN32)
   
 #-----------------------------------------------------------------------------
 #############################

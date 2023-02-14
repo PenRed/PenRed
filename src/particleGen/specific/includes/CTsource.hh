@@ -67,8 +67,7 @@ class ct_specificSampler : public abc_specificSampler<pen_particleState>{
   psf_specificSampler psf;
   double  tmin, dt;
   unsigned long nphi;
-  double polarRot, azimRot;
-  double azim, polar, r;
+  double r;
 
   CTsource::trans origin2CT;
   

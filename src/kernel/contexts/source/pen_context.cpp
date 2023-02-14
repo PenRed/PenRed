@@ -649,7 +649,7 @@ double pen_context::getIF(const double forcerIn,
         {
 	  double E0 = grid.EU;
 	  double fp = 1.0 / IMFP(E0, kpar, icol, M);
-	  double tst = abs(forcer);
+	  double tst = std::abs(forcer);
 	  if (fp > tst)
             {
 	      forcer = fp / tst;

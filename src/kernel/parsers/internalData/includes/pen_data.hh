@@ -245,7 +245,7 @@ public:
 };
 
 struct pen_parserElement{
-  friend class pen_parserArray;
+  friend struct pen_parserArray;
 private:
   enum pen_parserElementTypes tag;
   pen_parserArray array;

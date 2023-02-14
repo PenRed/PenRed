@@ -921,7 +921,7 @@ void pen_tallyKermaTrackLength::kermaTrackLengthSph(const unsigned long long nhi
 		       phi += 2.0*M_PI;
 		     return phi;
 		   };
-  auto theta2alpha = [drho2,dp,p1z2,alphaZ0,dz2,Brho,Brho2Brad,rho02]
+  auto theta2alpha = [drho2,p1z2,alphaZ0,dz2,Brho,Brho2Brad,rho02]
     (const double theta, double& alphaP, double& alphaM)
     -> void{
 		       if(fabs(theta-PI05) < 1.0e-8){

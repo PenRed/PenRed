@@ -190,6 +190,8 @@ int listen(asio::io_context& io_context,
 
   public:
 
+    inline bool usingSSL() const {return sslEnabled;}
+    
     server_seq(const unsigned verb = 1);
 
     inline std::chrono::seconds::rep timeStamp(const std::chrono::steady_clock::time_point time) const{
@@ -323,6 +325,8 @@ int listen(asio::io_context& io_context,
     
   public:
 
+    inline bool usingSSL() const {return sslEnabled;}
+    
     client(const unsigned verb = 1);
 
     int setHost(const char* host,

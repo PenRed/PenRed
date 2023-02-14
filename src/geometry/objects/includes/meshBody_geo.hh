@@ -290,15 +290,15 @@ public:
     configStatus = 0;
   }
   
-  int configure(const pen_parserSection& config, const unsigned verbose);
+  int configure(const pen_parserSection& config, const unsigned verbose) override;
   int GEOMESH(FILE* in, const unsigned verbose);
   
-  void locate(pen_particleState&) const;
+  void locate(pen_particleState&) const final override;
   void step(pen_particleState&,
 	    double,
 	    double &,
 	    double &,
-	    int &) const;
+	    int &) const final override;
         
   bool canOverlapParent(const unsigned) const ;
 
@@ -306,7 +306,7 @@ public:
   
   void checkCross(const unsigned iparent);
 
-  inline unsigned getIBody(const char* alias) const {
+  inline unsigned getIBody(const char* alias) const override{
       
     for(unsigned i = 0; i < getBodies(); ++i){
       if(strcmp(bodies[i].BALIAS,alias) == 0)

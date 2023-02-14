@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2022 Universitat de València - UV
-//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2023 Universitat de València - UV
+//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -50,9 +50,9 @@ class pen_dicomGeo : public pen_voxelGeo{
   
   public:
 
-  int configure(const pen_parserSection& config, const unsigned verbose);
+  int configure(const pen_parserSection& config, const unsigned verbose) override;
 
-  virtual int printImage(const char* filename) const;
+  virtual int printImage(const char* filename) const override;
 
   int printContourMasks(const char* filename) const;
 
@@ -60,7 +60,7 @@ class pen_dicomGeo : public pen_voxelGeo{
   
   inline const pen_dicom& readDicom() const {return dicom;}
 
-  inline void getOffset(double* offset) const {
+  inline void getOffset(double* offset) const override{
     offset[0] = dicom.getOriginX();
     offset[1] = dicom.getOriginY();
     offset[2] = dicom.getOriginZ();

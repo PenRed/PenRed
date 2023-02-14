@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019-2021 Universitat de València - UV
-#    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2023 Universitat de València - UV
+#    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -47,10 +47,19 @@ if (MSVC)
 	target_link_libraries(pen_main pen_VR)
 	set_target_properties(pen_main PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WHOLEARCHIVE:pen_geos /WHOLEARCHIVE:samplers /WHOLEARCHIVE:tallies /WHOLEARCHIVE:pen_VR")
 else(MSVC)
-	target_link_libraries(pen_main -Wl,--whole-archive pen_geos -Wl,--no-whole-archive )
-	target_link_libraries(pen_main -Wl,--whole-archive samplers -Wl,--no-whole-archive )
-	target_link_libraries(pen_main -Wl,--whole-archive tallies -Wl,--no-whole-archive )
-	target_link_libraries(pen_main -Wl,--whole-archive pen_VR -Wl,--no-whole-archive )
+
+	if(APPLE) #Check if is an Apple OS
+		target_link_libraries(pen_main -Wl,-force_load pen_geos)
+		target_link_libraries(pen_main -Wl,-force_load samplers)
+		target_link_libraries(pen_main -Wl,-force_load tallies)
+		target_link_libraries(pen_main -Wl,-force_load pen_VR)
+	else(APPLE) #By default assume a Unix OS
+		target_link_libraries(pen_main -Wl,--whole-archive pen_geos -Wl,--no-whole-archive )
+		target_link_libraries(pen_main -Wl,--whole-archive samplers -Wl,--no-whole-archive )
+		target_link_libraries(pen_main -Wl,--whole-archive tallies -Wl,--no-whole-archive )
+		target_link_libraries(pen_main -Wl,--whole-archive pen_VR -Wl,--no-whole-archive )
+	endif(APPLE)
+
 endif(MSVC)
 target_link_libraries(pen_main pen_timer)
 

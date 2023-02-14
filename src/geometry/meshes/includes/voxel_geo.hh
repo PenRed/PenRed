@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2023 Universitat de València - UV
+//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -99,7 +99,7 @@ public:
 
   
   
-  virtual int configure(const pen_parserSection& config, const unsigned verbose);
+  virtual int configure(const pen_parserSection& config, const unsigned verbose) override;
 
   void locate(pen_particleState& state) const final override;
   void locateInMesh(pen_particleState& state) const;
@@ -150,7 +150,7 @@ public:
   int loadFile(const char* filename,
 	       const unsigned verbose = 0);
 
-  unsigned getIBody(const char* bname) const;
+  unsigned getIBody(const char* bname) const override;
   
   virtual int printImage(const char* filename) const;
 };

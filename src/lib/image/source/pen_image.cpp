@@ -30,6 +30,8 @@
 
 #include "pen_image.hh"
 
+const constexpr std::array<const char*, pen_imageExporter::formatTypes::NONE> pen_imageExporter::formatNames;
+
 // ** Constructors for images without asociated error
 
 pen_imageExporter::pen_imageExporter(std::function<float(unsigned long long, size_t)> fin) :

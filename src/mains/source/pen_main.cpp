@@ -669,7 +669,7 @@ int main(int argc, char** argv){
   }
 
 	printf("***************************************************************\n");
-  printf(" PenRed version: 1.7.0 (14-July-2022) \n");
+  printf(" PenRed version: 1.7.1 (14-February-2023) \n");
   printf(" Copyright (c) 2019-2022 Universitat Politecnica de Valencia\n");
   printf(" Copyright (c) 2019-2022 Universitat de Valencia\n");
   printf(" Reference: Computer Physics Communications, 267 (2021) 108065\n"
@@ -1056,7 +1056,7 @@ int main(int argc, char** argv){
   bool LBhttp = false;
 #endif
   int LBport = -1;
-  int LBworker;
+  int LBworker = 0;
   std::string CAfile, certFile, keyFile, password, hostname;  
 #ifdef _PEN_USE_LB_
   int errAuxEsp = 99;
