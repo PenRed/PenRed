@@ -168,7 +168,11 @@ if(SAMPLE_REGISTER)
 		target_link_libraries(regSamplers samplers)
 		set_target_properties(regSamplers PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WHOLEARCHIVE:samplers")
 	else(MSVC)
-		target_link_libraries(regSamplers -Wl,--whole-archive samplers -Wl,--no-whole-archive)
+        if(APPLE) #Check if is an Apple OS
+            target_link_libraries(regSamplers -Wl,-force_load samplers)
+        else(APPLE) #By default assume a Unix OS
+            target_link_libraries(regSamplers -Wl,--whole-archive samplers -Wl,--no-whole-archive)
+        endif(APPLE)
 	endif(MSVC)
 
     # Install registered samplers executable
@@ -190,7 +194,11 @@ if(GEOMETRY_REGISTER)
 		target_link_libraries(regGeometries pen_geos)
 		set_target_properties(regGeometries PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WHOLEARCHIVE:pen_geos")
 	else(MSVC)
-		target_link_libraries(regGeometries -Wl,--whole-archive pen_geos -Wl,--no-whole-archive)
+        if(APPLE) #Check if is an Apple OS
+            target_link_libraries(regGeometries -Wl,-force_load pen_geos)
+        else(APPLE) #By default assume a Unix OS
+            target_link_libraries(regGeometries -Wl,--whole-archive pen_geos -Wl,--no-whole-archive)
+        endif(APPLE)
 	endif(MSVC)
     
 
@@ -215,7 +223,11 @@ if(PHOTON_VR_REGISTER)
 		target_link_libraries(regPhotonVR pen_VR)
 		set_target_properties(regPhotonVR PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WHOLEARCHIVE:pen_VR")
 	else(MSVC)
-		target_link_libraries(regPhotonVR -Wl,--whole-archive pen_VR -Wl,--no-whole-archive)
+        if(APPLE) #Check if is an Apple OS
+            target_link_libraries(regPhotonVR -Wl,-force_load pen_VR)
+        else(APPLE) #By default assume a Unix OS
+            target_link_libraries(regPhotonVR -Wl,--whole-archive pen_VR -Wl,--no-whole-archive)
+        endif(APPLE)
 	endif(MSVC)
 
     # Install registered VR executable
@@ -238,7 +250,11 @@ if(GENERIC_VR_REGISTER)
 		target_link_libraries(regGenericVR pen_VR)
 		set_target_properties(regGenericVR PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WHOLEARCHIVE:pen_VR")
 	else(MSVC)
-		target_link_libraries(regGenericVR -Wl,--whole-archive pen_VR -Wl,--no-whole-archive)
+        if(APPLE) #Check if is an Apple OS
+            target_link_libraries(regGenericVR -Wl,-force_load pen_VR)
+        else(APPLE) #By default assume a Unix OS
+            target_link_libraries(regGenericVR -Wl,--whole-archive pen_VR -Wl,--no-whole-archive)
+        endif(APPLE)
 	endif(MSVC)
     
 
