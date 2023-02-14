@@ -127,6 +127,14 @@ endif()
 if (MSVC) 
   # using Visual Studio C++
   add_compile_options(/arch:AVX2)
+
+  # Disable some warnings
+  add_compile_options(/wd4267) #Conversion from size_t to uintn_t, unsigned int or int
+  add_compile_options(/wd4244) #Conversion from double to float
+  add_compile_options(/wd4305) #Truncate double to const float
+  add_compile_options(/wd4244) #Conversion from double to int, possible loss of data
+  add_compile_options(/wd4018) #Signed and unsigned comparison
+
   # Check if MPI option has been enabled
   if(WITH_MPI)
 	add_compile_options(/MP) #enable MPI
