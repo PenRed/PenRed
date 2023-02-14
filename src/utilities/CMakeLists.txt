@@ -143,7 +143,7 @@ if(TALLIES_REGISTER)
 
 	else(MSVC)
         if(APPLE) #Check if is an Apple OS
-            target_link_libraries(regTallies -Wl,-force_load tallies -Wl,--noforce_load)
+            target_link_libraries(regTallies -Wl,-force_load tallies)
         else(APPLE) #By default assume a Unix OS
             target_link_libraries(regTallies -Wl,--whole-archive tallies -Wl,--no-whole-archive)
         endif(APPLE)
