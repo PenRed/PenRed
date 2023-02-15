@@ -1,7 +1,7 @@
 //
 //
-//    Copyright (C) 2021-2022 Universitat de València - UV
-//    Copyright (C) 2021-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2021-2023 Universitat de València - UV
+//    Copyright (C) 2021-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -29,8 +29,15 @@
 
 extern "C"{
     
-  pen_geoView* pen_geoView_new(){return new pen_geoView;}
-  
-  void pen_geoView_delete(pen_geoView* i){delete i;}
+ #ifdef _WIN32
+   __declspec(dllexport) pen_geoView* pen_geoView_new(){return new pen_geoView;}
+
+   __declspec(dllexport) void pen_geoView_delete(pen_geoView* i){delete i;} 
+ #else
+   pen_geoView* pen_geoView_new(){return new pen_geoView;}
+
+   void pen_geoView_delete(pen_geoView* i){delete i;} 
+ #endif
+
 
 }
