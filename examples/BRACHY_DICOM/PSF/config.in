@@ -1,0 +1,159 @@
+#
+#
+#    Copyright (C) 2023 Universitat de València - UV
+#    Copyright (C) 2023 Universitat Politècnica de València - UPV
+#
+#    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
+#
+#    PenRed is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    PenRed is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with PenRed.  If not, see <https://www.gnu.org/licenses/>. 
+#
+#
+#    contact emails:
+#
+#        sanolgi@upvnet.upv.es
+#        vicent.gimenez.alventosa@gmail.com
+#
+#########################
+##  SOURCES           ###
+#########################
+
+#------------------------
+#  Source 1
+#########################
+
+sources/generic/source1/nhist 1e7
+sources/generic/source1/kpar "gamma"
+
+
+# Directional sampling
+#########################
+
+sources/generic/source1/direction/type "SOLID_ANGLE"
+
+sources/generic/source1/direction/u 0.0
+sources/generic/source1/direction/v 0.0
+sources/generic/source1/direction/w 1.0
+
+# Set theta
+sources/generic/source1/direction/theta0 0.0
+sources/generic/source1/direction/theta1 180.0
+
+# Set phi
+sources/generic/source1/direction/phi0 0.0
+sources/generic/source1/direction/dphi 360.0
+
+sources/generic/source1/source-material 2 
+
+# Energy sampling
+#########################
+
+sources/generic/source1/energy/type "FILE_SPECTRUM"
+
+# Set energy
+sources/generic/source1/energy/filename "Ir.spc"
+
+# Spatial sampling
+#########################
+
+# Set box size
+sources/generic/source1/spatial/type "BOX"
+sources/generic/source1/spatial/size/dx 0.065
+sources/generic/source1/spatial/size/dy 0.065
+sources/generic/source1/spatial/size/dz 0.36
+
+# Set box center position
+sources/generic/source1/spatial/position/x 0.0
+sources/generic/source1/spatial/position/y 0.0
+sources/generic/source1/spatial/position/z 0.0
+
+
+#########################
+##  TALLIES           ###
+#########################
+
+tallies/secondary/type "SECONDARY_GEN"
+
+tallies/psf/type "PSF"
+tallies/psf/detector 1
+tallies/psf/emin 0.0
+tallies/psf/emax 1e6
+
+
+#########################
+#  GEOMETRY PARAMETERS  #
+#########################
+
+geometry/type "PEN_QUADRIC"
+geometry/input-file "aapm-Ir-192-mbdca_psf.geo"
+geometry/processed-geo-file "report.geo"
+
+geometry/kdet/5  1
+
+geometry/eabs/5/electron  1.0e35
+geometry/eabs/5/gamma     1.0e35
+geometry/eabs/5/positron  1.0e35
+
+#########################
+#       MATERIALS       #
+#########################
+
+materials/Ir/number 1
+materials/Ir/eabs_e- 1.4e6
+materials/Ir/eabs_e+ 1.4e6
+materials/Ir/eabs_gamma 1e3
+materials/Ir/C1 0.05
+materials/Ir/C2 0.05
+materials/Ir/WCC 5.0e3
+materials/Ir/WCR 5.0e3 
+materials/Ir/filename "Ir.mat"
+
+materials/Steel/number 2 
+materials/Steel/eabs_e- 7.1e5
+materials/Steel/eabs_e+ 7.1e5
+materials/Steel/eabs_gamma 1e3
+materials/Steel/C1 0.05
+materials/Steel/C2 0.05
+materials/Steel/WCC 5.0e3
+materials/Steel/WCR 5.0e3 
+materials/Steel/filename "steel316L.mat"
+
+materials/Steel-cable/number 3
+materials/Steel-cable/eabs_e- 5.0e5
+materials/Steel-cable/eabs_e+ 5.0e5
+materials/Steel-cable/eabs_gamma 1e3
+materials/Steel-cable/C1 0.05
+materials/Steel-cable/C2 0.05
+materials/Steel-cable/WCC 5.0e3
+materials/Steel-cable/WCR 5.0e3
+materials/Steel-cable/filename "steel316L-cable.mat"
+
+materials/air/number 4
+materials/air/eabs_e- 4.0e3
+materials/air/eabs_e+ 4.0e3
+materials/air/eabs_gamma 1e3
+materials/air/C1 0.05
+materials/air/C2 0.05
+materials/air/WCC 4.0e3
+materials/air/WCR 4.0e3
+materials/air/filename "Air.mat"
+
+
+
+
+#########################
+# SIMULATION PARAMETERS #
+#########################
+
+simulation/threads 2
+

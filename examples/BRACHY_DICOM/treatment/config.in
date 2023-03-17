@@ -1,0 +1,196 @@
+#
+#
+#    Copyright (C) 2023 Universitat de València - UV
+#    Copyright (C) 2023 Universitat Politècnica de València - UPV
+#
+#    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
+#
+#    PenRed is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    PenRed is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with PenRed.  If not, see <https://www.gnu.org/licenses/>. 
+#
+#
+#    contact emails:
+#
+#        sanolgi@upvnet.upv.es
+#        vicent.gimenez.alventosa@gmail.com
+#
+#########################
+##  SOURCES           ###
+#########################
+
+#------------------------
+#  Source 1
+#########################
+
+sources/generic/source-psf/nhist 1.0e6
+sources/generic/source-psf/specific/type "BRACHY"
+sources/generic/source-psf/specific/psf/filename "psf-merged.dat"
+sources/generic/source-psf/specific/psf/Emax 1.40e6
+
+sources/generic/source-psf/specific/psf/wght-window [5e-4, 1e-3]
+sources/generic/source-psf/specific/psf/nsplit 100
+
+sources/generic/source-psf/specific/psf/npartitions 7
+
+#########################
+##  TALLIES           ###
+#########################
+
+tallies/secondary/type "SECONDARY_GEN"
+
+
+tallies/DICOMkerma/type "DICOM_KERMA_TRACK_LENGTH"
+tallies/DICOMkerma/kerma/emin 2.5e4
+tallies/DICOMkerma/kerma/emax 1.4E+06 
+tallies/DICOMkerma/kerma/dataFiles/1 "mutrenData/body-mutren.dat"
+tallies/DICOMkerma/kerma/dataFiles/2 "mutrenData/heart-mutren.dat" 
+tallies/DICOMkerma/kerma/dataFiles/3 "mutrenData/skin-mutren.dat"
+tallies/DICOMkerma/kerma/dataFiles/4 "mutrenData/air-mutren.dat"
+tallies/DICOMkerma/kerma/dataFiles/5 "mutrenData/bone-mutren.dat"
+tallies/DICOMkerma/kerma/dataFiles/6 "mutrenData/body-mutren.dat"
+tallies/DICOMkerma/kerma/cartesian/nx 512 
+tallies/DICOMkerma/kerma/cartesian/xmin 0.0 
+tallies/DICOMkerma/kerma/cartesian/xmax  33.3
+tallies/DICOMkerma/kerma/cartesian/ny 512
+tallies/DICOMkerma/kerma/cartesian/ymin 0.0
+tallies/DICOMkerma/kerma/cartesian/ymax  33.3
+tallies/DICOMkerma/kerma/cartesian/nz 40 
+tallies/DICOMkerma/kerma/cartesian/zmin 0.0 
+tallies/DICOMkerma/kerma/cartesian/zmax  12.0
+
+
+tallies/DICOMkerma/prescribedDose 4.3
+tallies/DICOMkerma/MCkerma2Dose 0.0262943
+tallies/DICOMkerma/DVH-maxDose 14
+tallies/DICOMkerma/DVH-bins 500
+
+#########################
+#  GEOMETRY PARAMETERS  #
+#########################
+
+geometry/type "DICOM"
+geometry/directory "test_mamaHDR"
+
+geometry/enclosure-margin 20
+geometry/enclosure-material 4
+
+geometry/default/material 4
+geometry/default/density  1.2000E-03 
+
+#geometry/print-ASCII true
+
+geometry/contours/body/material 1
+geometry/contours/body/density 1.0
+geometry/contours/body/priority 2.2
+
+geometry/contours/heart/material 2
+geometry/contours/heart/density 1.5
+geometry/contours/heart/priority 2.6
+
+geometry/contours/skin/material 3
+geometry/contours/skin/density 1.1
+geometry/contours/skin/priority 2.3
+
+geometry/contours/left lung/material 4
+geometry/contours/left lung/density 1.2E-03
+geometry/contours/left lung/priority 2.3
+
+geometry/contours/right lung/material 4
+geometry/contours/right lung/density 1.2E-03
+geometry/contours/right lung/priority 2.3
+
+geometry/contours/left ribs/material 5
+geometry/contours/left ribs/density 1.92
+geometry/contours/left ribs/priority 2.3
+
+geometry/contours/right ribs/material 5
+geometry/contours/right ribs/density 1.92
+geometry/contours/right ribs/priority 2.3
+
+geometry/contours/ptv/material 6
+geometry/contours/ptv/density 1.0
+geometry/contours/ptv/priority 2.5
+
+
+#########################
+#       MATERIALS       #
+#########################
+
+materials/body/number 1
+materials/body/eabs_e- 1.0e9
+materials/body/eabs_e+ 1.0e9
+materials/body/eabs_gamma 1e3
+materials/body/C1 0.1
+materials/body/C2 0.1
+materials/body/WCC 1.0e3
+materials/body/WCR 1.0e3
+materials/body/filename "body.mat"
+
+materials/heart/number 2
+materials/heart/eabs_e- 1.0e9
+materials/heart/eabs_e+ 1.0e9
+materials/heart/eabs_gamma 1e3
+materials/heart/C1 0.1
+materials/heart/C2 0.1
+materials/heart/WCC 1.0e3
+materials/heart/WCR 1.0e3 
+materials/heart/filename "heart.mat"
+
+materials/skin/number 3
+materials/skin/eabs_e- 1.0e9
+materials/skin/eabs_e+ 1.0e9
+materials/skin/eabs_gamma 1e3
+materials/skin/C1 0.1
+materials/skin/C2 0.1
+materials/skin/WCC 1.0e3
+materials/skin/WCR 1.0e3 
+materials/skin/filename "skin.mat"
+
+
+materials/air/number 4
+materials/air/eabs_e- 1.0e9
+materials/air/eabs_e+ 1.0e9
+materials/air/eabs_gamma 1e3
+materials/air/C1 0.1
+materials/air/C2 0.1
+materials/air/WCC 1.0e3
+materials/air/WCR 1.0e3
+materials/air/filename "Air.mat"
+
+
+materials/bone/number 5
+materials/bone/eabs_e- 1.0e9
+materials/bone/eabs_e+ 1.0e9
+materials/bone/eabs_gamma 1e3
+materials/bone/C1 0.1
+materials/bone/C2 0.1
+materials/bone/WCC 1.0e3
+materials/bone/WCR 1.0e3
+materials/bone/filename "bone.mat"
+
+materials/ptv/number 6
+materials/ptv/eabs_e- 1.0e9
+materials/ptv/eabs_e+ 1.0e9
+materials/ptv/eabs_gamma 1e3
+materials/ptv/C1 0.1
+materials/ptv/C2 0.1
+materials/ptv/WCC 1.0e3
+materials/ptv/WCR 1.0e3
+materials/ptv/filename "body.mat"
+
+#########################
+# SIMULATION PARAMETERS #
+#########################
+
+simulation/threads 2
+
