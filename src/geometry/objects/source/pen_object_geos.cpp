@@ -32,3 +32,4 @@
 #include "quadric_geo.cpp"
 #include "dummy_geo.cpp"
 #include "meshBody_geo.cpp"
+#include "combo_geo.cpp"

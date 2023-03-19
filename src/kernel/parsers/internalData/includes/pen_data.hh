@@ -743,6 +743,31 @@ public:
     return readSubsection(aux,secOut,removeKey);
   }
   int readSubsection(std::string&, pen_parserSection&, const bool = true) const;
+
+  inline int addSubsection(const char* key,
+			   const pen_parserSection& secIn){
+
+    //Check key
+    int err = checkKey(key);
+    if(err != INTDATA_SUCCESS)
+      return err;
+
+    //Check if the key exists
+    if(exists(key)){
+      return INTDATA_USED_KEY;
+    }
+      
+    //Iterate over elements in input section
+    elementMap::const_iterator it;
+    std::string baseKey(key);
+    baseKey.append("/");
+    for(it = secIn.elements.cbegin(); it != secIn.elements.cend(); it++){
+      std::string aux(baseKey);
+      aux.append(it->first);
+      elements[aux] = it->second;
+    }
+    return INTDATA_SUCCESS;    
+  }
   
   void clear();
   
