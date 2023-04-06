@@ -31,6 +31,7 @@
 #include <thread>
 #include <limits>
 #include <cctype>
+#include <algorithm>
 #include "pen_loops.hh"
 
 int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>>& genericSources,
@@ -156,6 +157,7 @@ void simulate(const unsigned ithread,
 	      unsigned long long* nsimulated,               //Total number of simulated histories
 	      const unsigned long long initSourceSimulated, //Number of source histories already simulated
 	      const bool writePartial,
+	      double* maxSimTime,
 	      const unsigned verbose){
 
   // Variables list
@@ -185,6 +187,17 @@ void simulate(const unsigned ithread,
   double time0 = CPUtime();
   auto start = std::chrono::steady_clock::now();
 
+  //Create a stopwatch for simulation time
+  long long int mili2sim;
+  if(*maxSimTime <= 0.0 || *maxSimTime > 1.0e15){
+    mili2sim = 1000000000000000000;
+  }
+  else{
+    mili2sim = static_cast<long long int>(*maxSimTime);
+    mili2sim *= 1000; //Convert to ms
+  }
+  pen_stopWatch simLimitWatch(mili2sim);
+  
   //Create a stopwatch for dumps
   long long int mili2dump;
   if(dumpTime <= 0.0 || dumpTime > 1.0e9){
@@ -200,14 +213,14 @@ void simulate(const unsigned ithread,
   //Create a stopWatch to perform speed reports
   long long int mili2report =
     static_cast<long long int>(1000*source.task.getCheckTime()/1.5);
-  pen_stopWatch
-    reportWatch(mili2report);
+  pen_stopWatch reportWatch(mili2report);
 
   //Start all stopWatch counts
   if(ithread == 0)
     checkPointWatch.start();
   reportWatch.start();
   dumpWatch.start();
+  simLimitWatch.start();
   
   //Copy simulated histories
   const unsigned long long simulated = (*nsimulated);
@@ -280,8 +293,10 @@ void simulate(const unsigned ithread,
   unsigned long long dhist;
 
   printf("Thread %u: Starting simulation of source '%s' with initial "
-	 "seeds %d %d at history %llu (histories to do: %llu)\n",
-	 ithread,source.name.c_str(),*seed1,*seed2,simulated,nhists);
+	 "seeds %d %d at history %llu (histories to do: %llu). "
+	 "Simulation time limited to %E s\n",
+	 ithread,source.name.c_str(),*seed1,*seed2,simulated,nhists,
+	 *maxSimTime);
   fflush(stdout);
   
   //Update tallies last hist
@@ -566,7 +581,7 @@ void simulate(const unsigned ithread,
 			  currentHists,
 			  3);
 	if(writePartial)
-	  tallies.saveData(hist,false); //Saves data but doesn't repeats flush calls
+	  tallies.saveData(hist,false); //Saves data but does not repeat flush calls
 	dumpWatch.start(); //Restart watch
       }
       //Check if is time to make a report
@@ -606,6 +621,29 @@ void simulate(const unsigned ithread,
 	  checkPointWatch.start(); //Restart watch
 	}
       }
+      //Check if the simulation must be stopped
+      if(simLimitWatch.check(tnow)){
+	//Save dump
+	unsigned long long currentHists = hist-simulated+initSourceSimulated;
+	printf("Maximum simulation time reached. Dumping simulation with last hist %llu and seeds %d %d\n"
+	       "  source '%s' simulated %llu/%llu\n",
+	       hist,lseed1,lseed2,source.name.c_str(),currentHists,nhists);
+	fflush(stdout);
+	tallies.dump2file(dumpFilename.c_str(),
+			  hist,
+			  lseed1,lseed2,
+			  lastSource,
+			  currentHists,
+			  3);
+	
+	if(writePartial)
+	  tallies.saveData(hist,false); //Saves data but does not repeat flush calls
+
+	//Finish the simulation
+	break;
+	
+      }
+      
       //Increment history counter
       hist += dhist;
 
@@ -658,6 +696,9 @@ void simulate(const unsigned ithread,
   
   //Save simulated histories
   (*nsimulated) = hist;
+
+  //Update maximum simulation time
+  (*maxSimTime) -= elapsed;
   
 }
 
@@ -669,7 +710,7 @@ int main(int argc, char** argv){
   }
 
 	printf("***************************************************************\n");
-  printf(" PenRed version: 1.8.0 (19-March-2023) \n");
+  printf(" PenRed version: 1.8.1 (6-April-2023) \n");
   printf(" Copyright (c) 2019-2023 Universitat Politecnica de Valencia\n");
   printf(" Copyright (c) 2019-2023 Universitat de Valencia\n");
   printf(" Reference: Computer Physics Communications, 267 (2021) 108065\n"
@@ -699,6 +740,9 @@ int main(int argc, char** argv){
   
   unsigned verbose = 2;
 
+  //Create a timer to measure the expended time in initialization 
+  pen_timer initializationTimer;
+  
   // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_
   //Initialize MPI
@@ -990,6 +1034,25 @@ int main(int argc, char** argv){
     finalDump = false;
   }
 
+  // Get maximum simulation time
+  //*******************************
+  double maxSimTime;
+  if(config.read("simulation/max-time",maxSimTime) == INTDATA_SUCCESS){
+    if(verbose > 0){
+      printf("Maximum simulation time set to %E s\n",maxSimTime);
+    }
+  }else{
+    //No maximum simulation time
+    maxSimTime = 1.0e35;
+  }
+
+  if(maxSimTime <= 0.0){
+    //No maximum simulation time
+    maxSimTime = 1.0e35;
+  }
+
+  //Create a vector to store the maximum simlation time for each thread
+  std::vector<double> maxSimTimes(nthreads);
   
   // Get time between dumps
   //*******************************
@@ -1697,10 +1760,22 @@ int main(int argc, char** argv){
       printf("Skip already simulated sources (%d)\n",nextSource[0]);
   }
 
+  if(verbose > 1){
+    printf("Initialization processing time: %E s\n", initializationTimer.timer());
+  }
+
+  //Substract initialization time to maximum simulation time
+  maxSimTime -= initializationTimer.timer();
+  
   //Iterate over generic sources
   for(unsigned iSource = nextSource[0];
       iSource < genericSources.size(); ++iSource){
     int lastSource = static_cast<int>(iSource)-1;
+
+    //Check remaining simulation time
+    if(maxSimTime <= 0.0)
+      break; //Finish the simulation
+    
 
   // ************************** MULTI-THREADING ***************************** //
 #ifdef _PEN_USE_THREADS_
@@ -1708,6 +1783,10 @@ int main(int argc, char** argv){
     if(nthreads > 1){
       // Multi-thread
       //****************
+
+      //Update maximum simulation times
+      std::fill(maxSimTimes.begin(), maxSimTimes.end(), maxSimTime);
+      
       for(unsigned ithread = 0; ithread < nthreads; ++ithread){
 	// Simulate
 	simThreads.push_back(std::thread(simulate<pen_particleState>,
@@ -1724,6 +1803,7 @@ int main(int argc, char** argv){
 					 &simulated[ithread],
 					 currentSourceDone[ithread],
 					 partialResults,
+					 &maxSimTimes[ithread],
 					 verbose
 					 ));
 
@@ -1749,6 +1829,8 @@ int main(int argc, char** argv){
       //Join threads
       for(unsigned ithread = 0; ithread < nthreads; ++ithread){
 	simThreads[ithread].join();
+	//Update remaining simulation time
+	maxSimTime = std::min(maxSimTime, maxSimTimes[ithread]);	
       }
 
       //Clear threads
@@ -1761,6 +1843,9 @@ int main(int argc, char** argv){
 
       // Single thread
       //****************
+
+      //Update simulation time
+      maxSimTimes[0] = maxSimTime;
       
       // Simulate      
       simulate(0,
@@ -1776,11 +1861,16 @@ int main(int argc, char** argv){
 	       &simulated[0],
 	       currentSourceDone[0],
 	       partialResults,
+	       &maxSimTimes[0],
 	       verbose);
+
+      //Update maximum simulation time
+      maxSimTime = maxSimTimes[0];
 
 #ifdef _PEN_USE_THREADS_
     }
 #endif
+    
     fflush(stdout);
     
   }
@@ -1792,6 +1882,11 @@ int main(int argc, char** argv){
       iSource < polarisedGammaSources.size(); iSource++){
     int lastSource = static_cast<int>(genericSources.size()) +
       static_cast<int>(iSource)-1;
+
+    //Check remaining simulation time
+    if(maxSimTime <= 0.0)
+      break; //Finish the simulation
+
     
     //Run simulations for each thread
 
@@ -1800,6 +1895,10 @@ int main(int argc, char** argv){
     if(nthreads > 1){
       // Multi-thread
       //***************
+
+      //Update maximum simulation times
+      std::fill(maxSimTimes.begin(), maxSimTimes.end(), maxSimTime);
+      
       for(unsigned ithread = 0; ithread < nthreads; ++ithread){
 	// Simulate
 	simThreads.push_back(std::thread(simulate<pen_state_gPol>,
@@ -1816,6 +1915,7 @@ int main(int argc, char** argv){
 					 &simulated[ithread],
 					 currentSourceDone[ithread],
 					 partialResults,
+					 &maxSimTimes[ithread],
 					 verbose
 					 ));
 
@@ -1841,6 +1941,8 @@ int main(int argc, char** argv){
       //Join threads
       for(unsigned ithread = 0; ithread < nthreads; ++ithread){
 	simThreads[ithread].join();
+	//Update remaining simulation time
+	maxSimTime = std::min(maxSimTime, maxSimTimes[ithread]);
       }
 
       //Clear threads
@@ -1853,6 +1955,9 @@ int main(int argc, char** argv){
 
       // Single thread
       //****************
+
+      //Update simulation time
+      maxSimTimes[0] = maxSimTime;
       
       // Simulate 
       simulate<pen_state_gPol>(0,
@@ -1868,7 +1973,12 @@ int main(int argc, char** argv){
 			       &simulated[0],
 			       currentSourceDone[0],
 			       partialResults,
+			       &maxSimTimes[0],
 			       verbose);
+
+      //Update maximum simulation time
+      maxSimTime = maxSimTimes[0];
+      
 #ifdef _PEN_USE_THREADS_
     }
 #endif
@@ -2220,7 +2330,7 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
       }
 
       //Init the source task
-      unsigned long long uihists = static_cast<unsigned long long>(nhists);
+      unsigned long long uihists = static_cast<unsigned long long>(nhists+0.1);
       uihists = std::max(uihists,1llu);
 
   // ******************************* LB ************************************ //
