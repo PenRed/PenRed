@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2022 Universitat de València - UV
-//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2023 Universitat de València - UV
+//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -46,5 +46,6 @@
 #include "tallyDICOMDoseDistrib.hh"
 #include "tallyCTsinogram.hh"
 #include "tallyDICOMkerma.hh"
+#include "tallyPSS.hh"
 
 #endif

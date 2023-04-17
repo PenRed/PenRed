@@ -265,7 +265,11 @@ void simulate(const unsigned ithread,
   pen_particleStack<pen_particleState> stackE;
   pen_particleStack<pen_particleState> stackP;
   pen_particleStack<pen_state_gPol> stackG;
-  
+
+  //Set stacks in the tally cluster
+  tallies.setStack(PEN_ELECTRON, &stackE);
+  tallies.setStack(PEN_POSITRON, &stackP);
+  tallies.setStack(PEN_PHOTON,   &stackG);
   
   //Create particle simulations
   pen_betaE betaE(context,stackE,stackG);
@@ -453,90 +457,59 @@ void simulate(const unsigned ithread,
 	while(nbetaEsim < nBetaE05){
 	  stackE.get(betaE.getState());
 
+	  //Update body and material
 	  betaE.updateBody();
-
-	  //VR
-	  betaE.vr_particleStack(hist,random,verbose);
-	  
-	  //Check if this particle has sufficient energy
-	  if(betaE.getState().E < betaE.getEABS()){
-	    nbetaEsim++;
-	    continue;
-	  }
-	  
 	  betaE.updateMat();
 	  
 	  //Get kdet
 	  unsigned kdet = betaE.getDET();
-	
+	  
+	  //VR
+	  betaE.vr_particleStack(hist,random,verbose);
+
+	  //Simulate particle
 	  tallies.run_beginPart(hist,kdet,PEN_ELECTRON,betaE.readState());
 	  simulatePart(hist,betaE,tallies,random);
 	
 	  nbetaEsim++;
 	}
+	
 	unsigned ngammasim = 0;
 	while(ngammasim < nGamma05){
 	  stackG.get(gamma.getState());
 
+	  //Update body and material
 	  gamma.updateBody();
-
-	  //VR
-	  gamma.vr_particleStack(hist,random,verbose);
-	  
-	  //Check if this particle has sufficient energy
-	  if(gamma.getState().E < gamma.getEABS()){
-	    ngammasim++;
-	    continue;
-	  }
-	  
 	  gamma.updateMat();
 	    
 	  //Get kdet
 	  unsigned kdet = gamma.getDET();
 
+	  //VR
+	  gamma.vr_particleStack(hist,random,verbose);
+
+	  //Simulate particle
 	  tallies.run_beginPart(hist,kdet,PEN_PHOTON,gamma.readState());
 	  simulatePart(hist,gamma,tallies,random);
 	
 	  ngammasim++;
 	}
+	
 	unsigned nbetaPsim = 0;
 	while(nbetaPsim < nBetaP05){
 	  stackP.get(betaP.getState());
 
-	  betaP.updateMat();
+	  //Update body and material
 	  betaP.updateBody();
-	  
-	  //Check if this particle has sufficient energy
-	  if(betaP.readState().E < betaP.getEABS()){
+	  betaP.updateMat();
 
-	    //Get kdet
-	    unsigned kdet = betaP.getDET();
-	    //Tally positron beginning
-	    tallies.run_beginPart(hist,kdet,PEN_POSITRON,betaP.readState());
-	    
-	    // run annihilation process
-	    double Eprod = betaP.annihilationEDep;
-	    betaP.annihilate(random);
-	    tallies.run_localEdep(hist,PEN_POSITRON,
-				  betaP.readState(),betaP.readState().E+Eprod);
-
-	    //Call tallies with end particle collect function
-	    tallies.run_endPart(hist,PEN_POSITRON,betaP.readState());
-	    
-	    nbetaPsim++;
-	    continue;
-	  }
-
-	  //VR
-	  betaP.vr_particleStack(hist,random,verbose);
-	  if(betaP.readState().E < betaP.getEABS()){
-	    nbetaPsim++;
-	    continue;
-	  }
-	    
 	  //Get kdet
 	  unsigned kdet = betaP.getDET();
-	
+	  
+	  //VR
+	  betaP.vr_particleStack(hist,random,verbose);	    
+
+	  //Simulate particle
 	  tallies.run_beginPart(hist,kdet,PEN_POSITRON,betaP.readState());
 	  simulatePart(hist,betaP,tallies,random);
 	
