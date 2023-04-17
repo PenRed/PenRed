@@ -37,6 +37,51 @@
 #include "voxel_geo.hh"
 #include "pen_image.hh"
 
+struct intensityRange{
+  unsigned mat;
+  double low, top, dens;
+
+  intensityRange() = default;
+  intensityRange(const unsigned inMat,
+		 const double inLow,
+		 const double inTop,
+		 const double inDens) : mat(inMat),
+					low(inLow),
+					top(inTop),
+					dens(inDens) {}
+
+  inline bool inner(const double value) const{
+    return value >= low && value < top;
+  }
+};
+
+struct densityRange{
+  unsigned mat;
+  double low, top;
+
+  densityRange() = default;
+  densityRange(const unsigned inMat,
+	       const double inLow,
+	       const double inTop) : mat(inMat),
+				     low(inLow),
+				     top(inTop) {}
+
+  inline bool inner(const double value) const{
+    return value >= low && value < top;
+  }  
+};
+
+struct contourAssign{
+
+  unsigned defaultMat;
+  double defaultDens;
+  double priority;
+
+  std::vector<intensityRange> intensityRanges;
+  std::vector<densityRange> densityRanges;
+  
+};
+
 class pen_dicomGeo : public pen_voxelGeo{
   DECLARE_GEOMETRY(pen_dicomGeo)
   
@@ -66,6 +111,14 @@ class pen_dicomGeo : public pen_voxelGeo{
     offset[2] = dicom.getOriginZ();
   }
 };
+
+int readIntensityRanges(const pen_parserSection& config,
+			std::vector<intensityRange>& data,
+			const unsigned verbose);
+
+int readDensityRanges(const pen_parserSection& config,
+		      std::vector<densityRange>& data,
+		      const unsigned verbose);
 
 #endif
 #endif

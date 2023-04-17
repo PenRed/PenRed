@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2023-03-19
+
+### Added
+- DICOM: Capability to specify intensity and density ranges for specific segmentation in each contour
+- Cylindrical shell spatial sampling
+- Geometry "COMBO" type: Allow to combine different geometries in a single one regardless of its type
+
+### Fix
+- Geometry view library compilation with DICOM support
+
 ## [1.7.1b] - 2023-02-15
 
 ### Fix

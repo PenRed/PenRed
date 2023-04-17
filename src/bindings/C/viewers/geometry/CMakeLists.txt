@@ -36,7 +36,11 @@ if(NOT BUILD_STATIC)
     target_compile_options(pen_internalData PRIVATE -fPIC)
     target_compile_options(pen_dump PRIVATE -fPIC)
     target_compile_options(pen_aux PRIVATE -fPIC)
-    target_compile_options(pen_math PRIVATE -fPIC)    
+    target_compile_options(pen_math PRIVATE -fPIC)
+    if(WITH_DICOM)
+        target_compile_options(pen_image PRIVATE -fPIC)
+        target_compile_options(pen_dicom PRIVATE -fPIC)
+    endif(WITH_DICOM)
 endif(NOT BUILD_STATIC)
 
 

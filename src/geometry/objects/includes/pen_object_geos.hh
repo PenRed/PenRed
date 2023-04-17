@@ -34,5 +34,6 @@
 #include "quadric_geo.hh"
 #include "dummy_geo.hh"
 #include "meshBody_geo.hh"
+#include "combo_geo.hh"
 
 #endif

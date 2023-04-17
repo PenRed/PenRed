@@ -669,9 +669,9 @@ int main(int argc, char** argv){
   }
 
 	printf("***************************************************************\n");
-  printf(" PenRed version: 1.7.1b (15-February-2023) \n");
-  printf(" Copyright (c) 2019-2022 Universitat Politecnica de Valencia\n");
-  printf(" Copyright (c) 2019-2022 Universitat de Valencia\n");
+  printf(" PenRed version: 1.8.0 (19-March-2023) \n");
+  printf(" Copyright (c) 2019-2023 Universitat Politecnica de Valencia\n");
+  printf(" Copyright (c) 2019-2023 Universitat de Valencia\n");
   printf(" Reference: Computer Physics Communications, 267 (2021) 108065\n"
          "            https://doi.org/10.1016/j.cpc.2021.108065\n");
   printf(" This is free software; see the source for copying conditions.\n"
