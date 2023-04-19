@@ -66,8 +66,8 @@ void pen_PSS::clear(){
     multiScatter = nullptr;
   }
 
-  std::fill(std::begin(sourceMats),
-	    std::end(sourceMats),
+  std::fill(sourceMats.begin(),
+	    sourceMats.end(),
 	    false);
 
   lastKnock = false;

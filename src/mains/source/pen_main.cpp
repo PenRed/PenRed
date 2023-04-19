@@ -689,12 +689,12 @@ int main(int argc, char** argv){
   printf(" Reference: Computer Physics Communications, 267 (2021) 108065\n"
          "            https://doi.org/10.1016/j.cpc.2021.108065\n");
   printf(" This is free software; see the source for copying conditions.\n"
-	       " There is NO warranty; not even for MERCHANTABILITY or\n"
+	 " There is NO warranty; not even for MERCHANTABILITY or\n"
          " FITNESS FOR A PARTICULAR PURPOSE.\n");
   printf(" Please, report bugs and suggestions at our github repository\n"
-	       "         https://github.com/PenRed/PenRed\n");
-	printf("***************************************************************\n\n");
-
+	 "         https://github.com/PenRed/PenRed\n");
+  printf("***************************************************************\n\n");
+  
   if(strcmp(argv[1],"--version") == 0 || strcmp(argv[1],"-v") == 0){
     return 0;
   }

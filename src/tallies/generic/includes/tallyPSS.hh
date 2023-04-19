@@ -30,6 +30,7 @@
 #define __PEN_PSS_TALLY__
 
 #include <algorithm>
+#include <array>
 #include "pen_constants.hh"
 
 class pen_PSS: public pen_genericTally<pen_particleState> {
@@ -41,7 +42,7 @@ class pen_PSS: public pen_genericTally<pen_particleState> {
   pen_genericTally<pen_particleState>* scatter;
   pen_genericTally<pen_particleState>* multiScatter;
   
-  bool sourceMats[constants::MAXMAT];
+  std::array<bool,constants::MAXMAT> sourceMats;
 
   //Create a structure with bkp information for each stored particle
   struct bkpInfo{
@@ -107,8 +108,11 @@ public:
 			       USE_LASTHIST)
 
   {
-    std::fill(std::begin(sourceMats),
-	      std::end(sourceMats),
+    primary = nullptr;
+    scatter = nullptr;
+    multiScatter = nullptr;     
+    std::fill(sourceMats.begin(),
+	      sourceMats.end(),
 	      false);
     enabledKPAR = PEN_PHOTON;
     actualBKP = 0;
