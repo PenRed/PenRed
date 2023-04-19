@@ -682,7 +682,7 @@ int main(int argc, char** argv){
     return 0;
   }
 
-	printf("***************************************************************\n");
+  printf("***************************************************************\n");
   printf(" PenRed version: 1.8.1 (6-April-2023) \n");
   printf(" Copyright (c) 2019-2023 Universitat Politecnica de Valencia\n");
   printf(" Copyright (c) 2019-2023 Universitat de Valencia\n");
