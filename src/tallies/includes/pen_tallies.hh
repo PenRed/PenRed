@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2022 Universitat de València - UV
-//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2023 Universitat de València - UV
+//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -144,7 +144,9 @@ private:
 
   //Create a vector of image exporters
   std::vector<pen_imageExporter> imageExporters;
-  
+
+  //Create an array to store particle stacks
+  std::array<const abc_particleStack*, constants::nParTypes> stacks;
 protected:
 
   //Create dump instance
@@ -234,13 +236,15 @@ protected:
     //Return resulting file pointer
     return fout;
   }
-  
+
 public:
 
   pen_genericTally(__usedFunc functionsToUse) : nthread(0),
 						name(""),
 						usedFunctions(functionsToUse)
-  {}
+  {
+    std::fill(stacks.begin(), stacks.end(), nullptr);
+  }
 
   virtual const char* readID() const = 0;
   inline const std::string& readName() const { return name;}
@@ -251,6 +255,8 @@ public:
   inline void setOutputDirPath(const char* newName) { OutputDirPath.assign(newName);}
   inline void setOutputDirPath(const std::string& newName) { OutputDirPath.assign(newName);}
   inline void setThread(const unsigned threadNum){nthread = threadNum;}
+  inline void setStack(const pen_KPAR kpar, const abc_particleStack* stack){stacks[kpar] = stack;}
+  inline const abc_particleStack* readStack(const pen_KPAR kpar) const {return stacks[kpar];}
 
   template<class T>
   inline void addImage(const char* filename,
@@ -600,6 +606,13 @@ public:
     return genericTallies().typesList(list);
   }
 
+  static pen_genericTally<pen_particleState>* createInstance(const char* type){
+    return genericTallies().createInstance(type);
+  }  
+  static pen_genericTally<pen_particleState>* createInstance(const std::string type){
+    return genericTallies().createInstance(type.c_str());
+  }
+
   inline unsigned getThread(){return nthread;}
   
   template <class subclass>
@@ -620,6 +633,12 @@ public:
 		 const unsigned threadNum,
 		 const pen_parserSection config,
 		 const unsigned verbose = 0);
+
+  inline void setStack(const pen_KPAR kpar, const abc_particleStack* stack){
+    for(tallyIterator i = tallies_beginSim.begin();
+	i != tallies_beginSim.end(); ++i)
+      (*i)->setStack(kpar,stack);
+  }
   
   inline void run_beginSim(){
     for(tallyIterator i = tallies_beginSim.begin();

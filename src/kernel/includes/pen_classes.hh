@@ -1473,16 +1473,27 @@ public:
 // Particle stacks
 //-------------------
 
-template<class stateType> class pen_particleStack{
+class abc_particleStack{
 
  protected:
   unsigned int NSEC;
+  
+ public:
+  abc_particleStack() : NSEC(0) {}
+
+  inline unsigned int getNSec() const {return NSEC;}
+  inline void cleans(){NSEC = 0;}
+
+  virtual pen_particleState readBaseState(const unsigned i) const = 0;
+};
+
+template<class stateType> class pen_particleStack : public abc_particleStack{
+
+ protected:
   stateType states[constants::NMS];
  public:
   
-  pen_particleStack() : NSEC(0) {}
-  inline unsigned int getNSec() const {return NSEC;}
-  inline void cleans(){NSEC = 0;}
+  pen_particleStack() : abc_particleStack() {}
 
   void store(const stateType& state)
   {
@@ -1515,13 +1526,21 @@ template<class stateType> class pen_particleStack{
       }
   }
   
-  unsigned get(stateType& state){
+  inline unsigned get(stateType& state){
     if(NSEC > 0){
       NSEC--;
       state = states[NSEC];
       return NSEC;
     }
     return 0;
+  }
+
+  inline stateType readState(const unsigned i) const {
+    return states[i];
+  }
+
+  inline pen_particleState readBaseState(const unsigned i) const{
+    return pen_particleState(readState(i));
   }
   
   //CERSEC
