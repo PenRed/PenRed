@@ -4,14 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.1b] - 2023-05-12
+
+### Added
+- Load balance server instruction to force worker finish
+
+### Fix
+- DICOM geometry config not converting contour name to lower case
+- DICOM contour ranges assign
+- Results dump was flagged as incomplete simulation
 
 ## [1.8.1] - 2023-04-17
 
 ### Added
 - Access to particle stacks as constants objects from tallies
 - PSS generic tally to registrer energy deposition from primary, scatter and multi-scatter contributions
-
-=======
 
 ## [1.8.0] - 2023-03-19
 

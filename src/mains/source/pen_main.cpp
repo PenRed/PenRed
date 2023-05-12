@@ -683,7 +683,7 @@ int main(int argc, char** argv){
   }
 
   printf("***************************************************************\n");
-  printf(" PenRed version: 1.8.1 (6-April-2023) \n");
+  printf(" PenRed version: 1.8.1b (12-May-2023) \n");
   printf(" Copyright (c) 2019-2023 Universitat Politecnica de Valencia\n");
   printf(" Copyright (c) 2019-2023 Universitat de Valencia\n");
   printf(" Reference: Computer Physics Communications, 267 (2021) 108065\n"
@@ -2093,7 +2093,7 @@ int main(int argc, char** argv){
   if(ASCIIResults)
     talliesVect[0].saveData(totalHists);
   else
-    talliesVect[0].dump2file("results.dump",totalHists,-1,-1,0,0ull,verbose);
+    talliesVect[0].dump2file("results.dump",totalHists,-1,-1,-1,0ull,verbose);
 
   for(size_t i = 0; i < enabledFormats.size(); ++i){
     if(enabledFormats[i]){

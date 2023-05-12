@@ -3909,6 +3909,9 @@ void LB::taskServer::monitor(const bool local,
     return;
   }
 #endif
+
+  //Create a vector to store workers to be stopped
+  std::vector<unsigned long> workersToStop;
   
   for(;;){
 
@@ -3978,6 +3981,19 @@ void LB::taskServer::monitor(const bool local,
 	  int err = receiveReport(static_cast<size_t>(iw),nIter,
 				  elapsed,newAssign,verbose);
 
+
+	  //Check if this worker must be stopped
+	  if(std::find(workersToStop.begin(),
+		       workersToStop.end(),
+		       iw) != workersToStop.end()){
+	    //Stop it
+	    newAssign = nIter; 
+	    workersToStop.erase(std::remove(workersToStop.begin(),
+					    workersToStop.end(),
+					    iw),
+				workersToStop.end());
+	  }
+	  
 	  //Send the response
 	  if(err == LB_SUCCESS){
 	    //Send new assignation
@@ -4223,12 +4239,41 @@ void LB::taskServer::monitor(const bool local,
 	}
 	//Send execution status
 	char response[pen_tcp::messageLen];
-	snprintf(response,pen_tcp::messageLen,"%lu %lu %lu %lu\n",
+	snprintf(response,pen_tcp::messageLen,"%lu %lu %lu %lu\n ETA: %llu\n",
 		 static_cast<unsigned long>(workers.size()),
-		 wstarted,wfinished,wlost);
+		 wstarted,wfinished,wlost,ETA());
 	server.write(response);
       }
 	break;
+      case 10:{ //Force worker stop
+
+	//Parse the instruction
+	int nread = sscanf(message.c_str(),"%*d %lu",&iw);
+	if(nread != 1){
+	  //Unable to parse force worker stop instruction
+	  if(filterLog(verbose,0)){
+	    fprintf(flog,"%07ld s - Unable to parse force worker stop\n",
+		    static_cast<long int>(timeStamp()));
+	    fflush(flog);
+	  }
+	  //Send error message
+	  char errMessage[pen_tcp::messageLen];
+	  createError(1,LB_ERROR_UNEXPECTED_FORMAT,
+		      "Unable to parse force worker stop\n",errMessage,verbose);
+	  server.write(errMessage);
+	} else{
+	  //Flag this worker to be stopped
+	  workersToStop.push_back(iw);
+	  
+	  //Send the response
+	  char response[pen_tcp::messageLen];
+	  snprintf(response,pen_tcp::messageLen,
+		   "0 \n Stop registered\n");
+	  server.write(response);
+	  
+	}
+      }
+	break;	
       default:
 	//Send error message
 	char errMessage[pen_tcp::messageLen];
