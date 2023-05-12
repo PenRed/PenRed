@@ -376,7 +376,14 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   //Get dicom contour index for each configuration contour
   for(unsigned icont = 0; icont < contourNames.size(); icont++){
     unsigned index;
-    index = dicom.getContourIndex(contourNames[icont].c_str());
+
+    //Convert contour name to lower case
+    std::string contourNameLowerCase(contourNames[icont]);
+    std::transform(contourNameLowerCase.begin(),
+		   contourNameLowerCase.end(),
+		   contourNameLowerCase.begin(), ::tolower);
+	      
+    index = dicom.getContourIndex(contourNameLowerCase.c_str());
     if(index >= dicom.nContours()){
       if(verbose > 0){
 	printf("pen_dicomGeo:configure: Error: Contour '%s' doesn't exist in specified DICOM (%s)\n",contourNames[icont].c_str(),directoryPath.c_str());
