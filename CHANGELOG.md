@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fix
 - DICOM geometry config not converting contour name to lower case
+- DICOM contour ranges assign
 - Results dump was flagged as incomplete simulation
 
 ## [1.8.1] - 2023-04-17
