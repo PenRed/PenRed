@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2022 Universitat de València - UV
-//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2023 Universitat de València - UV
+//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -22,6 +22,7 @@
 //    contact emails:
 //
 //        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
+//        sanolgi@upvnet.upv.es (Sandra Oliver Gil)
 //        vicente.gimenez@uv.es (Vicente Giménez Gómez)
 //    
 //
@@ -291,21 +292,52 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
       contAssigns.defaultDens = auxDens;
       contAssigns.priority = auxPrio;
 
-      //Load intensity and density ranges
-      if(readIntensityRanges(config, contAssigns.intensityRanges, verbose) != 0){
-	if(verbose > 0)
-	  printf("pen_dicomGeo:configure: Error reading intensity"
-		 " ranges in contour %s.\n", contourNames[i].c_str());
+      pen_parserSection contourNameSec;      
+      if(contourSec.readSubsection(contourNames[i],contourNameSec) !=
+	 INTDATA_SUCCESS){
+	if(verbose > 0){
+	  printf("pen_dicomGeo:configure: Unable to get contour "
+		 "'%s' section\n", contourNames[i].c_str());
+	}
 	configStatus = -5;
 	return -5;
       }
 
-      if(readDensityRanges(config, contAssigns.densityRanges, verbose) != 0){
-	if(verbose > 0)
-	  printf("pen_dicomGeo:configure: Error reading density"
-		 " ranges in contour %s.\n", contourNames[i].c_str());
-	configStatus = -5;
-	return -5;
+      //Check if intensity ranges have been specified for this contour
+      if(contourNameSec.isSection("intensity-ranges")){
+
+	if(verbose > 1){
+	  printf("  - Intensity ranges defined in this contour:\n");
+	}
+	
+	//Load intensity and density ranges
+	if(readIntensityRanges(contourNameSec,
+			       contAssigns.intensityRanges,
+			       verbose) != 0){
+	  if(verbose > 0)
+	    printf("pen_dicomGeo:configure: Error reading intensity"
+		   " ranges in contour %s.\n", contourNames[i].c_str());
+	  configStatus = -5;
+	  return -5;
+	}
+      }
+
+      //Check if density ranges have been specified for this contour
+      if(contourNameSec.isSection("ranges")){
+
+	if(verbose > 1){
+	  printf("  - Density ranges defined in this contour:\n");
+	}
+	
+	if(readDensityRanges(contourNameSec,
+			     contAssigns.densityRanges,
+			     verbose) != 0){
+	  if(verbose > 0)
+	    printf("pen_dicomGeo:configure: Error reading density"
+		   " ranges in contour %s.\n", contourNames[i].c_str());
+	  configStatus = -5;
+	  return -5;
+	}
       }
 
     }
@@ -552,8 +584,8 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	      //Voxel in range, assign material
 	      mats[ivox] = range.mat;
 	      assigned = true;
-	      break;	  
-	    }	
+	      break; 
+	    }
 	  }
 
 	  //If the voxel material and density has not been assigned
@@ -956,6 +988,7 @@ int readIntensityRanges(const pen_parserSection& config,
     if(verbose > 1){
       printf(" No image intensity ranges field ('intensity-ranges') provided to assign materials\n");
     }
+    return 0;
   }else{
     //Extract material names
     intensityRanges.ls(intensityRangesNames);  
@@ -1065,8 +1098,9 @@ int readDensityRanges(const pen_parserSection& config,
 
   if(config.readSubsection("ranges",ranges) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("pen_dicomGeo:readDensityRanges: No density ranges provided to assign materials\n");
+      printf("pen_dicomGeo:readDensityRanges: No density ranges field ('ranges') provided to assign materials\n");
     }
+    return 0;
   }else{
     //Extract material names
     ranges.ls(rangesNames);  
