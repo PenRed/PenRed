@@ -209,7 +209,7 @@ int LB::worker::dump(FILE* fdump) const{
   fprintf(fdump,"%llu %d %d %llu %lld %lu\n",
 	  assigned,started,finished,iterDone,
 	  static_cast<long long int>(timeInterval),
-	  static_cast<unsigned long>(measures.size()));  
+	  static_cast<unsigned long>(measures.size()));
 
   //Print worker measures
   for(const auto& measure: measures){
@@ -3537,14 +3537,14 @@ int LB::taskServer::report(const size_t iw,
       
   float dev = taskWorker.addMeasure(t,nIter);
 
-  if(filterLog(verbose,0)){
+  if(filterLog(verbose,1)){
     fprintf(flog,"%07ld s - Deviation since previous report: %.2f%%\n",
 	    static_cast<long int>(timeStamp()),(dev-1.0)*100.0);	      
     fflush(flog);
   }
   
   if(finished){
-    if(filterLog(verbose,0)){
+    if(filterLog(verbose,1)){
       fprintf(flog,"%07ld s - Warning: Task already finished, "
 	      "no balance will be performed.\n",
 	      static_cast<long int>(timeStamp()));
@@ -3652,9 +3652,14 @@ void LB::taskServer::balance(const unsigned verbose){
 	  ++cont;
 	  continue;
 	}
-	unsigned long long toDo = remaining*(worker.speed()/totalSpeed);
-	toDo = std::max(toDo,nworkers);
-	worker.assigned = worker.done() + toDo;
+
+	//Check if this worker has reported its speed
+	if(worker.speed() > 1.0){
+	  //Recalculate the assignation
+	  unsigned long long toDo = remaining*(worker.speed()/totalSpeed);
+	  toDo = std::max(toDo,nworkers);
+	  worker.assigned = worker.done() + toDo;
+	}
 	 
 	if(filterLog(verbose,1))
 	  fprintf(flog,"    Worker %3lu is active   -> done : %llu/%llu\n",
@@ -3784,6 +3789,8 @@ int LB::taskServer::dump(const char* saveFilename,
   for(const auto& worker : workers){
     worker.dump(fdump);
   }
+
+  fclose(fdump);
       
   return LB_SUCCESS;
 }
@@ -3983,15 +3990,9 @@ void LB::taskServer::monitor(const bool local,
 
 
 	  //Check if this worker must be stopped
-	  if(std::find(workersToStop.begin(),
-		       workersToStop.end(),
-		       iw) != workersToStop.end()){
+	  if(workersToStop[iw]){
 	    //Stop it
 	    newAssign = nIter; 
-	    workersToStop.erase(std::remove(workersToStop.begin(),
-					    workersToStop.end(),
-					    iw),
-				workersToStop.end());
 	  }
 	  
 	  //Send the response
@@ -4036,6 +4037,12 @@ void LB::taskServer::monitor(const bool local,
 
 	  //Send the response
 	  if(err == LB_SUCCESS){
+
+	    //Resize 'workers to stop' vector
+	    if(iw >= workersToStop.size()){
+	      workersToStop.resize(iw+1, false);
+	    }
+	    
 	    //Send new assignation
 	    char response[pen_tcp::messageLen];
 	    snprintf(response,pen_tcp::messageLen,
@@ -4262,8 +4269,10 @@ void LB::taskServer::monitor(const bool local,
 		      "Unable to parse force worker stop\n",errMessage,verbose);
 	  server.write(errMessage);
 	} else{
+	  
 	  //Flag this worker to be stopped
-	  workersToStop.push_back(iw);
+	  if(iw < workersToStop.size())
+	    workersToStop[iw] = true;
 	  
 	  //Send the response
 	  char response[pen_tcp::messageLen];
@@ -4273,7 +4282,18 @@ void LB::taskServer::monitor(const bool local,
 	  
 	}
       }
-	break;	
+	break;
+      case 11:{ //Force all workers stop
+	for(size_t i = 0; i < workersToStop.size(); ++i)
+	  workersToStop[i] = true;
+
+	//Send the response
+	char response[pen_tcp::messageLen];
+	snprintf(response,pen_tcp::messageLen,
+		 "0 \n Stop registered\n");
+	server.write(response);	
+      }
+	break;
       default:
 	//Send error message
 	char errMessage[pen_tcp::messageLen];

@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2023-05-23
+
+### Added
+- Now a particle range can be specified instead of absorption energy
+- Default parameters to material parameters (Eabs, C1, C2, etc.)
+- A tally postconfiguration step to enable sharing information between threads. This avoids repeating huge configuration calculus and allow their parallelization
+- Capability to finish all workers on load balance server
+
+### Changed
+- The default maximum number of materials have been increased to 100
+- The configuration parameter names to specify absorption energies have been changed (the old ones have not been removed yet for retrocompatibility)
+- Spatial dose distribution tally now calculates the voxel mass once and more efficiently
+
+### Fixed
+- Bug: Mesh geometry file read fails sometimes
+- Bug: In the load balance server, the speed of new workers with no reports is considered as 0 on the balance step
+
 ## [1.8.1b] - 2023-05-12
 
 ### Added

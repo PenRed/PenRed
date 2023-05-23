@@ -1086,7 +1086,7 @@ int pen_meshBodyGeo::GEOMESH(FILE* in,const unsigned verbose){
       //Read characteristics of each body in the geometry file
       //Create auxiliar variable to ensure material is greater than zero
       int mat;
-      if(sscanf(line," %i  %lu  %lu  %s   %s", &mat, &bodies[i].nTriangles, &nvertex, bodies[i].BALIAS, bodies[i].PALIAS) != 5){
+      if(sscanf(line," %d  %lu  %lu  %s   %s", &mat, &bodies[i].nTriangles, &nvertex, bodies[i].BALIAS, bodies[i].PALIAS) != 5){
 	if(verbose > 0){
 	  printf("pen_meshBodyGeo:configure: Error reading object header information.\n"
 		 "Unexpected format in line %lu: \n %s\n", nRead, line);
@@ -1122,21 +1122,21 @@ int pen_meshBodyGeo::GEOMESH(FILE* in,const unsigned verbose){
 	}
 	return PEN_MESHBODY_BAD_MEMORY_ALLOCATION;
       }
-            
 
       for(size_t j=0; j<nvertex; ++j){
 	if(pen_getLine(in,50000,line,nlines) == 0){
 	  int index;
 	  double x,y,z;
 	  nRead += nlines;
-	  //Read vertex of each body 
-	      if(sscanf(line," %d  %le  %le  %le", &index, &x, &y, &z) != 4){
-		if(verbose > 0){
-		  printf("pen_meshBodyGeo:configure: Error reading vertex information."
-			 "Unexpected format in line %lu: \n %s\n", nRead, line);
-		}
-		return PEN_MESHBODY_GEO_UNEXPECTED_LINE_FORMAT;
-	      }
+	  //Read vertex of each body
+	  if(sscanf(line," %d  %le  %le  %le", &index, &x, &y, &z) != 4){
+	    if(verbose > 0){
+	      printf("pen_meshBodyGeo:configure: Error reading vertex information."
+		     "Unexpected format in line %lu: \n %s\n", nRead, line);
+	    }
+	    return PEN_MESHBODY_GEO_UNEXPECTED_LINE_FORMAT;
+	  }
+	  
 	  if(index < 0){
 	    if(verbose > 0){
 	      printf("pen_meshBodyGeo:configure: Error: vertex index must be positive.\n");
