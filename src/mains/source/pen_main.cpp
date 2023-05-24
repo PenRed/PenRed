@@ -2790,7 +2790,7 @@ int createMaterials(pen_context& context,
       }
       mat.EABS[PEN_POSITRON] = eabs;      
     }
-    if(oneMatSec.read("eabs_gamma",mat.EABS[PEN_PHOTON]) == INTDATA_SUCCESS){
+    if(oneMatSec.read("eabs_gamma",eabs) == INTDATA_SUCCESS){
       if(verbose > 0){
 	printf("createMaterials: Warning: Parameter 'materials/%s/eabs_gamma' is "
 	       "deprecated and will be removed. Use "
