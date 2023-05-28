@@ -1,0 +1,279 @@
+
+#
+#
+#    Copyright (C) 2023 Universitat de València - UV
+#    Copyright (C) 2023 Universitat Politècnica de València - UPV
+#
+#    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
+#
+#    PenRed is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    PenRed is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with PenRed.  If not, see <https://www.gnu.org/licenses/>. 
+#
+#
+#    contact emails:
+#
+#        vicent.gimenez.alventosa@gmail.com
+#        vicente.gimenez@uv.es
+#    
+#
+
+#########################
+##  SOURCES           ###
+#########################
+
+#------------------------
+#  Source 1
+#########################
+
+sources/generic/source1/nhist 1e5
+sources/generic/source1/kpar "electron"
+sources/generic/source1/record-time true
+
+# Directional sampling
+#########################
+
+sources/generic/source1/direction/type "CONE"
+
+# Set theta
+sources/generic/source1/direction/theta 90.0
+
+# Set phi
+sources/generic/source1/direction/phi 0.0
+
+# Set oberture (alpha)
+sources/generic/source1/direction/alpha 0.0
+
+# Energy sampling
+#########################
+
+sources/generic/source1/energy/type "MONOENERGETIC"
+
+# Set energy
+sources/generic/source1/energy/energy 1.5e5
+
+# Spatial sampling
+#########################
+
+sources/generic/source1/spatial/type "POINT"
+
+# Set particle origin
+sources/generic/source1/spatial/position/x -5.0
+sources/generic/source1/spatial/position/y 0.0
+sources/generic/source1/spatial/position/z 0.0
+
+
+#########################
+##  TALLIES           ###
+#########################
+
+tallies/second/type "SECONDARY_GEN"
+
+tallies/matEDep/type "EDEP_MAT"
+tallies/matEDep/nmat 4
+
+tallies/bodyEDep/type "EDEP_BODY"
+tallies/bodyEDep/nBody 4
+
+#tallies/track/type "TRACK"
+#tallies/track/nhists 25
+
+tallies/EmergingPartDistrib/type "EMERGING_PART_DISTRIB"
+tallies/EmergingPartDistrib/emin 0.0
+tallies/EmergingPartDistrib/emax 1.65e5 
+tallies/EmergingPartDistrib/nBinsE 160
+tallies/EmergingPartDistrib/nBinsTheta 90
+tallies/EmergingPartDistrib/nBinsPhi 45
+
+tallies/ImpactDetector1/type "IMPACT_DET"
+tallies/ImpactDetector1/detector 1
+tallies/ImpactDetector1/fluence true
+tallies/ImpactDetector1/emin 0.0
+tallies/ImpactDetector1/emax 1.65e5
+tallies/ImpactDetector1/nbin-energy 160
+tallies/ImpactDetector1/spectrum true
+tallies/ImpactDetector1/linearScale-spc true
+tallies/ImpactDetector1/age true
+tallies/ImpactDetector1/linearScale-age false
+tallies/ImpactDetector1/age-min 1.0e-11
+tallies/ImpactDetector1/age-max 1.0e-8
+tallies/ImpactDetector1/nbin-age 500
+
+tallies/ImpactDetector2/type "IMPACT_DET"
+tallies/ImpactDetector2/detector 2
+tallies/ImpactDetector2/fluence false
+tallies/ImpactDetector2/emin 0.0
+tallies/ImpactDetector2/emax 1.65e5
+tallies/ImpactDetector2/nbin-energy 160
+tallies/ImpactDetector2/spectrum true
+tallies/ImpactDetector2/linearScale-spc true
+tallies/ImpactDetector2/age true
+tallies/ImpactDetector2/linearScale-age false
+tallies/ImpactDetector2/age-min 1.0e-11
+tallies/ImpactDetector2/age-max 1.0e-8
+tallies/ImpactDetector2/nbin-age 500
+
+#########################
+#  VARIANCE REDUCTION   #
+#########################
+
+VR/IForcing/bodies/VR1/body "Anode"
+VR/IForcing/bodies/VR1/particle "electron"
+VR/IForcing/bodies/VR1/interaction 2
+VR/IForcing/bodies/VR1/factor 400
+VR/IForcing/bodies/VR1/min-weight 0.1
+VR/IForcing/bodies/VR1/max-weight 2
+
+
+VR/IForcing/bodies/VR2/body "Anode"
+VR/IForcing/bodies/VR2/particle "electron"
+VR/IForcing/bodies/VR2/interaction 3
+VR/IForcing/bodies/VR2/factor 400
+VR/IForcing/bodies/VR2/min-weight 0.1
+VR/IForcing/bodies/VR2/max-weight 2
+
+VR/bremss/bodies/Anode/splitting 4
+
+VR/IForcing/bodies/VR3/body "filter"
+VR/IForcing/bodies/VR3/particle "electron"
+VR/IForcing/bodies/VR3/interaction 2
+VR/IForcing/bodies/VR3/factor 400
+VR/IForcing/bodies/VR3/min-weight 0.1
+VR/IForcing/bodies/VR3/max-weight 2
+
+
+VR/IForcing/bodies/VR4/body "filter"
+VR/IForcing/bodies/VR4/particle "electron"
+VR/IForcing/bodies/VR4/interaction 3
+VR/IForcing/bodies/VR4/factor 400
+VR/IForcing/bodies/VR4/min-weight 0.1
+VR/IForcing/bodies/VR4/max-weight 2
+
+VR/bremss/bodies/filter/splitting 4
+
+VR/IForcing/bodies/VR5/body "detector"
+VR/IForcing/bodies/VR5/particle "electron"
+VR/IForcing/bodies/VR5/interaction 2
+VR/IForcing/bodies/VR5/factor 400
+VR/IForcing/bodies/VR5/min-weight 0.1
+VR/IForcing/bodies/VR5/max-weight 2
+
+
+VR/IForcing/bodies/VR6/body "detector"
+VR/IForcing/bodies/VR6/particle "electron"
+VR/IForcing/bodies/VR6/interaction 3
+VR/IForcing/bodies/VR6/factor 400
+VR/IForcing/bodies/VR6/min-weight 0.1
+VR/IForcing/bodies/VR6/max-weight 2
+
+VR/bremss/bodies/detector/splitting 4
+
+VR/photon/x-ray/type "XRAY_SPLITTING"
+VR/photon/x-ray/bodies/Anode/splitting 4
+VR/photon/x-ray/bodies/filter/splitting 4
+VR/photon/x-ray/bodies/detector/splitting 4
+
+
+#########################
+#  GEOMETRY PARAMETERS  #
+#########################
+
+geometry/type "MESH_BODY"
+geometry/input-file "tubeMesh.geo"
+#geometry/processed-geo-file "reportMesh.geo"
+
+geometry/dsmax/Anode 2.0e-2
+geometry/kdet/filter  1
+geometry/kdet/detector  2
+
+geometry/eabs/Anode/electron  1.0e4
+geometry/eabs/Anode/gamma     1.0e4
+geometry/eabs/Anode/positron  1.0e4
+
+geometry/eabs/filter/electron  1.0e4
+geometry/eabs/filter/gamma     1.0e4
+geometry/eabs/filter/positron  1.0e4
+
+geometry/eabs/detector/electron  1.0e35
+geometry/eabs/detector/gamma     1.0e35
+geometry/eabs/detector/positron  1.0e35
+
+#########################
+#       MATERIALS       #
+#########################
+
+materials/wol/number 1
+
+materials/wol/eabs_e- 5.0e3
+materials/wol/eabs_e+ 5.0e3
+materials/wol/eabs_gamma 5.0e3
+
+materials/wol/C1 0.05
+materials/wol/C2 0.05
+
+materials/wol/WCC 2.0e3 
+materials/wol/WCR 2.0e3
+
+materials/wol/filename "W.mat"
+
+
+materials/al/number 2
+
+materials/al/eabs_e- 5.0e3
+materials/al/eabs_e+ 5.0e3
+materials/al/eabs_gamma 5.0e3
+
+materials/al/C1 0.05
+materials/al/C2 0.05
+
+materials/al/WCC 2.0e3 
+materials/al/WCR 2.0e3
+
+materials/al/filename "Al.mat"
+
+
+materials/si/number 3
+
+materials/si/eabs_e- 5.0e3
+materials/si/eabs_e+ 5.0e3
+materials/si/eabs_gamma 5.0e3
+
+materials/si/C1 0.05
+materials/si/C2 0.05
+
+materials/si/WCC 2.0e3 
+materials/si/WCR 2.0e3
+
+materials/si/filename "Si.mat"
+
+
+materials/Void/number 4
+
+materials/Void/eabs_e- 1.0e3
+materials/Void/eabs_e+ 1.0e3
+materials/Void/eabs_gamma 1.0e3
+
+materials/Void/C1 0.1
+materials/Void/C2 0.1
+
+materials/Void/WCC 1.0e3 
+materials/Void/WCR 1.0e3
+
+materials/Void/filename "void.mat"
+
+
+#########################
+# SIMULATION PARAMETERS #
+#########################
+
+simulation/threads 8
+simulation/dump-interval 3600

@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2023 Universitat de València - UV
+//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -44,7 +44,7 @@ const double REV = 5.10998928E5;  // Electron rest energy (eV)
 const double ELRAD = 2.8179403267E-13;  // Class. electron radius (cm)
 const unsigned int nParTypes = pen_KPAR::ALWAYS_AT_END; //Number of particle types
 const unsigned int NO = 512; //****  E/P inelastic collisions maximum number of oscillators.
-const unsigned int MAXMAT = 45; //Maximum number of materials
+const unsigned int MAXMAT = 100; //Maximum number of materials
 const unsigned int MAXINTERACTIONS = 8; //Maximum number of interactions per particle type
 const unsigned int NEGP = 200; //Energy grid points
 const unsigned int NBW = 32; //  ****  Bremsstrahlung emission.
@@ -56,7 +56,7 @@ const unsigned int NOCO = 512; //  ****  Compton scattering. number of oscillato
 const unsigned int NQ = 250;
 const unsigned int NEX = 1024;
  
-const unsigned int NTP = 12000; //  ****  Photoelectric cross sections.
+const unsigned int NTP = 15000; //  ****  Photoelectric cross sections.
 
 const unsigned long int NRX = 60000; // RELAX
 

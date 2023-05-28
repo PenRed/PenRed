@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2022 Universitat de València - UV
-//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2023 Universitat de València - UV
+//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -654,6 +654,72 @@ int pen_commonTallyCluster::readDumpfile(const char* filename,
   free(pdump);
     
   return 0;
+}
+
+int pen_commonTallyCluster::shareConfig(const pen_commonTallyCluster& cluster,
+					const unsigned verbose){
+  //Check if both clusters have the same ammount of tallies
+  unsigned size1 = tallies.size();
+  unsigned size2 = cluster.tallies.size();
+  if(size1 != size2){
+    if(verbose > 0){
+      printf("pen_commonTallyCluster: shareConfig: Number of tallies "
+	     "doesn't match on clusters %s and %s of threads %u and %u.\n",
+	     name.c_str(),cluster.name.c_str(),
+	     getThread() ,cluster.getThread());
+      printf("tallies at local cluster (thread %u): %u\n",
+	     getThread(),size1);
+      printf("tallies at input cluster (thread %u): %u\n",
+	     cluster.getThread(),size2);
+
+      printf("Expected tally names:\n");
+      for(size_t i = 0; i < size1; ++i){
+	printf("%s\n",tallies[i]->readName().c_str());
+      }
+      printf("Input tally names:\n");
+      for(size_t i = 0; i < size2; ++i){
+	printf("%s\n",cluster.tallies[i]->readName().c_str());
+      }
+    }
+    return -1;
+  }
+
+  //Check if both clusters have the same tally types and names
+  for(unsigned i = 0; i < size1; i++){
+    if(tallies[i]->readName().compare(cluster.tallies[i]->readName()) != 0){
+      if(verbose > 0){
+	printf("pen_commonTallyCluster: shareConfig: Tallies names doesn't match:\n");
+	printf("                          %s\n",tallies[i]->readName().c_str());
+	printf("                          %s\n",cluster.tallies[i]->readName().c_str());	  
+      }      	
+      return i+1;
+    }
+    if(strcmp(tallies[i]->readID(), cluster.tallies[i]->readID()) != 0){
+      if(verbose > 0){
+	printf("pen_commonTallyCluster: shareConfig: Tallies IDs doesn't match:\n");
+	printf("                          %s\n",tallies[i]->readID());
+	printf("                          %s\n",cluster.tallies[i]->readID());
+      }
+      return i+1;
+    }
+  }
+
+  //Share tallies configuration
+  int err = 0;
+  for(unsigned i = 0; i < size1; ++i){
+      
+    int err2 = tallies[i]->shareConfig(*(cluster.tallies[i]));
+    if(err2 != 0){
+      if(verbose > 0){
+	printf("pen_commonTallyCluster: shareConfig: Error sharing configuration "
+	       "of tallies %s (position %d)\n",tallies[i]->readName().c_str(),i);
+	printf("                             Error code: %d\n", err2);
+      }
+      ++err;
+    }
+  }
+
+  return err;
 }
 
 int pen_commonTallyCluster::sum(pen_commonTallyCluster& cluster,

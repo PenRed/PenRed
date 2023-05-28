@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2021 Universitat de València - UV
-//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2023 Universitat de València - UV
+//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -46,7 +46,7 @@ class pen_SpatialDoseDistrib: public pen_genericTally<pen_particleState> {
   double* edep;
   double* edep2;
   double* ivoxMass;
-
+  
   unsigned long long* nlastdepth;
   double* edepthtmp;
   double* edepth;
@@ -132,6 +132,10 @@ public:
   void saveData(const unsigned long long nhist) const;
   void flush(void);
   int sumTally(const pen_SpatialDoseDistrib& tally);
+  inline int sharedConfig(const pen_SpatialDoseDistrib& tally){
+    ivoxMass = tally.ivoxMass;
+    return 0;
+  }
   
   ~pen_SpatialDoseDistrib(){clear();}
   

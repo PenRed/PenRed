@@ -22,8 +22,8 @@
 //    contact emails:
 //
 //        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
-//        vicente.gimenez@uv.es (Vicente Giménez Gómez)
 //        sanolgi@upvnet.upv.es (Sandra Oliver Gil)
+//        vicente.gimenez@uv.es (Vicente Giménez Gómez)
 //    
 //
 
@@ -53,6 +53,7 @@ int createGeometry(wrapper_geometry*& geometry,
 int createMaterials(pen_context& context,
 		    std::string filenames[constants::MAXMAT],
 		    const pen_parserSection& config,
+		    const double globEmax,
 		    const unsigned verbose);
 
 int setVarianceReduction(pen_context& context,
@@ -61,6 +62,10 @@ int setVarianceReduction(pen_context& context,
 			 pen_VRCluster<pen_particleState>& genericVR,
 			 pen_VRCluster<pen_state_gPol>& photonVR,
 			 const unsigned verbose);
+
+pen_context* createAuxContext(double EMAX,
+			      const char* matFilename,
+			      const unsigned verbose);
 
 template<class stateType>
 int configureSource(pen_specificStateGen<stateType>& source,
@@ -683,7 +688,7 @@ int main(int argc, char** argv){
   }
 
   printf("***************************************************************\n");
-  printf(" PenRed version: 1.8.1b (12-May-2023) \n");
+  printf(" PenRed version: 1.9.0 (23-May-2023) \n");
   printf(" Copyright (c) 2019-2023 Universitat Politecnica de Valencia\n");
   printf(" Copyright (c) 2019-2023 Universitat de Valencia\n");
   printf(" Reference: Computer Physics Communications, 267 (2021) 108065\n"
@@ -1402,7 +1407,7 @@ int main(int argc, char** argv){
   
   std::string matFilenames[constants::MAXMAT];
   
-  if(createMaterials(context,matFilenames,config,verbose) != 0)
+  if(createMaterials(context,matFilenames,config,globEmax,verbose) != 0)
     return -4;
 
 
@@ -1714,6 +1719,8 @@ int main(int argc, char** argv){
   //****************************
   // History loop
   //****************************
+
+  fflush(stdout);
   
   // ************************** MULTI-THREADING ***************************** //
 #ifdef _PEN_USE_THREADS_
@@ -2485,6 +2492,22 @@ int createTallies(std::vector<pen_commonTallyCluster>& tallyGroups,
   if(failedClusters > 0)
     return -3;
   
+  //Share configuration from thread 0 cluster to other threads
+  failedClusters = 0;
+  for(unsigned j = 0; j < nthreads; j++){
+
+    err = tallyGroups[j].shareConfig(tallyGroups[0], verbose);
+    if(err != 0){
+      if(verbose > 0)
+	printf("createTallies: Error on tally cluster %u. "
+	       "Unable to get configuration from thread 0 (err code %d).\n",j,err);
+      failedClusters++;
+    }
+  }
+
+  if(failedClusters > 0)
+    return -4;  
+  
   return 0;
 }
 
@@ -2552,8 +2575,31 @@ int createGeometry(wrapper_geometry*& geometry,
 int createMaterials(pen_context& context,
 		    std::string filenames[constants::MAXMAT],
 		    const pen_parserSection& config,
+		    const double globEmax,
 		    const unsigned verbose){
 
+  //Try to read global particle ranges for all particles
+  std::array<double,constants::nParTypes> maxRanges{-1.0};
+  pen_parserSection rangesSection;
+  if(config.readSubsection("material-ranges",rangesSection) == INTDATA_SUCCESS){
+
+    if(verbose > 1){
+      printf("Global maximum ranges specified:\n");      
+    }
+    
+    //Read maximum ranges for each particle type
+    for(unsigned ip = 0; ip < constants::nParTypes; ++ip){
+      double partRange;
+      if(rangesSection.read(particleName(ip),partRange) == INTDATA_SUCCESS){
+	maxRanges[ip] = partRange;
+	if(verbose > 1){
+	  printf("  + %15s: %15.3E cm\n", particleName(ip), maxRanges[ip]);
+	}
+      }
+    }
+      
+  }
+  
   //Extract materials section
   pen_parserSection matSection;
   if(config.readSubsection("materials",matSection) != INTDATA_SUCCESS){
@@ -2612,7 +2658,7 @@ int createMaterials(pen_context& context,
       err++;
       continue;
     }
-
+  
     //Get material number
     int index;
     //Get absortion energies
@@ -2632,60 +2678,8 @@ int createMaterials(pen_context& context,
       continue;
     }
 
+    //Calculate material index
     int j = index-1;
-    //Get material
-    pen_material& mat = context.getBaseMaterial(j);
-        
-    //Get absortion energies
-    //#######################
-    if(oneMatSec.read("eabs_e-",mat.EABS[PEN_ELECTRON]) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("createMaterials: Error: Unable to read 'materials/%s/eabs_e-'. Double expected.\n",matNames[j].c_str());
-      }
-      err++;
-    }
-    if(oneMatSec.read("eabs_e+",mat.EABS[PEN_POSITRON]) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("createMaterials: Error: Unable to read 'materials/%s/eabs_e+'. Double expected.\n",matNames[j].c_str());
-      }
-      err++;
-    }
-    if(oneMatSec.read("eabs_gamma",mat.EABS[PEN_PHOTON]) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("createMaterials: Error: Unable to read 'materials/%s/eabs_gamma'. Double expected.\n",matNames[j].c_str());
-      }
-      err++;
-    }
-    
-    //Get C1 and C2
-    //##################
-    if(oneMatSec.read("C1",mat.C1) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("createMaterials: Error: Unable to read 'materials/%s/C1'. Double expected.\n",matNames[j].c_str());
-      }
-      err++;
-    }
-    if(oneMatSec.read("C2",mat.C2) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("createMaterials: Error: Unable to read 'materials/%s/C2'. Double expected.\n",matNames[j].c_str());
-      }
-      err++;
-    }
-
-    //Read WCC and WCR
-    //##################
-    if(oneMatSec.read("WCC",mat.WCC) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("createMaterials: Error: Unable to read 'materials/%s/WCC'. Double expected.\n",matNames[j].c_str());
-      }
-      err++;
-    }
-    if(oneMatSec.read("WCR",mat.WCR) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("createMaterials: Error: Unable to read 'materials/%s/WCR'. Double expected.\n",matNames[j].c_str());
-      }
-      err++;
-    }
 
     //Read material filename
     //#######################
@@ -2694,6 +2688,143 @@ int createMaterials(pen_context& context,
 	printf("createMaterials: Error: Unable to read 'materials/%s/filename'. String expected.\n",matNames[j].c_str());
       }
       err++;
+    }
+    
+    //Get material
+    pen_material& mat = context.getBaseMaterial(j);
+
+    //Set default C1, C2, WCC and WCR
+    mat.C1=0.05;
+    mat.C2=0.05;
+    mat.WCC=1.0e3;
+    mat.WCR=1.0e3;    
+        
+    //Get absortion energies
+    //#######################
+
+    std::array<double,constants::nParTypes> localRanges = maxRanges;
+    pen_context* rangeContext = nullptr;
+    for(unsigned ip = 0; ip < constants::nParTypes; ++ip){
+      double partRange;
+      double eabs;
+      std::string key = std::string("range/")+particleName(ip);
+      //Try to read local range for this particle
+      if(oneMatSec.read(key,partRange) == INTDATA_SUCCESS){
+	localRanges[ip] = partRange;
+      }
+
+      key = std::string("eabs/")+particleName(ip);
+      //Assign absortion energy by range, explicit value or default value
+      if(localRanges[ip] > 0.0){
+
+	//Create range context if has not previously created
+	if(rangeContext == nullptr)
+	  rangeContext = createAuxContext(globEmax,
+					  filenames[j].c_str(),
+					  verbose);
+	if(rangeContext == nullptr){
+	  if(verbose > 0){
+	    printf("createMaterials: Error: Unable to create "
+		   "auxiliary context to calculate range limits.\n");
+	  }
+	  err++;
+	  break;
+	}
+	  
+	// + Range
+	double topE = globEmax;
+	double lowE = 50;
+	double objectiveRange = localRanges[ip];
+	unsigned nTries = 0;
+	do{
+	  double midE = (topE+lowE)/2.0;
+	  double range = rangeContext->range(midE,static_cast<pen_KPAR>(ip),0);
+	  if(range == objectiveRange){
+	    topE = midE;
+	    lowE = midE;
+	  }
+	  else if(range > objectiveRange){
+	    topE = midE;
+	  }else{
+	    lowE = midE;
+	  }
+	  ++nTries;
+	}while(nTries < 1000000 && topE/lowE > 1.001);
+	if(topE == globEmax)
+	  mat.EABS[ip] = 1.0e35;
+	else
+	  mat.EABS[ip] = lowE;
+	
+      }else if(oneMatSec.read(key,eabs) == INTDATA_SUCCESS){
+	// + Explicit value
+	mat.EABS[ip] = eabs;
+      }else{
+	// + Default value (1keV)
+	mat.EABS[ip] = 1.0e3;
+      }
+    }
+
+    //Free range context if has been created
+    if(rangeContext != nullptr){
+      delete rangeContext;
+    }
+    
+    // ** WARNING: DEPRECATED **
+    // ** This options is mantained for retrocompatibility
+    double eabs;
+    if(oneMatSec.read("eabs_e-",eabs) == INTDATA_SUCCESS){
+      if(verbose > 0){
+	printf("createMaterials: Warning: Parameter 'materials/%s/eabs_e-' is "
+	       "deprecated and will be removed. Use "
+	       "'materials/%s/eabs/electron' instead.\n",
+	       matNames[j].c_str(),matNames[j].c_str());
+      }
+      mat.EABS[PEN_ELECTRON] = eabs;
+    }
+    if(oneMatSec.read("eabs_e+",eabs) == INTDATA_SUCCESS){
+      if(verbose > 0){
+	printf("createMaterials: Warning: Parameter 'materials/%s/eabs_e+' is "
+	       "deprecated and will be removed. Use "
+	       "'materials/%s/eabs/positron' instead.\n",
+	       matNames[j].c_str(),matNames[j].c_str());
+      }
+      mat.EABS[PEN_POSITRON] = eabs;      
+    }
+    if(oneMatSec.read("eabs_gamma",eabs) == INTDATA_SUCCESS){
+      if(verbose > 0){
+	printf("createMaterials: Warning: Parameter 'materials/%s/eabs_gamma' is "
+	       "deprecated and will be removed. Use "
+	       "'materials/%s/eabs/gamma' instead.\n",
+	       matNames[j].c_str(),matNames[j].c_str());
+      }
+      mat.EABS[PEN_PHOTON] = eabs;     
+    }
+    //**************************
+    
+    //Get C1 and C2
+    //##################
+    double C1,C2;
+    if(oneMatSec.read("C1",C1) == INTDATA_SUCCESS){
+      mat.C1 = C1;
+    }
+    if(oneMatSec.read("C2",C2) == INTDATA_SUCCESS){
+      mat.C2 = C2;
+    }
+
+    //Read WCC and WCR
+    //##################
+
+    //Set default values
+    mat.WCC = std::min(5e3,mat.EABS[PEN_ELECTRON]/100.0);
+    mat.WCR = std::min(5e3,mat.EABS[PEN_PHOTON]/100.0);
+
+    //Read values provided by the user
+    double WCC, WCR;
+    if(oneMatSec.read("WCC",WCC) == INTDATA_SUCCESS){
+      mat.WCC = WCC;
+    }
+    if(oneMatSec.read("WCR",WCR) == INTDATA_SUCCESS){
+      mat.WCR = WCR;
     }
     
     if(verbose > 0){
@@ -3351,4 +3482,73 @@ int setVarianceReduction(pen_context& context,
   //printf("*****************************\n");
   
   return 0;
+}
+
+pen_context* createAuxContext(double EMAX,
+			      const char* matFilename,
+			      const unsigned verbose){
+
+  //Create elements data base
+  pen_elementDataBase elements;
+  //Create a context
+  pen_context* context = nullptr;
+  context = new pen_context(elements);
+  if(context == nullptr){
+    if(verbose > 0){
+      printf("createAuxContext: Error allocating auxilary context.\n");      
+    }
+    return nullptr;
+  }
+
+  //Set the number of materials to context (1)
+  int errmat = context->setMats<pen_material>(1);
+  if(errmat != 0){
+    if(verbose > 0){
+      printf("createAuxContext: Error at context "
+	     "material creation: %d.\n",errmat);
+    }
+    delete context;
+    return nullptr;
+  }
+  
+  //Get the material
+  pen_material& mat = context->getBaseMaterial(0);
+
+  //Configure the material
+  mat.C1=0.2;
+  mat.C2=0.2;
+  mat.WCC=1.0e3;
+  mat.WCR=1.0e3;
+
+  mat.EABS[PEN_ELECTRON] = 50.0E0;
+  mat.EABS[PEN_PHOTON]   = 50.0E0;
+  mat.EABS[PEN_POSITRON] = 50.0E0;
+
+  FILE* fcontext = nullptr;
+  
+  if(verbose > 0){
+    fcontext = fopen("rangeContext.rep","w");
+    if(fcontext == nullptr){
+      printf("createAuxContext: Error: unable to create "
+	     "file 'rangeContext.rep'\n");
+      delete context;
+      return nullptr;
+    }
+  }
+  
+  int INFO = 1;
+  std::string PMFILEstr[constants::MAXMAT];
+  PMFILEstr[0].assign(matFilename);
+  int err = context->init(EMAX,nullptr,INFO,PMFILEstr);
+  if(err != 0){
+    if(verbose > 0){
+      printf("createAuxContext: Error: Unable to configure range context."
+	     "More details can be found in 'rangeContext.rep' file.\n");
+    }
+    delete context;
+    return nullptr;
+  }
+
+  return context;
+  
 }

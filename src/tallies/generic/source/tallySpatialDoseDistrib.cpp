@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2022 Universitat de València - UV
-//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2023 Universitat de València - UV
+//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -209,10 +209,12 @@ void pen_SpatialDoseDistrib::clear()
     free(edep2);
     edep2 = nullptr;
   }
-     
-  if(ivoxMass != nullptr){
-    free(ivoxMass);
-    ivoxMass = nullptr;
+
+  if(getThread() == 0){
+    if(ivoxMass != nullptr){
+      free(ivoxMass);
+      ivoxMass = nullptr;
+    }
   }
 
   if(nlastdepth != nullptr){
@@ -430,91 +432,199 @@ int pen_SpatialDoseDistrib::configure(const wrapper_geometry& geometry,
   edep      = (double*) calloc(nbin,sizeof(double));
   edep2     = (double*) calloc(nbin,sizeof(double));
   nlast     = (unsigned long long*) calloc(nbin,sizeof(unsigned long long));
-  ivoxMass  = (double*) calloc(nbin,sizeof(double));
 
   //Allocate memory for depth dose distribution
   nlastdepth= (unsigned long long*) calloc(nz,sizeof(unsigned long long));
   edepthtmp = (double*) calloc(nz,sizeof(double));
   edepth    = (double*) calloc(nz,sizeof(double));
   edepth2   = (double*) calloc(nz,sizeof(double));
+
+  // Calculate voxel masses only in thread 0
+  // The other threads will copy the corresponding
+  // pointer in the "sharedConfig" call.
+  if(getThread() == 0){
+
+    ivoxMass  = (double*) calloc(nbin,sizeof(double));
+    
+    const int nDivisions = 3;
+    double inDiv = 1.0/double(nDivisions);
+    double ddx = dx*inDiv;
+    double ddy = dy*inDiv;
+    double ddz = dz*inDiv;
+    double subVoxVol = ddx*ddy*ddz;
+    
+#ifdef _PEN_USE_THREADS_
   
-  pen_particleState state;
-    
-  const int nDivisions = 5;
-  double inDiv = 1.0/double(nDivisions);
-  double ddx = dx*inDiv;
-  double ddy = dy*inDiv;
-  double ddz = dz*inDiv;
-  double subVoxVol = ddx*ddy*ddz;
-    
-    
-  for(long int k = 0; k < nz; k++)
-    {
-      //This is to locate a point and find its material
-      double binZpos = zmin + dz*static_cast<double>(k);
-      long int ibinZ = k*nxy;
+    unsigned int nCalcThreads =
+      std::max(static_cast<unsigned int>(2),
+	       std::thread::hardware_concurrency());
+    std::vector<std::thread> calcThreads;
+
+    std::atomic<long int> atomicCount{0};
+
+    if(verbose > 1){
+      printf(" * Using %u threads to calculate voxels mass\n", nCalcThreads);
+    }
+
+    for(size_t ith = 0; ith < nCalcThreads; ++ith){
+      calcThreads.push_back(std::thread([&,ith](){
+
+	pen_particleState state;
+      
+	long int k = atomicCount++;
+	while(k < nz){
+	  //This is to locate a point and find its material
+	  double binZpos = zmin + dz*static_cast<double>(k);
+	  long int ibinZ = k*nxy;
 	
-      for(long int j = 0; j < ny; j++)
-	{
-	  double binYpos = ymin + dy*static_cast<double>(j);
-	  long int ibinY = ibinZ + j*static_cast<long int>(nx);
+	  for(long int j = 0; j < ny; j++)
+	    {
+	      double binYpos = ymin + dy*static_cast<double>(j);
+	      long int ibinY = ibinZ + j*static_cast<long int>(nx);
 	    
-	  for(long int i = 0; i < nx; i++)
-            {
+	      for(long int i = 0; i < nx; i++)
+		{
 
-	      double binXpos = xmin + dx*static_cast<double>(i);
-	      long int bin = ibinY + i;
+		  double binXpos = xmin + dx*static_cast<double>(i);
+		  long int bin = ibinY + i;
 	                      
-	      double localdens = 0.0;
+		  double localdens = 0.0;
                
-	      for (int kk = 0; kk < nDivisions; kk++)
-                {
-		  state.Z = binZpos + ddz*((double)kk+0.5);
-
-		  //Ensure direction to bin center
-		  if(kk < nDivisions/2)
-		    state.W = 1.0;
-		  else
-		    state.W = -1.0;
-		    
-		  for (int jj = 0; jj < nDivisions; jj++)
-                    {
-		      state.Y = binYpos + ddy*((double)jj+0.5);
+		  for (int kk = 0; kk < nDivisions; kk++)
+		    {
+		      state.Z = binZpos + ddz*((double)kk+0.5);
 
 		      //Ensure direction to bin center
-		      if(jj < nDivisions/2)
-			state.V = 1.0;
+		      if(kk < nDivisions/2)
+			state.W = 1.0;
 		      else
-			state.V = -1.0;
-		      
-		      for(int ii = 0; ii < nDivisions; ii++)
-                        {
-			  state.X = binXpos + ddx*((double)ii+0.5);
-			  
+			state.W = -1.0;
+		    
+		      for (int jj = 0; jj < nDivisions; jj++)
+			{
+			  state.Y = binYpos + ddy*((double)jj+0.5);
+
 			  //Ensure direction to bin center
-			  if(ii < nDivisions/2)
-			    state.U = 1.0;
+			  if(jj < nDivisions/2)
+			    state.V = 1.0;
 			  else
-			    state.U = -1.0;
+			    state.V = -1.0;
+		      
+			  for(int ii = 0; ii < nDivisions; ii++)
+			    {
+			      state.X = binXpos + ddx*((double)ii+0.5);
 			  
-			  geometry.locate(state);
+			      //Ensure direction to bin center
+			      if(ii < nDivisions/2)
+				state.U = 1.0;
+			      else
+				state.U = -1.0;
+			  
+			      geometry.locate(state);
                             
-			  if(state.MAT > 0)
-                            {
-			      localdens += materials[state.MAT-1]->readDens();
-                            }
-                        }
-                    }
-                }
-	      if(localdens > 0.0){
-		double voxMass = localdens*subVoxVol;
-		ivoxMass[bin] = 1.0/voxMass;
-	      }
-	      else
-		ivoxMass[bin] = 1.0e35;
-            }
-        }
+			      if(state.MAT > 0)
+				{
+				  localdens += materials[state.MAT-1]->readDens();
+				}
+			    }
+			}
+		    }
+		  if(localdens > 0.0){
+		    double voxMass = localdens*subVoxVol;
+		    ivoxMass[bin] = 1.0/voxMass;
+		  }
+		  else
+		    ivoxMass[bin] = 1.0e35;
+		}
+	    }
+
+	  //Increase k
+	  k = atomicCount++;
+	}
+      
+      }));
     }
+
+    //Wait until all threads have been finished
+    for(std::thread& t : calcThreads){
+      t.join();
+    }  
+
+#else
+
+    pen_particleState state;
+  
+    for(long int k = 0; k < nz; k++)
+      {
+	//This is to locate a point and find its material
+	double binZpos = zmin + dz*static_cast<double>(k);
+	long int ibinZ = k*nxy;
+	
+	for(long int j = 0; j < ny; j++)
+	  {
+	    double binYpos = ymin + dy*static_cast<double>(j);
+	    long int ibinY = ibinZ + j*static_cast<long int>(nx);
+	    
+	    for(long int i = 0; i < nx; i++)
+	      {
+
+		double binXpos = xmin + dx*static_cast<double>(i);
+		long int bin = ibinY + i;
+	                      
+		double localdens = 0.0;
+               
+		for (int kk = 0; kk < nDivisions; kk++)
+		  {
+		    state.Z = binZpos + ddz*((double)kk+0.5);
+
+		    //Ensure direction to bin center
+		    if(kk < nDivisions/2)
+		      state.W = 1.0;
+		    else
+		      state.W = -1.0;
+		    
+		    for (int jj = 0; jj < nDivisions; jj++)
+		      {
+			state.Y = binYpos + ddy*((double)jj+0.5);
+
+			//Ensure direction to bin center
+			if(jj < nDivisions/2)
+			  state.V = 1.0;
+			else
+			  state.V = -1.0;
+		      
+			for(int ii = 0; ii < nDivisions; ii++)
+			  {
+			    state.X = binXpos + ddx*((double)ii+0.5);
+			  
+			    //Ensure direction to bin center
+			    if(ii < nDivisions/2)
+			      state.U = 1.0;
+			    else
+			      state.U = -1.0;
+			  
+			    geometry.locate(state);
+                            
+			    if(state.MAT > 0)
+			      {
+				localdens += materials[state.MAT-1]->readDens();
+			      }
+			  }
+		      }
+		  }
+		if(localdens > 0.0){
+		  double voxMass = localdens*subVoxVol;
+		  ivoxMass[bin] = 1.0/voxMass;
+		}
+		else
+		  ivoxMass[bin] = 1.0e35;
+	      }
+	  }
+      }
+    
+#endif
+    
+  }
     
   if(verbose > 1){
     printf("Number of x bins: %d\n",nx);
@@ -631,7 +741,7 @@ void pen_SpatialDoseDistrib::saveData(const unsigned long long nhist) const{
   fprintf(out,"xBinIndex : xLow(cm) : xMiddle(cm) : ");
   fprintf(out,"yBinIndex : yLow(cm) : yMiddle(cm) : ");
   fprintf(out,"zBinIndex : zLow(cm) : zMiddle(cm) : ");
-  fprintf(out,"dose : +-2sigma\n");
+  fprintf(out,"dose : +-2sigma : Edep(eV) : +-2sigma(eV) : voxel mass (g)\n");
     
     
   //Write data
@@ -667,14 +777,14 @@ void pen_SpatialDoseDistrib::saveData(const unsigned long long nhist) const{
 	      sigma = edep2[bin]*invn - q*q;
 	      if(sigma > 0.0)
                 {
-		  sigma = sqrt(sigma*invn)*fact;
+		  sigma = sqrt(sigma*invn);
                 }
 	      else
                 {
 		  sigma = 0.0;
                 }
-	      q = q*fact;
-	      fprintf(out," %12.5E %7.1E\n",q,2.0*sigma);
+	      fprintf(out," %12.5E %7.1E %12.5E %7.1E %12.5E\n",
+		      q*fact,2.0*sigma*fact,q,2.0*sigma,1.0/ivoxMass[bin]);
             }
         }
       fprintf(out,"  \n  \n"); 

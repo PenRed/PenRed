@@ -1,4 +1,9 @@
-# PenRed 
+
+<p align="center">
+  <a href="https://github.com/PenRed/PenRed">
+    <img src="logo/PenRed_color.png" width="400" alt="PenRed logo">
+  </a>
+</p>
 
 [![CMake](https://github.com/PenRed/PenRed/actions/workflows/cmake.yml/badge.svg)](https://github.com/PenRed/PenRed/actions/workflows/cmake.yml) 
 

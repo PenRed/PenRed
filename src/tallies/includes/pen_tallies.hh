@@ -93,6 +93,10 @@ struct tally_StepData{
   inline int sum(const pen_genericTally<State>& sumtally){\
   const Class& derived = dynamic_cast<const Class&>(sumtally);\
   return sumTally(derived);\
+  }\
+  inline int shareConfig(const pen_genericTally<State>& sharingTally){ \
+  const Class& derived = dynamic_cast<const Class&>(sharingTally);\
+  return sharedConfig(derived);\
   }
 
 #define REGISTER_COMMON_TALLY(Class, ID) \
@@ -471,6 +475,8 @@ public:
   
   virtual void saveData(const unsigned long long /*nhist*/) const = 0;
   virtual int sum(const pen_genericTally<stateType>&) = 0;
+  virtual int shareConfig(const pen_genericTally<stateType>&) = 0;
+  int sharedConfig(const pen_genericTally<stateType>&){return 0;}
   virtual void flush() = 0;
   
   inline __usedFunc readFlags() const {return usedFunctions;}
@@ -613,7 +619,7 @@ public:
     return genericTallies().createInstance(type.c_str());
   }
 
-  inline unsigned getThread(){return nthread;}
+  inline unsigned getThread() const {return nthread;}
   
   template <class subclass>
   static int addTally(const char* typeID){
@@ -820,6 +826,7 @@ public:
 		   const unsigned verbose = 0);
   
   int sum(pen_commonTallyCluster& cluster, const unsigned verbose = 0);
+  int shareConfig(const pen_commonTallyCluster& cluster, const unsigned verbose = 0);
   
   // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_
@@ -963,7 +970,7 @@ public:
   inline unsigned numTallies(){return tallies.size();}
   inline int configureStatus(){return configStatus;}
 
-  inline unsigned getThread(){return nthread;}
+  inline unsigned getThread() const {return nthread;}
   
   template <class subclass>
   static int addTally(const char* typeID){
