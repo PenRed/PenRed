@@ -108,19 +108,13 @@ void pen_EdepBody::tally_endHist(const unsigned long long /*nhist*/){
     flush();
 }
 
-int pen_EdepBody::configure(const wrapper_geometry& /*geometry*/,
+int pen_EdepBody::configure(const wrapper_geometry& geometry,
 			   const abc_material* const /*materials*/[pen_geoconst::NB],
 			   const pen_parserSection& config,
 			   const unsigned verbose){
     
-  int err;     
-  err = config.read("nBody", nBody);
-  if(err != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("EdepBody:configure:unable to read 'nBody' in configuration. Integrer expected");
-    }
-    return -1;
-  }
+  int err;
+  nBody = geometry.getElements();
     
   //Clear counters:
   for(unsigned int j = 0; j < pen_geoconst::NB; j++){

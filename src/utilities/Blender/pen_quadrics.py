@@ -598,13 +598,26 @@ class export_penred(Operator, ExportHelper):
         description="Decimal limit to round the export values (position, dimensions, etc)",
         default=6,
         )
+
     
     exportType: bpy.props.EnumProperty(
         items=[("QUADRICS","Quadrics","Quadric based geometry",'',0), ("MESH","Mesh","Mesh based geometry",'',1)],
         name="Geometry type",
         description="PenRed geometry type to export",
         default=0,
-        )    
+        )
+
+    onlyActive: bpy.props.BoolProperty(
+        name="Only active",
+        description="Exports only the active object",
+        default=False,
+        )
+
+    avoidHide: bpy.props.BoolProperty(
+        name="Omit hide",
+        description="Disable the export of hide objects and their children",
+        default=False,
+        )
     
     def getObjInfo(self,context,obj):
         #Set object origin to origin geometry
@@ -666,10 +679,16 @@ class export_penred(Operator, ExportHelper):
             else:
                 return None
     
-    def createTriangleMesh(self,f,context,obj,toRound):
+    def createTriangleMesh(self,f,context,obj,toRound,forceWorld,avoidHide):
 
         if obj.type != 'MESH':
             return
+
+        #Check if hide objects must be avoided
+        if avoidHide:
+            if obj.hide_get():
+                #Skip it
+                return
 
         #Get name
         name = obj.name
@@ -678,14 +697,17 @@ class export_penred(Operator, ExportHelper):
             name = name[:100]
         
         #Get parent name
-        parent = self.getMeshParent(context,obj)
-        if parent:
-            parentName = parent.name
-            parentName.replace(" ","_")
-            if len(parentName) > 100:
-                parentName = parentName[:100]
-        else:
+        if forceWorld:
             parentName = "void"
+        else:
+            parent = self.getMeshParent(context,obj)
+            if parent:
+                parentName = parent.name
+                parentName.replace(" ","_")
+                if len(parentName) > 100:
+                    parentName = parentName[:100]
+            else:
+                parentName = "void"
         
         #Get mesh data
         mesh = obj.data
@@ -712,20 +734,28 @@ class export_penred(Operator, ExportHelper):
         f.write("#\n#\n")
         
     
-    def createObject(self,f,context,obj,nSurf,nObj,toRound):
+    def createObject(self,f,context,obj,nSurf,nObj,toRound,createChilds,avoidHide):
         
         #Check the quadric type
         if obj.penred_settings.quadricType == "unknown" and obj.type != "EMPTY": 
             return [], nSurf, nObj
-        
-        #Get childrens 
-        childrens = self.getChildrens(context,obj)        
+
+        #Check if hide objects must be avoided
+        if avoidHide:
+            if obj.hide_get():
+                #Skip it
+                return [], nSurf, nObj
+
+        #Get childrens
+        childrens = []
+        if createChilds:
+            childrens = self.getChildrens(context,obj)
         
         #First, construct children objects
         tree = [] # Children tree information
         if len(childrens) > 0:
             for child in childrens:
-                childTree, nSurf, nObj = self.createObject(f,context,child,nSurf,nObj,toRound)
+                childTree, nSurf, nObj = self.createObject(f,context,child,nSurf,nObj,toRound,True)
                 if len(childTree) > 0:
                     tree.extend(childTree)
                 
@@ -858,6 +888,26 @@ class export_penred(Operator, ExportHelper):
             
         return tree,nSurf,nObj
                  
+    def countNonHideMeshes(self,context,obj):
+
+        #Number of non hide meshes
+        nMeshes = 0
+
+        #Check this mesh status
+        if not obj.hide_get():
+            #Count this object if it is a mesh
+            if obj.type == 'MESH':
+                nMeshes = 1
+
+            #Check childrens
+            childrens = self.getChildrens(context,obj)
+            for child in childrens:
+                #Add contribution of all children
+                nMeshes += self.countNonHideMeshes(context,child)
+
+        #Return the number of non hide meshes
+        return nMeshes
+
     def execute(self, context):
         
         #Open output file
@@ -870,27 +920,44 @@ class export_penred(Operator, ExportHelper):
             
             nSurf = 1 #Number of surface to be created
             nObj = 1 #Number of object to be created
-            
-            #Find objects with no parents
-            for obj in context.scene.objects:
-                if not obj.parent:
-                    #This object has no parent, create it
-                    nSurf,nObj = self.createObject(f,context,obj,nSurf,nObj,self.toRound)[1:]
+
+            if self.onlyActive:
+                self.createObject(f,context,bpy.context.active_object,nSurf,nObj,self.toRound,False,False)
+            else:
+                #Find objects with no parents
+                for obj in context.scene.objects:
+                    if not obj.parent:
+                        #This object has no parent, create it
+                        nSurf,nObj = self.createObject(f,context,obj,nSurf,nObj,self.toRound,True,self.avoidHide)[1:]
 
             endFile(f)
         elif self.exportType == 'MESH':
             
-            #Count number of meshes
-            nMeshes = 0
-            for obj in context.scene.objects:
-                if obj.type == 'MESH':
-                    nMeshes = nMeshes + 1
-            
-            #Print number of objects
-            f.write("# Number of objects:\n %d\n" % (nMeshes))
-            
-            for obj in context.scene.objects:
-                self.createTriangleMesh(f,context,obj,self.toRound)
+            if self.onlyActive:
+                #Print number of objects
+                f.write("# Number of objects:\n 1\n")
+
+                self.createTriangleMesh(f,context,bpy.context.active_object,self.toRound,True,False)
+            else:
+
+                #Count number of meshes
+                nMeshes = 0
+
+                if self.avoidHide:
+                    for obj in context.scene.objects:
+                        if not obj.parent: #Begin from objects with no parent
+                            nMeshes += self.countNonHideMeshes(context,obj)
+                else:
+                    #Count all mesh objects
+                    for obj in context.scene.objects:
+                        if obj.type == 'MESH':
+                            nMeshes = nMeshes + 1
+
+                #Print number of objects
+                f.write("# Number of objects:\n %d\n" % (nMeshes))
+
+                for obj in context.scene.objects:
+                    self.createTriangleMesh(f,context,obj,self.toRound,False,self.avoidHide)
         else:
             f.write("# Unknown export format. Please, report this issue\n")
                 
