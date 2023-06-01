@@ -732,27 +732,28 @@ struct container : public box<T>{
 
   inline size_t nElements() const {return elements.size();}
 
-  size_t split(const unsigned n,
-	       const unsigned meanElements,
-	       const T threshold,
-	       std::vector<container<E,T>>& regions) const{
+  static size_t split(const unsigned n,
+		      const unsigned index2Split,
+		      const unsigned meanElements,
+		      const T threshold,
+		      std::vector<container<E,T>>& regions){
 
-    const T sizeX = box<T>::dx()/static_cast<T>(n);
-    const T sizeY = box<T>::dy()/static_cast<T>(n);
-    const T sizeZ = box<T>::dz()/static_cast<T>(n);
+    const T sizeX = regions[index2Split].box<T>::dx()/static_cast<T>(n);
+    const T sizeY = regions[index2Split].box<T>::dy()/static_cast<T>(n);
+    const T sizeZ = regions[index2Split].box<T>::dz()/static_cast<T>(n);
 
-    const T ox = box<T>::minx();
-    const T oy = box<T>::miny();
-    const T oz = box<T>::minz();
+    const T ox = regions[index2Split].box<T>::minx();
+    const T oy = regions[index2Split].box<T>::miny();
+    const T oz = regions[index2Split].box<T>::minz();
     
-    std::vector<E> elementsCopy(elements);
+    std::vector<E> elementsCopy(regions[index2Split].elements);
 
     size_t origReg = regions.size(); 
 
     //Saves the number of performed splits
     unsigned nSplit = 0;
     //Saves remaining elements to store
-    size_t remaining = nElements();
+    size_t remaining = regions[index2Split].nElements();
 
     //Create subregions
     for(unsigned k = 0; k < n; ++k){
@@ -805,7 +806,7 @@ struct container : public box<T>{
 	  //Once all elements in region have been assigned,
 	  //set the final region box
 	  region.set(finalRegionBox);
-	  //Enlarge the region to avoid rounding errors
+	  //Enlarge the region to avoid rounelementsding errors
 	  region.enlarge(threshold);
 	  
 	  //Ensure that the region contains at least one element
@@ -822,8 +823,8 @@ struct container : public box<T>{
 
 	      double maxOverlapFact = 0.0;
 	      unsigned maxOverlapReg = regions.size();
-	      for(unsigned ireg = 0; ireg < regions.size(); ++ireg){
-		if(this == &regions[ireg])
+	      for(unsigned ireg = 0; ireg < regions.size(); ++ireg){		
+		if(index2Split == ireg)
 		  continue;
 		//Check if this region can include more elements
 		if(regions[ireg].nElements() + region.nElements() > 2.0*meanElements)
@@ -838,6 +839,7 @@ struct container : public box<T>{
 	      
 	      //Check if some overlaping region has been found
 	      if(maxOverlapReg < regions.size()){
+		
 		//Merge both regions
 		container<E,T>& region2merge = regions[maxOverlapReg];
 
@@ -863,8 +865,8 @@ struct container : public box<T>{
 	      //Check if this region intersects with another one
 	      double maxOverlapFact = 0.0;
 	      unsigned maxOverlapReg = regions.size();
-	      for(unsigned ireg = 0; ireg < regions.size(); ++ireg){
-		if(this == &regions[ireg])
+	      for(unsigned ireg = 0; ireg < regions.size(); ++ireg){		
+		if(index2Split == ireg)
 		  continue;
 		//Check if this region can include more elements
 		if(regions[ireg].nElements() + region.nElements() > 2.0*meanElements)
@@ -878,6 +880,7 @@ struct container : public box<T>{
 	      }
 	      
 	      if(maxOverlapFact > 0.8){
+		
 		//Merge both regions
 		container<E,T>& region2merge = regions[maxOverlapReg];
 
@@ -911,7 +914,7 @@ struct container : public box<T>{
 	printf("Region: %s\n", regions[ir].stringify().c_str());	
 	for(size_t i = 0; i < remaining; ++i){
 	  printf("%s: %s\n",
-		 elements[i].stringify().c_str(),
+		 regions[index2Split].elements[i].stringify().c_str(),
 		 regions[ir].in(elementsCopy[i],threshold) ? "in" : "out");
 	}
       }
@@ -921,8 +924,13 @@ struct container : public box<T>{
       char errmsg[200];
       sprintf(errmsg,"container:split: Error: %lu/%lu elements "
 	      "out of defined regions.\n",
-	      remaining,elements.size());      
+	      remaining,regions[index2Split].elements.size());      
       throw std::runtime_error(errmsg); 
+    }
+
+    if(nSplit > 0){
+      //The container has been split, remove the original one to avoid duplicating elements
+      regions.erase(regions.begin() + index2Split);
     }
 
     return nSplit;
@@ -934,6 +942,11 @@ struct container : public box<T>{
 			 std::vector<container<E,T>>& containers,
 			 const size_t limit) {
 
+    size_t initElements = 0;
+    for(const auto& continer: containers){
+      initElements += continer.nElements();
+    }
+    
     //Maximum achieved containers
     size_t maxContainers = 1;
     //Number of iterations with a number of containers
@@ -946,26 +959,24 @@ struct container : public box<T>{
       size_t nCont = containers.size();
       while(iCont < nCont){
 	if(containers[iCont].nElements() > 1.5*meanElements){
+	  
 	  //Divide the container region and add them
-	  size_t nDivisions =
-	    containers[iCont].split(2,meanElements,
+	  size_t nDivisions = split(2,iCont,meanElements,
 				    threshold,
 				    containers);
 	  if(nDivisions == 0){
-	    nDivisions = containers[iCont].split(5,meanElements,
-						 threshold,
-						 containers);
+	    nDivisions = split(5,iCont,meanElements,
+			       threshold,
+			       containers);
 	  }
 
 	  if(nDivisions > 0){
 	    splitDone = true;
-	    //Remove original container
-	    containers.erase(containers.begin() + iCont);
-	    --nCont;
-	  }else{
+	    --nCont;	    
+	  }else{	    
 	    ++iCont;
 	  }
-	}else{
+	}else{	    
 	  ++iCont;
 	}
       }
@@ -989,7 +1000,24 @@ struct container : public box<T>{
 	//Increase the iteration counter
 	++nIterUnderMaxContainers;
       }
-    }    
+    }
+
+    //Check the integrity of the split process
+    size_t finalElements = 0;
+    for(const auto& continer: containers){
+      finalElements += continer.nElements();
+    }
+    if(finalElements != initElements){
+      printf("splitUntil: Error: Elements lost on container split: "
+	     "      Expected elements : %lu\n"
+	     "      Final elements    : %lu\n"
+	     " Please, report this issue.\n",
+	     initElements, finalElements);
+      fflush(stdout);
+      throw std::range_error("Lost elements on container split");      
+    }
+
+      
   }
 
 };

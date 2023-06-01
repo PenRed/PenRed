@@ -33,8 +33,6 @@ bool pen_meshBody::inside(const v3D pos) const{
 
   if(!boundary.in(pos, crossThreshold))
     return false;
-  
-  //Get a point outside the body box
   v3D origin(pos);
   origin.x = boundary.minx()-1.0;
   v3D dir(1.0,0.0,0.0);
@@ -68,7 +66,7 @@ bool pen_meshBody::cross(const v3D pos,
   const double maxDsThres = maxDs + crossThreshold;
   double lowestDS = maxDsThres;
 
-  //If the position is outside, check if the ray reaches to the object boundary
+  //If the position is outside, check if the ray reaches the object boundary
   if(!back){
     double ds2In;
     bool goesIn = boundary.toIn(pos.x,pos.y,pos.z,dir.x,dir.y,dir.z,ds2In);
@@ -487,13 +485,9 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
       std::string key("dsmax/");      
       key += bodiesAlias[i];
       
-      //Construct expected alias
-      char auxAlias[5];
-      sprintf(auxAlias,"%4.4s",bodiesAlias[i].c_str());
-      auxAlias[4] = '\0';
       for(unsigned j = 0; j < getElements(); j++){
 	//Check if body alias is the expected one
-	if(strcmp(auxAlias,bodies[j].BALIAS) == 0){
+	if(bodiesAlias[i].compare(bodies[j].BALIAS) == 0){
 	  //Get DSMAX
 	  double auxDSmax;
 	  err = config.read(key,auxDSmax);
@@ -526,7 +520,7 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
       }
       if(!found && verbose > 1){
 	printf("Warning: body '%s' not found (key %s).\n",
-	       auxAlias,key.c_str());
+	       bodiesAlias[i].c_str(),key.c_str());
       }
     }
   }
@@ -759,6 +753,23 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	//  region.enlarge(pen_meshBody::crossThreshold);
 	//}
 
+	//Check total number of triangles
+	unsigned long nTrianglesAux = 0;
+	for(const pen_meshBody::triangleRegion& region : superRegion.elements){
+	  nTrianglesAux += region.nElements();
+	}
+	if(nTrianglesAux != body.nTriangles){
+	  printf("pen_meshBodyGeo:configure: Error: Triangles lost on first "
+		 "region split in body '%s.'\n"
+		 "      Expected triangles : %lu\n"
+		 "      Remaining triangles: %lu\n"
+		 " Please, report this issue.\n",
+		 body.BALIAS, body.nTriangles, nTrianglesAux);
+	    
+	  fflush(stdout);
+	  throw std::range_error("Lost triangles");
+	}
+	    
 	pen_meshBody::superRegion::splitUntil(body.meanRegionsSuperRegion,
 					      pen_meshBody::crossThreshold,
 					      body.regions,
@@ -768,6 +779,24 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	//for(pen_meshBody::superRegion& supRegion : body.regions){
 	//  supRegion.enlarge(pen_meshBody::crossThreshold);
 	//}
+
+	//Check total number of triangles
+	nTrianglesAux = 0;
+	for(const pen_meshBody::superRegion& supRegion : body.regions){
+	  for(const pen_meshBody::triangleRegion& region : supRegion.elements){
+	    nTrianglesAux += region.nElements();
+	  }
+	}
+	if(nTrianglesAux != body.nTriangles){
+	  printf("pen_meshBodyGeo:configure: Error: Triangles lost on "
+		 "super-region split in body '%s.'\n"
+		 "      Expected triangles : %lu\n"
+		 "      Remaining triangles: %lu\n"
+		 " Please, report this issue.\n",
+		 body.BALIAS, body.nTriangles, nTrianglesAux);
+	  fflush(stdout);
+	  throw std::range_error("Lost triangles");
+	}
 
 	if(verbose > 2){
 	  printf("   + Body %u split completed in thread %lu\n",
@@ -1020,7 +1049,192 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
       fclose(freport);
     }
     
-  }  
+  }
+
+  //Check if the user has requested testing the mesh
+  bool toTest = false;
+  if(config.read("test-mesh",toTest) == INTDATA_SUCCESS){
+
+    if(toTest){
+
+      if(verbose > 1){
+	printf(" ** Testing mesh.\n\n");
+
+	printf("  + Body to body intersections:\n");
+      }
+
+      bool intersectionFound = false;
+      for(unsigned ibody = 0; ibody < getElements(); ++ibody){
+	  
+	const pen_meshBody& body = bodies[ibody];
+
+	if(verbose > 1)
+	  printf("    - Body %s (%u):\n",body.BALIAS,ibody);
+	  
+	bool localIntersectionFound = false;
+	  
+	//Check only overlapping bodies
+
+	//Parent
+	if(body.canOverlapParent && body.parent != ibody){
+	  const pen_meshBody& parent = bodies[body.parent];
+
+	  //All points should be inside the parent, check it
+	  for(const pen_meshBody::superRegion& supRegion : body.regions){
+	    for(const pen_meshBody::triangleRegion& region : supRegion.elements){
+	      for(const meshBodyTriangle& triangle : region.elements){
+
+		//Check if the three triangle vertex are inside the parent
+		if(!parent.inside(triangle.readV1()) ||
+		   !parent.inside(triangle.readV2()) ||
+		   !parent.inside(triangle.readV3())){
+		  //Intersection found
+		  if(verbose > 2){
+		    printf("      - Intersection with parent '%s' (%u): %s\n",
+			   body.PALIAS,body.parent,triangle.stringify().c_str());
+		  }
+		  else if(verbose > 1){
+		    printf("      - Intersection with parent '%s' (%u)\n",
+			   body.PALIAS,body.parent);
+		  }
+		  localIntersectionFound = true;
+		  intersectionFound = true;
+		  if(verbose <= 2)
+		    break;
+		}
+		  
+	      }
+	      if(verbose <= 2 && localIntersectionFound) break;
+	    }
+	    if(verbose <= 2 && localIntersectionFound) break;
+	  }
+	}
+
+#ifdef _PEN_USE_THREADS_
+  
+	unsigned int nOverlapThreads =
+	  std::max(static_cast<unsigned int>(2),
+		   std::thread::hardware_concurrency());
+	std::vector<std::thread> overlapThreads;
+
+	atomicCount = 0;
+	std::atomic<bool> sharedIntersect{false};
+
+	for(size_t ith = 0; ith < nOverlapThreads; ++ith){
+	  overlapThreads.push_back(std::thread([&,ith](){
+
+	    unsigned int iover = atomicCount++;
+	    while(iover < body.nOverlap){
+	      const unsigned overlapBodyIndex = body.overlapedBodies[iover];
+	      const pen_meshBody& overlapBody = bodies[overlapBodyIndex];
+
+	      //All points should be inside the parent, check it
+	      bool overlapIntersectionFound = false;
+	      for(const pen_meshBody::superRegion& supRegion : body.regions){
+		for(const pen_meshBody::triangleRegion& region : supRegion.elements){
+		  for(const meshBodyTriangle& triangle : region.elements){
+
+		    //Check if the three triangle vertex are outside the overlapping body
+		    if(overlapBody.inside(triangle.readV1()) ||
+		       overlapBody.inside(triangle.readV2()) ||
+		       overlapBody.inside(triangle.readV3())){
+		      //Intersection found
+		      if(verbose > 2){
+			printf("      - Intersection with overlapping "
+			       "body '%s' (%u): %s\n",
+			       overlapBody.BALIAS,
+			       overlapBodyIndex,
+			       triangle.stringify().c_str());			
+		      }
+		      else if(verbose > 1){
+			printf("      - Intersection with overlapping body '%s' (%u)\n",
+			       overlapBody.BALIAS,overlapBodyIndex);
+		      }
+		      sharedIntersect = true;
+		      overlapIntersectionFound = true;
+		      if(verbose <= 2)
+			break;
+		    }
+		  }
+		  if(verbose <= 2 && overlapIntersectionFound) break;
+		}
+		if(verbose <= 2 && overlapIntersectionFound) break;
+	      }
+
+	      iover = atomicCount++;	      
+	    }
+      
+	  }));
+	}
+
+	//Wait until all threas have been finished
+	for(std::thread& t : overlapThreads){
+	  t.join();
+	}	
+
+	if(sharedIntersect){
+	  localIntersectionFound = true;
+	  intersectionFound = true;    
+	}
+      
+  
+#else
+	
+	//Overlap bodies
+	for(unsigned iover = 0; iover < body.nOverlap; ++iover){
+	  const unsigned overlapBodyIndex = body.overlapedBodies[iover];
+	  const pen_meshBody& overlapBody = bodies[overlapBodyIndex];
+
+	  //All points should be inside the parent, check it
+	  bool overlapIntersectionFound = false;
+	  for(const pen_meshBody::superRegion& supRegion : body.regions){
+	    for(const pen_meshBody::triangleRegion& region : supRegion.elements){
+	      for(const meshBodyTriangle& triangle : region.elements){
+
+		//Check if the three triangle vertex are outside the overlapping body
+		if(overlapBody.inside(triangle.readV1()) ||
+		   overlapBody.inside(triangle.readV2()) ||
+		   overlapBody.inside(triangle.readV3())){
+		  //Intersection found
+		  if(verbose > 2){
+		    printf("      - Intersection with overlapping "
+			   "body '%s' (%u): %s\n",
+			   overlapBody.BALIAS,
+			   overlapBodyIndex,
+			   triangle.c_str());			
+		  }
+		  else if(verbose > 1){
+		    printf("      - Intersection with overlapping body '%s' (%u)\n",
+			   overlapBody.BALIAS,overlapBodyIndex);
+		  }
+		  localIntersectionFound = true;
+		  intersectionFound = true;
+		  overlapIntersectionFound = true;
+		  if(verbose <= 2)
+		    break;
+		}
+	      }
+	      if(verbose <= 2 && overlapIntersectionFound) break;
+	    }
+	    if(verbose <= 2 && overlapIntersectionFound) break;
+	  }
+	}
+	
+#endif
+
+	if(!localIntersectionFound){
+	  if(verbose > 1)
+	    printf("      + No intersections found\n");
+	}
+      }
+
+      if(intersectionFound){
+	configStatus = PEN_MESHBODY_GEO_BODY_INTERSECTIONS_FOUND;
+	return configStatus;
+      }
+
+    }
+  }
   
   configStatus = PEN_MESHBODY_GEO_SUCCESS;
   return configStatus;
