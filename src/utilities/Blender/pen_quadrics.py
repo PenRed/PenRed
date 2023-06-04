@@ -556,8 +556,8 @@ from math import cos, acos, sin, asin, tan, atan2, sqrt, pi
 ##############################################################################
 ##############################################################################
 
-materialRows = 10
-materialColumns = 10
+materialRows = 20
+materialColumns = 20
 maxMaterial = materialRows*materialColumns
 
 # Properties group

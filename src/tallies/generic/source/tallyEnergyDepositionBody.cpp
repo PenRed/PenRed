@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2021 Universitat de València - UV
-//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2023 Universitat de València - UV
+//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -165,7 +165,7 @@ void pen_EdepBody::saveData(const unsigned long long nhist) const{
       if(sigma > 0.0){ sigma = sqrt(sigma);}
       else{sigma = 0.0;}
 
-      fprintf(out, " %3d      %12.5E     %8.1E\n", i+1,q,2.0*sigma);
+      fprintf(out, " %3d      %12.5E     %8.1E\n", i,q,2.0*sigma);
     }
   fclose(out);
 }
