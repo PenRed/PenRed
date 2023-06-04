@@ -4,14 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.9.1] - 2023-06-01
+## [1.9.1] - 2023-06-04
 
 ### Added
-- Mesh test capability to find intersections between bodies
+- Mesh test capability to find bodies intersections
 - Options in the Blender plugin to export only active or non hided objects
 
 ### Changed
-- Energy deposition in body tally no longer needs to specify the number of bodies
+- Energy deposition in body tally: No longer needs to specify the number of bodies
+- Energy deposition in body tally: Begins body number from 0 instead of 1, to be consistent with geometry packages
 
 ### Fixed
 - Bug: DSMAX parameter in mesh geometries only accepts body names with 5 or less characters
