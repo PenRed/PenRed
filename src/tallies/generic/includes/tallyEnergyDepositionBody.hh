@@ -83,7 +83,7 @@ public:
 
   int configure(const wrapper_geometry& /*geometry*/,
 		const abc_material* const /*materials*/[pen_geoconst::NB],     
-		const pen_parserSection& config, const unsigned verbose);
+		const pen_parserSection& /*config*/, const unsigned verbose);
   void flush();
   void saveData(const unsigned long long nhist) const;
   int sumTally(const pen_EdepBody& tally);

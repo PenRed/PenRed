@@ -611,6 +611,11 @@ int pen_PSS::configure(const wrapper_geometry& geometry,
     }
     return -4;
   }
+
+  //Configure dumps
+  addSubDump(*primary);
+  addSubDump(*scatter);
+  addSubDump(*multiScatter);
   
   return 0;
 }

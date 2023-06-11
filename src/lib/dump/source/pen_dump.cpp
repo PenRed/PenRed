@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2023 Universitat de València - UV
+//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -322,10 +322,12 @@ int pen_dump::dump(unsigned char*& pout,
 		   const size_t outputSize,
 		   const unsigned verbose) const{
 
+  size_t finalOutSize = outputSize;
   if(outputSize == 0){
     //Allocate memmory for all elements
+    finalOutSize = memory();
     pout = nullptr;
-    pout = (unsigned char*) malloc(memory());
+    pout = (unsigned char*) malloc(finalOutSize);
     if(pout == nullptr)
       return PEN_DUMP_BAD_ALLOCATION;
   }
@@ -389,6 +391,14 @@ int pen_dump::dump(unsigned char*& pout,
     return PEN_DUMP_ERROR_CHAR_DUMP;
   }
 
+  //Dump sub dumps
+  for(const pen_dump* p : subDumps){
+    err = p->dump(pout,written,finalOutSize,verbose);
+    if(err != PEN_DUMP_SUCCESS){
+      return err;
+    }
+  }
+  
   //Check written data
   if(written != memory()){
     if(verbose > 0){
@@ -729,6 +739,14 @@ int pen_dump::read(const unsigned char* const pin,
       printf("                     Error code: %d\n",err);
     }
     return PEN_DUMP_UNABLE_TO_READ_CHAR_ARRAYS;
+  }
+
+  //Read sub dumps
+  for(pen_dump* p : subDumps){
+    err = p->read(pin,pos,verbose);
+    if(err != PEN_DUMP_SUCCESS){
+      return err;
+    }
   }
   
   return PEN_DUMP_SUCCESS;

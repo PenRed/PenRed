@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2021-2022 Universitat de València - UV
-//    Copyright (C) 2021-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2021-2023 Universitat de València - UV
+//    Copyright (C) 2021-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -244,6 +244,8 @@ int pen_tallyDICOMkerma::configure(const wrapper_geometry& geometry,
         return -2;
     }
 
+    //Register kerma tally dump to be dumped
+    dump.toDump(tallyKerma.dump);
     
  return 0;
 }
