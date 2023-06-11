@@ -245,7 +245,7 @@ int pen_tallyDICOMkerma::configure(const wrapper_geometry& geometry,
     }
 
     //Register kerma tally dump to be dumped
-    dump.toDump(tallyKerma.dump);
+    addSubDump(tallyKerma);
     
  return 0;
 }
