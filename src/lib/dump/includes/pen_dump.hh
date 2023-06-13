@@ -602,12 +602,17 @@ private:
   int dumpInt(unsigned char* pout, size_t& pos) const;
   int dumpUnsigned(unsigned char* pout, size_t& pos) const;
   int dumpChar(unsigned char* pout, size_t& pos) const;
+  int dumpSubDumps(unsigned char* pout,
+		   size_t& pos,
+		   const size_t outputSize,
+		   const unsigned verbose) const;
 
   int readDouble(const unsigned char* const pin, size_t& pos, const unsigned verbose = 0);
   int readInt(const unsigned char* const pin, size_t& pos, const unsigned verbose = 0);
   int readUnsigned(const unsigned char* const pin, size_t& pos, const unsigned verbose = 0);
   int readChar(const unsigned char* const pin, size_t& pos, const unsigned verbose = 0);
-  
+  int readSubDumps(const unsigned char* const pin, size_t& pos, const unsigned verbose);  
+
 public:
   
   static const size_t doubMem = dArray::doubMem;
@@ -631,11 +636,11 @@ public:
   inline size_t nInts() const {return pint.size();}
   inline size_t nUnsigneds() const {return punsigned.size();}
   inline size_t nChars() const {return puchar.size();}
+  inline size_t nSubDumps() const{return subDumps.size();}
 
   inline size_t nRegistered() const {
-    return nDoubles()+nInts()+nUnsigneds()+nChars();
+    return nDoubles()+nInts()+nUnsigneds()+nChars()+nSubDumps();
   }
-  inline size_t nSubDumps() const{return subDumps.size();}
 
   inline size_t memory() const {
     size_t mem = dataBits/charBits;
@@ -654,8 +659,9 @@ public:
 
     //Check if it is already stored
     auto it = std::find(subDumps.begin(), subDumps.end(), &subDump);
-    if(it == subDumps.end())
+    if(it == subDumps.end()){
       subDumps.push_back(&subDump);
+    }
 
     return PEN_DUMP_SUCCESS;    
   }
@@ -846,13 +852,15 @@ public:
     subDumps.clear();
     dataBits = 0;
     //Add global metadata for double arrays (num arrays and element bits)
-    dataBits += 32 + 16; 
+    dataBits += metadataNelem + metadataESize; 
     //Add global metadata for integer arrays
-    dataBits += 32;   //num arrays 
+    dataBits += metadataNelem;   //num arrays 
     //Add global metadata for unsigned arrays
-    dataBits += 32;   //num arrays
+    dataBits += metadataNelem;   //num arrays
     //Add global metadata for char arrays (num arrays and element bits)
-    dataBits += 32 + 16;
+    dataBits += metadataNelem + metadataESize;
+    //Add global metadata for subdumps (num subdumps)
+    dataBits += metadataNelem;   //num sub dumps
   }
 
   ~pen_dump();

@@ -44,6 +44,9 @@ pen_dump::pen_dump()
   dataBits += metadataNelem;   //num arrays
   //Add global metadata for char arrays (num arrays and element bits)
   dataBits += metadataNelem + metadataESize;
+  //Add global metadata for subdumps (num subdumps)
+  dataBits += metadataNelem;   //num sub dumps
+  
 }
 
 int pen_dump::toDump(double*        p, const size_t n){
@@ -317,6 +320,35 @@ int pen_dump::dumpChar(unsigned char* pout, size_t& pos) const{
   return PEN_DUMP_SUCCESS;
 }
 
+int pen_dump::dumpSubDumps(unsigned char* pout,
+			   size_t& pos,
+			   const size_t outputSize,
+			   const unsigned verbose) const{
+  
+  const uint32_t nArrays = subDumps.size();
+  //Write number of sub dumps to store 
+  memcpy(&pout[pos],&nArrays,sizeof(uint32_t));
+  pos += sizeof(uint32_t);
+
+  //Write sub dumps
+  for(const pen_dump* p : subDumps){
+    size_t subWritten;
+    unsigned char* nextp = pout+pos;
+    int err = p->dump(nextp,subWritten,outputSize,verbose);
+    pos += subWritten;
+    if(err != PEN_DUMP_SUCCESS){
+      if(verbose > 0){
+	auto it = find(subDumps.begin(), subDumps.end(), p);
+	printf("dumpSubDumps:Error: Error dumping sub dump %ld.\n", it-subDumps.begin());
+	printf("             Error code: %d\n",err);
+      }
+      return err;
+    }
+  }
+
+  return PEN_DUMP_SUCCESS;
+}
+
 int pen_dump::dump(unsigned char*& pout,
 		   size_t& written,
 		   const size_t outputSize,
@@ -392,19 +424,17 @@ int pen_dump::dump(unsigned char*& pout,
   }
 
   //Dump sub dumps
-  for(const pen_dump* p : subDumps){
-    err = p->dump(pout,written,finalOutSize,verbose);
-    if(err != PEN_DUMP_SUCCESS){
-      return err;
-    }
+  err = dumpSubDumps(pout,written,finalOutSize,verbose);
+  if(err != PEN_DUMP_SUCCESS){
+    return err;
   }
   
   //Check written data
   if(written != memory()){
     if(verbose > 0){
-      printf("dump:Error: written data dosn't match with expected.\n");
+      printf("dump:Error: written data bytes mismatch with expected.\n");
       printf("            written: %lu\n",written);
-      printf("            written: %lu\n",memory());
+      printf("            expected: %lu\n",memory());
     }
     free(pout);
     pout = nullptr;
@@ -688,6 +718,36 @@ int pen_dump::readChar(const unsigned char* const pin,
   return PEN_DUMP_SUCCESS;
 }
 
+int pen_dump::readSubDumps(const unsigned char* const pin,
+			   size_t& pos,
+			   const unsigned verbose){
+
+  uint32_t nSubDumps;
+  memcpy(&nSubDumps,&pin[pos],sizeof(uint32_t));
+  pos += sizeof(uint32_t);
+
+  //Check sub dumps number
+  if(nSubDumps != subDumps.size()){
+    if(verbose > 0){
+      printf("pen_dump:readSubDumps: Error: Number of subdumps mismatch.\n");
+      printf("                   Read: %u\n",nSubDumps);
+      printf("               Expected: %lu\n",subDumps.size());
+    }
+    return PEN_DUMP_NARRAY_NOT_MATCH;
+  }
+
+  //Read all sub dumps
+  for(pen_dump* p : subDumps){
+    int err = p->read(pin,pos,verbose);
+    if(err != PEN_DUMP_SUCCESS){
+      return err;
+    }
+  }
+  
+  return PEN_DUMP_SUCCESS;
+}
+
+
 int pen_dump::read(const unsigned char* const pin,
 		   size_t& pos,
 		   const unsigned verbose){
@@ -742,11 +802,13 @@ int pen_dump::read(const unsigned char* const pin,
   }
 
   //Read sub dumps
-  for(pen_dump* p : subDumps){
-    err = p->read(pin,pos,verbose);
-    if(err != PEN_DUMP_SUCCESS){
-      return err;
+  err = readSubDumps(pin,pos,verbose);
+  if(err != PEN_DUMP_SUCCESS){
+    if(verbose > 0){
+      printf("pen_dump:read:Error: unable to read sub dumps.\n");
+      printf("                     Error code: %d\n",err);
     }
+    return PEN_DUMP_UNABLE_TO_READ_CHAR_ARRAYS;
   }
   
   return PEN_DUMP_SUCCESS;
