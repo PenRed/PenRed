@@ -838,7 +838,8 @@ public:
   int dump(unsigned char*& pout,
 	   size_t& written,
 	   const size_t outputSize,
-	   const unsigned verbose) const;
+	   const unsigned verbose,
+	   const bool freeOnError = true) const;
   
   int read(const unsigned char* const pin,
 	   size_t& pos,

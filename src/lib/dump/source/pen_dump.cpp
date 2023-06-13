@@ -334,7 +334,7 @@ int pen_dump::dumpSubDumps(unsigned char* pout,
   for(const pen_dump* p : subDumps){
     size_t subWritten;
     unsigned char* nextp = pout+pos;
-    int err = p->dump(nextp,subWritten,outputSize,verbose);
+    int err = p->dump(nextp,subWritten,outputSize,verbose, false);
     pos += subWritten;
     if(err != PEN_DUMP_SUCCESS){
       if(verbose > 0){
@@ -352,7 +352,8 @@ int pen_dump::dumpSubDumps(unsigned char* pout,
 int pen_dump::dump(unsigned char*& pout,
 		   size_t& written,
 		   const size_t outputSize,
-		   const unsigned verbose) const{
+		   const unsigned verbose,
+		   const bool freeOnError) const{
 
   size_t finalOutSize = outputSize;
   if(outputSize == 0){
@@ -382,8 +383,10 @@ int pen_dump::dump(unsigned char*& pout,
       printf("dump:Error: Error dumping double arrays.\n");
       printf("            Error code: %d\n",err);
     }
-    free(pout);
-    pout = nullptr;
+    if(freeOnError){
+      free(pout);
+      pout = nullptr;
+    }
     return PEN_DUMP_ERROR_DOUBLE_DUMP;
   }
 
@@ -394,8 +397,10 @@ int pen_dump::dump(unsigned char*& pout,
       printf("dump:Error: Error dumping integer arrays.\n");
       printf("            Error code: %d\n",err);
     }
-    free(pout);
-    pout = nullptr;
+    if(freeOnError){
+      free(pout);
+      pout = nullptr;
+    }
     return PEN_DUMP_ERROR_INT_DUMP;
   }
 
@@ -406,8 +411,10 @@ int pen_dump::dump(unsigned char*& pout,
       printf("dump:Error: Error dumping unsigned arrays.\n");
       printf("            Error code: %d\n",err);
     }
-    free(pout);
-    pout = nullptr;
+    if(freeOnError){
+      free(pout);
+      pout = nullptr;
+    }
     return PEN_DUMP_ERROR_UNSIGNED_DUMP;
   }
 
@@ -418,14 +425,20 @@ int pen_dump::dump(unsigned char*& pout,
       printf("dump:Error: Error dumping char arrays.\n");
       printf("            Error code: %d\n",err);
     }
-    free(pout);
-    pout = nullptr;
+    if(freeOnError){
+      free(pout);
+      pout = nullptr;
+    }
     return PEN_DUMP_ERROR_CHAR_DUMP;
   }
 
   //Dump sub dumps
   err = dumpSubDumps(pout,written,finalOutSize,verbose);
   if(err != PEN_DUMP_SUCCESS){
+    if(freeOnError){
+      free(pout);
+      pout = nullptr;
+    }
     return err;
   }
   
@@ -436,8 +449,10 @@ int pen_dump::dump(unsigned char*& pout,
       printf("            written: %lu\n",written);
       printf("            expected: %lu\n",memory());
     }
-    free(pout);
-    pout = nullptr;
+    if(freeOnError){
+      free(pout);
+      pout = nullptr;
+    }
     return PEN_DUMP_INCORRECT_DATA_SIZE;
   }
   
