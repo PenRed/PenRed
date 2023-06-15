@@ -110,10 +110,9 @@ void pen_EdepBody::tally_endHist(const unsigned long long /*nhist*/){
 
 int pen_EdepBody::configure(const wrapper_geometry& geometry,
 			   const abc_material* const /*materials*/[pen_geoconst::NB],
-			   const pen_parserSection& config,
+			    const pen_parserSection& /*config*/,
 			   const unsigned verbose){
     
-  int err;
   nBody = geometry.getElements();
     
   //Clear counters:

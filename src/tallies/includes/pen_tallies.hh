@@ -156,6 +156,11 @@ protected:
   //Create dump instance
   pen_dump dump;
 
+  //Include sub dump
+  inline void addSubDump(pen_genericTally<stateType>& subTally){
+    dump.toDump(subTally.dump);
+  }
+
   //Create filenames with output dir path, thread and MPI number
   std::string createFilename(const char* filename) const{
 

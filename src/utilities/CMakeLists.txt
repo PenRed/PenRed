@@ -61,6 +61,8 @@ CMAKE_DEPENDENT_OPTION(PENRED_2_IAEA "Compile PENRED to IAEA conversor" OFF
                        "BUILD_UTILITIES" OFF)
 CMAKE_DEPENDENT_OPTION(GEO_2_VOXEL "Compile conversor to voxelized geometry" ON
                        "BUILD_UTILITIES" OFF)
+CMAKE_DEPENDENT_OPTION(GEO_2_MESH "Compile conversor to mesh obj" ON
+                       "BUILD_UTILITIES;WITH_MULTI_THREADING" OFF)
 CMAKE_DEPENDENT_OPTION(LB_SERVER "Compile RUPER_LB basic server program" ON
                        "BUILD_UTILITIES;WITH_LB" OFF)
                        
@@ -364,6 +366,24 @@ if(GEO_2_VOXEL)
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/geometry/voxels
     )
 endif(GEO_2_VOXEL)
+
+if(GEO_2_MESH)
+    find_package (Threads REQUIRED)
+
+    # Create geometry to voxel executable
+    add_executable(geo2mesh ${PROJECT_SOURCE_DIR}/utilities/geometry/geo2simpleMesh.cpp)
+
+    #target libs
+    target_link_libraries(geo2mesh pen_geos)
+    target_link_libraries (geo2mesh ${CMAKE_THREAD_LIBS_INIT})
+
+
+    # Install geometry to voxel executable
+    install(
+    TARGETS geo2mesh
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/geometry/mesh
+    )
+endif(GEO_2_MESH)
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
