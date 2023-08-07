@@ -64,29 +64,33 @@ class pen_tallyDICOMkerma: public pen_genericTally<pen_particleState> {
   
 public:
     
-    pen_tallyDICOMkerma() : pen_genericTally(USE_JUMP | USE_STEP),
-                            contourVox(nullptr),
-                            ncontours(0)
-    {}
+  pen_tallyDICOMkerma() : pen_genericTally(USE_JUMP | USE_STEP),
+			  contourVox(nullptr),
+			  ncontours(0)
+  {}
 
-    void tally_step(const unsigned long long nhist,
-		const pen_KPAR kpar,
-		const pen_particleState& state,
-		const tally_StepData& stepData);  
+  void tally_step(const unsigned long long nhist,
+		  const pen_KPAR kpar,
+		  const pen_particleState& state,
+		  const tally_StepData& stepData);  
     
-    void tally_jump(const unsigned long long nhist,
-		const pen_KPAR kpar,
-		const pen_particleState& state,
-		const double ds);
+  void tally_jump(const unsigned long long nhist,
+		  const pen_KPAR kpar,
+		  const pen_particleState& state,
+		  const double ds);
     
-    int configure(const wrapper_geometry& geometry,
-        const abc_material* const materials[constants::MAXMAT],
+  int configure(const wrapper_geometry& geometry,
+		const abc_material* const materials[constants::MAXMAT],
 		const pen_parserSection& config,
 		const unsigned verbose);
 
-    void flush();
-    void saveData(const unsigned long long nhist) const;
-    int sumTally(const pen_tallyDICOMkerma& tally);
+  inline int sharedConfig(const pen_tallyDICOMkerma& tally){
+    return tallyKerma.sharedConfig(tally.tallyKerma);
+  }
+
+  void flush();
+  void saveData(const unsigned long long nhist) const;
+  int sumTally(const pen_tallyDICOMkerma& tally);
     
 };
 

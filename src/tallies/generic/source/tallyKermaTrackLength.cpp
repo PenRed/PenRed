@@ -1656,12 +1656,12 @@ void pen_tallyKermaTrackLength::tally_step(const unsigned long long nhist,
 }
   
 int pen_tallyKermaTrackLength::configure(const wrapper_geometry& geometry,
-				      const abc_material* const /*materials*/[constants::MAXMAT],
+				      const abc_material* const materials[constants::MAXMAT],
 				      const pen_parserSection& config,
 				      const unsigned verbose){
   int err;
 
- //Energies
+ // Energies
  //****************
  
   // Minimum energy
@@ -1705,154 +1705,201 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& geometry,
 	   emin,emax,static_cast<unsigned long>(nbinmax));
   }
 
-  // Set energy grid
+  // Init energy grid
   grid.init(emin,emax);
   
-  // Absorption coefficient data filenames
-  //***************************************
-  std::vector<double> muenData;
-  std::vector<double> EData;
-  std::vector<double> A;
-  std::vector<double> B;
-  std::vector<double> C;
-  std::vector<double> D;
-  EData.reserve(nbinmax);
-  muenData.reserve(nbinmax);
-  A.reserve(nbinmax);  B.reserve(nbinmax);
-  C.reserve(nbinmax);  D.reserve(nbinmax);
+  //Calculate muen data on thread 0
+  if(getThread() == 0){
 
-  bool someMat = false;
-  activeMat[0] = false;
-  for(unsigned imat = 1; imat < constants::MAXMAT; ++imat){
+    //Set muen pointers to shared data
+    for(unsigned posMat = 0; posMat <= constants::MAXMAT; ++posMat){
+      muen[posMat] = sharedMuen[posMat];
+    }
+      
+    // Absorption coefficient data filenames
+    //***************************************
+    std::vector<double> muenData;
+    std::vector<double> EData;
+    std::vector<double> A;
+    std::vector<double> B;
+    std::vector<double> C;
+    std::vector<double> D;
+    EData.reserve(nbinmax);
+    muenData.reserve(nbinmax);
+    A.reserve(nbinmax);  B.reserve(nbinmax);
+    C.reserve(nbinmax);  D.reserve(nbinmax);
 
-    //Clear energy and muen data vectors
-    EData.clear();
-    muenData.clear();
-    
-    activeMat[imat] = false;
-    
-    std::string key("dataFiles/");
-    key += std::to_string(imat);
-    std::string filename;
-    err = config.read(key, filename);
-    if(err == INTDATA_SUCCESS){
+    bool someMat = false;
+    activeMat[0] = false;
+    //Get used mats
+    bool geometryUsedMats[constants::MAXMAT+1];
+    geometry.usedMat(geometryUsedMats);
+    for(unsigned imat = 1; imat <= constants::MAXMAT; ++imat){
 
-      FILE* fin = nullptr;
-      fin = ::fopen(filename.c_str(),"r");
-      if(fin == nullptr){
-	if(verbose > 0){
-	  printf("pen_tallyKermaTrackLength:configure: Error: Unable to open "
-		 "data file '%s'\n",filename.c_str());
-	}
-	return -8;
+      if(!geometryUsedMats[imat]){
+	//Skip unused mats
+	continue;
       }
 
-      char line[1000];
-      unsigned long actualLine = 0;
-      unsigned long nread = 0;
-      while(pen_getLine(fin,1000,line,nread) == 0){
-	actualLine += nread;
-	double E,muenAux;
-	if(sscanf(line,"%lf %lf",&E,&muenAux) != 2){
-	  if(verbose > 0){
-	    printf("pen_tallyKermaTrackLength:configure: Error: Unable to read "
-		   "Energy and muen from of bins at data file '%s'\n"
-		   "       line: %s\n"
-		   "line number: %lu",filename.c_str(),line,actualLine);
+      //Clear energy and muen data vectors
+      EData.clear();
+      muenData.clear();
+    
+      activeMat[imat] = false;
+    
+      std::string key("dataFiles/");
+      key += std::to_string(imat);
+      std::string filename;
+      err = config.read(key, filename);
+      if(err == INTDATA_SUCCESS){
+
+	FILE* fin = nullptr;
+	fin = ::fopen(filename.c_str(),"r");
+	if(fin == nullptr){
+	  if(verbose > 1){
+	    printf("Data file '%s' not found, "
+		   "generating muen data for material %d.\n",
+		   filename.c_str(), imat);
+	  }
+
+	  unsigned nMuenBins = 100;
+	  double de = (emax-emin)/static_cast<double>(nMuenBins);
+	  double minCalc = emin-de;
+	  double maxCalc = emax+de;
+	  nMuenBins += 10;
+	  err = pen_muen::calculate(minCalc, maxCalc, nMuenBins,
+				    0.1, 30, materials[imat-1]->readDataPath().c_str(),
+				    EData, muenData);
+	  if(err != 0){
+	    if(verbose > 0){
+	      printf("pen_tallyKermaTrackLength:configure: Error: Unable to calculate "
+		     "muen for material %d\n", imat);
+	    }
+	    return -8;	    
+	  }
+
+	  //Print muen file and store log-log data to calculate splins
+	  FILE* fout = nullptr;
+	  fout = ::fopen(filename.c_str(),"w");
+	  if(fout != nullptr){
+	    for(size_t ibin = 0; ibin < nMuenBins; ++ibin){
+	      fprintf(fout,"%E %E\n", EData[ibin], muenData[ibin]);
+
+	      EData[ibin] = log(EData[ibin]);
+	      muenData[ibin] = log(muenData[ibin]);	      
+	    }
+	  }
+	  
+	}else{
+	  //Read muen data from file
+	  
+	  char line[1000];
+	  unsigned long actualLine = 0;
+	  unsigned long nread = 0;
+	  while(pen_getLine(fin,1000,line,nread) == 0){
+	    actualLine += nread;
+	    double E,muenAux;
+	    if(sscanf(line,"%lf %lf",&E,&muenAux) != 2){
+	      if(verbose > 0){
+		printf("pen_tallyKermaTrackLength:configure: Error: Unable to read "
+		       "Energy and muen from of bins at data file '%s'\n"
+		       "       line: %s\n"
+		       "line number: %lu",filename.c_str(),line,actualLine);
+	      }
+	      fclose(fin);
+	      return -9;
+	    }
+	    if( (EData.size() > 0 && exp(EData.back()) >= E) || E <= 0.0 || muenAux <= 0.0){
+	      if(verbose > 0){
+		printf("pen_tallyKermaTrackLength:configure: Error: Energy bins "
+		       "must be in increasing order and both vaules positive\n"
+		       "   line: %s\n",line);
+		if(EData.size() > 0){
+		  printf("   Previous energy: %E\n",exp(EData.back()));
+		}
+	      }
+	      fclose(fin);
+	      return -9;	  
+	    }
+	    EData.push_back(log(E));
+	    muenData.push_back(log(muenAux));
 	  }
 	  fclose(fin);
-	  return -9;
 	}
-	//Convert to eV
-	//E *= 1000.0;
-	if( (EData.size() > 0 && exp(EData.back()) >= E) || E <= 0.0 || muenAux <= 0.0){
-	  if(verbose > 0){
-	    printf("pen_tallyKermaTrackLength:configure: Error: Energy bins "
-		   "must be in increasing order and both vaules positive\n"
-		   "   line: %s\n",line);
-            if(EData.size() > 0){
-                printf("   Previous energy: %E\n",exp(EData.back()));
-            }
+
+	size_t auxNbins = EData.size();
+      
+	if(verbose > 1){
+	  printf(" Coeficient bins for material %u: %lu\n",
+		 imat,static_cast<unsigned long>(auxNbins));
+	}
+
+	//Check if there are bins to ajust
+	if(auxNbins <= 10){
+	  if(verbose > 0)
+	    printf("pen_tallyKermaTrackLength:configure: Error: Insuficient "
+		   "bins at data file '%s'\n",filename.c_str());
+	  return -10;	
+	}
+
+	//Check if the specified energy rank is in the provided data 
+	if(grid.EL < exp(EData[0]) || grid.EU > exp(EData.back())){
+	  if(verbose > 0)
+	    printf("pen_tallyKermaTrackLength:configure: Error: energy rank "
+		   "not included in the provided data file '%s'\n",
+		   filename.c_str());
+	  return -11;		
+	}
+      
+	A.resize(auxNbins); B.resize(auxNbins);
+	C.resize(auxNbins); D.resize(auxNbins);
+	SPLINE(EData.data(),muenData.data(),A.data(),B.data(),
+	       C.data(),D.data(),0.0,0.0,auxNbins);
+
+	size_t nextSplin = 0;
+	FILE* fmuen = nullptr;
+	if(verbose > 2){
+	  printf("#Muen data of '%s':\n",filename.c_str());
+	  printf("# %12s  %12s\n","Energy (eV)","mu_en(cm^2/g)\n");
+	  std::string filenameOut("processed-muen-");
+	  filenameOut += filename;
+	  fmuen = fopen(filenameOut.c_str(),"w");
+	  if(fmuen != nullptr)
+	    fprintf(fmuen,"# %11s     %12s\n","E(eV)","mu_en g/cm^2");
+	}
+	double* pmuen = sharedMuen[imat];
+	for(size_t j = 0; j < nbinmax; ++j){
+	  double nextE = grid.DLEMP[j];
+	  while((EData[nextSplin] > nextE || EData[nextSplin+1] < nextE) &&
+		nextSplin < auxNbins-1){
+	    ++nextSplin;
 	  }
-	  fclose(fin);
-	  return -9;	  
-	}
-	EData.push_back(log(E));
-	muenData.push_back(log(muenAux));
-      }
-      fclose(fin);
-
-      size_t auxNbins = EData.size();
-      
-      if(verbose > 1){
-	printf(" Coeficient bins for material %u: %lu\n",
-	       imat,static_cast<unsigned long>(auxNbins));
-      }
-
-      //Check if there are bins to ajust
-      if(auxNbins <= 10){
-	if(verbose > 0)
-	  printf("pen_tallyKermaTrackLength:configure: Error: Insuficient "
-		 "bins at data file '%s'\n",filename.c_str());
-	return -10;	
-      }
-
-      //Check if the specified energy rank is in the provided data 
-      if(grid.EL < exp(EData[0]) || grid.EU > exp(EData.back())){
-	if(verbose > 0)
-	  printf("pen_tallyKermaTrackLength:configure: Error: energy rank "
-		 "not included in the provided data file '%s'\n",
-		 filename.c_str());
-	return -11;		
-      }
-      
-      A.resize(auxNbins); B.resize(auxNbins);
-      C.resize(auxNbins); D.resize(auxNbins);
-      SPLINE(EData.data(),muenData.data(),A.data(),B.data(),
-	     C.data(),D.data(),0.0,0.0,auxNbins);
-
-      size_t nextSplin = 0;
-      FILE* fmuen = nullptr;
-      if(verbose > 2){
-	printf("#Muen data of '%s':\n",filename.c_str());
-	printf("# %12s  %12s\n","Energy (eV)","mu_en(cm^2/g)\n");
-	std::string filenameOut("processed-muen-");
-	filenameOut += filename;
-	fmuen = fopen(filenameOut.c_str(),"w");
-	if(fmuen != nullptr)
-	  fprintf(fmuen,"# %11s     %12s\n","E(eV)","mu_en g/cm^2");
-      }
-      double* pmuen = muen[imat];
-      for(size_t j = 0; j < nbinmax; ++j){
-	double nextE = grid.DLEMP[j];
-	while((EData[nextSplin] > nextE || EData[nextSplin+1] < nextE) &&
-	      nextSplin < auxNbins-1){
-	  ++nextSplin;
-	}
-	pmuen[j] = A[nextSplin] +
-	  nextE*(B[nextSplin] + nextE*(C[nextSplin] + nextE*D[nextSplin]));
-	if(pmuen[j] <= 0.0){
-	  double dmu = muenData[nextSplin+1]-muenData[nextSplin];
-	  double dE = EData[nextSplin+1]-EData[nextSplin];
-	  double m = dmu/dE;	  
-	  pmuen[j] = muenData[nextSplin]+ m*(nextE-EData[nextSplin]);
+	  pmuen[j] = A[nextSplin] +
+	    nextE*(B[nextSplin] + nextE*(C[nextSplin] + nextE*D[nextSplin]));
+	  if(pmuen[j] <= 0.0){
+	    double dmu = muenData[nextSplin+1]-muenData[nextSplin];
+	    double dE = EData[nextSplin+1]-EData[nextSplin];
+	    double m = dmu/dE;	  
+	    pmuen[j] = muenData[nextSplin]+ m*(nextE-EData[nextSplin]);
+	  }
+	  if(fmuen != nullptr)
+	    fprintf(fmuen," %12.4E  %12.4E\n",grid.ET[j],exp(pmuen[j]));
 	}
 	if(fmuen != nullptr)
-	  fprintf(fmuen," %12.4E  %12.4E\n",grid.ET[j],exp(pmuen[j]));
+	  fclose(fmuen);      
+	activeMat[imat] = true;
+	someMat = true;
       }
-      if(fmuen != nullptr)
-	fclose(fmuen);      
-      activeMat[imat] = true;
-      someMat = true;
+
     }
 
-  }
+    if(!someMat){
+      if(verbose > 0)
+	printf("pen_tallyKermaTrackLength:configure: Error: No material "
+	       "data file provided\n");
+      return -12;		      
+    }
 
-  if(!someMat){
-    if(verbose > 0)
-      printf("pen_tallyKermaTrackLength:configure: Error: No material "
-	     "data file provided\n");
-    return -12;		      
   }
 
   // Get meshes information
@@ -2487,6 +2534,17 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& geometry,
 		     });    
   }
   
+  return 0;
+}
+
+int pen_tallyKermaTrackLength::sharedConfig(const pen_tallyKermaTrackLength& tally){
+
+  //Set muen pointers to shared data and copy active materials
+  for(unsigned imat = 0; imat < constants::MAXMAT; ++imat){
+    muen[imat] = tally.sharedMuen[imat];
+    activeMat[imat] = tally.activeMat[imat];
+  }
+    
   return 0;
 }
 

@@ -233,8 +233,9 @@ int pen_tallyDICOMkerma::configure(const wrapper_geometry& geometry,
     err = kermaSection.set("cartesian/ymax", dy*ny);
     err = kermaSection.set("cartesian/zmax", dz*nz);
     
-    //Set tally name
+    //Set sub tally name and thread
     tallyKerma.setName(readName());
+    tallyKerma.setThread(getThread());
     
     if(tallyKerma.configure(geometry, materials, kermaSection, verbose) != 0){
         if(verbose > 0)

@@ -232,3 +232,6 @@ if(BUILD_C_BINDS)
     add_subdirectory(bindings/C)
 endif(BUILD_C_BINDS)
 #-----------------------------------------------------------------------------
+
+# Install database
+#install(DIRECTORY ../dataBases/ DESTINATION penRed)

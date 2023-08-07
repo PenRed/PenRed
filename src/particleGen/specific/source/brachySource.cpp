@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2021-2022 Universitat de València - UV
-//    Copyright (C) 2021-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2021-2023 Universitat de València - UV
+//    Copyright (C) 2021-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -40,6 +40,7 @@ void brachy_specificSampler::skip(const unsigned long long dhists){
 
 int brachy_specificSampler::configure(double& Emax,
 				      const pen_parserSection& config,
+				      const unsigned nthreads,
 				      const unsigned verbose){
     
   //First, initialize the phase space file sampler
@@ -55,7 +56,7 @@ int brachy_specificSampler::configure(double& Emax,
     return err;
   }
   
-  err = psf.configure(Emax,psfSection,verbose);
+  err = psf.configure(Emax,psfSection,nthreads,verbose);
   if(err != 0){
     if(verbose > 0)
       printf("brachySource:configure: Error: Unable to configure psf.\n"

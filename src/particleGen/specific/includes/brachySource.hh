@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2021-2022 Universitat de València - UV
-//    Copyright (C) 2021-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2021-2023 Universitat de València - UV
+//    Copyright (C) 2021-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -58,6 +58,7 @@ class brachy_specificSampler : public abc_specificSampler<pen_particleState>{
 
   int configure(double& Emax,
 		const pen_parserSection& config,
+		const unsigned nthreads,
 		const unsigned verbose);  
 
   void sample(pen_particleState& state,
