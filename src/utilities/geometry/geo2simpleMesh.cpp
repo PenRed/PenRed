@@ -687,18 +687,30 @@ int main(int argc, char** argv){
 
   //Specify material file
   fprintf(fout,"mtllib geoMats.mtl\n");
+  //Get used materials
+  bool usedMats[constants::MAXMAT+1];
+  geometry->usedMat(usedMats);
+
+  //Fill materials file
+  for(unsigned long b = 1; b < constants::MAXMAT+1; ++b){
+
+    if(usedMats[b]){
+      unsigned matIndex = b%195;
+    
+      //Define material for this object
+      fprintf(foutMat,"#Material %lu\n",b);
+      fprintf(foutMat,"newmtl %lu\n",b);
+      fprintf(foutMat,"Ka 1.0 1.0 1.0\n");
+      fprintf(foutMat,"Kd %.6f %.6f %.6f\n\n",palette[matIndex*3],palette[matIndex*3+1],palette[matIndex*3+2]);
+    }
+  }
+  fclose(foutMat);
+
+  //Bodies definition file
   unsigned long nextBodyFirstVertex = 0;
   for(unsigned long b = 0; b < nBodies; ++b){
-
-    unsigned matIndex = b%195;
     
-    //Define material for this object
-    fprintf(foutMat,"#Material %lu\n",b);
-    fprintf(foutMat,"newmtl %lu\n",b);
-    fprintf(foutMat,"Ka 1.0 1.0 1.0\n");
-    fprintf(foutMat,"Kd %.6f %.6f %.6f\n\n",palette[matIndex*3],palette[matIndex*3+1],palette[matIndex*3+2]);
-
-    fprintf(fout,"usemtl %lu\n",b);
+    fprintf(fout,"usemtl %u\n",geometry->getMat(b));
     fprintf(fout,"o Body-%lu\n",b);
     //Vertex coordinates
     for(const vertex& v : bodyVertex[b]){
@@ -719,7 +731,6 @@ int main(int argc, char** argv){
   }
 
   fclose(fout);
-  fclose(foutMat);
   
   return 0;
 }
