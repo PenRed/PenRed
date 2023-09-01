@@ -185,6 +185,9 @@ public:
 		const abc_material* const materials[constants::MAXMAT],
 		const pen_parserSection& config,
 		const unsigned verbose);
+
+  int sharedConfig(const pen_PSS& tally);
+
   void saveData(const unsigned long long nhist) const;
   void flush(void);
   int sumTally(const pen_PSS& tally);

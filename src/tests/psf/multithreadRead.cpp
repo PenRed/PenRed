@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2022 Universitat de València - UV
-//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2023 Universitat de València - UV
+//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -139,7 +139,7 @@ int main(int argc, char** argv){
 
   config.set("filename",std::string(argv[1]));
   config.set("Emax",1.0e9);
-  config.set("npartitions",npartitions);
+  //config.set("npartitions",npartitions);
   pen_parserArray wghtWindow;
   wghtWindow.append(0.0);
   wghtWindow.append(2.0);
@@ -154,9 +154,9 @@ int main(int argc, char** argv){
 
   //Config all sources
   double Emax;
-  configErr[0] = samplers[0].configure(Emax,config,3);
+  configErr[0] = samplers[0].configure(Emax,config,npartitions,3);
   for(size_t i = 1; i < (unsigned)nreaders; i++){
-    configErr[i] = samplers[i].configure(Emax,config,1);
+    configErr[i] = samplers[i].configure(Emax,config,npartitions,1);
   }
 
   //Check configuration errors

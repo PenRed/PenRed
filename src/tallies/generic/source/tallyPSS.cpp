@@ -620,6 +620,15 @@ int pen_PSS::configure(const wrapper_geometry& geometry,
   return 0;
 }
 
+int pen_PSS::sharedConfig(const pen_PSS& tally){
+  primary->sharedConfig(*tally.primary);
+  scatter->sharedConfig(*tally.scatter);
+  multiScatter->sharedConfig(*tally.multiScatter);
+
+  return 0;
+}
+
+
 void pen_PSS::saveData(const unsigned long long nhist) const{
 
   primary->saveData(nhist);

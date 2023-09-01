@@ -1,8 +1,8 @@
-
+ 
 //
 //
-//    Copyright (C) 2019-2023 Universitat de València - UV
-//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2023 Universitat de València - UV
+//    Copyright (C) 2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -21,33 +21,37 @@
 //
 //    contact emails:
 //
-//        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
+//        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
+//        sanolgi@upvnet.upv.es (Sandra Oliver Gil)
 //    
 //
 
+#ifndef __PEN_MUEN__
+#define __PEN_MUEN__
 
+#include <thread>
+#include <atomic>
+#include "PenRed.hh"
+#include "pen_geometries.hh"
 
-#ifndef __RANDOM_SPECIFIC_SAMPLER__
-#define __RANDOM_SPECIFIC_SAMPLER__
+namespace pen_muen{
 
-class random_specificSampler : public abc_specificSampler<pen_particleState>{
-  DECLARE_SAMPLER(random_specificSampler)
-  private:
-  public:
+  int calculate(const double Emin,
+		const double Emax,
+		const unsigned nBins,
+		const double tolerance,
+		const double simTime,
+		const char* matFilename,
+		std::vector<double>& EData,
+		std::vector<double>& muenData);
 
-  random_specificSampler() : abc_specificSampler<pen_particleState>(USE_NONE)
-  {}
+  double simulate(const pen_context& context,
+		  const double E0,
+		  const double simTime,
+		  const double tolerance,
+		  int& seed1, int& seed2,
+		  const unsigned ithread);
   
-  void sample(pen_particleState& state,
-	      pen_KPAR& genKpar,
-	      unsigned long long& dhist,
-	      pen_rand& random);
-  
-  int configure(double& Emax,
-		const pen_parserSection& /*config*/,
-		const unsigned /*nthreads*/,
-		const unsigned /*verbose*/);
 };
 
 #endif

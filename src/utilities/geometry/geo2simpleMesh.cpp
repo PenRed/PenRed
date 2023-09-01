@@ -152,19 +152,19 @@ int main(int argc, char** argv){
   //Number of voxels
   if(config.read("nx",nx) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("createGeometry: Error: field 'voxelized/nx' not specified. integer expected.\n");
+      printf("createGeometry: Error: field 'nx' not specified. integer expected.\n");
     }
     return -6;
   }
   if(config.read("ny",ny) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("createGeometry: Error: field 'voxelized/ny' not specified. integer expected.\n");
+      printf("createGeometry: Error: field 'ny' not specified. integer expected.\n");
     }
     return -6;
   }
   if(config.read("nz",nz) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("createGeometry: Error: field 'voxelized/nz' not specified. integer expected.\n");
+      printf("createGeometry: Error: field 'nz' not specified. integer expected.\n");
     }
     return -6;
   }
@@ -172,19 +172,19 @@ int main(int argc, char** argv){
   //Voxel sizes
   if(config.read("dx",dx) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("createGeometry: Error: field 'voxelized/dx' not specified. Double expected.\n");
+      printf("createGeometry: Error: field 'dx' not specified. Double expected.\n");
     }
     return -7;
   }
   if(config.read("dy",dy) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("createGeometry: Error: field 'voxelized/dy' not specified. Double expected.\n");
+      printf("createGeometry: Error: field 'dy' not specified. Double expected.\n");
     }
     return -7;
   }
   if(config.read("dz",dz) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("createGeometry: Error: field 'voxelized/dz' not specified. Double expected.\n");
+      printf("createGeometry: Error: field 'dz' not specified. Double expected.\n");
     }
     return -7;
   }
@@ -192,19 +192,19 @@ int main(int argc, char** argv){
   //Origin
   if(config.read("ox",ox) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("createGeometry: Error: field 'voxelized/ox' not specified. Double expected.\n");
+      printf("createGeometry: Error: field 'ox' not specified. Double expected.\n");
     }
     return -8;
   }
   if(config.read("oy",oy) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("createGeometry: Error: field 'voxelized/oy' not specified. Double expected.\n");
+      printf("createGeometry: Error: field 'oy' not specified. Double expected.\n");
     }
     return -8;
   }
   if(config.read("oz",oz) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("createGeometry: Error: field 'voxelized/oz' not specified. Double expected.\n");
+      printf("createGeometry: Error: field 'oz' not specified. Double expected.\n");
     }
     return -8;
   }  
@@ -213,7 +213,7 @@ int main(int argc, char** argv){
   //Read granularity
   if(config.read("granularity",granul) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("createGeometry: Error: field 'voxelized/granularity' not specified. integer expected.\n");
+      printf("createGeometry: Error: field 'granularity' not specified. integer expected.\n");
     }
     return -9;
   }
@@ -687,18 +687,30 @@ int main(int argc, char** argv){
 
   //Specify material file
   fprintf(fout,"mtllib geoMats.mtl\n");
+  //Get used materials
+  bool usedMats[constants::MAXMAT+1];
+  geometry->usedMat(usedMats);
+
+  //Fill materials file
+  for(unsigned long b = 1; b < constants::MAXMAT+1; ++b){
+
+    if(usedMats[b]){
+      unsigned matIndex = b%195;
+    
+      //Define material for this object
+      fprintf(foutMat,"#Material %lu\n",b);
+      fprintf(foutMat,"newmtl %lu\n",b);
+      fprintf(foutMat,"Ka 1.0 1.0 1.0\n");
+      fprintf(foutMat,"Kd %.6f %.6f %.6f\n\n",palette[matIndex*3],palette[matIndex*3+1],palette[matIndex*3+2]);
+    }
+  }
+  fclose(foutMat);
+
+  //Bodies definition file
   unsigned long nextBodyFirstVertex = 0;
   for(unsigned long b = 0; b < nBodies; ++b){
-
-    unsigned matIndex = b%195;
     
-    //Define material for this object
-    fprintf(foutMat,"#Material %lu\n",b);
-    fprintf(foutMat,"newmtl %lu\n",b);
-    fprintf(foutMat,"Ka 1.0 1.0 1.0\n");
-    fprintf(foutMat,"Kd %.6f %.6f %.6f\n\n",palette[matIndex*3],palette[matIndex*3+1],palette[matIndex*3+2]);
-
-    fprintf(fout,"usemtl %lu\n",b);
+    fprintf(fout,"usemtl %u\n",geometry->getMat(b));
     fprintf(fout,"o Body-%lu\n",b);
     //Vertex coordinates
     for(const vertex& v : bodyVertex[b]){
@@ -719,7 +731,6 @@ int main(int argc, char** argv){
   }
 
   fclose(fout);
-  fclose(foutMat);
   
   return 0;
 }

@@ -32,6 +32,7 @@
 
 #include "pen_constants.hh"
 #include "pen_grids.hh"
+#include "pen_muen.hh"
 
 namespace pen_tally_KTL{
 
@@ -248,8 +249,9 @@ class pen_tallyKermaTrackLength: public pen_genericTally<pen_particleState> {
   pen_tally_KTL::vect3d lastPos;
 
   pen_genericLogGrid<nbinmax> grid;
-  double muen[constants::MAXMAT][nbinmax];
-  bool activeMat[constants::MAXMAT];
+  double sharedMuen[constants::MAXMAT+1][nbinmax];
+  const double* muen[constants::MAXMAT+1];
+  bool activeMat[constants::MAXMAT+1];
 
   //Cartesian
   pen_tally_KTL::vect3i nbinsCart;
@@ -367,9 +369,12 @@ public:
 		const double ds);
   
   int configure(const wrapper_geometry& /*geometry*/,
-		const abc_material* const /*materials*/[constants::MAXMAT],
+		const abc_material* const materials[constants::MAXMAT],
 		const pen_parserSection& config,
 		const unsigned verbose);
+
+  int sharedConfig(const pen_tallyKermaTrackLength& tally);
+  
   void flush();
   void saveData(const unsigned long long nhist) const;
   int sumTally(const pen_tallyKermaTrackLength& tally);

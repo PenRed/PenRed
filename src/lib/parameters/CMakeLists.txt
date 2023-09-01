@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019-2022 Universitat de València - UV
-#    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+#    Copyright (C) 2023 Universitat de València - UV
+#    Copyright (C) 2023 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -22,50 +22,21 @@
 #
 #    contact emails:
 #
-#        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
-#        vicente.gimenez@uv.es (Vicente Giménez Gómez)
+#        vicent.gimenez.alventosa@gmail.com
 #    
 #
 
 
 
 #############################
-#  LIBS
+#  DUMP 
 #############################
 
+# Create lib
+add_library(pen_muen STATIC ${PROJECT_SOURCE_DIR}/lib/parameters/source/pen_muen.cpp)
 
-#############################
-#  ADD SUB-FOLDERS
-#############################
+target_include_directories(pen_muen PUBLIC ${PROJECT_SOURCE_DIR}/lib/parameters/includes)
 
-# math folder
-add_subdirectory(math)
-
-# dump folder
-add_subdirectory(dump)
-
-# phase space file folder
-add_subdirectory(psf)
-
-# splitted file folder
-add_subdirectory(splittedFile)
-
-# shared file folder
-add_subdirectory(sharedFile)
-
-# auxiliar folder
-add_subdirectory(auxiliar)
-
-# TCP folder
-add_subdirectory(tcp)
-
-# image folder
-add_subdirectory(image)
-
-# load balance folder
-if(WITH_LB)
-    add_subdirectory(loadBalance)
-endif(WITH_LB)
-
-# muen folder
-add_subdirectory(parameters)
+target_link_libraries(pen_muen pen_particles)
+target_link_libraries(pen_muen pen_geos)
+target_link_libraries(pen_muen pen_timer)

@@ -1033,7 +1033,10 @@ private:
 protected:
   
   bool initialized;
-  
+
+  //Stores the required identifier to get the data to construct this material.
+  //For example, a filename or an ID in a data base
+  std::string dataPath;
 public:
 
   //  ----  Material densities and its reciprocals.
@@ -1048,6 +1051,8 @@ public:
       EABS[i] = 50.0; //eV
     }
   }
+  inline void setDataPath(const std::string& newDataPath) { dataPath = newDataPath; }
+  inline std::string readDataPath() const { return dataPath; }
   inline bool initDone() const { return initialized;}
   inline double getEABS(const unsigned kpar) const {return EABS[kpar];}
   inline void setEABS(const unsigned kpar, const double eabs){

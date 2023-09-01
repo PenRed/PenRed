@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2022 Universitat de València - UV
-//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2023 Universitat de València - UV
+//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -254,6 +254,7 @@ void psf_specificSampler::sample(pen_particleState& state,
 
 int psf_specificSampler::configure(double& Emax,
 				   const pen_parserSection& config,
+				   const unsigned nthreads,
 				   const unsigned verbose){
 
   int err;
@@ -410,17 +411,9 @@ int psf_specificSampler::configure(double& Emax,
 
   NSPLIT = unsigned(auxNSplit);
   
-  // Read Number of partitions
+  // Save Number of partitions
   //***************************
-  err = config.read("npartitions", npartitions);
-  if(err != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("psfSource:configure: Error: Unable to read 'npartitions' field. Integer expected.\n");
-    }
-    npartitions = 0;
-    return -11;
-  }
-
+  npartitions = nthreads;
   if(npartitions <= 0){
     if(verbose > 0){
       printf("psfSource:configure: Error: Invalid number of partitions: %d.\n",npartitions);

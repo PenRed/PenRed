@@ -110,17 +110,10 @@ void pen_EdepMat::tally_endHist(const unsigned long long /*nhist*/){
 
 int pen_EdepMat::configure(const wrapper_geometry& /*geometry*/,
 			   const abc_material* const /*materials*/[constants::MAXMAT],
-			   const pen_parserSection& config,
+			   const pen_parserSection& /*config*/,
 			   const unsigned verbose){
-    
-  int err;     
-  err = config.read("nmat", nmat);
-  if(err != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("EdepMAt:configure:unable to read 'nmat' in configuration. Integrer expected");
-    }
-    return -1;
-  }
+
+  nmat = constants::MAXMAT;
     
   //Clear counters:
   for(unsigned int j = 0; j < constants::MAXMAT; j++){

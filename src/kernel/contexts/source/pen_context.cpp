@@ -177,7 +177,10 @@ int pen_context::init(double EMAX, FILE *IWR, int INFO, std::string PMFILE[const
 	  penError(ERR_PEINIT_MATERIAL_FILE);
 	  return ERR_PEINIT_MATERIAL_FILE;
 	}
-	  
+      
+      //Save material filename
+      mat.setDataPath(PMFILE[M]);
+      
       //  ****  Energy limits and thresholds.
 	  
       if (IWR != nullptr) fprintf(IWR , "\n *** Simulation parameters:\n");

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.3] - 2023-08-06
+
+### Added
+- Database ID or source filename to base material class
+- Number of threads as configure function parameter for specific sources
+- Library to calculate muen data
+
+### Changed
+- PSF based sources no longer need to specify the number of partitions in configuration
+- Kerma track length tally will create the mutren data and file if it does not exist
+- Material energy deposition tally no longer need to specify the number of materials
+
+### Fix
+- Bug: Kerma track length tally does not check if the material is used nor created
+- Bug: PSS tally does not implement the shared configuration function
 ## [1.9.2] - 2023-06-11
 
 ### Added

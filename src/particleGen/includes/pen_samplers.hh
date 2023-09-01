@@ -250,9 +250,10 @@ public:
   
   virtual void skip(const unsigned long long /*dhists*/){}
   
-  virtual int configure(double&,
-			const pen_parserSection&,
-			const unsigned = 0) = 0;
+  virtual int configure(double& Emax,
+			const pen_parserSection& config,
+			const unsigned nthreads,
+			const unsigned verbose = 0) = 0;
 
   inline static const char* type() {return "SPECIFIC";}
   virtual const char* readID() const = 0;
@@ -1192,6 +1193,7 @@ public:
   
       int errConfig = specificSamplerVect[i]->configure(Emax,
 							config,
+							nthreads,
 							auxVerbose);
       if(errConfig != 0){
 	if(verbose > 0){
