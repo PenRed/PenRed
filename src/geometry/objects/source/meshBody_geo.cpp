@@ -253,23 +253,34 @@ void pen_meshBodyGeo::step(pen_particleState& state,
     
   v3D pos(state.X, state.Y, state.Z);
   v3D dir(state.U, state.V, state.W);
+
+  //Create local variables for DSEF, DSTOT and NCROSS
+  double dsef, dstot;
+  dsef = dstot = 0.0;
+  int ncross = 0;
                                
-  //Check if the particle is inside the geometry system
-  if(state.MAT == 0){
+  //Check if it is outside the geometry system
+  if(state.IBODY >= getBodies()){
     //Is outside. Check if aims to the world
     double dsIn;
     if(bodies[iworld].cross(pos,dir,dsIn,false)){
       //The particle enters the world
       state.IBODY = iworld;
       state.MAT = bodies[iworld].MATER;
-      DSEF = dsIn;
-      DSTOT = dsIn;
-      NCROSS = 1;
+      dstot = dsIn;
+      ncross = 1;
 
       move(dsIn,state);
-      return;
+
+      //If the world is not void, stop the particle
+      if(state.MAT != 0){
+	DSEF = dsIn;
+	DSTOT = dsIn;
+	NCROSS = 1;
+	return;
+      }
     }else{
-      //The particle scapes
+      //The particle escapes
       state.IBODY = getBodies();
       state.MAT = 0;
       DSEF = inf;
@@ -280,13 +291,12 @@ void pen_meshBodyGeo::step(pen_particleState& state,
       return;            
     }
   }
+  
+
+  //The particle is inside the geometry system. It could be in a void region
     
-  //Create local variables for DSEF, DSTOT and NCROSS
-  double dsef, dstot;
-  dsef = dstot = 0.0;
-  int ncross = 0;
   unsigned MAT0 = state.MAT;
-  unsigned MATL = MAT0;
+  bool inVoid = state.MAT == 0 ? true : false;
     
   //The particle is inside the geometry system.
   unsigned currentBody;
@@ -322,6 +332,21 @@ void pen_meshBodyGeo::step(pen_particleState& state,
     if(body.MATER == 0){ //Void region
       //Check the minimum distance to change body
       if(ds2Up < ds2Down){ //To parent
+
+	if(currentBody == iworld){ //Particle escapes the world
+	  state.IBODY = getBodies();
+	  state.MAT = 0;
+	  if(MAT0 == 0)
+	    DSEF = inf;
+	  else
+	    DSEF = dsef + ds2Up;
+	  DSTOT = inf;
+	  NCROSS = ncross+1;
+
+	  move(inf,state);
+	  return;                             
+	}
+	  
 	travel = ds2Up;
 	nextBody = body.parent;
                 
@@ -340,7 +365,7 @@ void pen_meshBodyGeo::step(pen_particleState& state,
       //Check the minimum distance to change body
       if(ds2Up < ds2Down){ //Parent closer
 	if(toTravel >= ds2Up){ //Interface reached
-	  if(currentBody == iworld){ //Particle in the world
+	  if(currentBody == iworld){ //Particle escapes the world
 	    state.IBODY = getBodies();
 	    state.MAT = 0;
 	    DSEF = dsef + ds2Up;
@@ -377,41 +402,44 @@ void pen_meshBodyGeo::step(pen_particleState& state,
     }
         
     move(travel,dir,pos);
-         
+
     if(nextBody != currentBody){
       MATNext = bodies[nextBody].MATER;
             
       if(MATNext == 0){ //Entering in a void region
-	if(MATL == MAT0){++ncross;} //MAT0 is allways != 0 
-					MATL = 0;
-      }else if(MATNext == MATL){ 
-	//Entering in a new body with the same material
+	if(!inVoid){
+	  ++ncross;
+	  inVoid = true;
+	}
+      }else if(inVoid){
+	//Particle comes from a void region to a non void region. Stop it
+	++ncross;
+	break;
+      }else if(MATNext == MAT0){
+	//Entering in a new body with the same material without crossing void regions
 	if(bodies[nextBody].KDET != body.KDET){
 	  //The body belongs to another detector.
 	  //Stop the tracking
 	  ++ncross;
-	  MATL = MATNext;
 	  break;
 	}
       }else{ //Entering in a different material
 	//Stop the tracking
-	MATL = MATNext;
 	++ncross;
 	break;
       }
             
     }else{ //Unable to get out of current body, stop tracking
-      MATL = MATNext;
       break;
-    }
-        
-    MATL = body.MATER;
-        
+    }        
   }
     
   //Update particle final state
-  DSEF = dsef;
   DSTOT = dstot + dsef;
+  if(MAT0 == 0)
+    DSEF = DSTOT;
+  else
+    DSEF = dsef;
   NCROSS = ncross;
                 
   state.X = pos.x;
