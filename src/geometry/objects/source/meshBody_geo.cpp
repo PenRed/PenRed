@@ -295,7 +295,7 @@ void pen_meshBodyGeo::step(pen_particleState& state,
 
   //The particle is inside the geometry system. It could be in a void region
     
-  unsigned MAT0 = state.MAT;
+  const unsigned MAT0 = state.MAT;
   bool inVoid = state.MAT == 0 ? true : false;
     
   //The particle is inside the geometry system.
@@ -308,130 +308,103 @@ void pen_meshBodyGeo::step(pen_particleState& state,
     currentBody = nextBody;
     //Check if the current body or some daughters can be crossed
     const pen_meshBody& body = bodies[currentBody];
-        
-    //Distance to escape to parent body 
+
+    double travel = MATNext == 0 ? inf : toTravel;
+    int travelType = 0; // 0 -> Self body, 1 -> To Parent, 2 -> To Daughter
+
+    //Check if the parent can be crossed within the maximum distance
     double ds2Up;
-    body.cross(pos, dir, ds2Up, true, toTravel);
-        
-    //Get the minimum distance to enter to some daughter
-    double ds2Down = inf;
-    unsigned nextDaugh = 0;
+    if(body.cross(pos, dir, ds2Up, true, travel)){
+      travelType = 1; //Flag travel as go to parent
+      travel = ds2Up;
+      nextBody = body.parent;
+    }
+
+    //Check if any daughter is closer
     for(unsigned i = 0; i< body.nDaughters; ++i){
-      unsigned iDaugh = body.daughters[i];
+      const unsigned iDaugh = body.daughters[i];
                        
       double dsDaugh;
-      if(bodies[iDaugh].cross(pos,dir,dsDaugh,false,toTravel)){
-	if(ds2Down > dsDaugh){
-	  ds2Down = dsDaugh;
-	  nextDaugh = iDaugh;
-	}
+      if(bodies[iDaugh].cross(pos,dir,dsDaugh,false,travel)){
+	travelType = 2; //Flag travel as go to daugther
+	travel = dsDaugh;
+	nextBody = iDaugh;
       }
     }
-        
-    double travel = 0.0;
-    if(body.MATER == 0){ //Void region
-      //Check the minimum distance to change body
-      if(ds2Up < ds2Down){ //To parent
 
-	if(currentBody == iworld){ //Particle escapes the world
-	  state.IBODY = getBodies();
-	  state.MAT = 0;
-	  if(MAT0 == 0)
-	    DSEF = inf;
-	  else
-	    DSEF = dsef + ds2Up;
-	  DSTOT = inf;
-	  NCROSS = ncross+1;
-
-	  move(inf,state);
-	  return;                             
-	}
-	  
-	travel = ds2Up;
-	nextBody = body.parent;
-                
-	solveOverlapsUp(travel,pos,dir,currentBody,nextBody);
-                
-      } else{  // To daughter
-	travel = ds2Down;
-	nextBody = nextDaugh;                
-
-	solveOverlapsDown(travel,pos,dir,nextDaugh,nextBody);
-                
-      }
-      dstot += travel;
-    }
-    else{ //Material region
-      //Check the minimum distance to change body
-      if(ds2Up < ds2Down){ //Parent closer
-	if(toTravel >= ds2Up){ //Interface reached
-	  if(currentBody == iworld){ //Particle escapes the world
-	    state.IBODY = getBodies();
-	    state.MAT = 0;
-	    DSEF = dsef + ds2Up;
-	    DSTOT = inf;
-	    NCROSS = ncross+1;
-
-	    move(inf,state);
-	    return;                             
-	  }
-	  travel = ds2Up;
-	  nextBody = body.parent;
-                    
-	  solveOverlapsUp(travel,pos,dir,currentBody,nextBody);
-                    
-	}else{ //Interface not reached
-	  travel = toTravel;
-	}
-      } else{ //Daughter closer
-	if(toTravel >= ds2Down){ //Interface reached
-	  travel = ds2Down;
-	  nextBody = nextDaugh;
-                    
-	  solveOverlapsDown(travel,pos,dir,nextDaugh,nextBody);
-                    
-	}
-	else{ //Interface not reached
-	  travel = toTravel;
-	}
-      }
-      //Update remaining distance to travel
-      toTravel -= travel;
+    //Check the closest type value
+    if(travelType == 0){ //Remains in the same body.
+      //Move the particle and stop tracking      
       dsef += travel;
-            
+      move(travel,dir,pos);
+      break;
     }
-        
+    else if(travelType == 1){ //Cross the actual body boundary
+
+      if(currentBody == iworld){ //Particle escapes the world
+	state.IBODY = getBodies();
+	state.MAT = 0;
+	if(MAT0 == 0) //Crossed only void regions
+	  DSEF = inf;
+	else if(MATNext == 0) //World material is void. The travel must not be added to dsef
+	  DSEF = dsef;
+	else //World material is not void, add the travel to dsef
+	  DSEF = dsef + travel;
+	DSTOT = inf;
+	NCROSS = ncross+1;
+
+	move(inf,state);
+	return;
+      }
+
+      //Remains in the geometry system. Check overlaps
+      solveOverlapsUp(travel,pos,dir,currentBody,nextBody);      
+	
+    }else{ //Cross some daughter body. Check overlaps
+      solveOverlapsDown(travel,pos,dir,nextBody,nextBody);
+    }
+
+    //Update maximum remaining distance to travel
+    if(MATNext == 0){
+      if(MAT0 == 0){
+	dsef += travel;
+      }else{
+	dstot += travel;
+      }
+    }else{
+      dsef += travel;
+      toTravel -= travel;
+    }
+
+    //Move the particle
     move(travel,dir,pos);
 
-    if(nextBody != currentBody){
-      MATNext = bodies[nextBody].MATER;
+    //Get material of the next body
+    MATNext = bodies[nextBody].MATER;
             
-      if(MATNext == 0){ //Entering in a void region
-	if(!inVoid){
-	  ++ncross;
-	  inVoid = true;
-	}
-      }else if(inVoid){
-	//Particle comes from a void region to a non void region. Stop it
+    if(MATNext == 0){ //Entering in a void region
+      if(!inVoid){
 	++ncross;
-	break;
-      }else if(MATNext == MAT0){
-	//Entering in a new body with the same material without crossing void regions
-	if(bodies[nextBody].KDET != body.KDET){
-	  //The body belongs to another detector.
-	  //Stop the tracking
-	  ++ncross;
-	  break;
-	}
-      }else{ //Entering in a different material
+	inVoid = true;
+      }
+    } else if(inVoid){
+      //Particle comes from a void region to a non void region. Stop it
+      ++ncross;
+      break;
+    }else if(MATNext == MAT0){
+      //Entering in a new body with the same material without crossing void regions
+      if(bodies[nextBody].KDET != body.KDET){
+	//The body belongs to another detector.
 	//Stop the tracking
 	++ncross;
 	break;
       }
-            
-    }else{ //Unable to get out of current body, stop tracking
+    }else{ //Entering in a different material
+      //Stop the tracking
+      ++ncross;
       break;
-    }        
+    }  
+    
   }
     
   //Update particle final state
