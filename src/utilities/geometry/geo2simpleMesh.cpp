@@ -711,7 +711,7 @@ int main(int argc, char** argv){
   for(unsigned long b = 0; b < nBodies; ++b){
     
     fprintf(fout,"usemtl %u\n",geometry->getMat(b));
-    fprintf(fout,"o Body-%lu\n",b);
+    fprintf(fout,"o %s\n",geometry->getBodyName(b).c_str());
     //Vertex coordinates
     for(const vertex& v : bodyVertex[b]){
       fprintf(fout,"v %e %e %e\n", v.v.x, v.v.y, v.v.z);
