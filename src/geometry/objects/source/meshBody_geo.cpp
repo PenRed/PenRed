@@ -864,7 +864,7 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
   for(std::size_t ibody = 0; ibody < getElements(); ++ibody){
 
 	if(verbose > 2){
-	  printf("   - Body %u split begins\n",ibody);
+	  printf("   - Body %lu split begins\n",static_cast<unsigned long>(ibody));
 	  fflush(stdout);
 	}
 
@@ -896,7 +896,7 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 					      pen_meshBody::MAX_SUP_REGIONS);
 
 	if(verbose > 2){
-	  printf("   + Body %u split completed\n",ibody);
+	  printf("   + Body %lu split completed\n",static_cast<unsigned long>(ibody));
 	  fflush(stdout);
 	}
     
@@ -1245,7 +1245,7 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 			   "body '%s' (%u): %s\n",
 			   overlapBody.BALIAS,
 			   overlapBodyIndex,
-			   triangle.c_str());			
+			   triangle.stringify().c_str());			
 		  }
 		  else if(verbose > 1){
 		    printf("      - Intersection with overlapping body '%s' (%u)\n",
