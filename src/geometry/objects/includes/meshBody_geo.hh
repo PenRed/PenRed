@@ -219,7 +219,8 @@ struct pen_meshBody : public pen_baseBody{
   std::vector<superRegion> regions;
 
   //Sister bodies with overlap
-  std::array<unsigned,300> overlapedBodies;
+  static const unsigned maxDaughters = 300;
+  std::array<unsigned,maxDaughters> overlapedBodies;
   //Number of syster overlaps
   unsigned nOverlap;
 
@@ -228,7 +229,7 @@ struct pen_meshBody : public pen_baseBody{
   bool canOverlapParent;
 
   //Daughters bodies array
-  std::array<unsigned,300> daughters;
+  std::array<unsigned,maxDaughters> daughters;
   //Number of daughter bodies
   unsigned nDaughters;
 
@@ -236,7 +237,8 @@ struct pen_meshBody : public pen_baseBody{
   unsigned parent;
   
   pen_meshBody() : nTriangles(0), meanTrianglesRegion(0),
-		   nOverlap(0), nDaughters(0) {}
+		   meanRegionsSuperRegion(0), nOverlap(0),
+		   canOverlapParent(false), nDaughters(0) {}
     
   bool inside(const v3D pos) const;
     
@@ -249,10 +251,11 @@ struct pen_meshBody : public pen_baseBody{
   inline size_t nSupRegions() const {return regions.size();}
   
   inline void addDaughter(const unsigned i){
-    if(nDaughters < 300){
+    if(nDaughters < maxDaughters){
       daughters[nDaughters++] = i;
     }else{
-      printf("meshBody_geo: Error: maximum number of daughters is 300\n");
+      printf("meshBody_geo: Error: maximum number of daughters is %u\n",
+	     maxDaughters);
     }
   }
     
@@ -316,6 +319,17 @@ public:
     }
     return getBodies();
   }
+
+  inline std::string getBodyName(const unsigned ibody) const override{
+
+    if(ibody < getBodies()){
+      return std::string(bodies[ibody].BALIAS);
+    }else{
+      return std::string("NONE");
+    }
+    
+  }
+
     
   inline void move(const double ds, pen_particleState& state) const{
     state.X += ds*state.U;

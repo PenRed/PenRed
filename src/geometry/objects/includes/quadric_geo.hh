@@ -233,6 +233,8 @@ public:
   }
   inline unsigned int getSurfaces() const {return NSURF;}
   unsigned getIBody(const char* elementName) const final override;
+  std::string getBodyName(const unsigned ibody) const final override;
+  
   
   int configure(const pen_parserSection& config, const unsigned verbose) final override;
   void locate(pen_particleState& state) const final override;

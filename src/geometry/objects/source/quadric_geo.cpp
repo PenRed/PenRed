@@ -59,6 +59,16 @@ unsigned pen_quadricGeo::getIBody(const char* elementName) const{
   return getElements();
 }
 
+std::string pen_quadricGeo::getBodyName(const unsigned ibody) const{
+
+  if(ibody < getBodies()){
+    return std::string(bodies[ibody].BALIAS);
+  }else{
+    return std::string("NONE");
+  }
+    
+}
+
 
 int pen_quadricGeo::configure(const pen_parserSection& config, const unsigned verbose){
 

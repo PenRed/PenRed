@@ -691,6 +691,14 @@ unsigned pen_voxelGeo::getIBody(const char* bname) const {
     return unsigned(index);
 }
 
+std::string pen_voxelGeo::getBodyName(const unsigned ibody) const{
+  if(ibody < nBodies){
+    return std::to_string(ibody);
+  }else{
+    return std::string("NONE");
+  }
+}
+
 int pen_voxelGeo::loadData(const unsigned char* data,
 			   size_t& pos,
 			   const unsigned verbose){

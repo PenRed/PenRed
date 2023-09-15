@@ -37,10 +37,12 @@ class pen_EdepBody : public pen_genericTally<pen_particleState> {
   DECLARE_TALLY(pen_EdepBody,pen_particleState)
 
 private:
-    double edptmp[pen_geoconst::NB];
-    double edep[pen_geoconst::NB];
-    double edep2[pen_geoconst::NB];
-    int nBody;
+  double edptmp[pen_geoconst::NB];
+  double edep[pen_geoconst::NB];
+  double edep2[pen_geoconst::NB];
+  int nBody;
+
+  const wrapper_geometry* geo;
   
 public:
 
@@ -81,7 +83,7 @@ public:
     
   void tally_endHist(const unsigned long long /*nhist*/);
 
-  int configure(const wrapper_geometry& /*geometry*/,
+  int configure(const wrapper_geometry& geometry,
 		const abc_material* const /*materials*/[pen_geoconst::NB],     
 		const pen_parserSection& /*config*/, const unsigned verbose);
   void flush();

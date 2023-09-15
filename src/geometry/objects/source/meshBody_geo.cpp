@@ -323,7 +323,7 @@ void pen_meshBodyGeo::step(pen_particleState& state,
     //Check if any daughter is closer
     for(unsigned i = 0; i< body.nDaughters; ++i){
       const unsigned iDaugh = body.daughters[i];
-                       
+
       double dsDaugh;
       if(bodies[iDaugh].cross(pos,dir,dsDaugh,false,travel)){
 	travelType = 2; //Flag travel as go to daugther
@@ -421,6 +421,7 @@ void pen_meshBodyGeo::step(pen_particleState& state,
     
   state.MAT = MATNext;
   state.IBODY = nextBody;
+
 }
 
 
@@ -584,6 +585,27 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 
   // Load Region elements
   //***********************
+
+  // Default value
+  int defaultRegionElements;
+  err = config.read("DefaultRegionElements",defaultRegionElements);
+  if(err != INTDATA_SUCCESS){
+    if(verbose > 2){
+      printf("No default region size specified\n");
+    }
+    defaultRegionElements = 40;
+  }else{
+    if(defaultRegionElements < 1){
+      if(verbose > 0){
+	printf("pen_meshBodyGeo:configure: Error: 'DefaultRegionElements' must "
+	       "be greater than zero.\n");
+      }
+      configStatus = PEN_MESHBODY_GEO_INVALID_REGIONSIZE;
+      return PEN_MESHBODY_GEO_INVALID_REGIONSIZE;
+    }
+  }
+
+  // Specific values
   bodiesAlias.clear();
   err = config.ls("RegionElements",bodiesAlias);
   if(err != INTDATA_SUCCESS){
@@ -642,8 +664,29 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 
   // Load Super Region Elements
   //*****************************
+
+  // Default value
+  int defaultSuperRegionElements;
+  err = config.read("DefaultSuperRegionElements",defaultSuperRegionElements);
+  if(err != INTDATA_SUCCESS){
+    if(verbose > 2){
+      printf("No default super region size specified\n");
+    }
+    defaultSuperRegionElements = 20;
+  }else{
+    if(defaultSuperRegionElements < 1){
+      if(verbose > 0){
+	printf("pen_meshBodyGeo:configure: Error: 'DefaultSuperRegionElements' "
+	       "must be greater than zero.\n");
+      }
+      configStatus = PEN_MESHBODY_GEO_INVALID_REGIONSIZE;
+      return PEN_MESHBODY_GEO_INVALID_REGIONSIZE;
+    }
+  }
+
+  // Specific values  
   bodiesAlias.clear();
-  err = config.ls("SuperRegions",bodiesAlias);
+  err = config.ls("SuperRegionElements",bodiesAlias);
   if(err != INTDATA_SUCCESS){
     if(verbose > 1){
       printf("No super region size specified for any body\n");
@@ -733,12 +776,12 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	//Check if a region size has been specified for this body
 	if(body.meanTrianglesRegion == 0){
 	  body.meanTrianglesRegion =
-	    std::max(static_cast<unsigned long>(40),
+	    std::max(static_cast<unsigned long>(defaultRegionElements),
 		     body.nTriangles/static_cast<unsigned long>(pen_meshBody::MAX_REGIONS/2));
 	}
 
 	if(body.meanRegionsSuperRegion == 0){
-	  body.meanRegionsSuperRegion = 20;
+	  body.meanRegionsSuperRegion = defaultSuperRegionElements;
 	}
 
 	//Check if this body requires more regions
@@ -1566,6 +1609,8 @@ void pen_meshBodyGeo::checkCross(const unsigned iparent){
     //Check if this daughter can cross with their parent
     if(canOverlapParent(idaugh1)){
       body1.canOverlapParent = true;
+    }else{
+      body1.canOverlapParent = false;
     }
         
     //Check crosses with other daughters (sisters)

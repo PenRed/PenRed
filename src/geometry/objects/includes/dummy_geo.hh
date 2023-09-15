@@ -66,6 +66,9 @@ class pen_dummyGeo : public abc_geometry<pen_baseBody>{
 	    int &) const;
 
   inline unsigned getIBody(const char*) const {return getElements();}
+
+  inline std::string getBodyName(const unsigned) const {return std::string("NONE");}
+  
 };
 
 #endif

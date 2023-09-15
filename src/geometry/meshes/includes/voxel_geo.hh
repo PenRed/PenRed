@@ -151,6 +151,8 @@ public:
 	       const unsigned verbose = 0);
 
   unsigned getIBody(const char* bname) const override;
+
+  std::string getBodyName(const unsigned ibody) const override;
   
   virtual int printImage(const char* filename) const;
 };

@@ -112,7 +112,9 @@ int pen_EdepBody::configure(const wrapper_geometry& geometry,
 			   const abc_material* const /*materials*/[pen_geoconst::NB],
 			    const pen_parserSection& /*config*/,
 			   const unsigned verbose){
-    
+
+  geo = &geometry;
+  
   nBody = geometry.getElements();
     
   //Clear counters:
@@ -153,7 +155,7 @@ void pen_EdepBody::saveData(const unsigned long long nhist) const{
   fprintf(out, "# PenRed: Body energy deposition report\n");
   fprintf(out, "# Units are eV per history\n");
   fprintf(out, "#\n");
-  fprintf(out, "# Body : Energy (eV/hist) : +-2sigma\n");  
+  fprintf(out, "#            Body name            : Body index : Energy (eV/hist) : +-2sigma\n");  
   
   invn = 1.0/static_cast<double>(nhist);
   for(int i = 0; i < nBody; i++)
@@ -164,7 +166,8 @@ void pen_EdepBody::saveData(const unsigned long long nhist) const{
       if(sigma > 0.0){ sigma = sqrt(sigma);}
       else{sigma = 0.0;}
 
-      fprintf(out, " %3d      %12.5E     %8.1E\n", i,q,2.0*sigma);
+      fprintf(out, " %-31s    %5d      %12.5E     %8.1E\n",
+	      geo->getBodyName(i).c_str(),i,q,2.0*sigma);
     }
   fclose(out);
 }

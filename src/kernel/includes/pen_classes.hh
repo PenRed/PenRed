@@ -1103,6 +1103,7 @@ public:
   virtual unsigned long getElements() const = 0;
   virtual unsigned getBodies() const = 0;
   virtual unsigned getIBody(const char* elementName) const = 0;
+  virtual std::string getBodyName(const unsigned ibody) const = 0;
   virtual void getOffset(double* offset) const { offset[0] = 0.0; offset[1] = 0.0; offset[2] = 0.0; }
   virtual ~wrapper_geometry(){}
   
