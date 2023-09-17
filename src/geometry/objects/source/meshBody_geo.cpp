@@ -253,23 +253,34 @@ void pen_meshBodyGeo::step(pen_particleState& state,
     
   v3D pos(state.X, state.Y, state.Z);
   v3D dir(state.U, state.V, state.W);
+
+  //Create local variables for DSEF, DSTOT and NCROSS
+  double dsef, dstot;
+  dsef = dstot = 0.0;
+  int ncross = 0;
                                
-  //Check if the particle is inside the geometry system
-  if(state.MAT == 0){
+  //Check if it is outside the geometry system
+  if(state.IBODY >= getBodies()){
     //Is outside. Check if aims to the world
     double dsIn;
     if(bodies[iworld].cross(pos,dir,dsIn,false)){
       //The particle enters the world
       state.IBODY = iworld;
       state.MAT = bodies[iworld].MATER;
-      DSEF = dsIn;
-      DSTOT = dsIn;
-      NCROSS = 1;
+      dstot = dsIn;
+      ncross = 1;
 
       move(dsIn,state);
-      return;
+
+      //If the world is not void, stop the particle
+      if(state.MAT != 0){
+	DSEF = dsIn;
+	DSTOT = dsIn;
+	NCROSS = 1;
+	return;
+      }
     }else{
-      //The particle scapes
+      //The particle escapes
       state.IBODY = getBodies();
       state.MAT = 0;
       DSEF = inf;
@@ -280,13 +291,12 @@ void pen_meshBodyGeo::step(pen_particleState& state,
       return;            
     }
   }
+  
+
+  //The particle is inside the geometry system. It could be in a void region
     
-  //Create local variables for DSEF, DSTOT and NCROSS
-  double dsef, dstot;
-  dsef = dstot = 0.0;
-  int ncross = 0;
-  unsigned MAT0 = state.MAT;
-  unsigned MATL = MAT0;
+  const unsigned MAT0 = state.MAT;
+  bool inVoid = state.MAT == 0 ? true : false;
     
   //The particle is inside the geometry system.
   unsigned currentBody;
@@ -298,120 +308,111 @@ void pen_meshBodyGeo::step(pen_particleState& state,
     currentBody = nextBody;
     //Check if the current body or some daughters can be crossed
     const pen_meshBody& body = bodies[currentBody];
-        
-    //Distance to escape to parent body 
+
+    double travel = MATNext == 0 ? inf : toTravel;
+    int travelType = 0; // 0 -> Self body, 1 -> To Parent, 2 -> To Daughter
+
+    //Check if the parent can be crossed within the maximum distance
     double ds2Up;
-    body.cross(pos, dir, ds2Up, true, toTravel);
-        
-    //Get the minimum distance to enter to some daughter
-    double ds2Down = inf;
-    unsigned nextDaugh = 0;
+    if(body.cross(pos, dir, ds2Up, true, travel)){
+      travelType = 1; //Flag travel as go to parent
+      travel = ds2Up;
+      nextBody = body.parent;
+    }
+
+    //Check if any daughter is closer
     for(unsigned i = 0; i< body.nDaughters; ++i){
-      unsigned iDaugh = body.daughters[i];
-                       
+      const unsigned iDaugh = body.daughters[i];
+
       double dsDaugh;
-      if(bodies[iDaugh].cross(pos,dir,dsDaugh,false,toTravel)){
-	if(ds2Down > dsDaugh){
-	  ds2Down = dsDaugh;
-	  nextDaugh = iDaugh;
-	}
+      if(bodies[iDaugh].cross(pos,dir,dsDaugh,false,travel)){
+	travelType = 2; //Flag travel as go to daugther
+	travel = dsDaugh;
+	nextBody = iDaugh;
       }
     }
-        
-    double travel = 0.0;
-    if(body.MATER == 0){ //Void region
-      //Check the minimum distance to change body
-      if(ds2Up < ds2Down){ //To parent
-	travel = ds2Up;
-	nextBody = body.parent;
-                
-	solveOverlapsUp(travel,pos,dir,currentBody,nextBody);
-                
-      } else{  // To daughter
-	travel = ds2Down;
-	nextBody = nextDaugh;                
 
-	solveOverlapsDown(travel,pos,dir,nextDaugh,nextBody);
-                
-      }
-      dstot += travel;
-    }
-    else{ //Material region
-      //Check the minimum distance to change body
-      if(ds2Up < ds2Down){ //Parent closer
-	if(toTravel >= ds2Up){ //Interface reached
-	  if(currentBody == iworld){ //Particle in the world
-	    state.IBODY = getBodies();
-	    state.MAT = 0;
-	    DSEF = dsef + ds2Up;
-	    DSTOT = inf;
-	    NCROSS = ncross+1;
-
-	    move(inf,state);
-	    return;                             
-	  }
-	  travel = ds2Up;
-	  nextBody = body.parent;
-                    
-	  solveOverlapsUp(travel,pos,dir,currentBody,nextBody);
-                    
-	}else{ //Interface not reached
-	  travel = toTravel;
-	}
-      } else{ //Daughter closer
-	if(toTravel >= ds2Down){ //Interface reached
-	  travel = ds2Down;
-	  nextBody = nextDaugh;
-                    
-	  solveOverlapsDown(travel,pos,dir,nextDaugh,nextBody);
-                    
-	}
-	else{ //Interface not reached
-	  travel = toTravel;
-	}
-      }
-      //Update remaining distance to travel
-      toTravel -= travel;
+    //Check the closest type value
+    if(travelType == 0){ //Remains in the same body.
+      //Move the particle and stop tracking      
       dsef += travel;
-            
+      move(travel,dir,pos);
+      break;
     }
-        
+    else if(travelType == 1){ //Cross the actual body boundary
+
+      if(currentBody == iworld){ //Particle escapes the world
+	state.IBODY = getBodies();
+	state.MAT = 0;
+	if(MAT0 == 0) //Crossed only void regions
+	  DSEF = inf;
+	else if(MATNext == 0) //World material is void. The travel must not be added to dsef
+	  DSEF = dsef;
+	else //World material is not void, add the travel to dsef
+	  DSEF = dsef + travel;
+	DSTOT = inf;
+	NCROSS = ncross+1;
+
+	move(inf,state);
+	return;
+      }
+
+      //Remains in the geometry system. Check overlaps
+      solveOverlapsUp(travel,pos,dir,currentBody,nextBody);      
+	
+    }else{ //Cross some daughter body. Check overlaps
+      solveOverlapsDown(travel,pos,dir,nextBody,nextBody);
+    }
+
+    //Update maximum remaining distance to travel
+    if(MATNext == 0){
+      if(MAT0 == 0){
+	dsef += travel;
+      }else{
+	dstot += travel;
+      }
+    }else{
+      dsef += travel;
+      toTravel -= travel;
+    }
+
+    //Move the particle
     move(travel,dir,pos);
-         
-    if(nextBody != currentBody){
-      MATNext = bodies[nextBody].MATER;
+
+    //Get material of the next body
+    MATNext = bodies[nextBody].MATER;
             
-      if(MATNext == 0){ //Entering in a void region
-	if(MATL == MAT0){++ncross;} //MAT0 is allways != 0 
-					MATL = 0;
-      }else if(MATNext == MATL){ 
-	//Entering in a new body with the same material
-	if(bodies[nextBody].KDET != body.KDET){
-	  //The body belongs to another detector.
-	  //Stop the tracking
-	  ++ncross;
-	  MATL = MATNext;
-	  break;
-	}
-      }else{ //Entering in a different material
+    if(MATNext == 0){ //Entering in a void region
+      if(!inVoid){
+	++ncross;
+	inVoid = true;
+      }
+    } else if(inVoid){
+      //Particle comes from a void region to a non void region. Stop it
+      ++ncross;
+      break;
+    }else if(MATNext == MAT0){
+      //Entering in a new body with the same material without crossing void regions
+      if(bodies[nextBody].KDET != body.KDET){
+	//The body belongs to another detector.
 	//Stop the tracking
-	MATL = MATNext;
 	++ncross;
 	break;
       }
-            
-    }else{ //Unable to get out of current body, stop tracking
-      MATL = MATNext;
+    }else{ //Entering in a different material
+      //Stop the tracking
+      ++ncross;
       break;
-    }
-        
-    MATL = body.MATER;
-        
+    }  
+    
   }
     
   //Update particle final state
-  DSEF = dsef;
   DSTOT = dstot + dsef;
+  if(MAT0 == 0)
+    DSEF = DSTOT;
+  else
+    DSEF = dsef;
   NCROSS = ncross;
                 
   state.X = pos.x;
@@ -420,6 +421,7 @@ void pen_meshBodyGeo::step(pen_particleState& state,
     
   state.MAT = MATNext;
   state.IBODY = nextBody;
+
 }
 
 
@@ -583,6 +585,27 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 
   // Load Region elements
   //***********************
+
+  // Default value
+  int defaultRegionElements;
+  err = config.read("DefaultRegionElements",defaultRegionElements);
+  if(err != INTDATA_SUCCESS){
+    if(verbose > 2){
+      printf("No default region size specified\n");
+    }
+    defaultRegionElements = 40;
+  }else{
+    if(defaultRegionElements < 1){
+      if(verbose > 0){
+	printf("pen_meshBodyGeo:configure: Error: 'DefaultRegionElements' must "
+	       "be greater than zero.\n");
+      }
+      configStatus = PEN_MESHBODY_GEO_INVALID_REGIONSIZE;
+      return PEN_MESHBODY_GEO_INVALID_REGIONSIZE;
+    }
+  }
+
+  // Specific values
   bodiesAlias.clear();
   err = config.ls("RegionElements",bodiesAlias);
   if(err != INTDATA_SUCCESS){
@@ -641,8 +664,29 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 
   // Load Super Region Elements
   //*****************************
+
+  // Default value
+  int defaultSuperRegionElements;
+  err = config.read("DefaultSuperRegionElements",defaultSuperRegionElements);
+  if(err != INTDATA_SUCCESS){
+    if(verbose > 2){
+      printf("No default super region size specified\n");
+    }
+    defaultSuperRegionElements = 20;
+  }else{
+    if(defaultSuperRegionElements < 1){
+      if(verbose > 0){
+	printf("pen_meshBodyGeo:configure: Error: 'DefaultSuperRegionElements' "
+	       "must be greater than zero.\n");
+      }
+      configStatus = PEN_MESHBODY_GEO_INVALID_REGIONSIZE;
+      return PEN_MESHBODY_GEO_INVALID_REGIONSIZE;
+    }
+  }
+
+  // Specific values  
   bodiesAlias.clear();
-  err = config.ls("SuperRegions",bodiesAlias);
+  err = config.ls("SuperRegionElements",bodiesAlias);
   if(err != INTDATA_SUCCESS){
     if(verbose > 1){
       printf("No super region size specified for any body\n");
@@ -732,12 +776,12 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	//Check if a region size has been specified for this body
 	if(body.meanTrianglesRegion == 0){
 	  body.meanTrianglesRegion =
-	    std::max(static_cast<unsigned long>(40),
+	    std::max(static_cast<unsigned long>(defaultRegionElements),
 		     body.nTriangles/static_cast<unsigned long>(pen_meshBody::MAX_REGIONS/2));
 	}
 
 	if(body.meanRegionsSuperRegion == 0){
-	  body.meanRegionsSuperRegion = 20;
+	  body.meanRegionsSuperRegion = defaultSuperRegionElements;
 	}
 
 	//Check if this body requires more regions
@@ -820,7 +864,7 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
   for(std::size_t ibody = 0; ibody < getElements(); ++ibody){
 
 	if(verbose > 2){
-	  printf("   - Body %u split begins\n",ibody);
+	  printf("   - Body %lu split begins\n",static_cast<unsigned long>(ibody));
 	  fflush(stdout);
 	}
 
@@ -852,7 +896,7 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 					      pen_meshBody::MAX_SUP_REGIONS);
 
 	if(verbose > 2){
-	  printf("   + Body %u split completed\n",ibody);
+	  printf("   + Body %lu split completed\n",static_cast<unsigned long>(ibody));
 	  fflush(stdout);
 	}
     
@@ -1201,7 +1245,7 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 			   "body '%s' (%u): %s\n",
 			   overlapBody.BALIAS,
 			   overlapBodyIndex,
-			   triangle.c_str());			
+			   triangle.stringify().c_str());			
 		  }
 		  else if(verbose > 1){
 		    printf("      - Intersection with overlapping body '%s' (%u)\n",
@@ -1565,6 +1609,8 @@ void pen_meshBodyGeo::checkCross(const unsigned iparent){
     //Check if this daughter can cross with their parent
     if(canOverlapParent(idaugh1)){
       body1.canOverlapParent = true;
+    }else{
+      body1.canOverlapParent = false;
     }
         
     //Check crosses with other daughters (sisters)

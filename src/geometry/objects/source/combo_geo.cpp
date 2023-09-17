@@ -288,6 +288,14 @@ unsigned pen_comboGeo::getIBody(const char* bodyName) const{
   return getBodies();
 }
 
+std::string pen_comboGeo::getBodyName(const unsigned ibody) const{
+  if(ibody < getBodies()){
+    return std::string(bodies[ibody].name);
+  }else{
+    return std::string("NONE");
+  }
+}
+
 void pen_comboGeo::locate(pen_particleState& state) const{
 
   //Iterate through all geometries to find the body where

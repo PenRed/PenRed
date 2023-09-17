@@ -1598,7 +1598,7 @@ void pen_material::load(FILE* IRD,
 // Element database
 //-------------------
 
-pen_elementDataBase::pen_elementDataBase()
+pen_elementDataBase::pen_elementDataBase() : EPH(constants::NTP), XPH(constants::NTP)
 {
   
   //  ************  Chemical symbols of the elements.

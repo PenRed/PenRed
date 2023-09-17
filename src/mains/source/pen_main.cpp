@@ -688,7 +688,7 @@ int main(int argc, char** argv){
   }
 
   printf("***************************************************************\n");
-  printf(" PenRed version: 1.9.3 (07-July-2023) \n");
+  printf(" PenRed version: 1.9.3b (06-September-2023) \n");
   printf(" Copyright (c) 2019-2023 Universitat Politecnica de Valencia\n");
   printf(" Copyright (c) 2019-2023 Universitat de Valencia\n");
   printf(" Reference: Computer Physics Communications, 267 (2021) 108065\n"
@@ -2599,6 +2599,28 @@ int createMaterials(pen_context& context,
     }
       
   }
+
+  std::array<double,constants::nParTypes> defaultEabs{1.0e3};
+  pen_parserSection eabsSection;
+  if(config.readSubsection("material-eabs",eabsSection) == INTDATA_SUCCESS){
+
+    if(verbose > 1){
+      printf("Global absorption energies specified:\n");      
+    }
+    
+    //Read maximum ranges for each particle type
+    for(unsigned ip = 0; ip < constants::nParTypes; ++ip){
+      double partEabs;
+      if(eabsSection.read(particleName(ip),partEabs) == INTDATA_SUCCESS){
+	defaultEabs[ip] = partEabs;
+	if(verbose > 1){
+	  printf("  + %15s: %15.3E cm\n", particleName(ip), defaultEabs[ip]);
+	}
+      }
+    }
+      
+  }
+
   
   //Extract materials section
   pen_parserSection matSection;
@@ -2759,8 +2781,8 @@ int createMaterials(pen_context& context,
 	// + Explicit value
 	mat.EABS[ip] = eabs;
       }else{
-	// + Default value (1keV)
-	mat.EABS[ip] = 1.0e3;
+	// + Default value
+	mat.EABS[ip] = defaultEabs[ip];
       }
     }
 

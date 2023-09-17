@@ -315,7 +315,8 @@ class pen_elementDataBase{
   //
   // NCUR-> Total number of elements stored in EPH and XPH.
   //
-  double EPH[constants::NTP], XPH[constants::NTP][17];
+  std::vector<double> EPH;
+  std::vector<std::array<double,17>> XPH;
   unsigned int NCUR;
 
   // Positions for each loaded element.

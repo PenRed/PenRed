@@ -68,6 +68,7 @@ class pen_comboGeo : public abc_geometry<pen_comboBody>{
 	    int &) const;
   
   unsigned getIBody(const char*) const final override;
+  std::string getBodyName(const unsigned ibody) const final override;
 };
 
 #endif
