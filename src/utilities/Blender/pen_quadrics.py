@@ -755,7 +755,7 @@ class export_penred(Operator, ExportHelper):
         tree = [] # Children tree information
         if len(childrens) > 0:
             for child in childrens:
-                childTree, nSurf, nObj = self.createObject(f,context,child,nSurf,nObj,toRound,True)
+                childTree, nSurf, nObj = self.createObject(f,context,child,nSurf,nObj,toRound,True,avoidHide)
                 if len(childTree) > 0:
                     tree.extend(childTree)
                 
