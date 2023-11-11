@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2022 Universitat de València - UV
-//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2023 Universitat de València - UV
+//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -256,6 +256,54 @@ public:
   ~pen_seed();
 };
 
+struct pen_ctData{
+  // 0-> SEQUENCED, 1-> SPIRAL, 2-> CONSTANT_ANGLE, 3-> STATIONARY, 4->FREE, 5-> UNKNOWN
+  std::string acquisitionTypeString;
+  unsigned acquisitionType;
+
+  double revolutionTime; //In seconds
+  double singleCollimationWidth; //In cm
+  double totalCollimationWidth; //In cm
+  double tableSpeed; //In cm/s
+  double tableFeedPerRotation; //In cm
+  double spiralPitchFactor;
+  double dataCollectionDiameter; //In cm
+
+  static const unsigned maxFilters = 1000;
+  // 0->NONE, 1->STRIP, 2->WDGE, 3->BUTTERFLY, 4->MULTIPLE, 5->FLAT, 6->OTHERS
+  std::string filterTypeString;
+  unsigned filterType;
+  std::vector<std::string> filterMaterial;
+  std::vector<double> focalSpots; //In cm
+  
+
+  double CTDIvol; //In mGy
+  double reconstructionDiameter; //In cm
+  double distanceSourceToDetector; //In cm
+  double distanceSourceToDataCollectionCenter; //In cm
+
+  // 0-> CW (clockwise (decreasing angle))
+  // 1-> CC (counter-clockwise (increasing angle))
+  // 2-> UNKNOWN
+  std::string rotationDirectionString;
+  unsigned rotationDirection;
+
+  long int exposureTime; //In msec
+  long int xRayTubeCurrent; //In mA
+  long int exposure; //In mAs
+  long int exposureInuAs; //In muAs
+  long int generatorPowerInt; //In kW
+
+  vector3D<double> dataCollectionCenterPatient; //In cm
+  vector3D<double> reconstructionTargetCenterPatient; //In cm
+  vector3D<double> isocenterPosition; //In cm
+
+  bool multiEnergyAcquisition; //If the acquisition has been done with multiple energies
+
+  double kvp;
+  
+  void load(const DcmDataset* metainfo);
+};
 
 class pen_dicom{
 
@@ -286,11 +334,61 @@ private:
   //Save container contour for each voxel (-1 for non contour)
   int* voxelContour;
   std::vector<std::vector<unsigned char>> contourMasks;
+
   ////////////////
   // Seeds vars //
   ////////////////
 
-  std::vector<pen_seed> seeds;  
+  std::vector<pen_seed> seeds;
+
+  ////////////////
+  //  CT  vars  //
+  ////////////////
+
+  pen_ctData ctData;
+
+public:
+  inline bool isCT() const {return imageModality.compare("CT") == 0;}
+  inline std::string ctReadAcquisitionType() const {return ctData.acquisitionType;}
+  inline unsigned ctReadAcquisitionTypeIndex() const {return ctData.acquisitionType;}
+  inline double ctReadRevolutionTime() const {return ctData.revolutionTime;}
+  inline double ctReadTotalCollimationWidth() const {return ctData.totalCollimationWidth;}
+  inline double ctReadTableSpeed() const {return ctData.tableSpeed;}
+  inline double ctReadTableFeedPerRotation() const {return ctData.tableFeedPerRotation;}
+  inline double ctReadSpiralPitchFactor() const {return ctData.spiralPitchFactor;}
+  inline double ctReadDataCollectionDiameter() const {return ctData.dataCollectionDiameter;}
+  inline double ctReadFilterType() const {return ctData.filterTypeChar;}
+  inline double ctReadFilterTypeIndex() const {return ctData.filterType;}
+  inline size_t ctReadNFilterMaterial() const {return filterMaterial.size();}
+  inline std::string ctReadFilterMaterial(const unsigned i) const {return filterMaterial[i];}
+  
+  inline size_t ctReadNFocalSpots() const {return focalSpots.size();}
+  inline double ctReadFocalSpots(const unsigned i) const {return focalSpots[i];}
+  
+  inline double ctReadCTDIvol() const {return ctData.CTDIvol;}
+  inline double ctReadReconstructionDiameter() const {return ctData.reconstructionDiameter;}
+  inline double ctReadDistanceSourceToDetector() const {return ctData.distanceSourceToDetector;}
+  inline std::string ctReadRotationDirection() const {return ctData.rotationDirectionString;}
+  inline unsigned ctReadRotationDirectionIndex() const {return ctData.rotationDirection;}
+  inline long int ctReadExposureTime() const {return ctData.exposureTime;}
+  inline long int ctReadXRayTubeCurrent() const {return ctData.xRayTubeCurrent;}
+  inline long int ctReadExposure() const {return ctData.exposure;}
+  inline long int ctReadExposureInuAs() const {return ctData.exposureInuAs;}
+  inline long int ctReadGeneratorPowerInt() const {return ctData.generatorPowerInt;}
+  inline vector3D<double> ctReadDataCollectionCenterPatient() const {
+    return ctData.dataCollectionCenterPatient;
+  }
+  inline vector3D<double> ctReadReconstructionTargetCenterPatient() const {
+    return ctData.reconstructionTargetCenterPatient;
+  }
+  inline vector3D<double> ctReadIsocenterPosition() const {
+    return ctData.isocenterPosition;
+  }
+  inline bool ctReadMultipleEnergyUsed() const {return ctData.multiEnergyAcquisition;}
+  inline double ctReadKVP() const {return ctData.kvp;}
+  inline double ctReadSingleCollimationWidth() const {return singleCollimationWidth;}
+  inline double ctReadTotalCollimationWidth() const {return totalCollimationWidth;}
+protected:
   
   ////////////////
   // Image vars //
@@ -307,7 +405,8 @@ public:
 
   pen_dicom();
   int loadDicom(const char* dirName,
-		const unsigned verbose);  
+		const unsigned verbose,
+		const bool onlyMetadata = false);  
   int assignContours();
   
   

@@ -71,6 +71,10 @@ CMAKE_DEPENDENT_OPTION(DICOM_KERNELS "Compile DICOM kernels utility" ON
                        
 CMAKE_DEPENDENT_OPTION(MUTREN "Compile mutren" ON
                        "BUILD_UTILITIES" OFF) 
+
+CMAKE_DEPENDENT_OPTION(XRAY "Compile x-ray utilities" ON
+                       "BUILD_UTILITIES" OFF)
+
 CMAKE_DEPENDENT_OPTION(VIEWERS "Compile viewers" ON
                        "BUILD_UTILITIES" OFF)                       
                        
@@ -453,8 +457,43 @@ if(MUTREN)
     TARGETS mutren
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/mutren/mutren
     )
+
+    # Create mutren spectrum
+    add_executable(mutrenSpectrum ${PROJECT_SOURCE_DIR}/utilities/mutren/mutrenSpectrum.cpp)
+
+    target_link_libraries(mutrenSpectrum pen_muen)
+
+    # Install mutren spectrum executable
+    install(
+    TARGETS mutrenSpectrum
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/mutren/mutrenSpectrum
+    )
+
 endif(MUTREN)
 #-----------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------
+#  MUTREN
+#############################
+
+if(XRAY)
+    # Create x-ray spectrum estimation executable
+    add_executable(spectrumEstimation ${PROJECT_SOURCE_DIR}/utilities/x-ray/spectrumEstimation.cpp)
+
+    target_link_libraries(spectrumEstimation pen_particles)
+    target_link_libraries(spectrumEstimation samplers)
+    target_link_libraries(spectrumEstimation tallies)
+    target_link_libraries(spectrumEstimation pen_geos)
+
+    # Install mutren executable
+    install(
+    TARGETS spectrumEstimation
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/x-ray/spectrumEstimation
+    )
+
+endif(XRAY)
+#-----------------------------------------------------------------------------
+
 
 #-----------------------------------------------------------------------------
 #  VIEWERS

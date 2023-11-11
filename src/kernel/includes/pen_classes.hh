@@ -1650,6 +1650,46 @@ public:
   //material for a particle with the specified energy and type
   virtual double range(const double E, const pen_KPAR kpar, const unsigned M) const = 0;
 
+  inline void findRange(double& lowE, double& topE, const double objectiveRange,
+			const pen_KPAR kpar, const unsigned M,
+			const unsigned long maxTries = 1000000, const double tol = 0.001){
+    
+    //Function 'findRange' returns the energy interval corresponding
+    //to the specified range. This one is calculated for one particle
+    //type and material
+    //
+    // * Input: 
+    // lowE : minimum inital energy
+    // topE : maximum initial energy
+    // objectiveRange: Range to be found
+    // kpar : particle type
+    // M    : Material index in context [0,nMaterials)
+    // maxTries : Maximum iterations to found the objective range
+    // tol  : Maximum relative difference between the final lowE and topE.
+    //
+    // * Output:
+    // lowE : final minimum energy of the resulting interval
+    // topE : final maximum energy of the resulting interval
+
+    
+    unsigned nTries = 0;
+    const double maxRatio = 1.0 + tol;
+    do{
+      double midE = (topE+lowE)/2.0;
+      double r = range(midE,kpar,M);
+      if(r == objectiveRange){
+	topE = midE;
+	lowE = midE;
+      }
+      else if(r > objectiveRange){
+	topE = midE;
+      }else{
+	lowE = midE;
+      }
+      ++nTries;
+    }while(nTries < maxTries && topE/lowE > maxRatio);    
+  }
+
   virtual double avncol(const double E,
 			const pen_KPAR kpar,
 			const int icol,
