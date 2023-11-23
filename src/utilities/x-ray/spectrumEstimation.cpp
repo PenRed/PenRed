@@ -276,8 +276,7 @@ public:
 }; 
 
 struct spectrumStruct{
-  std::vector<double> Elow;
-  std::vector<double> dE;
+  double emin, dE;
   std::vector<double> weight;
   std::vector<double> eWeight;
   std::vector<double> cummulative;
@@ -306,13 +305,14 @@ struct spectrumStruct{
   inline double sample(pen_rand& random) const {
 
     // Get random number
-    double rand = random.rand();
+    const double rand = random.rand();
 
     // Get interval
-    unsigned interval = seeki(&cummulative.front(),rand,cummulative.size());
+    const unsigned interval = seeki(&cummulative.front(),rand,cummulative.size());
 
     // Calculate sampled energy
-    return Elow[interval]+(rand-cummulative[interval])*dE[interval];
+    const double ElowInterval = emin + dE*static_cast<double>(interval);
+    return ElowInterval+(rand-cummulative[interval])*dE;
     
   }
 
@@ -322,17 +322,18 @@ struct spectrumStruct{
     std::fill(cummulative.begin(), cummulative.end(), 0.0);
   }
 
-  inline void resize(size_t l){
-    Elow.resize(l);
-    dE.resize(l);
+  inline void resize(const size_t l,
+		     const double EminIn,
+		     const double dEIn){
+    emin = EminIn;
+    dE = dEIn;
+
     weight.resize(l);
     eWeight.resize(l);
     cummulative.resize(l+1);
   }
 
   inline void clear(){
-    Elow.clear();
-    dE.clear();
     weight.clear();
     eWeight.clear();
     cummulative.clear();
@@ -340,79 +341,232 @@ struct spectrumStruct{
 
   inline void fprint(FILE* fout, const bool normalize = true) const {
 
-    fprintf(fout, "#    Elow (eV)          prob            err         cummulative\n");
+    fprintf(fout, "#    Elow (eV)      prob (1/eV)      err (1/eV)     cummulative\n");
+    double norm = dE;
     if(normalize){
       double sum = std::accumulate(weight.begin(), weight.end(), 0.0);
-      if(sum > 0.0){
-	for(size_t i = 0; i < Elow.size(); ++i){
-	  fprintf(fout, "%15.5E %15.5E %15.5E %15.5E\n",
-		  Elow[i], weight[i]/sum, eWeight[i]/sum, cummulative[i+1]);
-	}
-	return;
-      }
+      norm *= sum;
     }
 
-    for(size_t i = 0; i < Elow.size(); ++i){
-      fprintf(fout, "%15.5E %15.5E %15.5E %15.5E\n",
-	      Elow[i], weight[i], eWeight[i], cummulative[i+1]);
+    if(norm > 0.0){
+      for(size_t i = 0; i < weight.size(); ++i){
+	double Elow = emin + dE*(static_cast<double>(i) + 0.5);
+	fprintf(fout, "%15.5E %15.5E %15.5E %15.5E\n",
+		Elow, weight[i]/norm, eWeight[i]/norm, cummulative[i+1]);
+      }
     }
     
   }
 
   inline void print(const bool normalize = true) const {
 
+    double norm = dE;
     if(normalize){
       double sum = std::accumulate(weight.begin(), weight.end(), 0.0);
-      for(size_t i = 0; i < Elow.size(); ++i){
-	printf("%15.5E %15.5E %15.5E %15.5E\n",
-	       Elow[i], weight[i]/sum, eWeight[i]/sum, cummulative[i+1]);
-      }
-    }else{
-      
-      for(size_t i = 0; i < Elow.size(); ++i){
-	printf("%15.5E %15.5E %15.5E %15.5E\n",
-	       Elow[i], weight[i], eWeight[i], cummulative[i+1]);
-      }
+      norm *= sum;
     }
+
+    for(size_t i = 0; i < weight.size(); ++i){
+      double Elow = emin + dE*(static_cast<double>(i) + 0.5);
+      printf("%15.5E %15.5E %15.5E %15.5E\n",
+	     Elow, weight[i]/norm, eWeight[i]/norm, cummulative[i+1]);
+    }    
   }
 
+};
+
+struct objectiveMu {
+  std::string name;
+  double mu;
+  double meanZ;
+  unsigned imat;  //Saves material index
+  
+  objectiveMu() = default;
+  objectiveMu(const std::string nameIn,
+	      const double muIn,
+	      const double meanZIn,
+	      const unsigned imatIn) : name(nameIn),
+				       mu(muIn),
+				       meanZ(meanZIn),
+				       imat(imatIn){}
+};
+
+struct filter{
+  double thickness;
+  double meanZ;
+  unsigned imat;  //Saves material index (0 is void)
+
+  filter() = default;
+  filter(const double thicknessIn,
+	 const double meanZIn,
+	 const unsigned imatIn) : thickness(thicknessIn),
+				  meanZ(meanZIn),
+				  imat(imatIn){}
+
+};
+
+struct systemGeo{
+
+private:
+
+  //Know values
+  double detectorLength, detectorLength05;
+  double detectorWidth, detectorWidth05;
+  double distSource2Det;
+  
+  //Unknown values
+  double rInCol2, rOutCol2; //Inlet and outlet collimator radious
+public:
+  
+  //Unknown values
+  double distPSF2Filter;
+  double dist2Col;
+  double hCol;
+
+  systemGeo() : detectorLength(1.0e35),
+		detectorLength05(1.0e35),
+		detectorWidth(1.0e35),
+		detectorWidth05(1.0e35),
+		distSource2Det(50.0),
+		rInCol2(1.2),
+		rOutCol2(4.0),
+		distPSF2Filter(0.0),
+		dist2Col(1.0),
+		hCol(4.5){}
+
+  //Set functions
+  inline void setDetectorLength(const double v){
+    detectorLength = v;
+    detectorLength05 = v/2.0;
+  }
+
+  inline void setDetectorWidth(const double v){
+    detectorWidth = v;
+    detectorWidth05 = v/2.0;
+  }
+
+  inline void setDistSource2Det(const double v){
+    distSource2Det = v;
+  }
+  
+  inline void setRInCol(const double v){
+    rInCol2 = v*v;
+  }
+
+  inline void setROutCol(const double v){
+    rOutCol2 = v*v;
+  }
+
+  //Read functions
+  inline double readRInCol() const { return sqrt(rInCol2);}
+  inline double readRInCol2() const { return rInCol2;}
+
+  inline double readROutCol() const { return sqrt(rOutCol2);}
+  inline double readROutCol2() const { return rOutCol2;}
+
+  inline double readDetectorLength() const { return detectorLength; }
+  inline double readDetectorWidth() const { return detectorWidth; }
+  inline double readDistSource2Det() const { return distSource2Det; }
+
+  inline bool isDetected(const pen_particleState& state) const {
+
+    //Calculate the particle position on collimator inlet and outlet 
+    const double ds2Col = dist2Col/state.W;
+    const double ds2Out = (dist2Col + hCol)/state.W;
+
+    const double xOnCol = state.X + state.U*ds2Col;
+    const double yOnCol = state.Y + state.V*ds2Col;
+
+    const double xOnOut = state.X + state.U*ds2Out;
+    const double yOnOut = state.Y + state.V*ds2Out;
+
+    const double dOnCol2 = xOnCol*xOnCol + yOnCol*yOnCol;
+    const double dOnOut2 = xOnOut*xOnOut + yOnOut*yOnOut;
+
+    //Check if the particle is stopped by the collimator
+    if(dOnCol2 > rInCol2 || dOnOut2 > rOutCol2){
+      return false;
+    }
+
+    //The particle cross the collimator, check if it is detected
+    const double ds2Det = (hCol + distSource2Det)/state.W;
+
+    const double xOnDet = state.X + state.U*ds2Det;
+    const double yOnDet = state.Y + state.V*ds2Det;
+
+    if(xOnDet > detectorLength05 || xOnDet < -detectorLength05)
+      return false;
+    if(yOnDet > detectorWidth05 || yOnDet < -detectorWidth05)
+      return false;
+
+    return true;
+  }
 };
 
 struct spectrumInspector{
 
 private:
-  std::vector<double> objective;
+  std::vector<objectiveMu> objective;
+  std::vector<size_t> addOrder;
+  
   std::vector<double> muRhos;
   std::vector<double> eMuRhos;
   std::vector<double> diffMusRel;
   size_t maxDiff;
 public:
   
-  std::vector<std::pair<unsigned,double>> filtersThickness;
-  double semiAperture;
+  std::vector<filter> filters;
+  systemGeo system;
+  
   
   spectrumStruct spectrum;
 
   inline double relMaxDiff() const {return diffMusRel[maxDiff];}
+
+  inline double foo() const {
+
+    //Calculate the difference between the maximum discrepance and the other ones
+    double maxRelDiffsBetweenDiffs = diffMusRel[maxDiff]/eMuRhos[0];
+    size_t posOfMaxDiffsBetweenDiffs = 0;
+
+    return 0.0;
+    
+  }
   
-  inline size_t nFilters() const {return filtersThickness.size();}
+  inline size_t nFilters() const {return filters.size();}
   inline size_t nObjective() const {return muRhos.size();}
 
   inline void clearFilters(){
-    filtersThickness.clear();
+    filters.clear();
     std::fill(muRhos.begin(), muRhos.end(), 0.0);
     std::fill(eMuRhos.begin(), eMuRhos.end(), 1.0e35);    
     std::fill(diffMusRel.begin(), diffMusRel.end(), 1.0e35);
   }
 
-  inline void setMu(const size_t pos, const double mu, const double sigma){
+  inline int setMu(const size_t imat, const double mu, const double sigma){
+
+    bool found = false;
+    size_t pos;
+    for(size_t i = 0; i < objective.size(); ++i){
+      if(objective[i].imat == imat){
+	pos = i;
+	found = true;
+	break;
+      }
+    }
+
+    if(!found)
+      return -1;
+    
     muRhos[pos] = mu;
     eMuRhos[pos] = 100.0*sigma/mu;
-    double diff = mu/objective[pos] - 1.0;
+    double diff = mu/objective[pos].mu - 1.0;
     diffMusRel[pos] = diff;
 
     if(fabs(diff) > fabs(diffMusRel[maxDiff]))
       maxDiff = pos;
+
+    return 0;
   }
 
   inline double sumDiffs2() const {
@@ -422,18 +576,42 @@ public:
 			     return a + b*b;
 			   });
   }
-  
-  inline void setObjective(const std::vector<double> o){
-    objective = o;
-    muRhos.resize(o.size());
-    eMuRhos.resize(o.size());
-    diffMusRel.resize(o.size());
 
-    std::fill(muRhos.begin(), muRhos.end(), 0.0);
-    std::fill(eMuRhos.begin(), eMuRhos.end(), 1.0e35);    
-    std::fill(diffMusRel.begin(), diffMusRel.end(), 1.0e35);
+  inline void addObjectiveMat(const unsigned imat,
+			      const std::string name,
+			      const double mu,
+			      const double meanZ){
 
-    maxDiff = 0.0;
+    //Create and add the new objective material
+    objectiveMu toInsert(name, mu, meanZ, imat);
+    toInsert.imat = imat;
+    objective.push_back(toInsert);
+
+    //Create results values for this material
+    muRhos.push_back(0.0);
+    eMuRhos.push_back(1.0e35);
+    diffMusRel.push_back(1.0e35);
+
+    //Reset maximum difference value
+    maxDiff = 0;
+
+    //Find the new objective position acording to Z value
+    for(size_t i = 0; i < objective.size()-1; ++i){
+      if(objective[i].meanZ > meanZ){
+
+	//The new element must be inserted here
+	
+	//Move next elements
+	for(size_t j = objective.size()-1; j > i; --j){
+	  objective[j] = objective[j-1];
+	}
+
+	//Insert the new one
+	objective[i] = toInsert;
+
+	break;
+      }
+    }
   }
 
   inline void print(const bool printFilters = true,
@@ -441,21 +619,22 @@ public:
 		    const bool printSpectrum = true) const {
 
     if(printFilters){
-      printf("\n    Beam semi aperture(deg): %.5f \n",semiAperture);      
       
       printf("\n    Filter materials: \n\n");
-      printf(" Sim Mat Index   Width(cm) \n");
-      for(const auto& e : filtersThickness){
-	printf("     %4d         %.4f\n",e.first, e.second);
+      printf(" Sim Mat Index      Z      Width(cm) \n");
+      for(const filter& e : filters){
+	printf("     %4u       %8.4f    %.4f\n",
+	       e.imat, e.meanZ, e.thickness);
       }
     }
 
     if(printMu){
-      printf("\n    Mu/rho values:\n\n");
-      printf(" Obj Mat Index   Mu/rho(1/cm)     err(%%)     diff(%%)\n");
+      printf("\n  Objective mu/rho values:\n\n");
+      printf(" %-20s Index      Z      mu/rho(1/cm)     err(%%)     diff(%%)\n", "Name");
       for(unsigned i = 0; i < muRhos.size(); ++i){
-	printf("     %4u    %15.5E      %.4f     %.4f\n",
-	       i, muRhos[i], eMuRhos[i], 100.0*diffMusRel[i]);
+	printf(" %-20s  %4u  %8.4f %13.5E      %.4f     %.4f\n",
+	       objective[i].name.c_str(), objective[i].imat, objective[i].meanZ,
+	       muRhos[i], eMuRhos[i], 100.0*diffMusRel[i]);
       }
     }
 
@@ -471,21 +650,22 @@ public:
 		     const bool printSpectrum = true) const {
 
     if(printFilters){
-      fprintf(fout,"\n#    Beam semi aperture(deg): %.5f \n",semiAperture);      
       
       fprintf(fout,"\n#    Filter materials: \n\n");
-      fprintf(fout,"# Sim Mat Index   Width(cm) \n");
-      for(const auto& e : filtersThickness){
-	fprintf(fout,"#     %4d         %.4f\n",e.first, e.second);
+      fprintf(fout,"# Sim Mat Index      Z      Width(cm) \n");
+      for(const filter& e : filters){
+	fprintf(fout,"#     %4u       %8.4f    %.4f\n",
+		e.imat, e.meanZ, e.thickness);
       }
     }
 
     if(printMu){
-      fprintf(fout,"\n#    Mu/rho values:\n\n");
-      fprintf(fout,"# Obj Mat Index   Mu/rho(1/cm)     err(%%)     diff(%%)\n");
+      fprintf(fout,"\n# Objective mu/rho values:\n\n");
+      fprintf(fout,"# %-20s index      Z      mu/rho(1/cm)     err(%%)     diff(%%)\n", "Name");
       for(unsigned i = 0; i < muRhos.size(); ++i){
-	fprintf(fout,"#     %4u    %15.5E      %.4f     %.4f\n",
-		i, muRhos[i], eMuRhos[i], 100.0*diffMusRel[i]);
+	fprintf(fout,"# %-20s  %4u  %8.4f %13.5E      %.4f     %.4f\n",
+		objective[i].name.c_str(), objective[i].imat, objective[i].meanZ,
+		muRhos[i], eMuRhos[i], 100.0*diffMusRel[i]);
       }
     }
 
@@ -496,9 +676,9 @@ public:
   }  
 
   inline void printRowHeader(FILE* fout) const {
-    fprintf(fout,"# Beam semi-aperture(deg) ");
-    for(const auto& e : filtersThickness){
-      fprintf(fout," Filter mat %4u |",e.first);
+    fprintf(fout,"#");
+    for(const auto& e : filters){
+      fprintf(fout," Filter mat %4u |",e.imat);
     }
 
     for(unsigned i = 0; i < muRhos.size(); ++i){
@@ -508,9 +688,8 @@ public:
 	fprintf(fout," Objective mat %4u %29s|",i," ");
     }
 
-    fprintf(fout,"\n");
-    fprintf(fout,"#%25s", " ");
-    for(size_t i = 0; i < filtersThickness.size(); ++i)
+    fprintf(fout,"\n#");
+    for(size_t i = 0; i < filters.size(); ++i)
       fprintf(fout,"    Width (cm)    ");
     for(size_t i = 0; i < muRhos.size(); ++i){
       fprintf(fout,"   Mu/rho(1/cm)     err(%%)     diff(%%)            ");
@@ -519,14 +698,13 @@ public:
   }
   
   inline void printRow(FILE* fout) const {
-    fprintf(fout,"         %9.5f      ", semiAperture);
 
-    for(size_t i = 0; i < filtersThickness.size(); ++i)
-      fprintf(fout,"      %8.4f    ", filtersThickness[i].second);
+    for(size_t i = 0; i < filters.size(); ++i)
+      fprintf(fout,"    %9.4f     ", filters[i].thickness);
 
     fprintf(fout," ");
     for(size_t i = 0; i < muRhos.size(); ++i){
-      fprintf(fout,"%15.5E      %.4f    %+.2E %9s",
+      fprintf(fout,"%15.5E     %.4f    %+.2E %10s",
 	      muRhos[i], eMuRhos[i], 100.0*diffMusRel[i]," ");
     }
     fprintf(fout,"\n");
@@ -564,11 +742,11 @@ struct calcMuStruct{
 
 void simulate(const unsigned long long nIter,
 	      const double tolerance,
+	      const systemGeo* system,
 	      const pen_context* pSimContext,
-	      const fileSpectrum_energySampling* spectrumSampler,
-	      const cone_directionSampling* dirSampler,
+	      psfMemory_specificSampler* sampler,
 	      const unsigned detMat,
-	      measurmentIrregular<double>* results,
+	      measurmentRegular<double>* results,
 	      int* seed1, int* seed2);
 
 void calculateMu(const unsigned long long nIter,
@@ -763,6 +941,18 @@ int main(int argc, const char** argv){
       printf("Verbose level set to %u\n",verbose);
     }
   }
+
+  // Get minimum number of filters
+  //********************************
+  unsigned minFilters = 1;
+  int auxMinFilters;
+  if(config.read("simulation/minFilters",auxMinFilters) == INTDATA_SUCCESS){
+    auxMinFilters = std::max(1,auxMinFilters);
+    minFilters = static_cast<unsigned>(auxMinFilters);
+    if(verbose > 1){
+      printf("Minimum number of filters set to %u\n",minFilters);
+    }
+  }  
   
   // Histories per iteration
   //**************************
@@ -782,35 +972,7 @@ int main(int argc, const char** argv){
     nIter = static_cast<unsigned long long>(fabs(nIterd));
   }else{
     nIter = 20;
-  }  
-
-  // ** Initial energy spectrum
-  //*****************************
-  fileSpectrum_energySampling spectrumSampler;
-  double Emax;
-  pen_parserSection energySamplerConfig;
-
-  //Read spectrum filename
-  std::string spectrumFilename;
-  err = config.read("energy/filename", spectrumFilename);
-  if(err != INTDATA_SUCCESS){
-    printf("Unable to read initial spectrum filename in "
-	   "configuration file ('energy/filename'). String expected\n");
-    return -1;
   }
-  
-  energySamplerConfig.set("filename", spectrumFilename);
-  err = spectrumSampler.configure(Emax, energySamplerConfig, verbose);
-  if(err != 0){
-    printf("Unable to load initial spectrum\n");
-    return -2;
-  }
-
-  const double Emin = spectrumSampler.minE();
-  const double defEabs = Emin-50.0;
-  std::array<double, constants::nParTypes> minSimEabs;
-  std::fill(minSimEabs.begin(), minSimEabs.end(), defEabs);
-
   
   // ** Number of threads
   //****************************
@@ -831,19 +993,110 @@ int main(int argc, const char** argv){
   }
   
 #endif
+
+  // PSF sources
+  //**************
+  std::vector<psfMemory_specificSampler> psfs(nThreads);
+  double Emax;
+  
+  //Read psf subsection
+  pen_parserSection psfSection;
+  err = config.readSubsection("psf", psfSection);
+  if(err != INTDATA_SUCCESS){
+    printf("Unable to read PSF section filename in "
+	   "configuration file ('psf/')\n");
+    return -3;
+  }
+
+  // Configure PSFs
+  for(unsigned ith = 0; ith < nThreads; ++ith){
+
+    psfMemory_specificSampler& psf = psfs[ith];
+
+    psf.setThread(ith);
+    double auxEmax;
+    int errPsfConfig = psf.configure(auxEmax,
+				     psfSection,
+				     nThreads,
+				     ith == 0 ? verbose : std::min(verbose,1u));
+    if(errPsfConfig != 0){
+      printf("Error configuring PSF source for thread %u.\n", ith);
+      return -3;
+    }
+
+    if(ith == 0){
+      Emax = auxEmax;
+    }
+  }
+
+  //Once samplers have been configured for each thread, share thread 0 configuration
+  for(unsigned ith = 1; ith < nThreads; ith++){
+    psfMemory_specificSampler& psf = psfs[ith];
+    int errSharing = psf.sharedConfig(psfs[0]);
+    if(errSharing != 0){
+      if(verbose > 0){
+	printf("Error: Unable to share PSF source configuration "
+	       "between thread 0 and %u\n",ith);
+      }
+      return -3;
+    }
+  }
+
+  // ** Read parametrs for output spectrum
+  //*********************************************
+
+  //Read minimum output spectrum energy
+  double outputEmin;
+  err = config.read("spectrum/emin", outputEmin);
+  if(err != INTDATA_SUCCESS){
+    outputEmin = 1.0e3;
+  }
+
+  //Read maximum output spectrum energy
+  double outputEmax;
+  err = config.read("spectrum/emax", outputEmax);
+  if(err != INTDATA_SUCCESS){
+    outputEmax = Emax + 50;
+  }
+
+  //Read output spectrum number of bins
+  int auxNbins;
+  unsigned outputBins = 200;
+  err = config.read("spectrum/nbins", auxNbins);
+  if(err == INTDATA_SUCCESS && auxNbins > 0){
+    outputBins = static_cast<unsigned>(auxNbins);
+  }
+
+  double outputDE = (outputEmax-outputEmin)/static_cast<double>(outputBins);
+  
+  if(verbose > 1){
+    printf("Output spectrum energy parameters:\n");
+    printf(" Minimum energy: %15.5E keV\n", outputEmin/1000.0);
+    printf(" Maximum energy: %15.5E keV\n", outputEmax/1000.0);
+    printf(" Number of bins: %5u\n", outputBins);
+  }
+
+  
+  
+  const double defEabs = outputEmin > 100.0 ? outputEmin-50.0 : 50.0;
+  std::array<double, constants::nParTypes> minSimEabs;
+  std::fill(minSimEabs.begin(), minSimEabs.end(), defEabs);
+
+  // ** Initialization for each inspector and thread
+  //**************************************************
   
   //Set initial seeds for each thread
   std::vector<int> seeds1(nThreads);
   std::vector<int> seeds2(nThreads);
 
-  for(size_t i = 0; i < nThreads; ++i){
-    rand0(i, seeds1[i], seeds2[i]);
+  for(size_t ith = 0; ith < nThreads; ++ith){
+    rand0(ith, seeds1[ith], seeds2[ith]);
   }
 
   //Init local results spectrums
-  std::vector<measurmentIrregular<double>> results(nThreads);
+  std::vector<measurmentRegular<double>> results(nThreads);
   //Get thread 0 results structure
-  measurmentIrregular<double>& globResults = results[0];
+  measurmentRegular<double>& globResults = results[0];
 
   //Create a vector for mu calculus results per thread
   std::vector<calcMuStruct> muThreads(nThreads);
@@ -853,9 +1106,9 @@ int main(int argc, const char** argv){
   
   //Init results mesh for all threads
   for(size_t i = 0; i < results.size(); ++i){
-    results[i].resize(spectrumSampler.nBins());
-    results[i].xLow = spectrumSampler.readEnergy();
-    results[i].dx   = spectrumSampler.readDE();
+    results[i].minx = outputEmin;
+    results[i].dx = outputDE;
+    results[i].resize(outputBins);
   }
   
   // ** Tolerance
@@ -880,36 +1133,36 @@ int main(int argc, const char** argv){
   // ** Materials 
   //***************
   std::string simMatFilePaths[constants::MAXMAT];  
-  std::vector<std::string> materialsNames;
-  err = config.ls("materials",materialsNames);
+  std::vector<std::string> filterMaterialsNames;
+  err = config.ls("materials",filterMaterialsNames);
   if(err != INTDATA_SUCCESS){
     printf("Error: Section 'materials' not found in configuration file.\n");
     return -3;
   }
 
-  if(materialsNames.size() < 1){
+  if(filterMaterialsNames.size() < 1){
     printf("Error: No materials defined in 'materials' section.\n");
     return -3;
   }
 
-  if(materialsNames.size() > constants::MAXMAT){
+  if(filterMaterialsNames.size() > constants::MAXMAT){
     printf("Error: Maximum number of materials exceeded.\n"
 	   "   Maximum: %lu\n"
 	   "   Used   : %lu\n",
 	   static_cast<unsigned long>(constants::MAXMAT),
-	   static_cast<unsigned long>(materialsNames.size()));
+	   static_cast<unsigned long>(filterMaterialsNames.size()));
     return -3;
   }
 
   //Create materials in simulation context.
   //Create one extra dummy material for final detection
-  int errmat = contextSim.setMats<pen_material>(materialsNames.size()+1);
+  int errmat = contextSim.setMats<pen_material>(filterMaterialsNames.size()+1);
   if(errmat != 0){
     printf("Error: Unable to create simulation context materials: %d.\n",errmat);
     return -3;
   }
   
-  for(const std::string& matName : materialsNames){
+  for(const std::string& matName : filterMaterialsNames){
 
     // Get filter path
     std::string matPath = std::string("materials/") + matName;
@@ -1007,7 +1260,7 @@ int main(int argc, const char** argv){
   }
 
   //Configure dummy detector material
-  const unsigned detMat = materialsNames.size()+1;
+  const unsigned detMat = filterMaterialsNames.size()+1;
   pen_material& dummyMat = contextSim.getBaseMaterial(detMat-1);
     
   //Set default C1, C2, WCC and WCR
@@ -1207,7 +1460,16 @@ int main(int argc, const char** argv){
       mat.EABS[ip] = minSimEabs[ip];
     }
   }
-
+  
+  // ** Configure objective context
+  //*********************************
+  fcontext = fopen("context-obj.rep", "w");
+  if(contextObj.init(Emax,fcontext,verbose,objectiveMatFilePaths) != PEN_SUCCESS){
+    fclose(fcontext);
+    printf("Error at objective context initialization. See context report.\n");
+    return -6;
+  }
+  fclose(fcontext);
 
   // ** Number of inspectors
   //****************************
@@ -1227,29 +1489,22 @@ int main(int argc, const char** argv){
 
   //Init inspectors spectrum and parameters
   for(spectrumInspector& inspector : inspectors){
-    inspector.spectrum.resize(spectrumSampler.nBins());
-    inspector.spectrum.Elow = spectrumSampler.readEnergy();
-    inspector.spectrum.dE = spectrumSampler.readDE();
-    inspector.setObjective(objectiveMuRho);
+    inspector.spectrum.resize(outputBins, outputEmin, outputDE);
+    //Add objective materials
+    for(size_t i = 0; i < objectiveMaterials.size(); ++i){
+      inspector.addObjectiveMat(i,
+				objectiveMaterials[i],
+				objectiveMuRho[i],
+				contextObj.readBaseMaterial(i).meanZ());
+    }
   }
-  
-  // ** Configure objective context
-  //*********************************
-  fcontext = fopen("context-obj.rep", "w");
-  if(contextObj.init(Emax,fcontext,verbose,objectiveMatFilePaths) != PEN_SUCCESS){
-    fclose(fcontext);
-    printf("Error at objective context initialization. See context report.\n");
-    return -6;
-  }
-  fclose(fcontext);
-
 
   //-----------------Configuraiton end-------------------------//
 
   spectrumInspector globalBestResult;
   double globalBestMaxDiff = 1.0e35;
 
-  for(unsigned nFilters = 1; nFilters <= filtersNames.size(); ++nFilters){
+  for(unsigned nFilters = minFilters; nFilters <= filtersNames.size(); ++nFilters){
   
     spectrumInspector bestResult;
     double bestDiffs2 = 1.0e35;
@@ -1267,22 +1522,29 @@ int main(int argc, const char** argv){
       }
 
       //Clear previous data
-      inspectors[iInspector].clearFilters();
+      inspectors[iInspector].clearFilters();      
       
-      //Init semi-aperture
-      inspectors[iInspector].semiAperture = rand01(gen)*50.0;
-
-
       //Assign first filter sizes randomly
       for(size_t iFilter = 0; iFilter < nFilters; ++iFilter){
 	const unsigned index = (nFilters-1)-iFilter;
 	const double thickness = (0.05 + rand01(gen)* 0.25)/static_cast<double>(nFilters);
-	
-	inspectors[iInspector].
-	  filtersThickness.push_back(std::pair<unsigned,double>(filtersMat[index],
-								thickness));
+
+	const unsigned imat = filtersMat[index];
+
+	if(imat == 0){
+	  inspectors[iInspector].
+	    filters.emplace_back(thickness,
+				 0.0,
+				 0);
+	}else{
+	  inspectors[iInspector].
+	    filters.emplace_back(thickness,
+				 contextSim.getBaseMaterial(imat-1).meanZ(),
+				 imat);
+	}
       }
 
+      
       inspectors[iInspector].printRowHeader(inspectorsFiles[iInspector]);
     }
   
@@ -1292,24 +1554,9 @@ int main(int argc, const char** argv){
 	printf("\n **** Iteration %d\n\n", static_cast<unsigned>(iIter));
       }
     
-      int iInspector = -1;
-      for(spectrumInspector& inspector : inspectors){
+      for(int iInspector = 0; iInspector <  static_cast<int>(inspectors.size()); ++iInspector){
 
-	iInspector += 1;
-
-	//Configure direction sampler
-	cone_directionSampling dirSampler;
-
-	pen_parserSection dirSampleConfig;
-	dirSampleConfig.set("theta", 180.0);
-	dirSampleConfig.set("phi", 360.0);
-	dirSampleConfig.set("alpha", inspector.semiAperture);
-
-	err = dirSampler.configure(dirSampleConfig,0);
-	if(err != 0){
-	  printf("Error: Unable to configure direction sampler");
-	  return -2;
-	}
+	spectrumInspector& inspector = inspectors[iInspector];
       
 	// ** Configure geometry
 	//***********************
@@ -1317,13 +1564,18 @@ int main(int argc, const char** argv){
 
 	//Find required energy to cross the whole filters
 	//except the first one
-	std::vector<double> filterPhotonRangeEnergy(inspector.filtersThickness.size());
+	std::vector<double> filterPhotonRangeEnergy(inspector.filters.size());
 	filterPhotonRangeEnergy[0] = 0.0;
-	for(size_t ifilter = 1; ifilter < inspector.filtersThickness.size(); ++ifilter){
+	for(size_t ifilter = 1; ifilter < inspector.filters.size(); ++ifilter){
 
 	  //Get filter pair information
-	  const std::pair<unsigned, double>& filterPair =
-	    inspector.filtersThickness[ifilter];
+	  const filter& f = inspector.filters[ifilter];
+
+	  //Avoid void filters
+	  if(f.imat == 0){
+	    filterPhotonRangeEnergy[ifilter] = 0.0;
+	    continue;
+	  }
 
 	  //Calculate the required gamma range to absorb 99% of incident photons
 	  //
@@ -1333,13 +1585,13 @@ int main(int argc, const char** argv){
 	  // range = 1/mu
 	  //
 	  const double objLogTrans = -log(0.01);
-	  const double objMu = objLogTrans / filterPair.second;
+	  const double objMu = objLogTrans / f.thickness;
 	  const double objRange = 1.0/objMu;
 	  
-	  double lowE = contextSim.getMatEABS(filterPair.first-1, PEN_PHOTON);
+	  double lowE = contextSim.getMatEABS(f.imat-1, PEN_PHOTON);
 	  double topE = Emax;
 	  contextSim.findRange(lowE, topE, objRange,
-			       PEN_PHOTON, filterPair.first-1);
+			       PEN_PHOTON, f.imat-1);
 	  if(topE == Emax)
 	    filterPhotonRangeEnergy[ifilter] = 1.0e35;
 	  else
@@ -1349,15 +1601,14 @@ int main(int argc, const char** argv){
 	
 	//Construct the geometry according to inspector filters specifications
 	const unsigned nSubFilters = 10;
-	for(size_t ifilter = 0; ifilter < inspector.filtersThickness.size(); ++ifilter){
+	for(size_t ifilter = 0; ifilter < inspector.filters.size(); ++ifilter){
 
 	  //Get filter pair information
-	  const std::pair<unsigned, double>& filterPair =
-	    inspector.filtersThickness[ifilter];
+	  const filter& f = inspector.filters[ifilter];
 	  
 	  //Iterate over subfilters
 	  const double subFilterSize =
-	    filterPair.second / static_cast<double>(nSubFilters);
+	    f.thickness / static_cast<double>(nSubFilters);
 	  for(unsigned iSubFilter = 0; iSubFilter < nSubFilters; ++iSubFilter){
 
 	    const std::string basePath =
@@ -1371,49 +1622,52 @@ int main(int argc, const char** argv){
 	    auxStr = basePath + std::string("/width");
 	    geoConfig.set(auxStr, subFilterSize);
 	    auxStr = basePath + std::string("/material");
-	    geoConfig.set(auxStr, static_cast<int>(filterPair.first));
+	    geoConfig.set(auxStr, static_cast<int>(f.imat));
 
-	    
-	    double eabs = defEabs;
-	    //If this subfilter has subfilters beyond, recalculate eabs
-	    if(iSubFilter < nSubFilters -1){
-	      //Calculate the required gamma range to absorb 99% of created photons
-	      //in a length equal to the remaining subfilters thickness 
-	      //
-	      const double objLogTrans = -log(0.01);
-	      const double length = subFilterSize*static_cast<double>(nSubFilters - (iSubFilter+1));
-	      const double objMu = objLogTrans / length;
-	      const double objRange = 1.0/objMu;
 
-	      //Calculate and set absorption energy for photons according to filter thickness
-	      double lowE = contextSim.getMatEABS(filterPair.first-1, PEN_PHOTON);
-	      double topE = Emax;
+	    if(f.imat > 0){
+	      double eabs = defEabs;
+	      //If this subfilter has subfilters beyond, recalculate eabs
+	      if(iSubFilter < nSubFilters -1){
+		//Calculate the required gamma range to absorb 99% of created photons
+		//in a length equal to the remaining subfilters thickness 
+		//
+		const double objLogTrans = -log(0.01);
+		const double length =
+		  subFilterSize*static_cast<double>(nSubFilters - (iSubFilter+1));
+		const double objMu = objLogTrans / length;
+		const double objRange = 1.0/objMu;
+
+		//Calculate and set absorption energy for photons according to filter thickness
+		double lowE = contextSim.getMatEABS(f.imat-1, PEN_PHOTON);
+		double topE = Emax;
 	  
-	      contextSim.findRange(lowE, topE, objRange,
-				   PEN_PHOTON, filterPair.first-1);
-	      if(topE == Emax)
-		eabs = 1.0e35;
-	      else
-		eabs = lowE;
-	    }
+		contextSim.findRange(lowE, topE, objRange,
+				     PEN_PHOTON, f.imat-1);
+		if(topE == Emax)
+		  eabs = 1.0e35;
+		else
+		  eabs = lowE;
+	      }
 
-	    //Check if generated photons can cross next filters
-	    if(ifilter < inspector.filtersThickness.size()-1){
-	      double nextEabs =
-		*std::max_element(filterPhotonRangeEnergy.begin() + ifilter + 1,
-				  filterPhotonRangeEnergy.end());
-	      if(eabs < nextEabs)
-		eabs = nextEabs;
-	    }
+	      //Check if generated photons can cross next filters
+	      if(ifilter < inspector.filters.size()-1){
+		double nextEabs =
+		  *std::max_element(filterPhotonRangeEnergy.begin() + ifilter + 1,
+				    filterPhotonRangeEnergy.end());
+		if(eabs < nextEabs)
+		  eabs = nextEabs;
+	      }
 
-	    //Set absorption energies in configuration
-	    std::string baseEabsPath = basePath + std::string("/eabs/");
-	    for(unsigned ip = 0; ip < constants::nParTypes; ++ip){
+	      //Set absorption energies in configuration
+	      std::string baseEabsPath = basePath + std::string("/eabs/");
+	      for(unsigned ip = 0; ip < constants::nParTypes; ++ip){
 
-	      //Set local absorption energy
-	      auxStr = baseEabsPath + particleName(ip);
-	      geoConfig.set(auxStr, eabs);
+		//Set local absorption energy
+		auxStr = baseEabsPath + particleName(ip);
+		geoConfig.set(auxStr, eabs);
 	  
+	      }
 	    }
 	    
 	  }
@@ -1422,7 +1676,7 @@ int main(int argc, const char** argv){
 
 	//Add a final filter as detector
 	geoConfig.set("filters/detector/position",
-		      static_cast<int>(nSubFilters*inspector.filtersThickness.size()));
+		      static_cast<int>(nSubFilters*inspector.filters.size()));
 	geoConfig.set("filters/detector/width", 1.0);
 	geoConfig.set("filters/detector/material", static_cast<int>(detMat));      
       
@@ -1472,9 +1726,9 @@ int main(int argc, const char** argv){
 	  threads.push_back(std::thread(simulate,
 					localHists,
 					localTol,
+					&inspector.system,
 					&contextSim,
-					&spectrumSampler,
-					&dirSampler,
+					&psfs[ith],
 					detMat,
 					&results[ith],
 					&seeds1[ith],&seeds2[ith]));
@@ -1494,7 +1748,8 @@ int main(int argc, const char** argv){
 	}
 #else
 	simulate(nHists,objectiveTol,
-		 &contextSim,&spectrumSampler,&dirSampler,
+		 &inspector.system,
+		 &contextSim,&psfs[0],
 		 detMat,&globResults,
 		 seeds1[0],seeds2[0]);      
 #endif
@@ -1508,12 +1763,13 @@ int main(int argc, const char** argv){
       
 	//Calculate cummulative function of resulting spectrum
 	if(inspector.spectrum.updateCummulative() != 0){
-	  printf("Empty spectrum. Resize filters and Skip.\n\n");
+	  
+	  printf("Empty spectrum. Resize filters and repeat the simulation.\n\n");
 
-	  for(std::pair<unsigned,double>& filter : inspector.filtersThickness){
-	    filter.second /= 2.0;
+	  for(filter& f : inspector.filters){
+	    f.thickness /= 2.0;
 	  }
-	
+	  --iInspector; 	  
 	  continue;
 	}
       
@@ -1550,8 +1806,8 @@ int main(int argc, const char** argv){
 	threads.clear();      
 
 	//Sum results
-	for(size_t i = 1; i < nThreads; ++i){
-	  muThreads[0].sum(muThreads[i], nObjMats);
+	for(size_t ith = 1; ith < nThreads; ++ith){
+	  muThreads[0].sum(muThreads[ith], nObjMats);
 	}
       
 #else
@@ -1585,7 +1841,27 @@ int main(int argc, const char** argv){
 	}
 
 	inspector.printRow(inspectorsFiles[iInspector]);
-      
+
+	//Check the finish condition
+	if(100.0*fabs(inspector.relMaxDiff()) <= tolerance){
+	  if(verbose > 1){
+	    printf("\nReached objective tolerance: %.3f%%\n",
+		   100.0*fabs(inspector.relMaxDiff()));
+	    inspector.print(true,true,false);	    
+	  }
+	  
+	  if(objectiveTol > tolerance){
+	    //Repeat the simulation with better tolerance with no geometry changes
+	    if(verbose > 1){
+	      printf("\nThe spectrum has been obtained with low precission (%.3f%%).\n"
+		     " The simulations will be repeated to obtain the specified precission: %.3f%%\n",
+		     objectiveTol,tolerance);
+	    }
+	    --iInspector;
+	    continue;
+	  }
+	  break;
+	}
       }
 
       //Find the inspector with greater agreement
@@ -1614,9 +1890,6 @@ int main(int argc, const char** argv){
 
       //Check the finish condition
       if(100.0*fabs(bestResult.relMaxDiff()) <= tolerance){
-	if(verbose > 1)
-	  printf("\nReached objective tolerance: %.3f%%\n",
-		 100.0*fabs(bestResult.relMaxDiff()));
 	break;
       }
 
@@ -1626,39 +1899,28 @@ int main(int argc, const char** argv){
       for(spectrumInspector& inspector : inspectors){
 	double maxDiff = inspector.relMaxDiff();
 
-	bool changeFilter = true;
-	if(fabs(maxDiff) < 0.05){
-	  double rand = rand01(gen);
-	  if(rand < 1.0/maxDiff){
-	    changeFilter = false;
+	//Select the filter to modify
+	unsigned ifilter =
+	  static_cast<unsigned>(random.rand()*static_cast<double>(inspector.nFilters()));
+	ifilter %= inspector.nFilters(); //Just in case
 
-	    double angularChange = 2.0*maxDiff*random.rand();
-	    if(maxDiff > 0.0)
-	      angularChange += 5.0*random.rand();
-	    else
-	      angularChange -= 5.0*random.rand();
-	    
-	    inspector.semiAperture += angularChange;
-	    if(inspector.semiAperture < 0.0){
-	      inspector.semiAperture = 0.0;
-	      changeFilter = true;
-	    }
-	  }
+	//If is a void material, change the resize direction
+	if(inspector.filters[ifilter].imat == 0)
+	  maxDiff = -maxDiff;
+
+	//Calculate change factor and limit it
+	double changeFactor = maxDiff*( 2.0*random.rand() );
+	if(fabs(changeFactor) > 0.5){
+	  if(changeFactor < 0.0)
+	    changeFactor = -0.5;
+	  else
+	    changeFactor = 0.5;
 	}
 
-	if(changeFilter){
-	  //Select the filter to modify
-	  unsigned ifilter =
-	    static_cast<unsigned>(random.rand()*static_cast<double>(inspector.nFilters()));
-	  ifilter %= inspector.nFilters(); //Just in case
-
-	  //Calculate change factor and limit it
-	  double changeFactor = maxDiff*( 0.1 + 2.0*random.rand() );
-
-	  inspector.filtersThickness[ifilter].second *= 1.0 + changeFactor;
-	  if(inspector.filtersThickness[ifilter].second < 1.0e-5)
-	    inspector.filtersThickness[ifilter].second = 1.0e-5;
-	}
+	inspector.filters[ifilter].thickness *= 1.0 + changeFactor;
+	if(inspector.filters[ifilter].thickness < 1.0e-5)
+	  inspector.filters[ifilter].thickness = 1.0e-5;
+	
       }
       random.getSeeds(seeds1[0], seeds2[0]);
     }
@@ -1690,15 +1952,18 @@ int main(int argc, const char** argv){
 
 void simulate(const unsigned long long nIter,
 	      const double tolerance,
+	      const systemGeo* system,
 	      const pen_context* pSimContext,
-	      const fileSpectrum_energySampling* spectrumSampler,
-	      const cone_directionSampling* dirSampler,
+	      psfMemory_specificSampler* sampler,
 	      const unsigned detMat,
-	      measurmentIrregular<double>* results,
+	      measurmentRegular<double>* results,
 	      int* seed1, int* seed2){
 
   //Reset results
   results->reset();
+
+  //Reset sampler
+  sampler->reset();
   
   //Create random generator
   pen_rand random;
@@ -1718,31 +1983,37 @@ void simulate(const unsigned long long nIter,
   pen_betaP betaP(context,stackE,stackG,stackP);
 
   pen_particleState genState;
-  genState.X = 0.0;
-  genState.Y = 0.0;
-  genState.Z = 5.0;
-
-  genState.U = 0.0;
-  genState.V = 0.0;
-  genState.W =-1.0;
-
-  genState.WGHT = 1.0;
-  genState.ILB[0] = 1;
-
-  context.readGeometry()->locate(genState);
+  unsigned long long hist = 0;
   
-  for(unsigned long long hist = 1; hist <= nIter; ++hist){
+  while(hist < nIter){
 
-    // ** Sample energy
-    spectrumSampler->energySampling(genState.E,random);
+    pen_KPAR genKpar;
+    unsigned long long dhist;
+    sampler->sample(genState,genKpar,dhist,random);
+    if(genKpar == pen_KPAR::ALWAYS_AT_END){
+      //End of psf
+      break;
+    }
 
-    // ** Sample direction
-    double dir[3];
-    dirSampler->directionSampling(dir,random);
-    genState.U = dir[0];
-    genState.V = dir[1];
-    genState.W = dir[2];
+    //Add source offset
+    genState.Z += system->distPSF2Filter;
 
+    //Increase history counter
+    hist += dhist;
+
+    if(dhist > 0){
+      //End counting for this history
+      results->checkPoint();      
+    }
+
+    //Check if it is a gamma
+    if(genKpar != pen_KPAR::PEN_PHOTON){
+      //Skip it
+      continue;
+    }
+    
+    context.readGeometry()->locate(genState);
+    
     //Copy generated state
     stateCopy(gamma.getState(),genState);
 
@@ -1751,19 +2022,25 @@ void simulate(const unsigned long long nIter,
     
     //Try to move generated particle to geometry system
     if(move2geo(gamma)){
-	
+
       //Simulate sampled particle
       simulatePart(gamma,random);
 
       //Check if the particle has escaped the geometry in -Z direction
       const pen_particleState& state = gamma.readState();
-
+      
       if(state.MAT == detMat){
 	//Count this particle in the final spectrum
-	results->add(state.E, state.WGHT);
+	//results->add(state.E, state.WGHT);
+
+	//Check if the particle can be detected
+	if(system->isDetected(state)){
+	  //Count this particle in the final spectrum
+	  results->add(state.E, state.WGHT);
+	}	
       }
     }
-
+    
     //Secondary particles
     for(;;){
 
@@ -1826,32 +2103,14 @@ void simulate(const unsigned long long nIter,
 	if(state.MAT == detMat){
 
 	  //Count this particle in the final spectrum
-	  results->add(state.E, state.WGHT);
-
-	  /*
-	  //Check if the particle pass the collimation
-	  const double dcol = 0.495;
-	  const double  hcol = 4.5;
-	  const double inRCol2 = 1.3689;
-	  const double outRCol2 = 4.0;
-	
-	  double ds2col = dcol/state.W;
-	  double ds2out = (dcol + hcol)/state.W;
-
-	  double xOnCol = state.X + state.U*ds2col;
-	  double yOnCol = state.Y + state.V*ds2col;
-
-	  double xOnOut = state.X + state.U*ds2out;
-	  double yOnOut = state.Y + state.V*ds2out;
-
-	  double dOnCol2 = xOnCol*xOnCol + yOnCol*yOnCol;
-	  double dOnOut2 = xOnOut*xOnOut + yOnOut*yOnOut;
-
-	  if(dOnCol2 < inRCol2 && dOnOut2 < outRCol2){
+	  //results->add(state.E, state.WGHT);
+	  
+	  //Check if the particle can be detected
+	  if(system->isDetected(state)){	  
 	    //Count this particle in the final spectrum
 	    results->add(state.E, state.WGHT);
 	  }
-	  */
+
 	}
       }
 	
@@ -1869,11 +2128,8 @@ void simulate(const unsigned long long nIter,
       }
     }
 
-    //End counting for this history
-    results->checkPoint();
-
     //Check if the simulation can finish
-    if(hist > 100000 && hist % 10000 == 0){
+    if(hist > 10000 && hist % 1000 == 0){
       double maxAbsErel = results->maxAbsErel(0.95);
       if(maxAbsErel <= tolerance/100.0)
 	break;

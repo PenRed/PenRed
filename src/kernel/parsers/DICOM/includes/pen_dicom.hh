@@ -45,6 +45,8 @@
 #include "dcmtk/dcmdata/dcpxitem.h"
 #include "dcmtk/dcmimgle/dcmimage.h"
 
+#include "math_classes.hh"
+
 enum pen_dicom_status{
 		      PEN_DICOM_SUCCESS = 0,
 		      PEN_DICOM_FOLDER_NOT_SPECIFIED,
@@ -302,7 +304,7 @@ struct pen_ctData{
 
   double kvp;
   
-  void load(const DcmDataset* metainfo);
+  void load(DcmDataset* metainfo);
 };
 
 class pen_dicom{
@@ -349,7 +351,7 @@ private:
 
 public:
   inline bool isCT() const {return imageModality.compare("CT") == 0;}
-  inline std::string ctReadAcquisitionType() const {return ctData.acquisitionType;}
+  inline std::string ctReadAcquisitionType() const {return ctData.acquisitionTypeString;}
   inline unsigned ctReadAcquisitionTypeIndex() const {return ctData.acquisitionType;}
   inline double ctReadRevolutionTime() const {return ctData.revolutionTime;}
   inline double ctReadTotalCollimationWidth() const {return ctData.totalCollimationWidth;}
@@ -357,13 +359,13 @@ public:
   inline double ctReadTableFeedPerRotation() const {return ctData.tableFeedPerRotation;}
   inline double ctReadSpiralPitchFactor() const {return ctData.spiralPitchFactor;}
   inline double ctReadDataCollectionDiameter() const {return ctData.dataCollectionDiameter;}
-  inline double ctReadFilterType() const {return ctData.filterTypeChar;}
+  inline std::string ctReadFilterType() const {return ctData.filterTypeString;}
   inline double ctReadFilterTypeIndex() const {return ctData.filterType;}
-  inline size_t ctReadNFilterMaterial() const {return filterMaterial.size();}
-  inline std::string ctReadFilterMaterial(const unsigned i) const {return filterMaterial[i];}
+  inline size_t ctReadNFilterMaterial() const {return ctData.filterMaterial.size();}
+  inline std::string ctReadFilterMaterial(const unsigned i) const {return ctData.filterMaterial[i];}
   
-  inline size_t ctReadNFocalSpots() const {return focalSpots.size();}
-  inline double ctReadFocalSpots(const unsigned i) const {return focalSpots[i];}
+  inline size_t ctReadNFocalSpots() const {return ctData.focalSpots.size();}
+  inline double ctReadFocalSpots(const unsigned i) const {return ctData.focalSpots[i];}
   
   inline double ctReadCTDIvol() const {return ctData.CTDIvol;}
   inline double ctReadReconstructionDiameter() const {return ctData.reconstructionDiameter;}
@@ -386,8 +388,7 @@ public:
   }
   inline bool ctReadMultipleEnergyUsed() const {return ctData.multiEnergyAcquisition;}
   inline double ctReadKVP() const {return ctData.kvp;}
-  inline double ctReadSingleCollimationWidth() const {return singleCollimationWidth;}
-  inline double ctReadTotalCollimationWidth() const {return totalCollimationWidth;}
+  inline double ctReadSingleCollimationWidth() const {return ctData.singleCollimationWidth;}
 protected:
   
   ////////////////

@@ -58,6 +58,7 @@ private:
   bool inside;
 
   pen_psfwriter psf;
+  std::array<bool,pen_KPAR::ALWAYS_AT_END> enabledKpars;
   
 public:
 
@@ -127,6 +128,7 @@ public:
       psf.store(nhist,kpar,state);
     }
   }
+  
   inline void dump(const bool dumpAll = false){
     //Dump buffers
     psf.dump(1,dumpAll);

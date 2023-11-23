@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2023 Universitat de València - UV
-//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2023 Universitat de València - UV
+//    Copyright (C) 2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -28,86 +28,78 @@
 
 
 
-#ifndef __PSF_SPECIFIC_SAMPLER__
-#define __PSF_SPECIFIC_SAMPLER__
+#ifndef __PSF_MEMORY_SPECIFIC_SAMPLER__
+#define __PSF_MEMORY_SPECIFIC_SAMPLER__
 
-#include <mutex>
 #include "pen_phaseSpaceFile.hh"
-#include "sharedFile.hh"
-#include <memory>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
-class psf_specificSampler : public abc_specificSampler<pen_particleState>{
-  DECLARE_SPECIFIC_SAMPLER(psf_specificSampler, pen_particleState)
+namespace pen_psfMemort{
+
+  struct particle{
+    unsigned long dhist;
+    unsigned kpar;
+    pen_particleState state;
+  };
+
+  struct chunk{
+    std::array<pen_psfMemort::particle,pen_psfreader::BUFFERSIZE> particles;
+    size_t nPart;
+  };
+  
+};
+
+class psfMemory_specificSampler : public abc_specificSampler<pen_particleState>{
+  DECLARE_SPECIFIC_SAMPLER(psfMemory_specificSampler, pen_particleState)
   private:
 
-  static std::vector<
-    std::pair<std::string,std::shared_ptr<pen_sharedFile>>
-    > sharedFiles;
-
-  static std::mutex SFlock;
-
-  std::shared_ptr<pen_sharedFile> pSF;
-
-  pen_psfreader psf;
-  int npartitions;
-  size_t nChunks;
-  size_t chunksPerPart;
-  size_t offsetChunks;
-  size_t remainingChunks;
-
-  unsigned char* buffer;
-  size_t bufferSize;
+  std::vector<pen_psfMemort::chunk> chunks;
+  const std::vector<pen_psfMemort::chunk>* pchunks;
+  size_t actualPart; //Actual particle index inside the actual chunk
+  size_t actualChunk; //Actual chunk to read from
+  unsigned splitted;  //Number of returned splits from the actual particle
+  unsigned requiredSplits; //Number of required splits for the actual partice
+  pen_particleState splitState;
 
   unsigned NSPLIT;     //Splitting factor
   double WGHTL, WGHTU; //Weight window [WGHTL,WGHTU]
   double RWGHTL;       //Minimum weight Inverse
-  unsigned splitted;   //Number of returned splits from the same particle
-  unsigned requiredSplits;
-  pen_KPAR lastKpar;
-  pen_particleState splitState;
   double particleRot[9];
   double dx, dy, dz;
+
+  unsigned npartitions;
   
   bool rotation = false;
   bool VRR(double& WGHT, pen_rand& random) const ;
+
+  double psfEmax;
   
   public:
 
   const unsigned MAXsplit = 10000;
 
-  psf_specificSampler() : abc_specificSampler<pen_particleState>(USE_NONE),
-			  pSF(nullptr),
-			  nChunks(0),
-			  chunksPerPart(0),
-			  offsetChunks(0),
-			  remainingChunks(0),
-			  buffer(nullptr),
-			  bufferSize(0),
-			  NSPLIT(1),
-			  WGHTL(0.0),
-			  WGHTU(1.0),
-			  RWGHTL(1.0e35),
-			  splitted(0),
-			  requiredSplits(0),
-			  lastKpar(ALWAYS_AT_END)
-  {
-    //Check phase space file chunk size
-    if(psf.memory() > 2000000000){
-      throw std::out_of_range("Phase space file library uses a binary memory buffer greater than 2000000000B, which is not compatible with this library. Smaller buffer is required.");
-    }
-
-    bufferSize = psf.memory();
-    buffer = (unsigned char*) malloc(sizeof(unsigned char)*bufferSize);
-    if(buffer == nullptr){
-      throw std::bad_alloc();
-    }
-  }
+  psfMemory_specificSampler() : abc_specificSampler<pen_particleState>(USE_NONE),
+				actualPart(0),
+				actualChunk(0),
+				splitted(0),
+				requiredSplits(0),
+				NSPLIT(1),
+				WGHTL(0.0),
+				WGHTU(1.0),
+				RWGHTL(1.0e35),
+				npartitions(0){}
 
   inline int partitions() const {return npartitions;}
+  inline double emax() const {return psfEmax;}
+  inline void reset() {
+    splitted = 0;
+    requiredSplits = 0;
+    actualChunk = getThread();
+    actualPart = 0;
+  }
   
   void skip(const unsigned long long dhists);
   
@@ -121,16 +113,12 @@ class psf_specificSampler : public abc_specificSampler<pen_particleState>{
 		const unsigned nthreads,
 		const unsigned verbose);
 
-  ~psf_specificSampler(){
-    if(buffer != nullptr){
-      free(buffer);
-      buffer = nullptr;
-    }
-  }
+  int sharedConfig(const psfMemory_specificSampler&);
+
 };
 
-inline bool psf_specificSampler::VRR(double& WGHT,
-				     pen_rand& random) const {
+inline bool psfMemory_specificSampler::VRR(double& WGHT,
+					   pen_rand& random) const {
   //  This subroutine applies the Russian roulette technique. PSURV is the
   //  survival probability; when the particle survives, its weight is
   //  increased by a factor 1/PSURV.

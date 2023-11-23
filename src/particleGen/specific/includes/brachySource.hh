@@ -37,7 +37,7 @@
 #include "pen_geometries.hh"
 
 class brachy_specificSampler : public abc_specificSampler<pen_particleState>{
-  DECLARE_SAMPLER(brachy_specificSampler)
+  DECLARE_SPECIFIC_SAMPLER(brachy_specificSampler, pen_particleState)
   
   psf_specificSampler psf;
   

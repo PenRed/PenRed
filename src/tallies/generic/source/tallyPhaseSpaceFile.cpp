@@ -50,7 +50,7 @@ void pen_tallyPhaseSpaceFile::tally_interfCross(const unsigned long long nhist,
 						const pen_particleState& state){
 
   if((int)kdet == detector){
-    if(!inside && state.E >= emin && state.E <= emax)
+    if(!inside && enabledKpars[kpar] && state.E >= emin && state.E <= emax)
       store(nhist,kpar,state);
 
     inside = true;
@@ -65,7 +65,7 @@ void pen_tallyPhaseSpaceFile::tally_matChange(const unsigned long long nhist,
 					      const pen_particleState& state,
 					      const unsigned /*prevMat*/){
   if((int)state.MAT == material){
-    if(state.E >= emin && state.E <= emax)
+    if(enabledKpars[kpar] && state.E >= emin && state.E <= emax)
       store(nhist,kpar,state);
   }
 }
@@ -79,7 +79,7 @@ void pen_tallyPhaseSpaceFile::tally_move2geo(const unsigned long long nhist,
 
   if((int)kdet == detector || (int)state.MAT == material){
     inside = true;
-    if(state.E >= emin && state.E <= emax)
+    if(enabledKpars[kpar] && state.E >= emin && state.E <= emax)
       store(nhist,kpar,state);
   }else{
     inside = false;
@@ -267,6 +267,61 @@ int pen_tallyPhaseSpaceFile::configure(const wrapper_geometry& /*geometry*/,
   if(verbose > 1){
     printf("PSF limits [Emin,Emax] (eV):\n");
     printf(" %12.5E %12.5E \n\n",emin,emax);
+  }
+
+  //Check if particles must be enabled or disabled by default
+  bool defaultEnabled;
+  if(config.read("particles/default", defaultEnabled) == INTDATA_SUCCESS){
+    if(verbose > 1){
+      printf(" Default behaviour for particle type recording has been "
+	     "set to: %s\n", defaultEnabled ? "enabled" : "disabled");
+    }
+    std::fill(enabledKpars.begin(), enabledKpars.end(), defaultEnabled);
+  }else{
+    std::fill(enabledKpars.begin(), enabledKpars.end(), true);    
+  }
+
+
+  //Check if someone must be disabled
+  std::vector<std::string> enabledPartNames;
+  config.ls("particles",enabledPartNames);
+
+  for(const std::string& partName : enabledPartNames){
+
+    if(partName.compare("default") == 0)
+      continue;
+    
+    //Extract kpar
+    unsigned enableKpar = particleID(partName.c_str());
+    
+    if(enableKpar == pen_KPAR::ALWAYS_AT_END){
+      //Unknown particle name
+      if(verbose > 1){
+	printf("tallyPhaseSpaceFile:configure: Warning: "
+	       "Unknow particle name '%s'\n",partName.c_str());
+      }
+    }else{
+      //Enable or disable this particle type
+      std::string enablePath("particles/");
+      enablePath += partName;
+      bool enabledkpar;
+      if(config.read(enablePath,enabledkpar) == INTDATA_SUCCESS){
+	enabledKpars[enableKpar] = enabledkpar;
+	
+	if(verbose > 1){
+	  printf(" Particle '%s' recording: %s",
+		 partName.c_str(),
+		 enabledkpar ? "enabled" : "disabled");
+	}
+      }else{
+	if(verbose > 0){
+	  printf("PhaseSpaceFile:configure: Error: Unable to read "
+		 "'%s' in configuration. Boolean expected\n",
+		 enablePath.c_str());
+	}
+	return -8;
+      }
+    }
   }
   
   return 0;

@@ -37,5 +37,6 @@
 #include "CTsource.hh"
 #include "pennuc.hh"
 #include "brachySource.hh"
+#include "memoryPSFsource.hh"
 
 #endif

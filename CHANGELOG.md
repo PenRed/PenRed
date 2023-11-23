@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.4] -
+
+### Added
+- x-ray utility
+- DICOM class reads and process CT specific tags
+- New geometry type "filters"
+- New PSF sampler which stores the whole PSF in memory
+- Specific samplers can now share data after configuration, as was done for tallies
+- Materials expose their composition and mean Z
+
+### Changed
+- PSF tally is now able to select which particles must be recorded
+- Mathematical template classes have been moved to a independent header file
+- A specfic Macro to declare specific samplers have been created (DECLARE_SPECIFIC_SAMPLER)
+
+### Fix
+- Bug: Blender addon crash on quadric geometry export
+
 ## [1.9.3b] - 2023-09-15
 
 ### Added

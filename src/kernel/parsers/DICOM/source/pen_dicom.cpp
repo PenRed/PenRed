@@ -423,26 +423,26 @@ pen_seed::~pen_seed(){
 }
 
 
-pen_ctData::load(const DcmDataset* metainfo){
+void pen_ctData::load(DcmDataset* metainfo){
 
   // Acquisition type
   const char* acTypeChar;
-  status = metainfo->findAndGetString(DCM_AcquisitionType,
+  OFCondition status = metainfo->findAndGetString(DCM_AcquisitionType,
 				      acTypeChar);
   if(status.bad()){
-    acquisitionType.assign("UNKNOWN");
+    acquisitionTypeString.assign("UNKNOWN");
     acquisitionType = 5;
   }else{
-    acquisitionType.assign(acTypeChar);
-    if(acquisitionType.compare("SEQUENCED") == 0)
+    acquisitionTypeString.assign(acTypeChar);
+    if(acquisitionTypeString.compare("SEQUENCED") == 0)
       acquisitionType = 0;
-    else if(acquisitionType.compare("SPIRAL") == 0)
+    else if(acquisitionTypeString.compare("SPIRAL") == 0)
       acquisitionType = 1;
-    else if(acquisitionType.compare("CONSTANT_ANGLE") == 0)
+    else if(acquisitionTypeString.compare("CONSTANT_ANGLE") == 0)
       acquisitionType = 2;
-    else if(acquisitionType.compare("STATIONARY") == 0)
+    else if(acquisitionTypeString.compare("STATIONARY") == 0)
       acquisitionType = 3;
-    else if(acquisitionType.compare("FREE") == 0)
+    else if(acquisitionTypeString.compare("FREE") == 0)
       acquisitionType = 4;
     else
       acquisitionType = 5;
@@ -504,10 +504,10 @@ pen_ctData::load(const DcmDataset* metainfo){
 
   // Filter Type
   const char* filterTypeChar;
-  status = metainfo->findAndGetString(DCM_FilterTypeChar,
+  status = metainfo->findAndGetString(DCM_FilterType,
 				      filterTypeChar);
   if(status.bad()){
-    filterType.assign("NONE");
+    filterTypeString.assign("NONE");
     filterType = 0;
   }else{
     filterTypeString.assign(filterTypeChar);
@@ -607,38 +607,49 @@ pen_ctData::load(const DcmDataset* metainfo){
   }
 
   // Exposure Time
-  status = metainfo->findAndGetInt32(DCM_ExposureTime,
-				     exposureTime);
+  Sint32 auxSint32;
+  status = metainfo->findAndGetSint32(DCM_ExposureTime,
+				      auxSint32);
   if(status.bad()){
     exposureTime = -1;
+  }else{
+    exposureTime = static_cast<long int>(auxSint32);
   }
 
   // XRay Tube Current
-  status = metainfo->findAndGetInt32(DCM_XRayTubeCurrent,
-				     xRayTubeCurrent);
+  status = metainfo->findAndGetSint32(DCM_XRayTubeCurrent,
+				      auxSint32);
   if(status.bad()){
     xRayTubeCurrent = -1;
+  }else{
+    xRayTubeCurrent = static_cast<long int>(auxSint32);
   }
 
   // Exposure
-  status = metainfo->findAndGetInt32(DCM_Exposure,
-				     exposure);
+  status = metainfo->findAndGetSint32(DCM_Exposure,
+				      auxSint32);
   if(status.bad()){
     exposure = -1;
+  }else{
+    exposure = static_cast<long int>(auxSint32);
   }
 
   // Exposure In uAs
-  status = metainfo->findAndGetInt32(DCM_ExposureInuAs,
-				     exposureInuAs);
+  status = metainfo->findAndGetSint32(DCM_ExposureInuAs,
+				      auxSint32);
   if(status.bad()){
     exposureInuAs = -1;
+  }else{
+    exposureInuAs = static_cast<long int>(auxSint32);
   }
 
   // Generator Power
-  status = metainfo->findAndGetInt32(DCM_GeneratorPower,
-				     generatorPowerInt);
+  status = metainfo->findAndGetSint32(DCM_GeneratorPower,
+				      auxSint32);
   if(status.bad()){
     generatorPowerInt = -1;
+  }else{
+    generatorPowerInt = static_cast<long int>(auxSint32);
   }
 
 
@@ -710,7 +721,7 @@ pen_ctData::load(const DcmDataset* metainfo){
 
   // Mulienergy CT Acquisition
   const char* usedMultiEnergyCT;
-  status = metainfo->findAndGetString(DCM_MulienergyCTAcquisition,
+  status = metainfo->findAndGetString(DCM_MultienergyCTAcquisition,
 				      usedMultiEnergyCT);
   if(status.bad()){
     multiEnergyAcquisition = false;

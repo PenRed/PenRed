@@ -32,7 +32,7 @@
 #define __RANDOM_SPECIFIC_SAMPLER__
 
 class random_specificSampler : public abc_specificSampler<pen_particleState>{
-  DECLARE_SAMPLER(random_specificSampler)
+  DECLARE_SPECIFIC_SAMPLER(random_specificSampler, pen_particleState)
   private:
   public:
 
