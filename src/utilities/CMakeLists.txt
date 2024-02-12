@@ -491,6 +491,17 @@ if(XRAY)
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/x-ray/spectrumEstimation
     )
 
+    # Create x-ray anode simulation executable
+    add_executable(anodeSim ${PROJECT_SOURCE_DIR}/utilities/x-ray/simAnode.cpp)
+
+    target_link_libraries(anodeSim pen_xray)
+
+    # Install anode simulation executable
+    install(
+    TARGETS anodeSim
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/x-ray/anodeSim
+    )
+
 endif(XRAY)
 #-----------------------------------------------------------------------------
 

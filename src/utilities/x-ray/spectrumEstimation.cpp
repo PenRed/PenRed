@@ -1629,10 +1629,10 @@ int main(int argc, const char** argv){
 	      double eabs = defEabs;
 	      //If this subfilter has subfilters beyond, recalculate eabs
 	      if(iSubFilter < nSubFilters -1){
-		//Calculate the required gamma range to absorb 99% of created photons
+		//Calculate the required gamma range to absorb 99.99% of created photons
 		//in a length equal to the remaining subfilters thickness 
 		//
-		const double objLogTrans = -log(0.01);
+		const double objLogTrans = -log(0.0001);
 		const double length =
 		  subFilterSize*static_cast<double>(nSubFilters - (iSubFilter+1));
 		const double objMu = objLogTrans / length;

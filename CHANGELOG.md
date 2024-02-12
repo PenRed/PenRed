@@ -7,20 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.9.4] -
 
 ### Added
-- x-ray utility
+- x-ray utilities
 - DICOM class reads and process CT specific tags
 - New geometry type "filters"
 - New PSF sampler which stores the whole PSF in memory
 - Specific samplers can now share data after configuration, as was done for tallies
 - Materials expose their composition and mean Z
+- Simulation library to streamline the creation of specific simulations
+- Particles can now update their state directly from the internal stack
+- Stream support to parse internal data sections/configurations
+- Triangular surface geoemtries can now define vertex groups and transform them via the configuration
+- Triangular surface geoemtries can now be loaded from a internal string instead of a external file
+- Blender plugin now exports vertex groups
 
 ### Changed
 - PSF tally is now able to select which particles must be recorded
 - Mathematical template classes have been moved to a independent header file
 - A specfic Macro to declare specific samplers have been created (DECLARE_SPECIFIC_SAMPLER)
+- Replaced context virtual method "getIF" by "setForcing"
 
 ### Fix
 - Bug: Blender addon crash on quadric geometry export
+- Bug: Combo geometry overwerrites the global bodies material number with detector number
 
 ## [1.9.3b] - 2023-09-15
 

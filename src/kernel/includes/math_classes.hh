@@ -36,41 +36,190 @@
 template<class E, class T> struct container;
 
 template<class T>
+struct vector2D{
+  T x,y;
+    
+  constexpr vector2D() {}
+  constexpr vector2D(T xin, T yin) : x(xin), y(yin){}
+    
+  inline constexpr vector2D operator+(const vector2D& a) const{
+    return vector2D(x + a.x, y + a.y);
+  }
+  inline vector2D& operator+=(const vector2D& a){
+    x += a.x;
+    y += a.y;
+    return *this;
+  }
+
+  inline constexpr vector2D operator+(const T& a) const{
+    return vector2D(x + a, y + a);
+  }
+  inline vector2D& operator+=(const T& a){
+    x += a;
+    y += a;
+    return *this;
+  }
+  
+  inline constexpr vector2D operator-(const vector2D& a) const{
+    return vector2D(x - a.x, y - a.y);
+  }
+  inline vector2D& operator-=(const vector2D& a){
+    x -= a.x;
+    y -= a.y;
+    return *this;
+  }
+
+  inline constexpr vector2D operator-(const T& a) const{
+    return vector2D(x - a, y - a);
+  }
+  inline vector2D& operator-=(const T& a){
+    x -= a;
+    y -= a;
+    return *this;
+  }
+  
+  inline constexpr T operator*(const vector2D& a) const{
+    return x*a.x + y*a.y;
+  }
+
+  inline constexpr vector2D operator*(const T& a) const{
+    return vector2D(a*x, a*y);
+  }
+
+  inline constexpr vector2D operator/(const T& a) const{
+    return vector2D(x/a, y/a);
+  }
+  inline vector2D& operator/=(const T& a){
+    x /= a;
+    y /= a;
+    return *this;
+  }  
+    
+  inline void add(const vector2D& a){
+    x += a.x;
+    y += a.y;
+  }
+
+  inline void add(const T& a){
+    x += a;
+    y += a;
+  }
+    
+  inline void subs(const vector2D& a){
+    x -= a.x;
+    y -= a.y;
+  }
+
+  inline void subs(const T& a){
+    x -= a;
+    y -= a;
+  }
+
+  inline void pow(const unsigned a){
+    x = pow(x,a);
+    y = pow(y,a);
+  }  
+    
+  inline constexpr T mod2() const{
+    return x*x + y*y;
+  }
+    
+  inline constexpr T mod() const{
+    return sqrt(mod2());
+  }
+
+  inline constexpr T dist(const vector2D& a) const{
+    return (a - *this).mod();
+  }
+
+  inline constexpr vector2D dir(const vector2D& a) const{
+    vector2D normDir = (a - *this);
+    normDir.normalize();
+    return normDir;
+  }
+  
+  inline void normalize(){
+    T norm = mod();
+    x /= norm;
+    y /= norm;
+  }
+
+  inline std::string stringify() const{
+    char str[60];
+    sprintf(str,"(%.5E,%.5E)",
+	    static_cast<double>(x),
+	    static_cast<double>(y));
+    return std::string(str);
+  }
+  
+};
+
+template<class T>
 struct vector3D{
   T x,y,z;
     
-  vector3D() {}
-  vector3D(T xin, T yin, T zin) : x(xin), y(yin), z(zin){}
+  constexpr vector3D() {}
+  constexpr vector3D(T xin, T yin, T zin) : x(xin), y(yin), z(zin){}
     
-  inline vector3D operator+(const vector3D& a) const{
+  inline constexpr vector3D operator+(const vector3D& a) const{
     return vector3D(x + a.x, y + a.y, z + a.z);
   }
+  inline vector3D& operator+=(const vector3D& a){
+    x += a.x;
+    y += a.y;
+    z += a.z;
+    return *this;
+  }
 
-  inline vector3D operator+(const T a) const{
+  inline constexpr vector3D operator+(const T& a) const{
     return vector3D(x + a, y + a, z + a);
   }
+  inline vector3D& operator+=(const T& a){
+    x += a;
+    y += a;
+    z += a;
+    return *this;
+  }  
   
-  inline vector3D operator-(const vector3D& a) const{
+  inline constexpr vector3D operator-(const vector3D& a) const{
     return vector3D(x - a.x, y - a.y, z - a.z);
   }
+  inline vector3D& operator-=(const vector3D& a){
+    x -= a.x;
+    y -= a.y;
+    z -= a.z;
+    return *this;
+  }  
 
-  inline vector3D operator-(const T a) const{
+  inline constexpr vector3D operator-(const T& a) const{
     return vector3D(x - a, y - a, z - a);
   }
+  inline vector3D& operator-=(const T& a){
+    x -= a;
+    y -= a;
+    z -= a;
+    return *this;
+  }
   
-  inline T operator*(const vector3D& a) const{
+  inline constexpr T operator*(const vector3D& a) const{
     return x*a.x + y*a.y + z*a.z;
   }
 
-  inline vector3D operator*(const T a) const{
+  inline constexpr vector3D operator*(const T& a) const{
     return vector3D(a*x, a*y, a*z);
   }
 
-  inline vector3D operator/(const T a) const{
+  inline constexpr vector3D operator/(const T& a) const{
     return vector3D(x/a, y/a, z/a);
   }
+  inline vector3D& operator/=(const T& a){
+    x /= a;
+    y /= a;
+    z /= a;
+    return *this;
+  }
     
-  inline vector3D operator^(const vector3D& a) const{
+  inline constexpr vector3D operator^(const vector3D& a) const{
     return vector3D(y*a.z - z*a.y, z*a.x - x*a.z, x*a.y - y*a.x);
   }
     
@@ -80,7 +229,7 @@ struct vector3D{
     z += a.z;
   }
 
-  inline void add(const T a){
+  inline void add(const T& a){
     x += a;
     y += a;
     z += a;
@@ -92,7 +241,7 @@ struct vector3D{
     z -= a.z;
   }
 
-  inline void subs(const T a){
+  inline void subs(const T& a){
     x -= a;
     y -= a;
     z -= a;
@@ -112,19 +261,19 @@ struct vector3D{
     y = auxY;
   }
     
-  inline T mod2() const{
+  inline constexpr T mod2() const{
     return x*x + y*y + z*z;
   }
     
-  inline T mod() const{
+  inline constexpr T mod() const{
     return sqrt(mod2());
   }
 
-  inline T dist(const vector3D& a) const{
+  inline constexpr T dist(const vector3D& a) const{
     return (a - *this).mod();
   }
 
-  inline vector3D dir(const vector3D& a) const{
+  inline constexpr vector3D dir(const vector3D& a) const{
     vector3D normDir = (a - *this);
     normDir.normalize();
     return normDir;

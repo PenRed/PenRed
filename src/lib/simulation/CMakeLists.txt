@@ -1,8 +1,8 @@
-
+﻿
 #
 #
-#    Copyright (C) 2019-2022 Universitat de València - UV
-#    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+#    Copyright (C) 2024 Universitat de València - UV
+#    Copyright (C) 2024 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -23,6 +23,7 @@
 #    contact emails:
 #
 #        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
+#        sanolgi@upvnet.upv.es
 #        vicente.gimenez@uv.es (Vicente Giménez Gómez)
 #    
 #
@@ -30,48 +31,25 @@
 
 
 #############################
-#  LIBS
+#  Simulation lib
 #############################
 
+if(WITH_MULTI_THREADING)
+    #Find threads package
+    find_package (Threads REQUIRED)
+endif(WITH_MULTI_THREADING)
 
-#############################
-#  ADD SUB-FOLDERS
-#############################
+# Create lib
+add_library(pen_sim STATIC ${PROJECT_SOURCE_DIR}/lib/simulation/source/pen_simulation.cpp)
 
-# math folder
-add_subdirectory(math)
+target_include_directories(pen_sim PUBLIC ${PROJECT_SOURCE_DIR}/lib/simulation/includes)
+target_link_libraries(pen_sim pen_geos)
+target_link_libraries(pen_sim samplers)
+target_link_libraries(pen_sim tallies)
+target_link_libraries(pen_sim pen_VR)
 
-# dump folder
-add_subdirectory(dump)
 
-# phase space file folder
-add_subdirectory(psf)
-
-# splitted file folder
-add_subdirectory(splittedFile)
-
-# shared file folder
-add_subdirectory(sharedFile)
-
-# auxiliar folder
-add_subdirectory(auxiliar)
-
-# TCP folder
-add_subdirectory(tcp)
-
-# image folder
-add_subdirectory(image)
-
-# load balance folder
-if(WITH_LB)
-    add_subdirectory(loadBalance)
-endif(WITH_LB)
-
-# muen folder
-add_subdirectory(parameters)
-
-# simulation folder
-add_subdirectory(simulation)
-
-# x-ray folder
-add_subdirectory(x-ray)
+#Link thread libs
+if(WITH_MULTI_THREADING)
+    target_link_libraries(pen_sim ${CMAKE_THREAD_LIBS_INIT})
+endif(WITH_MULTI_THREADING)

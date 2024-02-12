@@ -1097,6 +1097,32 @@ int parseFile(const char* filename,
   return INTDATA_SUCCESS;
 }
 
+int parseStream(std::istream& sIn,
+		pen_parserSection& section,
+		std::string& errorString,
+		long unsigned& errorLine){
+
+  //Clear output section
+  section.clear();
+
+  //Read and parse file lines
+  std::string line;
+  long unsigned lineNum = 0;
+  unsigned long read;
+  while(pen_getLine(sIn,line,read) == 0){
+    lineNum += read;
+    int err = section.parse(line);
+    if(err != INTDATA_SUCCESS)
+      if(err != INTDATA_PARSE_STRING_EMPTY){
+	errorLine = lineNum;
+	errorString.assign(line);
+	return err;
+      }
+  }
+
+  return INTDATA_SUCCESS;
+}
+
 int pen_getLine(FILE* fin,
 		const unsigned size,
 		char* line,
@@ -1141,3 +1167,28 @@ int pen_getLine(FILE* fin,
   return -2;
 }
 
+int pen_getLine(std::istream& sIn,
+		std::string& line,
+		unsigned long& nlines){
+
+  //'line' will be filled with the next non comment line.
+  //The number of read lines will be stored at 'nlines'
+  //The function will return 0 on success or a
+  //negative value on error.
+
+  nlines = 0;
+
+  while(std::getline(sIn, line)){
+    nlines++;
+    
+    //Check if is a comment
+    char firstc = ' ';
+    sscanf(line.c_str()," %c",&firstc);
+
+    if(firstc != '#'){
+      return 0;
+    }
+  }
+
+  return -2;
+}

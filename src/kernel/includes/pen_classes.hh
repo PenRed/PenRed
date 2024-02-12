@@ -265,6 +265,8 @@ protected:
   pen_particleStack<stateType>& stack;
   
 public:
+
+  typedef stateType typeState;
   
   const contextType& context;
   const pen_KPAR kpar;
@@ -452,22 +454,22 @@ public:
   virtual void annihilate(pen_rand&){}
   
 
-  inline double xel(){return XEL;}
-  inline double xe(){return XE;}
-  inline double xek(){return XEK;}
-  inline unsigned ke(){return KE;}
+  inline double xel() const {return XEL;}
+  inline double xe() const {return XE;}
+  inline double xek() const {return XEK;}
+  inline unsigned ke() const {return KE;}
 
   inline void getGrid(unsigned& ke,
 		      double& xel,
 		      double& xe,
-		      double& xek){
+		      double& xek) const {
     ke = KE;
     xel = XEL; xe = XE; xek = XEK;
   }
   
-  inline int reqSoftELoss(){return KSOFTI;}
+  inline int reqSoftELoss() const {return KSOFTI;}
   
-  inline pen_KPAR getKpar(){
+  inline pen_KPAR getKpar() const {
     return kpar;
   }
 
@@ -487,14 +489,29 @@ public:
     return state;
   }
 
-  inline const pen_particleState& readBaseState(){
+  inline const pen_particleState& readBaseState() const {
     return state;
   }
   
   inline const stateType& readState() const{
     return state;
   }
-  inline const contextType& readContext(){return context;}
+
+  inline unsigned nStacked() const{
+    return stack.getNSec();
+  }
+
+  inline void setStateFromStack(){
+    
+    stack.get(state);
+
+    //Update body and material
+    updateBody();
+    updateMat();
+    
+  }
+  
+  inline const contextType& readContext() const {return context;}
 
   inline void registerGenericVR(const abc_VR<pen_particleState>& vrIn){
     genericVR = &vrIn;
@@ -735,11 +752,12 @@ public:
 			  const unsigned imat,
 			  const bool calc_piecewise) const = 0;  
 
-  virtual double getIF(const double forcer,
-		       const pen_KPAR kpar,
-		       const int icol,
-		       const unsigned imat,
-		       const bool calc_piecewise) const = 0;
+  virtual void setForcing(const double forcerIn,
+			  const pen_KPAR kpar,
+			  const int icol,
+			  const unsigned ibody,
+			  const double weightL,
+			  const double weightU) = 0;  
   
   inline void getMatBaseArray(const abc_material* mats[constants::MAXMAT]) const {
 

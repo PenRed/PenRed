@@ -37,6 +37,9 @@
 #include <stdexcept>
 #include <thread>
 #include <atomic>
+#include <map>
+#include <memory>
+#include <fstream>
 
 enum pen_meshBodyErr{
     PEN_MESHBODY_GEO_SUCCESS = 0,
@@ -51,13 +54,25 @@ enum pen_meshBodyErr{
     PEN_MESHBODY_GEO_BAD_READ_EABS,
     PEN_MESHBODY_GEO_INVALID_EABS,
     PEN_MESHBODY_GEO_UNDEF_BODY_LABEL,
+    PEN_MESHBODY_GEO_BODY_NOT_FOUND,
     PEN_MESHBODY_GEO_UNEXPECTED_LINE_FORMAT,
+    PEN_MESHBODY_GEO_INVALID_FILE,
     PEN_MESHBODY_GEO_INVALID_NBODIES,
     PEN_MESHBODY_GEO_INVALID_MAT,
+    PEN_MESHBODY_GEO_INVALID_N_VERTEX_GROUP,
+    PEN_MESHBODY_GEO_INVALID_VERTEX_NUMBER,
+    PEN_MESHBODY_GEO_INVALID_TRIANGLES_NUMBER,
     PEN_MESHBODY_BAD_MEMORY_ALLOCATION,
     PEN_MESHBODY_MULTIPLE_WORLDS,
     PEN_MESHBODY_WORLD_NOT_FOUND,
     PEN_MESHBODY_GEO_INVALID_VERTEX_INDEX,
+    PEN_MESHBODY_GEO_INVALID_VERTEX_GROUP_INDEX,
+    PEN_MESHBODY_GEO_INVALID_TRANSFORMATION_INDEX,
+    PEN_MESHBODY_GEO_INVALID_TRANSFORMATION_TYPE,
+    PEN_MESHBODY_GEO_VG_NOT_FOUND,
+    PEN_MESHBODY_GEO_INVALID_DIR,
+    PEN_MESHBODY_GEO_INVALID_DS,
+    PEN_MESHBODY_GEO_INVALID_SCALE,
     PEN_MESHBODY_GEO_TRIANGLES_OUT_OF_REGIONS,
     PEN_MESHBODY_GEO_LOST_TRIANGLES,
     PEN_MESHBODY_GEO_BODY_INTERSECTIONS_FOUND,
@@ -72,6 +87,7 @@ enum pen_meshBodyErr{
     PEN_MESHBODY_GEO_CL_KERNEL_CREATION_FAIL,
     PEN_MESHBODY_GEO_CL_KERNEL_PACK_FAIL,
     PEN_MESHBODY_GEO_CL_NO_CONFIGURED_DEVICES,    
+    PEN_MESHBODY_GEO_UNEXPECTED_ERROR,
 };
 
 class pen_meshBodyGeo;
@@ -193,6 +209,286 @@ struct meshBodyTriangle : public triangle<double>{
   }
 };
 
+namespace pen_meshTransform{
+  
+  struct base{
+
+    typedef vector3D<double> v3D;
+
+    v3D cm;
+
+    constexpr base() : cm(0.0,0.0,0.0) {}
+    
+    virtual void apply(v3D& v) const = 0;
+    virtual std::string stringify() const = 0;
+  };
+
+  struct trans : base{
+
+    v3D dir;
+    double ds;
+
+    constexpr trans(const v3D& dirIn, const double dsIn) : dir(dirIn), ds(dsIn) {}
+    
+    inline void apply(v3D& v) const override {
+      v += dir*ds;
+    }
+    inline std::string stringify() const override {
+      return std::string("Translation with direction ") +
+	dir.stringify() +
+	std::string(" and distance ") + std::to_string(ds);
+    }
+  
+  };
+
+  struct transX : base{
+
+    double ds;
+
+    constexpr transX(const double dsIn) : ds(dsIn) {}
+  
+    inline void apply(v3D& v) const override {
+      v.x += ds;
+    }
+    inline std::string stringify() const override {
+      return std::string("Translation on X axis, a distance ") +
+	std::to_string(ds);
+    }    
+  
+  };
+
+  struct transY : base{
+
+    double ds;
+
+    constexpr transY(const double dsIn) : ds(dsIn) {}
+    
+    inline void apply(v3D& v) const override {
+      v.y += ds;
+    }
+    inline std::string stringify() const override {
+      return std::string("Translation on Y axis, a distance ") +
+	std::to_string(ds);
+    }    
+  
+  };
+
+  struct transZ : base{
+
+    double ds;
+
+    constexpr transZ(const double dsIn) : ds(dsIn) {}    
+  
+    inline void apply(v3D& v) const override {
+      v.z += ds;
+    }
+    inline std::string stringify() const override {
+      return std::string("Translation on Z axis, a distance ") +
+	std::to_string(ds);
+    }    
+  
+  };
+
+  struct scale : base{
+
+    double factor;
+
+    scale(const double factorIn) : factor(factorIn) {}
+    
+    inline void apply(v3D& v) const override {
+      v = (v-cm)*factor + cm;
+    }
+
+    inline std::string stringify() const override {
+      return std::string("Scale with factor ") +
+	std::to_string(factor);
+    }    
+  
+  };
+
+  struct scaleXY : base{
+
+    double factor;
+
+    scaleXY(const double factorIn) : factor(factorIn) {}    
+  
+    inline void apply(v3D& v) const override {
+      v.x = (v.x-cm.x)*factor + cm.x;
+      v.y = (v.y-cm.y)*factor + cm.y;
+    }
+    inline std::string stringify() const override {
+      return std::string("Scale on XY plane, with factor ") +
+	std::to_string(factor);
+    }
+  
+  };
+
+  struct scaleXZ : base{
+
+    double factor;
+    
+    scaleXZ(const double factorIn) : factor(factorIn) {}
+    
+    inline void apply(v3D& v) const override {
+      v.x = (v.x-cm.x)*factor + cm.x;
+      v.z = (v.z-cm.z)*factor + cm.z;
+    }
+    inline std::string stringify() const override {
+      return std::string("Scale on XZ plane, with factor ") +
+	std::to_string(factor);
+    }    
+    
+  
+  };
+
+  struct scaleYZ : base{
+
+    double factor;
+
+    scaleYZ(const double factorIn) : factor(factorIn) {}
+    
+    inline void apply(v3D& v) const override{
+      v.y = (v.y-cm.y)*factor + cm.y;
+      v.z = (v.z-cm.z)*factor + cm.z;
+    }
+    inline std::string stringify() const override {
+      return std::string("Scale on YZ plane, with factor ") +
+	std::to_string(factor);
+    }    
+    
+  
+  };
+
+
+  struct group{
+
+    typedef vector3D<double> v3D;
+
+  private:
+    std::vector<std::unique_ptr<base>> transforms;
+  public:
+  
+    //Stores the transformations to be applied to a vertex group
+    std::string name;
+
+    inline void resize(const size_t newSize){ transforms.resize(newSize); }
+    inline size_t size() const { return transforms.size(); }
+
+    std::unique_ptr<base>&       operator[](std::size_t i)       { return transforms[i]; }
+    const std::unique_ptr<base>& operator[](std::size_t i) const { return transforms[i]; }
+
+    inline void apply(const std::vector<unsigned>& vgroup, std::vector<v3D>& vertex) const{
+
+      //Calculate CM of the vertex group
+      v3D cm(0.0,0.0,0.0);
+      for(size_t iv = 0; iv < vgroup.size(); ++iv){
+	cm += vertex[vgroup[iv]];
+      }
+      cm /= static_cast<double>(vgroup.size());
+
+      //Apply the transformations
+      for(size_t it = 0; it < transforms.size(); ++it){
+
+	//Skip null transformations
+	if(transforms[it] == nullptr)
+	  continue;
+      
+	//Set center of mass
+	transforms[it]->cm = cm;
+	for(size_t iv = 0; iv < vgroup.size(); ++iv){
+	  transforms[it]->apply(vertex[vgroup[iv]]);
+	}
+      }
+    }
+
+    //Add transform functions
+    inline void addTranslation(const v3D& dir, const double ds){
+      transforms.emplace_back(std::unique_ptr<base>(new trans(dir,ds)));
+    }
+    inline void addTranslationX(const double ds){
+      transforms.emplace_back(std::unique_ptr<base>(new transX(ds)));
+    }
+    inline void addTranslationY(const double ds){
+      transforms.emplace_back(std::unique_ptr<base>(new transY(ds)));
+    }
+    inline void addTranslationZ(const double ds){
+      transforms.emplace_back(std::unique_ptr<base>(new transZ(ds)));
+    }
+    inline void addScale(const double f){
+      transforms.emplace_back(std::unique_ptr<base>(new scale(f)));
+    }
+    inline void addScaleXY(const double f){
+      transforms.emplace_back(std::unique_ptr<base>(new scaleXY(f)));
+    }
+    inline void addScaleXZ(const double f){
+      transforms.emplace_back(std::unique_ptr<base>(new scaleXZ(f)));
+    }
+    inline void addScaleYZ(const double f){
+      transforms.emplace_back(std::unique_ptr<base>(new scaleYZ(f)));
+    }
+
+    //Set transform functions
+    inline int setTranslation(const size_t i, const v3D& dir, const double ds){
+      if(i >= transforms.size() ) return 1;
+      transforms[i] =
+	std::unique_ptr<base>(new trans(dir,ds));
+      return 0;
+    }
+    inline int setTranslationX(const size_t i, const double ds){
+      if(i >= transforms.size() ) return 1;
+      transforms[i] =
+	std::unique_ptr<base>(new transX(ds));
+      return 0;
+    }
+    inline int setTranslationY(const size_t i, const double ds){
+      if(i >= transforms.size() ) return 1;
+      transforms[i] =
+	std::unique_ptr<base>(new transY(ds));
+      return 0;
+    }
+    inline int setTranslationZ(const size_t i, const double ds){
+      if(i >= transforms.size() ) return 1;
+      transforms[i] =
+	std::unique_ptr<base>(new transZ(ds));
+      return 0;
+    }
+    inline int setScale(const size_t i, const double f){
+      if(i >= transforms.size() ) return 1;
+      transforms[i] =
+	std::unique_ptr<base>(new scale(f));
+      return 0;
+    }
+    inline int setScaleXY(const size_t i, const double f){
+      if(i >= transforms.size() ) return 1;
+      transforms[i] =
+	std::unique_ptr<base>(new scaleXY(f));
+      return 0;
+    }
+    inline int setScaleXZ(const size_t i, const double f){
+      if(i >= transforms.size() ) return 1;
+      transforms[i] =
+	std::unique_ptr<base>(new scaleXZ(f));
+      return 0;
+    }
+    inline int setScaleYZ(const size_t i, const double f){
+      if(i >= transforms.size() ) return 1;
+      transforms[i] =
+	std::unique_ptr<base>(new scaleYZ(f));
+      return 0;
+    }
+
+    inline std::string stringify() const{
+      std::string ret;
+      for(auto&& b : transforms){
+	ret += b->stringify() + "\n";
+      }
+      return ret;
+    }
+  
+  };
+  
+};
+
 struct pen_meshBody : public pen_baseBody{
 
   typedef container<meshBodyTriangle,double> triangleRegion;
@@ -280,12 +576,15 @@ struct pen_meshBody : public pen_baseBody{
 class pen_meshBodyGeo : public abc_geometry<pen_meshBody>{
   DECLARE_GEOMETRY(pen_meshBodyGeo)
 
-  private:
-
+private:
+  
   unsigned iworld;
   bool worldFound;
-
+  
 public:
+
+  //A preload geometry file to use instead of filename during configuration
+  std::string preloadGeo;
       
   static constexpr double threshold = meshBodyTriangle::crossThreshold;
       
@@ -293,10 +592,12 @@ public:
       
   pen_meshBodyGeo() : iworld(0), worldFound(false) {
     configStatus = 0;
-  }
+  }  
   
   int configure(const pen_parserSection& config, const unsigned verbose) override;
-  int GEOMESH(FILE* in, const unsigned verbose);
+  int GEOMESH(std::istream& in,
+	      std::map<std::string, std::vector<pen_meshTransform::group>>& transMap,
+	      const unsigned verbose);
   
   void locate(pen_particleState&) const final override;
   void step(pen_particleState&,

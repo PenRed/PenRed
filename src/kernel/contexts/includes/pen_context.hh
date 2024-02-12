@@ -155,6 +155,35 @@ public:
 	       const int icol,
 	       const unsigned imat,
 	       const bool calc_piecewise = true) const;
+
+  inline void setForcing(const double forcerIn,
+			 const pen_KPAR kpar,
+			 const int icol,
+			 const unsigned ibody,
+			 const double weightL,
+			 const double weightU){
+
+    //Read body material
+    unsigned imat = readGeometry()->getMat(ibody);
+
+    //Avoid void regions
+    if(imat == 0)
+      return;
+
+    //Handle negative forcer values
+    double forcer = getIF(forcerIn, kpar, icol, imat-1);
+    
+    //Set interaction forcing for the specified parameters
+    FORCE[ibody][kpar][icol] = forcer;
+
+    if(WRANGES[ibody][2*kpar] < weightL)
+      WRANGES[ibody][2*kpar] = weightL;
+    
+    if(WRANGES[ibody][2*kpar+1] > weightU)
+      WRANGES[ibody][2*kpar+1] = weightU;
+
+    LFORCE[ibody][kpar] = true;    
+  }
 };
 
 //-----------------------------------------------
