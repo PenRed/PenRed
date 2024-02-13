@@ -631,9 +631,12 @@ namespace penred{
       //Try to simulate "n" particles in the stack
       simulateStack(hist, p, n, tallies, randoms);
 
+      //Simulate other particle stacks
+      unsigned remainingOthers = simulateStacksN(hist,n,tallies,randoms,others...);
+
       //Return the number of remaining particles in the stack
       //plus the other stacks after simulating "n" particles
-      return p.nStacked() + simulateStacksN(hist,n,tallies,randoms,others...);
+      return p.nStacked() + remainingOthers;
     }
 
     template<class particleType>
@@ -667,10 +670,14 @@ namespace penred{
       //Try to simulate "n" particles in the stack
       simulateStackCond(hist, p, n, randoms, finishType, finishValue, f);
 
+      //Simulate other particle stacks
+      unsigned remainingOthers = simulateStacksNCond(hist,n,randoms,
+						     finishType,finishValue,
+						     f,others...);
+      
       //Return the number of remaining particles in the stack
       //plus the other stacks after simulating "n" particles
-      return p.nStacked() + simulateStacksNCond(hist,n,randoms,
-						finishType,finishValue,f,others...);
+      return p.nStacked() + remainingOthers;
       
     }
 

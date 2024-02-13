@@ -382,6 +382,9 @@ namespace penred{
       //Update eabs information
       contextSim.updateEABS();
 
+      //Get anode body
+      unsigned anodeIndex = geometry->getIBody("anode");
+
       // ** Convigure VR
       //*******************
 
@@ -400,6 +403,15 @@ namespace penred{
 	return -5;
       }
 
+      //Set interaction forcing to force x-ray production
+      contextSim.setForcing(100, PEN_ELECTRON,
+			    BETAe_HARD_BREMSSTRAHLUNG,
+			    anodeIndex, 0.1, 2);
+
+      contextSim.setForcing(100, PEN_ELECTRON,
+			    BETAe_HARD_INNER_SHELL,
+			    anodeIndex, 0.1, 2);
+      
       // ** Configure seeds
       //**********************
 

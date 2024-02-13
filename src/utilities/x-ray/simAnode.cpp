@@ -29,16 +29,17 @@
 int main(int argc, char** argv){
 
   if(argc < 6){
-    printf("usage: mat-filename beamEnergy focalSpot anode-angle histories\n");
+    printf("usage: mat-filename beamEnergy minE focalSpot anode-angle histories\n");
     return 1;
   }
 
   //Extract data
   const char* matFilename = argv[1];
   const double beamE = std::atof(argv[2]);
-  const double fs = std::atof(argv[3]); 
-  const double angle = std::atof(argv[4]);
-  const double nHistAux = std::atof(argv[5]);
+  const double eMin = std::atof(argv[3]);
+  const double fs = std::atof(argv[4]); 
+  const double angle = std::atof(argv[5]);
+  const double nHistAux = std::atof(argv[6]);
 
   if(nHistAux <= 0.0){
     printf("Number of histories must be greater than 0.\n");
@@ -50,7 +51,6 @@ int main(int argc, char** argv){
   //Simulate the anode
   std::vector<penred::xray::detectedPart> results;
   double dReg;
-  constexpr double eMin = 20e3;
   int err = penred::xray::simAnode(matFilename, beamE, eMin, fs, angle, nHist, dReg, results, true, 2);
   if(err != 0){
     printf("Error on anode simulation.\n");

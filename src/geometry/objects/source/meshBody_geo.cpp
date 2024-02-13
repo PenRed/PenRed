@@ -2046,7 +2046,7 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
 
       if(vgMap.size() > 0){
 
-	printf("Vertex groups information: ");
+	printf("Vertex groups information: \n");
 	
 	//Search transformation groups for this body
 	const auto& search = transMap.find(bodies[i].BALIAS);
@@ -2078,7 +2078,7 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
 	      }
 	    }
 	    if(!found){
-	      printf(",   no transformations applied");
+	      printf(",   no transformations applied\n");
 	    }
 	  }
 	}
