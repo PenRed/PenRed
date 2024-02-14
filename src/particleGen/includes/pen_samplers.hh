@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2023 Universitat de València - UV
-//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2024 Universitat de València - UV
+//    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -1208,15 +1208,18 @@ public:
       specificSamplerVect[i]->setEnergy(energy());
       specificSamplerVect[i]->setTime(time());
 
-      double auxEmax;
+      double auxEmax = -1;
       int errConfig = specificSamplerVect[i]->configure(auxEmax,
 							config,
 							nthreads,
 							auxVerbose);
 
       //Update Emax only from thread 0
-      if(i == 0)
-	Emax = auxEmax;
+      if(i == 0){
+	//Update Emax only if has been overwritten in the specific sampler
+	if(auxEmax > 0.0)
+	  Emax = auxEmax;
+      }
       
       if(errConfig != 0){
 	if(verbose > 0){
