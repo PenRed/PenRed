@@ -13,12 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New PSF sampler which stores the whole PSF in memory
 - Specific samplers can now share data after configuration, as was done for tallies
 - Materials expose their composition and mean Z
-- Simulation library to streamline the creation of specific simulations
+- Simulation library to streamline the creation and handling of simulations
 - Particles can now update their state directly from the internal stack
 - Stream support to parse internal data sections/configurations
 - Triangular surface geoemtries can now define vertex groups and transform them via the configuration
 - Triangular surface geoemtries can now be loaded from a internal string instead of a external file
 - Blender plugin now exports vertex groups
+- Geometries vector of *combo geometry* instances is now accessible
+- Main stack of particle instances is now accessible
+- Capability to request simulation status information during execution
 
 ### Changed
 - PSF tally is now able to select which particles must be recorded
@@ -29,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fix
 - Bug: Blender addon crash on quadric geometry export
 - Bug: Combo geometry overwerrites the global bodies material number with detector number
+- Bug: Maximum energy on specific samplers is overwritten when the parameter is not used in the specific configuration
 
 ## [1.9.3b] - 2023-09-15
 

@@ -58,6 +58,8 @@ class pen_comboGeo : public abc_geometry<pen_comboBody>{
   pen_comboGeo() : abc_geometry<pen_comboBody>() {
     configStatus = 0;
   }
+
+  const std::vector<wrapper_geometry*>& readGeometries() const { return geometries; }
   
   int configure(const pen_parserSection& /*config*/, unsigned verbose);
   void locate(pen_particleState&) const;

@@ -267,6 +267,7 @@ protected:
 public:
 
   typedef stateType typeState;
+  typedef contextType typeContext;
   
   const contextType& context;
   const pen_KPAR kpar;
@@ -510,6 +511,8 @@ public:
     updateMat();
     
   }
+
+  inline const pen_particleStack<stateType>& readStack() const { return stack; }
   
   inline const contextType& readContext() const {return context;}
 

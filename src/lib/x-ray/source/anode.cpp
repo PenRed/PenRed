@@ -132,11 +132,11 @@ namespace penred{
 	stateCopy(betaE.getState(), genState);
 	
 	//Simulate shower
-	simulation::simulateShowerCond(hist,
-				       random,
-				       simulation::DETECTOR_REACHED, 1,
-				       f,
-				       betaE, gamma, betaP);	
+	simulation::simulateShowerKnownCond(hist,
+					    random,
+					    simulation::finishTypes::DETECTOR_REACHED, 1,
+					    f,
+					    betaE, gamma, betaP);	
       }
 
       //Update seeds

@@ -117,17 +117,25 @@ struct pen_samplerTask{
     toDo = nIter;
 
     toDoMPI = toDo;
-  // ******************************* MPI ************************************ //
+    // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_
-  int mpiSize;
-  MPI_Comm_size(MPI_COMM_WORLD, &mpiSize);
-  toDoMPI /= static_cast<unsigned long long>(mpiSize);
-  toDoMPI += 1;
+    int mpiSize;
+    MPI_Comm_size(MPI_COMM_WORLD, &mpiSize);
+    toDoMPI /= static_cast<unsigned long long>(mpiSize);
+
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if(rank == 0)
+      toDoMPI += toDo % static_cast<unsigned long long>(mpiSize);
 #endif
-  // ******************************* MPI ************************************ //
-    toDoWorker = toDoMPI/nw+1;
+    // ******************************* MPI ************************************ //
+    if(toDoMPI % nw == 0)
+      toDoWorker = toDoMPI/nw;
+    else
+      toDoWorker = toDoMPI/nw+1;
     return 0;
   }
+  
   inline void skip(unsigned long long toSkip){
     unsigned long long auxIterDone = iterDone;
     if(toDo > toSkip)
