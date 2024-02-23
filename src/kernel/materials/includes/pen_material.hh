@@ -658,7 +658,14 @@ public:
 	    pen_elementDataBase& elements,
 	    pen_logGrid& grid,
 	    int INFO = 0);
-  
+
+  inline double meanZ() const { return ZT; }
+  inline void composition(std::vector<std::pair<unsigned, double>>& c) const {
+    c.clear();
+    for(int i = 0; i < NELEM; ++i){
+      c.emplace_back(IZ[i], STF[i]);
+    }
+  }
 };
 
 //-----------------------------------------------

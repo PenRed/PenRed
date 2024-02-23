@@ -62,7 +62,7 @@ namespace CTsource{
 }
 
 class ct_specificSampler : public abc_specificSampler<pen_particleState>{
-  DECLARE_SAMPLER(ct_specificSampler)
+  DECLARE_SPECIFIC_SAMPLER(ct_specificSampler, pen_particleState)
 
   psf_specificSampler psf;
   double  tmin, dt;

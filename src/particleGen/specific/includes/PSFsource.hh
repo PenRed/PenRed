@@ -41,7 +41,7 @@
 #endif
 
 class psf_specificSampler : public abc_specificSampler<pen_particleState>{
-  DECLARE_SAMPLER(psf_specificSampler)
+  DECLARE_SPECIFIC_SAMPLER(psf_specificSampler, pen_particleState)
   private:
 
   static std::vector<

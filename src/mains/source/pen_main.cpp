@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2023 Universitat de València - UV
-//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2024 Universitat de València - UV
+//    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -32,7 +32,7 @@
 #include <limits>
 #include <cctype>
 #include <algorithm>
-#include "pen_loops.hh"
+#include "pen_simulation.hh"
 
 int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>>& genericSources,
 			     std::vector<pen_specificStateGen<pen_state_gPol>>& polarisedGammaSources,
@@ -117,53 +117,12 @@ int configureSource(pen_specificStateGen<stateType>& source,
 }
 
 template<class stateType>
-inline void updateHists(unsigned long long& nhists,
-			pen_specificStateGen<stateType>& source,
-			const unsigned ithread,
-			const unsigned verbose){
-  //Update assigned histories
-  unsigned long long newNhists = source.toDo(ithread);
-  if(newNhists != nhists){
-    if(verbose > 1)
-      printf("Thread %u: Source '%s': Number of histories to do "
-	     "updated from %llu to %llu.\n",
-	     ithread,source.name.c_str(),nhists,newNhists);
-    nhists = newNhists;
-  }
-}
-
-template<class stateType>
-inline void checkpoint(pen_specificStateGen<stateType>& source,
-		       const unsigned ithread,
-		       const unsigned verbose){
-  int errCP = source.checkPoint(verbose);
-  if(errCP != 0 && verbose > 0)
-    printf("Thread %u: Source '%s': Error at load balancing "
-	   "checkpoint. Error code: %d\n",
-	   ithread,source.name.c_str(),errCP);
-  else if(errCP == 0 && verbose > 1){
-    printf("Thread %u: Source '%s': Load balance checkpoint "
-	   "done.\n",
-	   ithread,source.name.c_str());
-  }
-}
-
-template<class stateType>
-void simulate(const unsigned ithread,
-	      const int lastSource,
-	      const pen_context* pcontext,
-	      pen_specificStateGen<stateType>* psource,
-	      pen_commonTallyCluster* ptallies,
-	      const pen_VRCluster<pen_particleState>* genericVR,
-	      const pen_VRCluster<pen_state_gPol>* photonVR,    
-	      int* seed1, int* seed2,
-	      const double dumpTime,
-	      const std::string dumpFilename,
-	      unsigned long long* nsimulated,               //Total number of simulated histories
-	      const unsigned long long initSourceSimulated, //Number of source histories already simulated
-	      const bool writePartial,
-	      double* maxSimTime,
-	      const unsigned verbose){
+void simulate(penred::simulation::simConfig& config,
+	      const pen_context& context,
+	      pen_specificStateGen<stateType>& source,
+	      pen_commonTallyCluster& tallies,
+	      const pen_VRCluster<pen_particleState>& genericVR,
+	      const pen_VRCluster<pen_state_gPol>& photonVR){
 
   // Variables list
   //
@@ -179,505 +138,142 @@ void simulate(const unsigned ithread,
   //  seed1       : First random generator seed
   //  seed2       : Second random generator seed
   //  nsimulated  : total number of simulated histories (including 'initHist')
-  
-  const pen_context& context = *pcontext;
-  pen_specificStateGen<stateType>& source = *psource;
-  pen_commonTallyCluster& tallies = *ptallies;
 
-  //Create random generator
-  pen_rand random;
-  random.setSeeds(*seed1,*seed2);
-
-  //Get current times
-  double time0 = CPUtime();
-  auto start = std::chrono::steady_clock::now();
-
-  //Create a stopwatch for simulation time
-  long long int mili2sim;
-  if(*maxSimTime <= 0.0 || *maxSimTime > 1.0e15){
-    mili2sim = 1000000000000000000;
-  }
-  else{
-    mili2sim = static_cast<long long int>(*maxSimTime);
-    mili2sim *= 1000; //Convert to ms
-  }
-  pen_stopWatch simLimitWatch(mili2sim);
-  
-  //Create a stopwatch for dumps
-  long long int mili2dump;
-  if(dumpTime <= 0.0 || dumpTime > 1.0e9){
-    mili2dump = 1000000000000;
-  }
-  else{
-    mili2dump = static_cast<long long int>(dumpTime);
-    mili2dump *= 1000; //Convert to ms
-  }
-  pen_stopWatch dumpWatch(mili2dump);
-  //Create a stopWatch to perform checkpoints
-  pen_stopWatch checkPointWatch(source.task.getCheckTime()*1000ll);  
-  //Create a stopWatch to perform speed reports
-  long long int mili2report =
-    static_cast<long long int>(1000*source.task.getCheckTime()/1.5);
-  pen_stopWatch reportWatch(mili2report);
-
-  //Start all stopWatch counts
-  if(ithread == 0)
-    checkPointWatch.start();
-  reportWatch.start();
-  dumpWatch.start();
-  simLimitWatch.start();
-  
-  //Copy simulated histories
-  const unsigned long long simulated = (*nsimulated);
-
-  //Register the start of that thread at the source task
-  //to get a history assignation
-  int errStart = source.workerStart(ithread,verbose);
-  if(errStart != 0){
-    if(verbose > 0)
-      printf("Thread %u: Source '%s': Unable to start the worker "
-	     "at source task. Random seeds (%d,%d), Simulation "
-	     "CPU time: %12.4E s\n",
-	     ithread,source.name.c_str(),
-	     *seed1,*seed2, CPUtime()-time0);
-    fflush(stdout);
-    return;
-  }
-  
-  //Get last simulated history
-  unsigned long long hist = simulated;
-  unsigned long long nhists = source.toDo(ithread);
-  
-  //Check if there are histories to simulate
-  if(nhists < 1){
-    printf("Thread %u: Source '%s' has no histories to simulate. "
-	   "Random seeds (%d,%d), Simulation CPU time: %12.4E s\n",
-	   ithread,source.name.c_str(),
-	   *seed1,*seed2, CPUtime()-time0);
-    fflush(stdout);
-    return;
-  }
-
-  //Calculate last history to simulate
-  unsigned long long lastHist = simulated+nhists;  
-  
-  //The function will report the number of simulated particles
-  //every 10% of histories has been completed.
-  const unsigned long long printInterval = std::max(nhists/10,1llu);
-  unsigned long long nextPrint = hist+printInterval;
-  
   //Create particle stacks for electrons, positrons and gamma
   pen_particleStack<pen_particleState> stackE;
   pen_particleStack<pen_particleState> stackP;
   pen_particleStack<pen_state_gPol> stackG;
-
-  //Set stacks in the tally cluster
-  tallies.setStack(PEN_ELECTRON, &stackE);
-  tallies.setStack(PEN_POSITRON, &stackP);
-  tallies.setStack(PEN_PHOTON,   &stackG);
   
-  //Create particle simulations
+  //Create particles to simulate
   pen_betaE betaE(context,stackE,stackG);
   pen_gamma gamma(context,stackE,stackP,stackG);
   pen_betaP betaP(context,stackE,stackG,stackP);
 
-  
   //Register VR
-  if(genericVR->numVR() > 0){
-    betaE.registerGenericVR(*genericVR);
-    gamma.registerGenericVR(*genericVR);
-    betaP.registerGenericVR(*genericVR);
-    printf("Registered generic VR\n");
-    fflush(stdout);
+  if(genericVR.numVR() > 0){
+    betaE.registerGenericVR(genericVR);
+    gamma.registerGenericVR(genericVR);
+    betaP.registerGenericVR(genericVR);
   }
-  if(photonVR->numVR() > 0){
-    gamma.registerSpecificVR(*photonVR);
-    printf("Registered photon VR\n");
-    fflush(stdout);
+  if(photonVR.numVR() > 0){
+    gamma.registerSpecificVR(photonVR);
   }
-  
-  //History bucle
-  stateType genState;
-  pen_KPAR genKpar;
-  unsigned long long dhist;
 
-  printf("Thread %u: Starting simulation of source '%s' with initial "
-	 "seeds %d %d at history %llu (histories to do: %llu). "
-	 "Simulation time limited to %E s\n",
-	 ithread,source.name.c_str(),*seed1,*seed2,simulated,nhists,
-	 *maxSimTime);
-  fflush(stdout);
+  //Perform the simulation
+  penred::simulation::sampleAndSimulate(config, source, tallies,
+					gamma, betaE, betaP);
   
-  //Update tallies last hist
-  tallies.run_lastHist(hist);
-  
-  //Sample first particle
-  source.sample(genState,genKpar,dhist,ithread,random);
-  
-  //Check if is a valid kpar
-  if(genKpar != PEN_ELECTRON &&
-     genKpar != PEN_PHOTON &&
-     genKpar != PEN_POSITRON &&
-     hist + dhist < lastHist){
-    //Invalid kpar or history number reached the limit
-    //finish simulation
-    printf("Thread %u: Source '%s' finished with %llu/%llu "
-	   "histories simulated\n",
-	   ithread,source.name.c_str(),0llu,nhists);
-    fflush(stdout);
+}
 
-    //Update seeds for next source
-    random.getSeeds(*seed1,*seed2);
-    return;
+
+void printUserInputOptions(const char* filename){
+  printf("\nAvailable interactive options:\n"
+	 "- get status    : Prints the complete status of all threads\n"
+	 "- get speeds    : Prints speed in hist/s for each thread\n"
+	 "- get simulated : Prints the simulated histories for each thread\n"
+	 "- help          : Displays this text\n"
+	 "\n"
+	 "To request options, write each desired instruction on an \n"
+	 "independent line in a file named '%s'.\n"
+	 "\n"
+	 "It is recommended to create the instruction file with a different\n"
+	 "name and then rename it to '%s' to avoid processing when the file\n"
+	 "while still being edited. For example, status can be obtained using: \n"
+	 "\n"
+	 " echo \"get status\" > userInstructions.txt\n\n", filename, filename);
+}
+
+void checkUserInput(const char* filename,
+		    const std::string sourceName,
+		    const std::vector<penred::simulation::simConfig>& simConfigs){
+
+  unsigned inputsDone = 0;
+
+  //Wait until the simulation of actual source starts for all threads
+  for(;;){
+    for(const penred::simulation::simConfig& simConf : simConfigs){
+      if(simConf.getCurrentSourceName() != sourceName){
+	std::this_thread::sleep_for(std::chrono::seconds(2));
+	continue;
+      }
+    }
+    //All threads started the source
+    break;
   }
-  
-  //Increment history counter
-  hist += dhist;
 
-  //Get detector ID
-  unsigned firstKdet = context.getDET(genState.IBODY);
-  //Tally first sampled particle
-  tallies.run_sampledPart(hist,dhist,firstKdet,genKpar,genState);
-  
+  printUserInputOptions(filename);
+
+  //Check for user input periodically
   for(;;){
 
-    //Control if particle reached the geometry
-    bool inGeometry = false;
-    
-    //Check particle type and simulate it
-    if(genKpar == PEN_ELECTRON){
-      
-      //Copy generated state
-      stateCopy(betaE.getState(),genState);
-
-      //Init Page variables
-      betaE.page0();
-      
-      //Try to move generated particle to geometry system
-      if(move2geo(hist,betaE,tallies)){
-
-	//particle reahed the geometry system
-	inGeometry = true;
-	
-	//Get detector ID
-	unsigned kdet = betaE.getDET();	
-
-	//Simulate sampled particle
-	tallies.run_beginPart(hist,kdet,PEN_ELECTRON,betaE.readState());
-	simulatePart(hist,betaE,tallies,random);
-	
-      }
-    }
-    else if(genKpar == PEN_PHOTON){
-      
-      //Copy generated state
-      stateCopy(gamma.getState(),genState);      
-
-      //Init Page variables
-      gamma.page0();
-
-      //Try to move generated particle to geometry system
-      if(move2geo(hist,gamma,tallies)){
-
-	//particle reahed the geometry system
-	inGeometry = true;
-	
-	//Get detector ID
-	unsigned kdet = gamma.getDET();
-	
-	//Simulate sampled particle
-	tallies.run_beginPart(hist,kdet,PEN_PHOTON,gamma.readState());
-	simulatePart(hist,gamma,tallies,random);
-	
-      }
-    }
-    else if(genKpar == PEN_POSITRON){
-
-      //Copy generated state
-      stateCopy(betaP.getState(),genState);      
-
-      //Init Page variables
-      betaP.page0();
-
-      //Try to move generated particle to geometry system
-      if(move2geo(hist,betaP,tallies)){
-
-	//particle reahed the geometry system
-	inGeometry = true;
-	
-	//Get detector ID
-	unsigned kdet = betaP.getDET();	
-	
-	//Simulate sampled particle
-	tallies.run_beginPart(hist,kdet,PEN_POSITRON,betaP.readState());
-	simulatePart(hist,betaP,tallies,random);
-	
-      }
-    }
-    else{
-      //Unknown particle ID signals end of source
-      printf("Thread %u: Source '%s' reached its end at %llu/%llu "
-	     "particles simulated\n",
-	     ithread,source.name.c_str(),(hist-simulated)-dhist,nhists);
-      //End current hist
-      tallies.run_endHist(hist);
-      break;
-    }
-    
-    //Simulate until all stacks are empty
-    if(inGeometry){
-      for(;;){
-
-	//Get the state and number of stacked particles
-	unsigned nBetaE = stackE.getNSec();
-	unsigned nGamma = stackG.getNSec();
-	unsigned nBetaP = stackP.getNSec();
-
-	unsigned nBetaE05 = 0;
-	unsigned nGamma05 = 0;
-	unsigned nBetaP05 = 0;
-      
-	//Check end of simulation
-	bool remaining = false;
-	if(nBetaE > 0){
-	  remaining = true;
-	  nBetaE05 = nBetaE/2+1;
-	}
-	if(nGamma > 0){
-	  remaining = true;
-	  nGamma05 = nGamma/2+1;
-	}
-	if(nBetaP > 0){
-	  remaining = true;
-	  nBetaP05 = nBetaP/2+1;
-	}
-
-	//Check if the stacks are empty
-	if(!remaining)
-	  break;
-      
-      
-	//Simulate half stacked particles
-	unsigned nbetaEsim = 0;
-	while(nbetaEsim < nBetaE05){
-	  stackE.get(betaE.getState());
-
-	  //Update body and material
-	  betaE.updateBody();
-	  betaE.updateMat();
-	  
-	  //Get kdet
-	  unsigned kdet = betaE.getDET();
-	  
-	  //VR
-	  betaE.vr_particleStack(hist,random,verbose);
-
-	  //Simulate particle
-	  tallies.run_beginPart(hist,kdet,PEN_ELECTRON,betaE.readState());
-	  simulatePart(hist,betaE,tallies,random);
-	
-	  nbetaEsim++;
-	}
-	
-	unsigned ngammasim = 0;
-	while(ngammasim < nGamma05){
-	  stackG.get(gamma.getState());
-
-	  //Update body and material
-	  gamma.updateBody();
-	  gamma.updateMat();
-	    
-	  //Get kdet
-	  unsigned kdet = gamma.getDET();
-
-	  //VR
-	  gamma.vr_particleStack(hist,random,verbose);
-
-	  //Simulate particle
-	  tallies.run_beginPart(hist,kdet,PEN_PHOTON,gamma.readState());
-	  simulatePart(hist,gamma,tallies,random);
-	
-	  ngammasim++;
-	}
-	
-	unsigned nbetaPsim = 0;
-	while(nbetaPsim < nBetaP05){
-	  stackP.get(betaP.getState());
-
-	  //Update body and material
-	  betaP.updateBody();
-	  betaP.updateMat();
-
-	  //Get kdet
-	  unsigned kdet = betaP.getDET();
-	  
-	  //VR
-	  betaP.vr_particleStack(hist,random,verbose);	    
-
-	  //Simulate particle
-	  tallies.run_beginPart(hist,kdet,PEN_POSITRON,betaP.readState());
-	  simulatePart(hist,betaP,tallies,random);
-	
-	  nbetaPsim++;
-	}
-      }
-    }
-
-    //Get last seeds
-    int lseed1, lseed2;
-    random.getSeeds(lseed1,lseed2);
-    
-    //Sample new particle state
-    source.sample(genState,genKpar,dhist,ithread,random);
-    
-    //Check if is a valid particle
-    if(genKpar >= ALWAYS_AT_END){
-
-      //End last hist
-      tallies.run_endHist(hist);      
-      break;
-    }
-    
-    if(dhist > 0){
-      //End previous history
-      tallies.run_endHist(hist);
-
-      //Get actual time
-      const auto tnow = std::chrono::steady_clock::now();
-      //Check if elapsed time reaches dump interval
-      if(dumpWatch.check(tnow)){
-	//Save dump
-	unsigned long long currentHists = hist-simulated+initSourceSimulated;
-	printf("Dumping simulation with last hist %llu and seeds %d %d\n"
-	       "  source '%s' simulated %llu/%llu\n",
-	       hist,lseed1,lseed2,source.name.c_str(),currentHists,nhists);
-	fflush(stdout);
-	tallies.dump2file(dumpFilename.c_str(),
-			  hist,
-			  lseed1,lseed2,
-			  lastSource,
-			  currentHists,
-			  3);
-	if(writePartial)
-	  tallies.saveData(hist,false); //Saves data but does not repeat flush calls
-	dumpWatch.start(); //Restart watch
-      }
-      //Check if is time to make a report
-      if(reportWatch.check(tnow)){
-	
-	//Report simulated histories
-	int errReport;
-	std::chrono::seconds::rep nextReport =
-	  source.report(ithread,hist-simulated,&errReport,verbose);
-
-	if(nextReport < 0){
-	  //Error during report
-	  if(verbose > 0)
-	    printf("Thread %u: Source '%s': Error reporting simulated "
-		   "histories. Error code: %d\n",
-		   ithread,source.name.c_str(),errReport);
-	}
-	else{
-	  //Update wait time until next report
-	  if(verbose > 2)
-	    printf("Thread %u: Source '%s': Schedule next report %lld s\n",
-		   ithread,source.name.c_str(),
-		   static_cast<long long int>(nextReport));
-	  fflush(stdout);
-	  reportWatch.duration(nextReport*1000);
-	}
-
-	//Update assigned histories
-	updateHists(nhists,source,ithread,verbose);
-	lastHist = simulated+nhists;
-	reportWatch.start(); //Restart watch
-      }
-      if(ithread == 0){
-	//Check if is time to make a checkpoint
-	if(checkPointWatch.check(tnow)){
-	  checkpoint(source,ithread,verbose);
-	  checkPointWatch.start(); //Restart watch
-	}
-      }
-      //Check if the simulation must be stopped
-      if(simLimitWatch.check(tnow)){
-	//Save dump
-	unsigned long long currentHists = hist-simulated+initSourceSimulated;
-	printf("Maximum simulation time reached. Dumping simulation with last hist %llu and seeds %d %d\n"
-	       "  source '%s' simulated %llu/%llu\n",
-	       hist,lseed1,lseed2,source.name.c_str(),currentHists,nhists);
-	fflush(stdout);
-	tallies.dump2file(dumpFilename.c_str(),
-			  hist,
-			  lseed1,lseed2,
-			  lastSource,
-			  currentHists,
-			  3);
-	
-	if(writePartial)
-	  tallies.saveData(hist,false); //Saves data but does not repeat flush calls
-
-	//Finish the simulation
+    //Check if all sources have been finished
+    bool finish = true;
+    for(const penred::simulation::simConfig& simConf : simConfigs){
+      if(!simConf.isSourceFinished()){
+	finish = false;
 	break;
-	
       }
-      
-      //Increment history counter
-      hist += dhist;
-
-      //Check history limit
-      if(hist >= lastHist){
-	//End of simulation, ask permission to finish
-	if(source.handleFinish(ithread,hist-simulated,nhists,verbose)){
-	  //This worker can finish, exit from the simulation loop
-	  hist -= dhist;
-	  break;
-	}
-	//Restart report watch
-	reportWatch.start();
-	lastHist = simulated+nhists;
-      }
-      
-      //Print simulated histories report
-      if(hist > nextPrint){
-	printf("Thread %u: Simulated %llu/%llu histories "
-	       "from source '%s'\n",
-	       ithread,hist-simulated,nhists,source.name.c_str());
-	fflush(stdout);
-	nextPrint += printInterval;
-      }
-      
     }
 
-    //Get detector ID
-    unsigned kdet = context.getDET(genState.IBODY);
-    //Tally new sampled particle
-    tallies.run_sampledPart(hist,dhist,kdet,genKpar,genState);
-    
-    
+    if(finish)
+      break;
+
+    //Simulation still running, process input
+    FILE* fin = nullptr;
+    fin = fopen(filename, "r");
+    if(fin != nullptr){
+      //Input file created, read it
+      char line[500];
+      unsigned long nLine;
+      while(pen_getLine(fin, 500, line, nLine) == 0){
+	//Process input
+	char word1[500];
+	char word2[500];
+	sscanf(line, " %s %s ", word1, word2);
+	if(strcmp(word1,"get") == 0){
+	  if(strcmp(word2, "status") == 0){
+	    //Print status of all threads
+	    for(const penred::simulation::simConfig& simConf : simConfigs){
+	      std::cout << simConf.stringifyState() << std::endl;
+	    }
+	  }else if(strcmp(word2, "speeds") == 0 ||
+		   strcmp(word2, "speed" ) == 0){
+	    //Print mean speeds of all threads
+	    for(const penred::simulation::simConfig& simConf : simConfigs){
+	      double meanSpeed = simConf.getSpeedInSource();
+	      std::string out(simConf.threadAndSourcePrefix());
+	      out += std::to_string(meanSpeed) + " hist/s\n";
+	      std::cout << out;
+	    }
+	    std::cout << std::endl;
+	  }else if(strcmp(word2, "simulated") == 0){
+	    //Print simulated histories in each thread
+	    for(const penred::simulation::simConfig& simConf : simConfigs){
+	      unsigned long long simulated  = simConf.getSimulatedInSource();
+	      unsigned long long toSimulate = simConf.getToSimulateInSource();
+	      std::string out(simConf.threadAndSourcePrefix());
+	      out += "Simulated " + std::to_string(simulated) +
+		"/" + std::to_string(toSimulate) + " histories\n";
+	      std::cout << out;
+	    }
+	    std::cout << std::endl;	    
+	  }
+	}
+	else if(strcmp(word1,"help") == 0){
+	  printUserInputOptions(filename);
+	}
+      }
+
+      //Close file and remove it
+      fclose(fin);
+      std::string newFilename =
+	"input" +
+	std::to_string(inputsDone++) +
+	".txt";
+      std::rename(filename, newFilename.c_str());
+    }
+    std::this_thread::sleep_for(std::chrono::seconds(10));
   }
-
-  //Update seeds for next source
-  random.getSeeds(*seed1,*seed2);
-
-  //Get elapsed real time
-  auto end = std::chrono::steady_clock::now();
-  const double elapsed =
-    static_cast<double>(std::chrono::duration_cast<std::chrono::seconds>(end-start).count());
-  
-  printf("Thread %u: Source '%s' finished with %llu/%llu histories "
-	 "simulated and random seeds (%d,%d)          Simulation "
-	 "CPU time: %12.4E s. Elapsed time: %12.4E s\n",
-	 ithread,source.name.c_str(),hist-simulated,nhists,
-	 *seed1,*seed2, CPUtime()-time0,elapsed);
-  fflush(stdout);
-  
-  //Save simulated histories
-  (*nsimulated) = hist;
-
-  //Update maximum simulation time
-  (*maxSimTime) -= elapsed;
-  
 }
 
 int main(int argc, char** argv){
@@ -688,7 +284,7 @@ int main(int argc, char** argv){
   }
 
   printf("***************************************************************\n");
-  printf(" PenRed version: 1.9.3b (06-September-2023) \n");
+  printf(" PenRed version: 1.9.4 (19-February-2024) \n");
   printf(" Copyright (c) 2019-2023 Universitat Politecnica de Valencia\n");
   printf(" Copyright (c) 2019-2023 Universitat de Valencia\n");
   printf(" Reference: Computer Physics Communications, 267 (2021) 108065\n"
@@ -784,14 +380,38 @@ int main(int argc, char** argv){
     return -1;
   }
 
-  // Get verbose level
-  //********************
-  int auxVerbose;
-  if(config.read("simulation/verbose",auxVerbose) == INTDATA_SUCCESS){
-    auxVerbose = std::max(0,auxVerbose);
-    verbose = static_cast<unsigned>(auxVerbose);
-    if(verbose > 1){
-      printf("Verbose level set to %u\n",verbose);
+  // Get comon simulation configuration
+  //*************************************
+  penred::simulation::simConfig baseSimConfig;
+  int errSimConfig = baseSimConfig.configure("simulation",config);
+  if(errSimConfig != penred::simulation::errors::SUCCESS){
+    printf("Error: Unable to parse 'simulation' section: Invalid seeds\n");
+    return -1;
+  }
+  //Extract verbose level
+  verbose = baseSimConfig.verbose;
+
+  if(verbose > 1)
+    printf("%s\n", baseSimConfig.stringifyConfig().c_str());
+
+  // Get user interactive options
+  //*************************************
+  std::string userInteractiveFilename;
+  bool userInteractiveEnabled;
+  if(config.read("simulation/interactive",userInteractiveEnabled) != INTDATA_SUCCESS){
+    userInteractiveEnabled = true;
+  }
+  if(config.read("simulation/interactive-file",
+		 userInteractiveFilename) != INTDATA_SUCCESS){
+    userInteractiveFilename = "userInstructions.txt";
+  }
+
+  if(verbose > 1){
+    printf("User interactive %s ", userInteractiveEnabled ? "enabled" : "disabled");
+    if(userInteractiveEnabled){
+      printf("via filename '%s'\n", userInteractiveFilename.c_str());
+    }else{
+      printf("\n");
     }
   }
 
@@ -933,26 +553,16 @@ int main(int argc, char** argv){
     }
   }
 
-  // Get initial seeds
-  //*******************************
-  int iseed1, iseed2;
-  if(config.read("simulation/seed1",iseed1) != INTDATA_SUCCESS){
-    iseed1 = 1;
-  }
-  if(config.read("simulation/seed2",iseed2) != INTDATA_SUCCESS){
-    iseed2 = 1;
-  }
+  // Create a simulation config for each thread
+  //*********************************************
+  std::vector<penred::simulation::simConfig> simConfigs(nthreads);
 
-  if(iseed1 <= 0 || iseed2 <= 0){
-    if(verbose > 0){
-      printf("Invalid initial seeds: %d %d\n",iseed1,iseed2);
-      printf(" Both must be greater than zero\n");
-    }
-    return -2;
-  }
-  
-  if(verbose > 1){
-    printf("Initial seeds: %d %d\n",iseed1,iseed2);
+  //Copy basic configuration
+  for(unsigned i = 0; i < nthreads; i++){
+    simConfigs[i].iThread = i;
+    simConfigs[i].copyCommonConfig(baseSimConfig);
+    //Set, by default, std::cout as output stream
+    simConfigs[i].setOutstream(std::cout);
   }
 
   // Get initial seed pair number
@@ -992,19 +602,13 @@ int main(int argc, char** argv){
   // Get output options
   //*******************************
   bool ASCIIResults = true;
-  bool partialResults = false;
   if(config.read("simulation/ascii-results",ASCIIResults) != INTDATA_SUCCESS){
     ASCIIResults = true;
   }
-  if(ASCIIResults){
-    if(config.read("simulation/partial-results",partialResults) != INTDATA_SUCCESS){
-      partialResults = false;
+  if(verbose > 1){
+    if(!ASCIIResults){
+      printf("ASCII results write disabled\n");
     }
-    if(verbose > 1)
-      printf("Writing partial results %s\n",partialResults ? "enabled" : "disabled");
-  }
-  else{
-    printf("ASCII results write disabled\n");
   }
 
   bool finalDump = false;
@@ -1012,39 +616,7 @@ int main(int argc, char** argv){
     finalDump = false;
   }
 
-  // Get maximum simulation time
-  //*******************************
-  double maxSimTime;
-  if(config.read("simulation/max-time",maxSimTime) == INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("Maximum simulation time set to %E s\n",maxSimTime);
-    }
-  }else{
-    //No maximum simulation time
-    maxSimTime = 1.0e35;
-  }
-
-  if(maxSimTime <= 0.0){
-    //No maximum simulation time
-    maxSimTime = 1.0e35;
-  }
-
-  //Create a vector to store the maximum simlation time for each thread
-  std::vector<double> maxSimTimes(nthreads);
-  
-  // Get time between dumps
-  //*******************************
-
-  double dumpTime;
-  if(config.read("simulation/dump-interval",dumpTime) != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("\n\nInterval between dumps not specified. Will be set to 1e35 s.\n\n");
-    }
-    dumpTime = 1.0e35;
-  }
-  printf("Time between dumps (s): %12.4E\n",dumpTime);
-
-  // Get recovery and write dump filename
+  // Get recovery dump filename
   //***************************************
   std::string dump2read;  
   if(config.read("simulation/dump2read",dump2read) != INTDATA_SUCCESS){
@@ -1052,14 +624,6 @@ int main(int argc, char** argv){
       printf("\n\nNo recovery dump filename specified.\n\n");
     }
     dump2read.clear();
-  }
-
-  std::string dump2write;  
-  if(config.read("simulation/dump2write",dump2write) != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("\n\nNo write dump filename specified. 'dump.dat' will be used.\n\n");
-    }
-    dump2write = "dump.dat";
   }
 
   // Check if the user only needs to read dump and write ASCII tally report
@@ -1183,8 +747,6 @@ int main(int argc, char** argv){
   //*******************************
 
   const size_t nRand0Seeds = 1001;
-  std::vector<int> seeds1(nthreads);
-  std::vector<int> seeds2(nthreads);
 
   int seedPos0 = nseedPair; //First seed pair to use
   //Set required seeds equal to the number of threads
@@ -1221,8 +783,10 @@ int main(int argc, char** argv){
   //initial seeds for all MPI processes and threads.
   
   if(nReqSeeds > 1001){
-    printf("Error: Unsuficient initial seeds for all processes and seeds (%d required).\n"
-	   "        Please, use less threads to use, as maximum, 1001 initial seeds.\n",nReqSeeds);
+    printf("Error: Unsuficient initial seeds for all processes "
+	   "and seeds (%d required).\n"
+	   "        Please, use less threads to use, as maximum,"
+	   " 1001 initial seeds.\n",nReqSeeds);
     return -3;
   }
   
@@ -1231,18 +795,13 @@ int main(int argc, char** argv){
       int seedPos = i;
       if(seedPos0 >= 0)
 	seedPos = (seedPos0+i) % nRand0Seeds;
-      rand0(seedPos, seeds1[i], seeds2[i]);
+      simConfigs[i].setSeeds(seedPos);
     }
   }
-  else{
-    
+  else{    
     if(seedPos0 >= 0){
-      rand0(seedPos0, seeds1[0], seeds2[0]);
-    } else{    
-      seeds1[0] = iseed1;
-      seeds2[0] = iseed2;
-    }
-    
+      simConfigs[0].setSeeds(seedPos0);
+    }    
   }
   
   //****************************
@@ -1413,19 +972,23 @@ int main(int argc, char** argv){
 
   //Initialize context with specified materials
   FILE* fcontext = nullptr;
+  int contextVerbose = verbose;
   if(contextlogfile.length() > 0){
     //fcontext = fopen("context.rep","w");
     fcontext = fopen(contextlogfile.c_str(),"w");
     if(fcontext == nullptr){
       printf("Error: unable to open context log file '%s'\n",contextlogfile.c_str());
     }
+  }else{
+    fcontext = stdout;
+    contextVerbose = 1;
   }
-  if(context.init(globEmax,fcontext,verbose,matFilenames) != PEN_SUCCESS){
+  if(context.init(globEmax,fcontext,contextVerbose,matFilenames) != PEN_SUCCESS){
     if(fcontext != nullptr) fclose(fcontext);
     printf("Error at context initialization.\n");
     return -5;
   }
-  if(fcontext != nullptr) fclose(fcontext);
+  if(contextlogfile.length() > 0 && fcontext != nullptr) fclose(fcontext);
   
   //****************************
   // Geometry parameters
@@ -1563,7 +1126,8 @@ int main(int argc, char** argv){
       totalSimHists += simulated;
       if(lastSource >= 0){
 	if(verbose > 1){
-	  printf("Warning: Dump file '%s' generated from a non finished simulation\n",filename);
+	  printf("Warning: Dump file '%s' generated from a "
+		 "non finished simulation\n",filename);
 	}
       }
       if(verbose > 1){
@@ -1586,11 +1150,7 @@ int main(int argc, char** argv){
   }
   //*******************************
 
-  // Check if we are restoring a simulation from dumpfile
-  std::vector<unsigned long long> simulated(nthreads,0);  
-  std::vector<int> nextSource(nthreads,0);
-  std::vector<unsigned long long> currentSourceDone(nthreads,0);
-  
+  // Check if we are restoring a simulation from dumpfile  
   if(dump2read.length() > 0){
 
     if(verbose > 1){
@@ -1623,14 +1183,10 @@ int main(int argc, char** argv){
 	filenameDump = std::string("th") + std::to_string(i) + dump2read;
       }
 #endif      
-      
+
       //Read dump file
-      int errDump = talliesVect[i].readDumpfile(filenameDump.c_str(),
-						simulated[i],
-						seeds1[i],seeds2[i],
-						nextSource[i],
-						currentSourceDone[i],
-						verbose);
+      int errDump = simConfigs[i].readTallyDump(filenameDump.c_str(),talliesVect[i]);
+      
       if(errDump != 0){
 	if(verbose > 0){
 	  printf("Error loading dumped data for thread %d: %d\n",i,errDump);
@@ -1641,26 +1197,29 @@ int main(int argc, char** argv){
       if(verbose > 1){
 	//Report data in dump file and finish execution
 	printf(" *** Dump information of thread %u:\n\n",i);
-	printf("  Total simulated histories: %llu\n",simulated[i]);
-	printf("                 Last seeds: %9d %9d\n",seeds1[i],seeds2[i]);
-	printf("      Last completed source: %d\n",nextSource[i]);
-	printf(" Source histories simulated: %llu\n",currentSourceDone[i]);	
+	printf("  Total simulated histories: %llu\n",
+	       simConfigs[i].getSimulatedInFinished() +
+	       simConfigs[i].getInitiallySimulatedInFirstSource());
+	int seed1, seed2;
+	simConfigs[i].getSeeds(seed1,seed2);
+	printf("                 Last seeds: %9d %9d\n",seed1,seed2);
+	printf("    Next source to simulate: %d\n",simConfigs[i].getFirstSourceIndex());
+	printf(" Source histories simulated: %llu\n",
+	       simConfigs[i].getInitiallySimulatedInFirstSource());	
       }
       
       if(dump2ascii){
 	// Save the data of this thread
-	talliesVect[i].saveData(simulated[i]);
+	talliesVect[i].saveData(simConfigs[i].getSimulatedInFinished() +
+				simConfigs[i].getInitiallySimulatedInFirstSource());
       }
-
-      nextSource[i] += 1;
-      nextSource[i] = std::max(0,nextSource[i]);
     }
-    
+
     if(dump2ascii){
       //Finish execution
       return 0;
     }
-
+    
     //Skip the required iterations from each source
     int iSource = 0;
     std::vector<unsigned long long>toSkip(nthreads);
@@ -1669,8 +1228,8 @@ int main(int argc, char** argv){
 
       //Calculate the iterations per thread to skip for this source
       for(size_t ithread = 0; ithread < nthreads; ++ithread){
-	if(nextSource[ithread] == iSource){
-	  toSkip[ithread] = currentSourceDone[ithread];
+	if(simConfigs[ithread].getFirstSourceIndex() == iSource){
+	  toSkip[ithread] = simConfigs[ithread].getInitiallySimulatedInFirstSource();
 	}else{
 	  toSkip[ithread] = 0;
 	}
@@ -1684,8 +1243,8 @@ int main(int argc, char** argv){
 
       //Calculate the iterations per thread to skip for this source
       for(size_t ithread = 0; ithread < nthreads; ++ithread){
-	if(nextSource[ithread] == iSource){
-	  toSkip[ithread] = currentSourceDone[ithread];
+	if(simConfigs[ithread].getFirstSourceIndex() == iSource){
+	  toSkip[ithread] = simConfigs[ithread].getInitiallySimulatedInFirstSource();
 	}else{
 	  toSkip[ithread] = 0;
 	}
@@ -1735,9 +1294,9 @@ int main(int argc, char** argv){
     talliesVect[i].run_beginSim();
   }
 
-  if(nextSource[0] > 0){
+  if(simConfigs[0].getFirstSourceIndex() > 0){
     if(verbose > 1)
-      printf("Skip already simulated sources (%d)\n",nextSource[0]);
+      printf("Skip already simulated sources (%d)\n",simConfigs[0].getFirstSourceIndex());
   }
 
   if(verbose > 1){
@@ -1745,15 +1304,16 @@ int main(int argc, char** argv){
   }
 
   //Substract initialization time to maximum simulation time
-  maxSimTime -= initializationTimer.timer();
+  long long int initTime = static_cast<long long int>(initializationTimer.timer());
+  for(unsigned ithread = 0; ithread < nthreads; ++ithread)
+    simConfigs[ithread].maxSimTime -= initTime*1000ll;
   
   //Iterate over generic sources
-  for(unsigned iSource = nextSource[0];
+  for(unsigned iSource = simConfigs[0].getFirstSourceIndex();
       iSource < genericSources.size(); ++iSource){
-    int lastSource = static_cast<int>(iSource)-1;
 
     //Check remaining simulation time
-    if(maxSimTime <= 0.0)
+    if(simConfigs[0].maxSimTime <= 0)
       break; //Finish the simulation
     
 
@@ -1763,29 +1323,16 @@ int main(int argc, char** argv){
     if(nthreads > 1){
       // Multi-thread
       //****************
-
-      //Update maximum simulation times
-      std::fill(maxSimTimes.begin(), maxSimTimes.end(), maxSimTime);
       
       for(unsigned ithread = 0; ithread < nthreads; ++ithread){
 	// Simulate
 	simThreads.push_back(std::thread(simulate<pen_particleState>,
-					 ithread,
-					 lastSource,
-					 &context,
-					 &genericSources[iSource],
-					 &talliesVect[ithread],
-					 &genericVR,
-					 &photonVR,		     
-					 &(seeds1[ithread]),&(seeds2[ithread]),
-					 dumpTime,
-					 dump2write,
-					 &simulated[ithread],
-					 currentSourceDone[ithread],
-					 partialResults,
-					 &maxSimTimes[ithread],
-					 verbose
-					 ));
+					 std::ref(simConfigs[ithread]),
+					 std::ref(context),
+					 std::ref(genericSources[iSource]),
+					 std::ref(talliesVect[ithread]),
+					 std::ref(genericVR),
+					 std::ref(photonVR)));
 
 
 #ifdef _PEN_UNIX_
@@ -1805,14 +1352,26 @@ int main(int argc, char** argv){
 	}
 #endif      
       }
+
+      //Iterate for user instructions if required
+      if(userInteractiveEnabled)
+	checkUserInput(userInteractiveFilename.c_str(),
+		       genericSources[iSource].name,
+		       simConfigs);
     
       //Join threads
       for(unsigned ithread = 0; ithread < nthreads; ++ithread){
 	simThreads[ithread].join();
 	//Update remaining simulation time
-	maxSimTime = std::min(maxSimTime, maxSimTimes[ithread]);	
+	simConfigs[0].maxSimTime =
+	  std::min(simConfigs[0].maxSimTime, simConfigs[ithread].maxSimTime);
       }
 
+      //Update maximum simulation times
+      for(unsigned ithread = 0; ithread < nthreads; ++ithread){
+	simConfigs[ithread].maxSimTime = simConfigs[0].maxSimTime;
+      }
+      
       //Clear threads
       simThreads.clear();    
     }
@@ -1823,48 +1382,24 @@ int main(int argc, char** argv){
 
       // Single thread
       //****************
-
-      //Update simulation time
-      maxSimTimes[0] = maxSimTime;
       
       // Simulate      
-      simulate(0,
-	       lastSource,
-	       &context,
-	       &genericSources[iSource],
-	       &talliesVect[0],
-	       &genericVR,
-	       &photonVR,
-	       &(seeds1[0]),&(seeds2[0]),
-	       dumpTime,
-	       dump2write,
-	       &simulated[0],
-	       currentSourceDone[0],
-	       partialResults,
-	       &maxSimTimes[0],
-	       verbose);
-
-      //Update maximum simulation time
-      maxSimTime = maxSimTimes[0];
-
+      simulate(simConfigs[0], context,
+	       genericSources[iSource],
+	       talliesVect[0],
+	       genericVR, photonVR);
+      
 #ifdef _PEN_USE_THREADS_
     }
 #endif
     
-    fflush(stdout);
-    
   }
 
   //Iterate over polarized sources
-  nextSource[0] -= genericSources.size();
-  nextSource[0] = std::max(nextSource[0],0);
-  for(unsigned iSource = nextSource[0];
-      iSource < polarisedGammaSources.size(); iSource++){
-    int lastSource = static_cast<int>(genericSources.size()) +
-      static_cast<int>(iSource)-1;
+  for(unsigned iSource = 0; iSource < polarisedGammaSources.size(); iSource++){
 
     //Check remaining simulation time
-    if(maxSimTime <= 0.0)
+    if(simConfigs[0].maxSimTime <= 0)
       break; //Finish the simulation
 
     
@@ -1875,29 +1410,16 @@ int main(int argc, char** argv){
     if(nthreads > 1){
       // Multi-thread
       //***************
-
-      //Update maximum simulation times
-      std::fill(maxSimTimes.begin(), maxSimTimes.end(), maxSimTime);
       
       for(unsigned ithread = 0; ithread < nthreads; ++ithread){
 	// Simulate
 	simThreads.push_back(std::thread(simulate<pen_state_gPol>,
-					 ithread,
-					 lastSource,
-					 &context,
-					 &polarisedGammaSources[iSource],
-					 &talliesVect[ithread],
-					 &genericVR,
-					 &photonVR,
-					 &(seeds1[ithread]),&(seeds2[ithread]),
-					 dumpTime,
-					 dump2write,
-					 &simulated[ithread],
-					 currentSourceDone[ithread],
-					 partialResults,
-					 &maxSimTimes[ithread],
-					 verbose
-					 ));
+					 std::ref(simConfigs[ithread]),
+					 std::ref(context),
+					 std::ref(polarisedGammaSources[iSource]),
+					 std::ref(talliesVect[ithread]),
+					 std::ref(genericVR),
+					 std::ref(photonVR)));
 
 #ifdef _PEN_UNIX_
 	//Set affinity for unix systems using pthreads
@@ -1918,11 +1440,24 @@ int main(int argc, char** argv){
 	
       }
 
+      //Iterate for user instructions if required
+      if(userInteractiveEnabled)
+	checkUserInput(userInteractiveFilename.c_str(),
+		       polarisedGammaSources[iSource].name,
+		       simConfigs);      
+
       //Join threads
       for(unsigned ithread = 0; ithread < nthreads; ++ithread){
 	simThreads[ithread].join();
 	//Update remaining simulation time
-	maxSimTime = std::min(maxSimTime, maxSimTimes[ithread]);
+	simConfigs[0].maxSimTime =
+	  std::min(simConfigs[0].maxSimTime, simConfigs[ithread].maxSimTime);
+
+      }
+
+      //Update maximum simulation times
+      for(unsigned ithread = 0; ithread < nthreads; ++ithread){
+	simConfigs[ithread].maxSimTime = simConfigs[0].maxSimTime;
       }
 
       //Clear threads
@@ -1935,29 +1470,14 @@ int main(int argc, char** argv){
 
       // Single thread
       //****************
-
-      //Update simulation time
-      maxSimTimes[0] = maxSimTime;
       
       // Simulate 
-      simulate<pen_state_gPol>(0,
-			       lastSource,
-			       &context,
-			       &polarisedGammaSources[iSource],
-			       &talliesVect[0],
-			       &genericVR,
-			       &photonVR,			       
-			       &(seeds1[0]),&(seeds2[0]),
-			       dumpTime,
-			       dump2write,
-			       &simulated[0],
-			       currentSourceDone[0],
-			       partialResults,
-			       &maxSimTimes[0],
-			       verbose);
-
-      //Update maximum simulation time
-      maxSimTime = maxSimTimes[0];
+      simulate<pen_state_gPol>(simConfigs[0],
+			       context,
+			       polarisedGammaSources[iSource],
+			       talliesVect[0],
+			       genericVR,
+			       photonVR);
       
 #ifdef _PEN_USE_THREADS_
     }
@@ -1968,13 +1488,13 @@ int main(int argc, char** argv){
   
   //Calculate the total number of simulated hists
   unsigned long long totalHists = 0.0;
-  for(const unsigned long long done : simulated){
-    totalHists += done;
+  for(unsigned ithread = 0; ithread < nthreads; ++ithread){
+    totalHists += simConfigs[ithread].getSimulatedInFinished();
   }
     
   //End simulations
   for(unsigned ithread = 0; ithread < nthreads; ithread++){
-    talliesVect[ithread].run_endSim(simulated[ithread]);
+    talliesVect[ithread].run_endSim(simConfigs[ithread].getSimulatedInFinished());
   }
 
   double simtime = timer.timer();
@@ -1994,8 +1514,11 @@ int main(int argc, char** argv){
   //If enabled, print final dumps
   if(finalDump){
     for(unsigned ithread = 0; ithread < nthreads; ithread++){
-      talliesVect[ithread].dump2file(dump2write.c_str(),simulated[ithread],
-				     seeds1[ithread],seeds2[ithread],-1,0ull,verbose);
+      int seeds1, seeds2;
+      simConfigs[ithread].getSeeds(seeds1, seeds2);
+      talliesVect[ithread].dump2file(simConfigs[ithread].dumpFilename.c_str(),
+				     simConfigs[ithread].getSimulatedInFinished(),
+				     seeds1,seeds2,-1,0ull,verbose);
     }
   }
   
@@ -2104,7 +1627,8 @@ int main(int argc, char** argv){
 
   for(size_t i = 0; i < enabledFormats.size(); ++i){
     if(enabledFormats[i]){
-      talliesVect[0].exportImage(totalHists,static_cast<pen_imageExporter::formatTypes>(i),false);
+      talliesVect[0].exportImage(totalHists,
+				 static_cast<pen_imageExporter::formatTypes>(i),false);
     }
   }
   
@@ -2996,21 +2520,6 @@ int setVarianceReduction(pen_context& context,
 	return -7;
       }
 
-      //Check forcing factor
-
-      pen_KPAR kpart = static_cast<pen_KPAR>(kpar);
-      bool calc_piecewise = true;
-      forcer = context.getIF(forcer, kpart, icol,
-			     static_cast<unsigned>(imat-1),
-			     calc_piecewise);
-
-      if (forcer < 1.0) {
-          if (verbose > 0) {
-              printf("Interaction forcing factor for material '%s', interaction %d lesser than minimum (1.0), will be set to 1.0\n", IFmats[imname].c_str(), icol);
-              forcer = 1.0;
-          }
-      }
-
       //Read weight range
       err = matSection.read("min-weight",weightL);
       if(err != INTDATA_SUCCESS){
@@ -3055,18 +2564,11 @@ int setVarianceReduction(pen_context& context,
 	  }
 	  return -8;
 	}
-	
-	//Store information
-	context.FORCE[ibody][kpar][icol] = forcer;
 
-	if(context.WRANGES[ibody][2*kpar] < weightL)
-	  context.WRANGES[ibody][2*kpar] = weightL;
 
-	if(context.WRANGES[ibody][2*kpar+1] > weightU)
-	  context.WRANGES[ibody][2*kpar+1] = weightU;
-
-	context.LFORCE[ibody][kpar] = true;
-	
+	//Set interaction forcing in context
+	context.setForcing(forcer, static_cast<pen_KPAR>(kpar),
+			   icol, ibody, weightL, weightU);
       }
     }
     
@@ -3185,22 +2687,6 @@ int setVarianceReduction(pen_context& context,
 	return -14;
       }
 
-      //Check forcing factor
-
-      unsigned imat = geometry.getMat(ibody);
-      pen_KPAR kpart = static_cast<pen_KPAR>(kpar);
-      bool calc_piecewise = true;
-      forcer = context.getIF(forcer, kpart, icol,
-			     static_cast<unsigned>(imat-1),
-			     calc_piecewise);
-
-      if (forcer < 1.0) {
-          if (verbose > 0) {
-              printf("Interaction forcing factor for body '%s', interaction %d lesser than minimum (1.0), will be set to 1.0\n", IFbodies[ibname].c_str(), icol);
-              forcer = 1.0;
-          }
-      }
-
       //Read weight range
       err = bodySection.read("min-weight",weightL);
       if(err != INTDATA_SUCCESS){
@@ -3233,17 +2719,10 @@ int setVarianceReduction(pen_context& context,
 	printf(" %4u  %15.15s   %11d   %11.4E   %12.4E - %12.4E\n",ibody,particle.c_str(),icol,forcer,weightL,weightU);
       }
 
-      //Store information
-      context.FORCE[ibody][kpar][icol] = forcer;
-
-      if(context.WRANGES[ibody][2*kpar] < weightL)
-	context.WRANGES[ibody][2*kpar] = weightL;
-
-      if(context.WRANGES[ibody][2*kpar+1] > weightU)
-	context.WRANGES[ibody][2*kpar+1] = weightU;
-
-      context.LFORCE[ibody][kpar] = true;	
-    }    
+      //Set interaction forcing in context
+      context.setForcing(forcer, static_cast<pen_KPAR>(kpar),
+			 icol, ibody, weightL, weightU);
+    }
   }
   else if(verbose > 1){
     printf("No bodies specified to use interaction forcing.\n");

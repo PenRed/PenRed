@@ -709,20 +709,39 @@ class export_penred(Operator, ExportHelper):
             else:
                 parentName = "void"
         
+        #Get number of vertex groups
+        vgNames = obj.vertex_groups.keys()
+        nVG = len(vgNames)
+
         #Get mesh data
         mesh = obj.data
         #Create triangles
         mesh.calc_loop_triangles()
         
         f.write("# Object: %s\n" % name)
-        f.write("#MAT      #NFACES     #NVERTEX     #NAME        #PARENT NAME\n")
-        f.write(" %03d      %07d     %08d     %s        %s\n" % (obj.penred_settings.material, len(mesh.loop_triangles),len(mesh.vertices), name, parentName))
+        f.write("#MAT      #NFACES     #NVERTEX     #NAME        #PARENT NAME    #N VERTEX GROUPS\n")
+        f.write(" %03d      %07d     %08d     %s        %s   %04d\n" % (obj.penred_settings.material, len(mesh.loop_triangles),len(mesh.vertices), name, parentName, nVG))
+
+        #Create lists with vertex belonging to each vertex group
+        vgIndexLists = []
+        for i in range(nVG):
+            vgIndexLists.append([])
+
+        for v in mesh.vertices:
+            for g in v.groups:
+                vgIndexLists[g.group].append(v.index)
+
+        #Print vertex groups
+        f.write("# VERTEX GROUPS\n")
+        for i in range(nVG):
+            f.write("#NAME  #NVERTEX\n")
+            f.write(" %s   %04d\n" % (vgNames[i], len(vgIndexLists[i])))
+            for index in vgIndexLists[i]:
+                f.write(" %04d\n" % (index))
+
+        #Print vertex
         f.write("# VERTEX LIST\n")
         f.write("# Index  (X Y Z)\n")
-
-        #Get vertices
-        vertices = mesh.vertices
-        #Sort vertices
         
         for vertex in mesh.vertices:
             vertexWorld = obj.matrix_world @ vertex.co

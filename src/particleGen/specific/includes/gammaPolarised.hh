@@ -32,7 +32,7 @@
 #define __GAMMA_POLARISED_SPECIFIC_SAMPLER__
 
 class gammaPolarised_specificSampler : public abc_specificSampler<pen_state_gPol>{
-  DECLARE_SAMPLER(gammaPolarised_specificSampler)
+  DECLARE_SPECIFIC_SAMPLER(gammaPolarised_specificSampler, pen_state_gPol)
   private:
 
   double SP10,SP20,SP30;

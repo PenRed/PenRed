@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2022 Universitat de València - UV
-//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2024 Universitat de València - UV
+//    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -60,6 +60,18 @@
   static const char* ___ID;\
   static const int ___register_return;\
 
+#define DECLARE_SPECIFIC_SAMPLER(Class, State)	\
+  public: \
+  inline int registerStatus() const { return ___register_return;} \
+  virtual const char* readID() const {return ___ID;}\
+  private: \
+  static const char* ___ID;\
+  static const int ___register_return;\
+  inline int shareConfig(const abc_specificSampler<State>& sharingSampler){ \
+  const Class& derived = dynamic_cast<const Class&>(sharingSampler);\
+  return sharedConfig(derived);\
+  }
+
 #define REGISTER_SAMPLER(Class, ID) \
   const int Class::___register_return = registerSampler<Class>(static_cast<const char *>(#ID)); \
   const char* Class::___ID = static_cast<const char *>(#ID);
@@ -105,17 +117,25 @@ struct pen_samplerTask{
     toDo = nIter;
 
     toDoMPI = toDo;
-  // ******************************* MPI ************************************ //
+    // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_
-  int mpiSize;
-  MPI_Comm_size(MPI_COMM_WORLD, &mpiSize);
-  toDoMPI /= static_cast<unsigned long long>(mpiSize);
-  toDoMPI += 1;
+    int mpiSize;
+    MPI_Comm_size(MPI_COMM_WORLD, &mpiSize);
+    toDoMPI /= static_cast<unsigned long long>(mpiSize);
+
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if(rank == 0)
+      toDoMPI += toDo % static_cast<unsigned long long>(mpiSize);
 #endif
-  // ******************************* MPI ************************************ //
-    toDoWorker = toDoMPI/nw+1;
+    // ******************************* MPI ************************************ //
+    if(toDoMPI % nw == 0)
+      toDoWorker = toDoMPI/nw;
+    else
+      toDoWorker = toDoMPI/nw+1;
     return 0;
   }
+  
   inline void skip(unsigned long long toSkip){
     unsigned long long auxIterDone = iterDone;
     if(toDo > toSkip)
@@ -257,6 +277,11 @@ public:
 
   inline static const char* type() {return "SPECIFIC";}
   virtual const char* readID() const = 0;
+
+  //Sharing configuration functions
+  virtual int shareConfig(const abc_specificSampler<particleState>&) = 0;
+  //Define a default "sharedConfig" to avoid implementing it if not required
+  int sharedConfig(const abc_specificSampler<particleState>&){return 0;}
   
   virtual ~abc_specificSampler(){}
 };
@@ -1121,7 +1146,7 @@ public:
 	printf("SelectSpecificSampler: Warning: Direction sampler selected "
 	       "but not required by specific sampler. Could be ignored.\n");
       }
-    }    
+    }
     
     // *** Energy
     
@@ -1141,7 +1166,7 @@ public:
 	printf("SelectSpecificSampler: Warning: Energy sampler selected "
 	       "but not required by specific sampler. Could be ignored.\n");
       }
-    }    
+    }
 
     // *** Time
     
@@ -1190,11 +1215,20 @@ public:
       specificSamplerVect[i]->setDirection(direction());
       specificSamplerVect[i]->setEnergy(energy());
       specificSamplerVect[i]->setTime(time());
-  
-      int errConfig = specificSamplerVect[i]->configure(Emax,
+
+      double auxEmax = -1;
+      int errConfig = specificSamplerVect[i]->configure(auxEmax,
 							config,
 							nthreads,
 							auxVerbose);
+
+      //Update Emax only from thread 0
+      if(i == 0){
+	//Update Emax only if has been overwritten in the specific sampler
+	if(auxEmax > 0.0)
+	  Emax = auxEmax;
+      }
+      
       if(errConfig != 0){
 	if(verbose > 0){
 	  printf("SelectSpecificSampler: Error: Unable to configure specific "
@@ -1206,6 +1240,21 @@ public:
       if(verbose >= 1)
 	auxVerbose = 1;
     }
+
+    //Share configuration between sampler threads
+    //*********************************************
+    for(unsigned i = 1; i < nthreads; i++){
+      int errSharing = specificSamplerVect[i]->sharedConfig(*specificSamplerVect[0]);
+      if(errSharing != 0){
+	if(verbose > 0){
+	  printf("SelectSpecificSampler: Error: Unable to share configuration "
+		 "between specific samplers '%s' for thread %u\n",ID,i);
+	}
+	clearSpecificSamplers();
+	return -9;
+      }
+    }
+
     
     useSpecific = true;
     return 0;

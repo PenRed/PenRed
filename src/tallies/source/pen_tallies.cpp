@@ -343,7 +343,7 @@ int pen_commonTallyCluster::writeDump(unsigned char*& pdump,
   // Write number of simulated histories
   memcpy(&pdump[pos],&nhistUint,sizeof(uint64_t));
   pos += sizeof(uint64_t);
-  // Write last completed source identifier
+  // Write last started source identifier
   memcpy(&pdump[pos],&source32,sizeof(int32_t));
   pos += sizeof(int32_t);
   // Write number of simulated histories at last source

@@ -29,8 +29,13 @@
 
 
 #############################
-#  DUMP 
+#  MUEN
 #############################
+
+if(WITH_MULTI_THREADING)
+    #Find threads package
+    find_package (Threads REQUIRED)
+endif(WITH_MULTI_THREADING)
 
 # Create lib
 add_library(pen_muen STATIC ${PROJECT_SOURCE_DIR}/lib/parameters/source/pen_muen.cpp)
@@ -39,4 +44,10 @@ target_include_directories(pen_muen PUBLIC ${PROJECT_SOURCE_DIR}/lib/parameters/
 
 target_link_libraries(pen_muen pen_particles)
 target_link_libraries(pen_muen pen_geos)
+target_link_libraries(pen_muen samplers)
 target_link_libraries(pen_muen pen_timer)
+
+if(WITH_MULTI_THREADING)
+    #Link thread libs
+    target_link_libraries (pen_muen ${CMAKE_THREAD_LIBS_INIT})
+endif(WITH_MULTI_THREADING)

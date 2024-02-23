@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2023 Universitat de València - UV
-//    Copyright (C) 2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2023-2024 Universitat de València - UV
+//    Copyright (C) 2023-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -222,11 +222,6 @@ int pen_comboGeo::configure(const pen_parserSection& config,
       configStatus = 12;
       return 12;
     }
-
-    if(verbose > 1){
-      printf(" - Geometry '%s' transparent bodies:\n",
-	     geometries[igeo]->name.c_str());
-    }
     
     //Iterate over geometry bodies
     for(size_t ibody = 0; ibody < geometries[igeo]->getBodies(); ++ibody){
@@ -249,7 +244,7 @@ int pen_comboGeo::configure(const pen_parserSection& config,
       body.MATER = geometries[igeo]->getMat(ibody);
 
       //Set body detector
-      body.MATER = geometries[igeo]->getDET(ibody);
+      body.KDET = geometries[igeo]->getDET(ibody);
 
       //Set body DSMAX
       body.DSMAX = geometries[igeo]->getDSMAX(ibody);

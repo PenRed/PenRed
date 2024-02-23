@@ -45,7 +45,11 @@ private:
 public:
   void energySampling(double& energy, pen_rand& random) const;
   int configure(double& Emax, const pen_parserSection& config, const unsigned verbose);
-  
+  inline double minE(){return energies.front();}
+  inline const std::vector<double>& readEnergy() const {return energies;}
+  inline const std::vector<double>& readDE() const {return dE;}
+  inline const std::vector<double>& readCummulative() const {return cummulative;}
+  inline unsigned nBins() const {return nEBins;}
 };
 
 #endif

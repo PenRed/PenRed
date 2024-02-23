@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2020 Universitat de València - UV
-//    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2024 Universitat de València - UV
+//    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -39,6 +39,7 @@
 #include <cctype>
 #include <climits>
 #include <cmath>
+#include <sstream>
 
 enum pen_parserErrors{INTDATA_SUCCESS = 0,
 		      INTDATA_FALSE = 0,
@@ -593,7 +594,10 @@ public:
   }
   inline int set(std::string& key, const std::string& data, const bool overwrite = false){
     return setT(key,data,overwrite);
-  }  
+  }
+  inline int set(std::string& key, const char* data, const bool overwrite = false){
+    return setT(key,std::string(data),overwrite);
+  }
 
   inline int set(const char* key, const char data, const bool overwrite = false){
     std::string aux(key);
@@ -626,6 +630,10 @@ public:
   inline int set(const char* key, const std::string& data, const bool overwrite = false){
     std::string aux(key);
     return setT(aux,data,overwrite);
+  }    
+  inline int set(const char* key, const char* data, const bool overwrite = false){
+    std::string aux(key);
+    return setT(aux,std::string(data),overwrite);
   }    
     
   
@@ -827,9 +835,17 @@ int parseFile(const char* filename,
 	      std::string& errorString,
 	      long unsigned& errorLine);
 
+int parseStream(std::istream& sIn,
+		pen_parserSection& section,
+		std::string& errorString,
+		long unsigned& errorLine);
+  
 int pen_getLine(FILE* fin,
 		const unsigned size,
 		char* line,
 		unsigned long& nlines);
 
+int pen_getLine(std::istream& sIn,
+		std::string& line,
+		unsigned long& nlines);
 #endif

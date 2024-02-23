@@ -44,6 +44,7 @@ include_directories(SYSTEM ${DCMTK_INCLUDE_DIRS})
 add_library(pen_dicom STATIC ${PROJECT_SOURCE_DIR}/kernel/parsers/DICOM/source/pen_dicom.cpp)
 
 target_include_directories(pen_dicom PUBLIC ${PROJECT_SOURCE_DIR}/kernel/parsers/DICOM/includes)
+target_include_directories(pen_dicom PUBLIC ${PROJECT_SOURCE_DIR}/kernel/includes)
 
 # Link DCMTK lib
 target_link_libraries(pen_dicom ${DCMTK_LIBRARIES})

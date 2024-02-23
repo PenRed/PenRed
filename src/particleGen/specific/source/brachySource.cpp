@@ -74,6 +74,13 @@ int brachy_specificSampler::configure(double& Emax,
     "                                 All kind of seeds will be read.\n");
     }
   }
+
+  //Try to read seed rotation option
+  if(config.read("seed-rotation", seedRotation) != INTDATA_SUCCESS)
+    seedRotation = true;
+
+  if(verbose > 1)
+    printf("Seed rotation is %s.\n", seedRotation ? "enabled" : "disabled");
   
   return 0;
 }
@@ -98,9 +105,11 @@ void brachy_specificSampler::sample(pen_particleState& state,
         // Get random number
         double rand = random.rand();
         unsigned seedIndex = seeki(weights.data(),rand, weights.size());
-        
-        matmul3D(rotations[seedIndex].data(),pos);
-        matmul3D(rotations[seedIndex].data(),dir);
+
+	if(seedRotation){
+	  matmul3D(rotations[seedIndex].data(),pos);
+	  matmul3D(rotations[seedIndex].data(),dir);
+	}
         
         
         localstate.X=pos[0];
@@ -122,7 +131,13 @@ void brachy_specificSampler::sample(pen_particleState& state,
 void brachy_specificSampler::updateGeometry(const wrapper_geometry* geometryIn){
     
     //Check if the geometry is a DICOM
-    const pen_dicomGeo* pDicomGeo = dynamic_cast<const pen_dicomGeo*>(geometryIn);
+    const pen_dicomGeo* pDicomGeo = geometryIn->convertTo<pen_dicomGeo>();
+
+    if(pDicomGeo == nullptr){
+      //This geometry type is not a DICOM, check if it contains a DICOM
+      size_t geoPos;
+      pDicomGeo = geometryIn->getInternalGeoType<pen_dicomGeo>(geoPos);
+    }
     
     if(pDicomGeo != nullptr){
         const pen_dicom& dicom = pDicomGeo->readDicom();

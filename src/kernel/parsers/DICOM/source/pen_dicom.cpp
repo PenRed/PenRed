@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2022 Universitat de València - UV
-//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2023 Universitat de València - UV
+//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -422,6 +422,341 @@ pen_seed::~pen_seed(){
   clear();
 }
 
+
+void pen_ctData::load(DcmDataset* metainfo){
+
+  // Acquisition type
+  const char* acTypeChar;
+  OFCondition status = metainfo->findAndGetString(DCM_AcquisitionType,
+				      acTypeChar);
+  if(status.bad()){
+    acquisitionTypeString.assign("UNKNOWN");
+    acquisitionType = 5;
+  }else{
+    acquisitionTypeString.assign(acTypeChar);
+    if(acquisitionTypeString.compare("SEQUENCED") == 0)
+      acquisitionType = 0;
+    else if(acquisitionTypeString.compare("SPIRAL") == 0)
+      acquisitionType = 1;
+    else if(acquisitionTypeString.compare("CONSTANT_ANGLE") == 0)
+      acquisitionType = 2;
+    else if(acquisitionTypeString.compare("STATIONARY") == 0)
+      acquisitionType = 3;
+    else if(acquisitionTypeString.compare("FREE") == 0)
+      acquisitionType = 4;
+    else
+      acquisitionType = 5;
+  }
+
+  // Revolution time
+  status = metainfo->findAndGetFloat64(DCM_RevolutionTime,
+				       revolutionTime);
+  if(status.bad()){
+    revolutionTime = -1;
+  }
+
+  // Total Collimation Width
+  status = metainfo->findAndGetFloat64(DCM_TotalCollimationWidth,
+				       totalCollimationWidth);
+  if(status.bad()){
+    totalCollimationWidth = -1;
+  }else{
+    //Convert to cm
+    totalCollimationWidth /= 10.0;
+  }
+
+  // Table speed
+  status = metainfo->findAndGetFloat64(DCM_TableSpeed,
+				       tableSpeed);
+  if(status.bad()){
+    tableSpeed = -1;
+  }else{
+    //Convert to cm/s
+    tableSpeed /= 10.0;
+  }
+
+  // Table Feed Per Rotation
+  status = metainfo->findAndGetFloat64(DCM_TableFeedPerRotation,
+				       tableFeedPerRotation);
+  if(status.bad()){
+    tableFeedPerRotation = -1;
+  }else{
+    //Convert to cm
+    tableFeedPerRotation /= 10.0;
+  }
+	
+  // Spiral Pitch Factor
+  status = metainfo->findAndGetFloat64(DCM_SpiralPitchFactor,
+				       spiralPitchFactor);
+  if(status.bad()){
+    spiralPitchFactor = -1;
+  }
+
+  // Data Collection Diameter
+  status = metainfo->findAndGetFloat64(DCM_DataCollectionDiameter,
+				       dataCollectionDiameter);
+  if(status.bad()){
+    dataCollectionDiameter = -1;
+  }else{
+    //Convert to cm
+    dataCollectionDiameter /= 10.0;
+  }
+
+  // Filter Type
+  const char* filterTypeChar;
+  status = metainfo->findAndGetString(DCM_FilterType,
+				      filterTypeChar);
+  if(status.bad()){
+    filterTypeString.assign("NONE");
+    filterType = 0;
+  }else{
+    filterTypeString.assign(filterTypeChar);
+    if(filterTypeString.compare("NONE") == 0)
+      filterType = 0;
+    else if(filterTypeString.compare("STRIP") == 0)
+      filterType = 1;
+    else if(filterTypeString.compare("WDGE") == 0)
+      filterType = 2;
+    else if(filterTypeString.compare("BUTTERFLY") == 0)
+      filterType = 3;
+    else if(filterTypeString.compare("MULTIPLE") == 0)
+      filterType = 4;
+    else if(filterTypeString.compare("FLAT") == 0)
+      filterType = 5;
+    else
+      filterType = 6;
+  }
+
+  // Filter Material
+  for(unsigned i = 0; i < maxFilters; ++i){
+    const char* filterMatChar;
+    status = metainfo->findAndGetString(DCM_FilterMaterial,
+					filterMatChar, i);
+    if(!status.bad()){
+      filterMaterial.push_back(std::string(filterMatChar));
+    }else{
+      break;
+    }
+  }
+
+  // Focal Spots
+  for(unsigned i = 0; i < maxFilters; ++i){
+    double auxFocalSpot;
+    status = metainfo->findAndGetFloat64(DCM_FocalSpots,auxFocalSpot,i);
+    if(status.bad()){
+      break;
+    }else{
+      //Convert to cm
+      auxFocalSpot /= 10.0;
+      focalSpots.push_back(auxFocalSpot);
+    }
+  }
+
+  // CTDIvol
+  status = metainfo->findAndGetFloat64(DCM_CTDIvol,
+				       CTDIvol);
+  if(status.bad()){
+    CTDIvol = -1;
+  }
+
+  // Reconstruction Diameter
+  status = metainfo->findAndGetFloat64(DCM_ReconstructionDiameter,
+				       reconstructionDiameter);
+  if(status.bad()){
+    reconstructionDiameter = -1;
+  }else{
+    //Convert to cm
+    reconstructionDiameter /= 10.0;
+  }
+
+  // Distance Source To Detector
+  status = metainfo->findAndGetFloat64(DCM_DistanceSourceToDetector,
+				       distanceSourceToDetector);
+  if(status.bad()){
+    distanceSourceToDetector = -1;
+  }else{
+    //Convert to cm
+    distanceSourceToDetector /= 10.0;
+  }
+
+  // Distance Source To Data Collection Center
+  status = metainfo->findAndGetFloat64(DCM_DistanceSourceToDataCollectionCenter,
+				       distanceSourceToDataCollectionCenter);
+  if(status.bad()){
+    distanceSourceToDataCollectionCenter = -1;
+  }else{
+    //Convert to cm
+    distanceSourceToDataCollectionCenter /= 10.0;
+  }
+  
+  // Rotation Direction
+  const char* rotationDirectionChar;
+  status = metainfo->findAndGetString(DCM_RotationDirection,
+				      rotationDirectionChar);
+  if(status.bad()){
+    rotationDirectionString.assign("UNKNOWN");
+    rotationDirection = 2;
+  }else{
+    rotationDirectionString.assign(rotationDirectionChar);
+    if(rotationDirectionString.compare("CW") == 0)
+      rotationDirection = 0;
+    else if(rotationDirectionString.compare("CC") == 0)
+      rotationDirection = 1;
+    else
+      rotationDirection = 2;
+  }
+
+  // Exposure Time
+  Sint32 auxSint32;
+  status = metainfo->findAndGetSint32(DCM_ExposureTime,
+				      auxSint32);
+  if(status.bad()){
+    exposureTime = -1;
+  }else{
+    exposureTime = static_cast<long int>(auxSint32);
+  }
+
+  // XRay Tube Current
+  status = metainfo->findAndGetSint32(DCM_XRayTubeCurrent,
+				      auxSint32);
+  if(status.bad()){
+    xRayTubeCurrent = -1;
+  }else{
+    xRayTubeCurrent = static_cast<long int>(auxSint32);
+  }
+
+  // Exposure
+  status = metainfo->findAndGetSint32(DCM_Exposure,
+				      auxSint32);
+  if(status.bad()){
+    exposure = -1;
+  }else{
+    exposure = static_cast<long int>(auxSint32);
+  }
+
+  // Exposure In uAs
+  status = metainfo->findAndGetSint32(DCM_ExposureInuAs,
+				      auxSint32);
+  if(status.bad()){
+    exposureInuAs = -1;
+  }else{
+    exposureInuAs = static_cast<long int>(auxSint32);
+  }
+
+  // Generator Power
+  status = metainfo->findAndGetSint32(DCM_GeneratorPower,
+				      auxSint32);
+  if(status.bad()){
+    generatorPowerInt = -1;
+  }else{
+    generatorPowerInt = static_cast<long int>(auxSint32);
+  }
+
+
+  // Data Collection Center Patient
+  status =
+    metainfo->findAndGetFloat64(DCM_DataCollectionCenterPatient,
+				dataCollectionCenterPatient.x,0);
+  if(status.bad()){
+    dataCollectionCenterPatient.x = 0.0;
+    dataCollectionCenterPatient.y = 0.0;
+    dataCollectionCenterPatient.z = 0.0;
+  }else{
+    status =
+      metainfo->findAndGetFloat64(DCM_DataCollectionCenterPatient,
+				  dataCollectionCenterPatient.y,1);
+    status =
+      metainfo->findAndGetFloat64(DCM_DataCollectionCenterPatient,
+				  dataCollectionCenterPatient.z,2);
+
+
+    dataCollectionCenterPatient.x /= 10.0;
+    dataCollectionCenterPatient.y /= 10.0;
+    dataCollectionCenterPatient.z /= 10.0;
+  }
+
+  // Reconstruction Target Center Patient
+  status =
+    metainfo->findAndGetFloat64(DCM_ReconstructionTargetCenterPatient,
+				reconstructionTargetCenterPatient.x,0);
+  if(status.bad()){
+    reconstructionTargetCenterPatient.x = 0.0;
+    reconstructionTargetCenterPatient.y = 0.0;
+    reconstructionTargetCenterPatient.z = 0.0;
+  }else{
+    status =
+      metainfo->findAndGetFloat64(DCM_ReconstructionTargetCenterPatient,
+				  reconstructionTargetCenterPatient.y,1);
+    status =
+      metainfo->findAndGetFloat64(DCM_ReconstructionTargetCenterPatient,
+				  reconstructionTargetCenterPatient.z,2);
+
+
+    reconstructionTargetCenterPatient.x /= 10.0;
+    reconstructionTargetCenterPatient.y /= 10.0;
+    reconstructionTargetCenterPatient.z /= 10.0;
+  }
+
+  // Isocenter Position
+  status =
+    metainfo->findAndGetFloat64(DCM_IsocenterPosition,
+				isocenterPosition.x,0);
+  if(status.bad()){
+    isocenterPosition.x = 0.0;
+    isocenterPosition.y = 0.0;
+    isocenterPosition.z = 0.0;
+  }else{
+    status =
+      metainfo->findAndGetFloat64(DCM_IsocenterPosition,
+				  isocenterPosition.y,1);
+    status =
+      metainfo->findAndGetFloat64(DCM_IsocenterPosition,
+				  isocenterPosition.z,2);
+
+
+    isocenterPosition.x /= 10.0;
+    isocenterPosition.y /= 10.0;
+    isocenterPosition.z /= 10.0;
+  }
+
+  // Mulienergy CT Acquisition
+  const char* usedMultiEnergyCT;
+  status = metainfo->findAndGetString(DCM_MultienergyCTAcquisition,
+				      usedMultiEnergyCT);
+  if(status.bad()){
+    multiEnergyAcquisition = false;
+  }else{
+    if(std::string(usedMultiEnergyCT).compare("YES") == 0)
+      multiEnergyAcquisition = true;
+    else
+      multiEnergyAcquisition = false;
+  }
+
+  // KVP
+  status = metainfo->findAndGetFloat64(DCM_KVP,kvp);
+  if(status.bad()){
+    kvp = -1;
+  }
+
+  // Single Collimation Width
+  status = metainfo->findAndGetFloat64(DCM_SingleCollimationWidth,singleCollimationWidth);
+  if(status.bad()){
+    singleCollimationWidth = -1;
+  }else{
+    //Convert to cm
+    singleCollimationWidth /= 10.0;
+  }
+
+  // Total Collimation Width
+  status = metainfo->findAndGetFloat64(DCM_TotalCollimationWidth,totalCollimationWidth);
+  if(status.bad()){
+    totalCollimationWidth = -1;
+  }else{
+    //Convert to cm
+    totalCollimationWidth /= 10.0;
+  }
+}
+
 pen_dicom::pen_dicom()
 {
   //Set null image modality
@@ -464,7 +799,8 @@ pen_dicom::pen_dicom()
 }
 
 int pen_dicom::loadDicom(const char* dirName,
-			 const unsigned verbose)
+			 const unsigned verbose,
+			 const bool onlyMetadata)
 {
   //Load and process dicom file
   
@@ -1384,6 +1720,15 @@ int pen_dicom::loadDicom(const char* dirName,
     }
   else
     {
+      if(imageModality.compare("CT") == 0){
+
+	if(verbose > 1)
+	  printf("************  Reading dicom CT properties\n\n");
+
+	ctData.load(metainfo_bottomDicom);
+	
+      }
+      
       if(verbose > 1)
 	printf("************  Reading dicom voxels properties\n\n");
       //Extract number of pixels in this dicom image file
@@ -1627,6 +1972,13 @@ int pen_dicom::loadDicom(const char* dirName,
   fileformat.clear();
 
   tnvox = nvox_xy*nvox_z;
+
+  if(onlyMetadata){
+    if(verbose > 1){
+      printf(" Loaded DICOM metada\n");fflush(stdout);
+    }    
+    return PEN_DICOM_SUCCESS;
+  }
 	  
   // Allocate arrays:
   dicomImage   = nullptr;

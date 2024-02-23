@@ -69,3 +69,9 @@ endif(WITH_LB)
 
 # muen folder
 add_subdirectory(parameters)
+
+# simulation folder
+add_subdirectory(simulation)
+
+# x-ray folder
+add_subdirectory(x-ray)

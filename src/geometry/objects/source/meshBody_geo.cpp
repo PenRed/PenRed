@@ -429,47 +429,423 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 			       const unsigned verbose){
   
   int err;
-  //Read input file from configuration
-  std::string infilename;
-  if(config.read("input-file",infilename) != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("meshBodyGeo:configure:Error: 'input-file' field missing at configuration section.\n");
+
+  //Load vertex transformations 
+  //******************************
+  std::map<std::string, std::vector<pen_meshTransform::group>> transMap;
+
+  //Get bodies with defined transformations
+  std::vector<std::string> transBodyNames;
+  config.ls("transforms/",transBodyNames);
+
+  //Iterate over each body with used vertex group
+  for(size_t itransbody = 0; itransbody < transBodyNames.size(); ++itransbody){
+
+    //Read transform section for this body
+    std::string transBodyKey = std::string("transforms/") + transBodyNames[itransbody];
+    pen_parserSection transBodySec;
+    if(config.readSubsection(transBodyKey,transBodySec) != INTDATA_SUCCESS){
+      if(verbose > 0){
+	printf("pen_meshBodyGeo:configure: Error reading '%s',"
+	       " section expected.\n", transBodyKey.c_str()); 
+      }
+      return PEN_MESHBODY_GEO_INPUT_SECTION;
     }
-    configStatus = PEN_MESHBODY_GEO_INPUT_SECTION;
-    return configStatus;
-  }  
+
+    //Create an entry in the map for this body and save the reference 
+    std::vector<pen_meshTransform::group>& bodyTransformGroups =
+      transMap[transBodyNames[itransbody]];
     
-  //Open input file
-  //*****************
-  FILE* in = nullptr;
-  in = fopen(infilename.c_str(),"r");
-  if(in == nullptr){
-    if(verbose > 0){
-      printf("pen_meshBodyGeo:configure:Error: unable to open input file '%s'.\n", infilename.c_str());
+    // * Read vertex groups names
+    std::vector<std::string> transGroupNames;
+    transBodySec.ls(transGroupNames);
+
+    //Resize the number of vertex groups according to the number of transformation group names
+    bodyTransformGroups.resize(transGroupNames.size());
+    
+    //Create a vector to flag the used transformations positions
+    std::vector<bool> usedTransGroup(transGroupNames.size(), false);
+
+    //Iterate over transformation groups to configure them
+    for(size_t iTransGroup = 0; iTransGroup < transGroupNames.size(); ++iTransGroup){
+
+      //Read group section
+      pen_parserSection transGroupSec;
+      if(transBodySec.readSubsection(transGroupNames[iTransGroup],
+				     transGroupSec) != INTDATA_SUCCESS){
+	if(verbose > 0){
+	  printf("pen_meshBodyGeo:configure: Error reading '%s/%s',"
+		 " section expected.\n",
+		 transBodyKey.c_str(),transGroupNames[iTransGroup].c_str()); 
+	}
+	return PEN_MESHBODY_GEO_INPUT_SECTION;
+      }
+
+      //Read the group index
+      int transGroupPos;
+      if(transGroupSec.read("index", transGroupPos) != INTDATA_SUCCESS){
+	if(verbose > 0){
+	  printf("pen_meshBodyGeo:configure: Error reading '%s/%s/index'."
+		 " Integer expected.\n", transBodyKey.c_str(),
+		 transGroupNames[iTransGroup].c_str());
+	}
+	return PEN_MESHBODY_GEO_INVALID_VERTEX_GROUP_INDEX;
+      }
+
+      //Check it
+      if(transGroupPos < 0 ||
+	 transGroupPos > static_cast<int>(bodyTransformGroups.size())){
+	if(verbose > 0){
+	  printf("pen_meshBodyGeo:configure: Error: Invalid transformation index"
+		 " for group '%s' in body '%s'.\n"
+		 "   Expected in range [0,%u), provided %d\n",
+		 transGroupNames[iTransGroup].c_str(), transBodyNames[itransbody].c_str(),
+		 static_cast<unsigned>(bodyTransformGroups.size()), transGroupPos);
+	}
+	return PEN_MESHBODY_GEO_INVALID_VERTEX_GROUP_INDEX;
+      }
+
+      //Ensure this position is unused
+      if(usedTransGroup[transGroupPos]){
+	if(verbose > 0){
+	  printf("pen_meshBodyGeo:configure: Error: Assigned vertex group index"
+		 " %d for group '%s' in body '%s' already used.\n",
+		 transGroupPos, transGroupNames[iTransGroup].c_str(),
+		 transBodyNames[itransbody].c_str());
+	}
+	return PEN_MESHBODY_GEO_INVALID_VERTEX_GROUP_INDEX;	  
+      }
+
+      //Read the vertex group where the transforms are applied
+      std::string vertexGroup;
+      if(transGroupSec.read("vertex-group", vertexGroup) != INTDATA_SUCCESS){
+	if(verbose > 0){
+	  printf("pen_meshBodyGeo:configure: Error reading '%s/%s/vertex-group'."
+		 " String expected.\n", transBodyKey.c_str(),
+		 transGroupNames[iTransGroup].c_str());
+	}
+	return PEN_MESHBODY_GEO_INVALID_VERTEX_GROUP_INDEX;
+      }
+
+      //Set this position as used and save the group name
+      usedTransGroup[transGroupPos] = true;
+      bodyTransformGroups[transGroupPos].name.assign(vertexGroup);
+
+      //Get a reference to this group
+      pen_meshTransform::group& transG = bodyTransformGroups[transGroupPos];
+
+      //Read transform names in the group
+      std::vector<std::string> transformNames;
+      transGroupSec.ls("transforms",transformNames);
+
+      //Resize transformation vectors
+      transG.resize(transformNames.size());
+
+      //Create a vector to flag used transformation positions
+      std::vector<bool> usedTrans(transformNames.size(),false);
+
+      for(size_t it = 0; it < transformNames.size(); ++it){
+
+	//Get transformation section
+	std::string transKey = std::string("transforms/") + transformNames[it];
+	pen_parserSection transSec;
+	if(transGroupSec.readSubsection(transKey, transSec) != INTDATA_SUCCESS){
+	  if(verbose > 0){
+	    printf("pen_meshBodyGeo:configure: Error reading transform section '%s/%s/%s',"
+		   " section expected.\n", transBodyKey.c_str(),
+		   transGroupNames[iTransGroup].c_str(),
+		   transKey.c_str()); 
+	  }
+	  return PEN_MESHBODY_GEO_INPUT_SECTION;	  
+	}
+
+	//Read transformation index
+	int transIndex;
+	if(transSec.read("index", transIndex) != INTDATA_SUCCESS){
+	  if(verbose > 0){
+	    printf("pen_meshBodyGeo:configure: Error reading transformation %s 'index'."
+		   " Integer expected.\n", transformNames[it].c_str());
+	  }
+	  return PEN_MESHBODY_GEO_INVALID_TRANSFORMATION_INDEX;
+	}
+
+	//Check it
+	if(transIndex < 0 ||
+	   transIndex > static_cast<int>(transformNames.size())){
+	  if(verbose > 0){
+	    printf("pen_meshBodyGeo:configure: Error: Invalid transformation '%s' index"
+		   " for vertex group '%s' in body '%s'.\n"
+		   "   Expected in range [0,%u), provided %d\n",
+		   transformNames[it].c_str(), transGroupNames[iTransGroup].c_str(),
+		   transBodyNames[itransbody].c_str(),
+		   static_cast<unsigned>(transformNames.size()),transIndex);
+	  }
+	  return PEN_MESHBODY_GEO_INVALID_TRANSFORMATION_INDEX;
+	}
+
+	//Ensure this position is unused
+	if(usedTrans[transIndex]){
+	  if(verbose > 0){
+	    printf("pen_meshBodyGeo:configure: Error: Assigned index %d"
+		   " for transformation %s, in vertex group '%s', in body '%s' already used.\n",
+		   transIndex, transformNames[it].c_str(),
+		   transGroupNames[iTransGroup].c_str(),
+		   transBodyNames[itransbody].c_str());
+	  }
+	  return PEN_MESHBODY_GEO_INVALID_TRANSFORMATION_INDEX;	  
+	}
+
+	//Set this position as used
+	usedTrans[transIndex] = true;
+
+	//Read the transformation type
+	std::string transType;
+	if(transSec.read("type", transType) != INTDATA_SUCCESS){
+	  if(verbose > 0){
+	    printf("pen_meshBodyGeo:configure: Error: Unable to read type for "
+		   "transformation %s, in vertex group '%s', in body '%s'. String expected.\n",
+		   transformNames[it].c_str(), transGroupNames[iTransGroup].c_str(),
+		   transBodyNames[itransbody].c_str());
+	  }
+	  return PEN_MESHBODY_GEO_INVALID_TRANSFORMATION_TYPE;	  
+	}
+
+	if(transType.compare("TRANSLATION")   == 0 ||
+	   transType.compare("TRANSLATION_X") == 0 ||
+	   transType.compare("TRANSLATION_Y") == 0 ||
+	   transType.compare("TRANSLATION_Z") == 0){
+
+	  //Is a translation, read the translated distance
+
+	  double ds;
+	  if(transSec.read("ds", ds) != INTDATA_SUCCESS){
+	    if(verbose > 0){
+	      printf("pen_meshBodyGeo:configure: Error: Unable to read translation "
+		     "distance 'ds' for translation %s, in vertex group '%s', in body '%s'."
+		     " Double expected.\n", transformNames[it].c_str(),
+		     transGroupNames[iTransGroup].c_str(),
+		     transBodyNames[itransbody].c_str());	      
+	    }
+	    return PEN_MESHBODY_GEO_INVALID_DS;
+	  }
+
+	  //Check which translation is
+	  if(transType.compare("TRANSLATION_X") == 0){
+	    if(transG.setTranslationX(transIndex, ds) != 0){
+	      printf("UNEXPECTED ERROR: Unable to create translation on X axis."
+		     " Please, report this.");
+	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	    }
+	  }
+	  else if(transType.compare("TRANSLATION_Y") == 0){
+	    if(transG.setTranslationY(transIndex, ds) != 0){
+	      printf("UNEXPECTED ERROR: Unable to create translation on Y axis."
+		     " Please, report this.");
+	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	    }
+	  }
+	  else if(transType.compare("TRANSLATION_Z") == 0){
+	    if(transG.setTranslationZ(transIndex, ds) != 0){
+	      printf("UNEXPECTED ERROR: Unable to create translation on Z axis."
+		     " Please, report this.");
+	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	    }
+	  }
+	  else{
+	    //Is a generic translation, read direction
+	    v3D dir;
+
+	    // dir.x
+	    if(transSec.read("u", dir.x) != INTDATA_SUCCESS){
+	      if(verbose > 0){
+		printf("pen_meshBodyGeo:configure: Error: Unable to read 'u' direction for "
+		       "translation %s, in vertex group '%s', in body '%s'. Double expected.\n",
+		       transformNames[it].c_str(), transGroupNames[iTransGroup].c_str(),
+		       transBodyNames[itransbody].c_str());	      
+	      }
+	      return PEN_MESHBODY_GEO_INVALID_DIR;
+	    }
+
+	    // dir.y
+	    if(transSec.read("v", dir.y) != INTDATA_SUCCESS){
+	      if(verbose > 0){
+		printf("pen_meshBodyGeo:configure: Error: Unable to read 'v' direction for "
+		       "translation %s, in vertex group '%s', in body '%s'. Double expected.\n",
+		       transformNames[it].c_str(), transGroupNames[iTransGroup].c_str(),
+		       transBodyNames[itransbody].c_str());	      
+	      }
+	      return PEN_MESHBODY_GEO_INVALID_DIR;
+	    }
+
+	    // dir.z
+	    if(transSec.read("w", dir.z) != INTDATA_SUCCESS){
+	      if(verbose > 0){
+		printf("pen_meshBodyGeo:configure: Error: Unable to read 'w' direction for "
+		       "translation %s, in vertex group '%s', in body '%s'. Double expected.\n",
+		       transformNames[it].c_str(), transGroupNames[iTransGroup].c_str(),
+		       transBodyNames[itransbody].c_str());	      
+	      }
+	      return PEN_MESHBODY_GEO_INVALID_DIR;
+	    }
+
+	    //Create the translation
+	    if(transG.setTranslation(transIndex, dir, ds) != 0){
+	      printf("UNEXPECTED ERROR: Unable to create generic translation."
+		     " Please, report this.");
+	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	    }	    
+	  }
+	}
+	else if(transType.compare("SCALE")   == 0 ||
+		transType.compare("SCALE_XY") == 0 ||
+		transType.compare("SCALE_XZ") == 0 ||
+		transType.compare("SCALE_YZ") == 0){
+
+	  //Is a scale transform, read the scale factor
+
+	  double f;
+	  if(transSec.read("factor", f) != INTDATA_SUCCESS){
+	    if(verbose > 0){
+	      printf("pen_meshBodyGeo:configure: Error: Unable to read scale "
+		     "factor 'factor' for transform %s, in vertex group '%s', in body '%s'."
+		     " Double expected.\n", transformNames[it].c_str(),
+		     transGroupNames[iTransGroup].c_str(),
+		     transBodyNames[itransbody].c_str());
+	    }
+	    return PEN_MESHBODY_GEO_INVALID_SCALE;
+	  }
+
+	  //Check which scale transform is
+	  if(transType.compare("SCALE_XY") == 0){
+	    if(transG.setScaleXY(transIndex, f) != 0){
+	      printf("UNEXPECTED ERROR: Unable to create scale transform on XY plane."
+		     " Please, report this.");
+	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	    }
+	  }
+	  else if(transType.compare("SCALE_XZ") == 0){
+	    if(transG.setScaleXZ(transIndex, f) != 0){
+	      printf("UNEXPECTED ERROR: Unable to create scale transform on XZ plane."
+		     " Please, report this.");
+	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	    }
+	  }
+	  else if(transType.compare("SCALE_YZ") == 0){
+	    if(transG.setScaleYZ(transIndex, f) != 0){
+	      printf("UNEXPECTED ERROR: Unable to create scale transform on YZ plane."
+		     " Please, report this.");
+	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	    }
+	  }
+	  else{
+	    //Generic scale transform
+	    if(transG.setScale(transIndex, f) != 0){
+	      printf("UNEXPECTED ERROR: Unable to create scale transform."
+		     " Please, report this.");
+	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	    }
+	  }
+	}
+	else{
+	  if(verbose > 0){
+	    printf("pen_meshBodyGeo:configure: Error: Unknown type for "
+		   "transformation %s, in vertex group '%s', in body '%s'."
+		   " Provided type: %s\n",
+		   transformNames[it].c_str(), transGroupNames[iTransGroup].c_str(),
+		   transBodyNames[itransbody].c_str(), transType.c_str());
+	  }
+	  return PEN_MESHBODY_GEO_INVALID_TRANSFORMATION_TYPE;
+	}
+	
+      }
     }
-    configStatus = PEN_MESHBODY_GEO_INPUT_SECTION;
-    return configStatus;
+
   }
 
-  
-  if(verbose > 0){
-    printf("pen_meshBodyGeo:configure:\n");
-    printf("                 input filename : %s\n",infilename.c_str());
-  }
-  
-  //Load geometry
-  //*****************
-  err = GEOMESH(in,verbose);
-  if(err != PEN_MESHBODY_GEO_SUCCESS){
-    if(verbose > 0){
-      printf("pen_meshBodyGeo:configure: Error loading geometry.\n");
-      printf("                          Error code: %d\n",err);
+  //Set geometry stream
+  //**********************
+
+  //Check if the geometry must be read from memory or a file
+  bool inMemoryGeo;
+  if(config.read("memory-file",inMemoryGeo) == INTDATA_SUCCESS){
+    if(verbose > 1){
+      if(inMemoryGeo)
+	printf("Geometry will be read from memory buffer.\n");
+      else
+	printf("Geometry will be read from external file.\n");
     }
-    fclose(in);
-    configStatus = err;
-    return configStatus;
+  }else{
+    inMemoryGeo = false;
   }
-  fclose(in);
+
+  if(inMemoryGeo){
+    //Geometry read from memory (variable "preloadGeo")
+    std::istringstream in(preloadGeo);
+    if(in.good()){
+      //Load geometry
+      //*****************
+      err = GEOMESH(in,transMap,verbose);
+      if(err != PEN_MESHBODY_GEO_SUCCESS){
+	if(verbose > 0){
+	  printf("pen_meshBodyGeo:configure: Error loading geometry.\n");
+	  printf("                          Error code: %d\n",err);
+	}
+	configStatus = err;
+	return configStatus;
+      }
+    }else{
+      if(verbose > 0){
+	printf("pen_meshBodyGeo:configure:Error: unable to read "
+	       "memory stream as input file.\n");
+      }
+      configStatus = PEN_MESHBODY_GEO_INPUT_SECTION;
+      return configStatus;
+    }
+  }else{
+    //Geometry read from external file
+
+    //Read input file from configuration
+    std::string infilename;
+    if(config.read("input-file",infilename) != INTDATA_SUCCESS){
+      if(verbose > 0){
+	printf("meshBodyGeo:configure:Error: 'input-file' field missing at "
+	       "configuration section.\n");
+      }
+      configStatus = PEN_MESHBODY_GEO_INPUT_SECTION;
+      return configStatus;
+    }
+    
+    //Open input file
+    //*****************
+    std::ifstream in(infilename, std::ifstream::in);
+    if(!in.good()){
+      if(verbose > 0){
+	printf("pen_meshBodyGeo:configure:Error: unable to open "
+	       "input file '%s'.\n", infilename.c_str());
+      }
+      configStatus = PEN_MESHBODY_GEO_INPUT_SECTION;
+      return configStatus;
+    }
+
+  
+    if(verbose > 0){
+      printf(" input filename : %s\n",infilename.c_str());
+    }  
+  
+    //Load geometry
+    //*****************
+    err = GEOMESH(in,transMap,verbose);
+    if(err != PEN_MESHBODY_GEO_SUCCESS){
+      if(verbose > 0){
+	printf("pen_meshBodyGeo:configure: Error loading geometry.\n");
+	printf("                          Error code: %d\n",err);
+      }
+      in.close();
+      configStatus = err;
+      return configStatus;
+    }
+    in.close();    
+  }
   
   //Load dsmax
   //*****************
@@ -1284,91 +1660,155 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
   return configStatus;
 }
 
-int pen_meshBodyGeo::GEOMESH(FILE* in,const unsigned verbose){
+int pen_meshBodyGeo::GEOMESH(std::istream& in,
+			     std::map<std::string, std::vector<pen_meshTransform::group>>& transMap,
+			     const unsigned verbose){
   //Read comment lines (start with #)
-  char line[50000];
+  std::string line;
   unsigned long nlines;
   unsigned long nRead = 0;
   int nBodies;
     
-  if(pen_getLine(in,50000,line,nlines) == 0)
-    {
-      nRead += nlines;
-      //Read number of bodies in the geometry file
-      if(sscanf(line," %d",&nBodies) != 1){
-	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error reading number of objects."
-		 "Unexpected format in line %lu: \n %s\n", nRead, line);
-	}
-	return PEN_MESHBODY_GEO_UNEXPECTED_LINE_FORMAT;
+  if(pen_getLine(in,line,nlines) == 0){
+    nRead += nlines;
+    //Read number of bodies in the geometry file
+    if(sscanf(line.c_str()," %d",&nBodies) != 1){
+      if(verbose > 0){
+	printf("pen_meshBodyGeo:configure: Error reading number of objects."
+	       "Unexpected format in line %lu: \n %s\n", nRead, line.c_str());
       }
+      return PEN_MESHBODY_GEO_UNEXPECTED_LINE_FORMAT;
+    }
 
-      if(nBodies <= 0){
-	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error: number of bodies must be greater than zero.\n");
-	  printf("        Number of bodies read is %d. \n",nBodies);
-	}
-	return PEN_MESHBODY_GEO_INVALID_NBODIES;
+    if(nBodies <= 0){
+      if(verbose > 0){
+	printf("pen_meshBodyGeo:configure: Error: number of bodies must "
+	       "be greater than zero.\n");
+	printf("        Number of bodies read is %d. \n",nBodies);
       }
+      return PEN_MESHBODY_GEO_INVALID_NBODIES;
+    }
         
-      NBODYS = static_cast<unsigned int>(nBodies);
+    NBODYS = static_cast<unsigned int>(nBodies);
         
-      if(NBODYS > NB){
-	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error: number of bodies read from the geometry file: %u, is greater than the maximum number of bodies allowed: %u\n.",NBODYS, NB);
-	}
-	return PEN_MESHBODY_GEO_INVALID_NBODIES;
+    if(NBODYS > NB){
+      if(verbose > 0){
+	printf("pen_meshBodyGeo:configure: Error: number of bodies read "
+	       "from the geometry file: %u, is greater than the maximum "
+	       "number of bodies allowed: %u\n.",NBODYS, NB);
       }
+      return PEN_MESHBODY_GEO_INVALID_NBODIES;
+    }
 
             
-      if(verbose > 1)
-        {
-	  printf("Number of bodies read: %u\n",NBODYS);
-	  printf("\n");
-        }
+    if(verbose > 1)
+      {
+	printf("Number of bodies read: %u\n",NBODYS);
+	printf("\n");
+      }
+  }
+  else{
+    if(verbose > 0){
+      printf("pen_meshBodyGeo:configure: Error: Invalid geometry file.\n"
+	     "Unable to read a single data line. Possible end of file reached.");
     }
-  
+    return PEN_MESHBODY_GEO_INVALID_FILE;
+  }
     
     
   //Create vector to save bodies vertex info
-  std::vector<v3D>vertex;
+  std::vector<v3D> vertex;
   unsigned long nvertex;
     
   if(verbose > 1){
     printf("Bodies mesh information:\n");
   }
     
-  for(size_t i=0; i<NBODYS; ++i){
-    if(pen_getLine(in,50000,line,nlines) == 0){
+  for(size_t i = 0; i < NBODYS; ++i){
+
+    //Create a map to store vertex groups
+    std::map<std::string,std::vector<unsigned>> vgMap;
+    
+    if(pen_getLine(in,line,nlines) == 0){
       nRead += nlines;
       //Read characteristics of each body in the geometry file
       //Create auxiliar variable to ensure material is greater than zero
       int mat;
-      if(sscanf(line," %d  %lu  %lu  %s   %s", &mat, &bodies[i].nTriangles, &nvertex, bodies[i].BALIAS, bodies[i].PALIAS) != 5){
+      int nVertexGroups;
+      long int nTrianglesAux;
+      long int nVertexAux;
+      int nParamRead = sscanf(line.c_str()," %d  %ld  %ld  %s   %s %d",
+			      &mat, &nTrianglesAux, &nVertexAux,
+			      bodies[i].BALIAS, bodies[i].PALIAS, &nVertexGroups);
+      if(nParamRead != 5 && nParamRead != 6){
 	if(verbose > 0){
 	  printf("pen_meshBodyGeo:configure: Error reading object header information.\n"
-		 "Unexpected format in line %lu: \n %s\n", nRead, line);
-	  printf("Expected format is #MAT      #NFACES     #NVERTEX     #NAME        #PARENT NAME\n");
+		 "Unexpected format in line %lu: \n %s\n", nRead, line.c_str());
+	  printf("Expected format is #MAT      #NFACES     #NVERTEX     "
+		 "#NAME        #PARENT NAME    (#NVGROUPS)\n");
 	}
 	return PEN_MESHBODY_GEO_UNEXPECTED_LINE_FORMAT;
       }
+
+      if(nParamRead == 5){
+	//Assume no vertex group
+	nVertexGroups = 0;
+      }
+
+      //Check material
       if(mat < 0){
 	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error: 'material' must be greater than zero.\n");
+	  printf("pen_meshBodyGeo:configure: Error: 'material' must be greater "
+		 "or equal to zero.\n");
 	  printf("            Specified for body %ld: %d\n",i,mat);
 	}
 	return PEN_MESHBODY_GEO_INVALID_MAT;
       }
-      else
+      else{
 	bodies[i].MATER = static_cast<unsigned>(mat);
+      }
+
+      //Check vertex groups
+      if(nVertexGroups < 0){
+	if(verbose > 0){
+	  printf("pen_meshBodyGeo:configure: Error: number of vertex groups must "
+		 "be greater or equal to zero.\n");
+	  printf("            Specified for body %ld: %d\n",i,nVertexGroups);
+	}
+	return PEN_MESHBODY_GEO_INVALID_N_VERTEX_GROUP;
+      }
                 
       if(bodies[i].MATER > constants::MAXMAT){
 	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error: material number read from the geometry file: %u, is greater than the maximum number of materials allowed: %u\n", bodies[i].MATER, constants::MAXMAT);
+	  printf("pen_meshBodyGeo:configure: Error: material number read from the "
+		 "geometry file: %u, is greater than the maximum number of "
+		 "materials allowed: %u\n", bodies[i].MATER, constants::MAXMAT);
 	}
 	return PEN_MESHBODY_GEO_INVALID_MAT;
       }
-        
+
+      if(nTrianglesAux < 0){
+	if(verbose > 0){
+	  printf("pen_meshBodyGeo:configure: Error: Invalid number of triangles. "
+		 "Must be greater than zero.\n");
+	  printf("            Specified for body %ld: %ld\n",i,nTrianglesAux);
+	}
+	return PEN_MESHBODY_GEO_INVALID_TRIANGLES_NUMBER;	
+      }
+
+      bodies[i].nTriangles = static_cast<unsigned long>(nTrianglesAux);
+      
+      //Check number of vertex
+      if(nVertexAux < 0){
+	if(verbose > 0){
+	  printf("pen_meshBodyGeo:configure: Error: Invalid number of vertex. "
+		 "Must be greater than zero.\n");
+	  printf("            Specified for body %ld: %ld\n",i,nVertexAux);
+	}
+	return PEN_MESHBODY_GEO_INVALID_VERTEX_NUMBER;	
+      }else{
+	nvertex = static_cast<unsigned long>(nVertexAux);
+      }
             
       //Resize vector of vertex with the number of vertex
       //read for each body from the geometry file
@@ -1376,46 +1816,170 @@ int pen_meshBodyGeo::GEOMESH(FILE* in,const unsigned verbose){
             
       if(vertex.size() != nvertex){
 	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error allocating memory for vertex reading. Can't allocate memory for %lu vertex.\n", nvertex);
+	  printf("pen_meshBodyGeo:configure: Error allocating memory for vertex"
+		 " reading. Can't allocate memory for %lu vertex.\n", nvertex);
 	}
 	return PEN_MESHBODY_BAD_MEMORY_ALLOCATION;
       }
+      
+      //Read vertex groups data from geometry file
+      for(int j = 0; j < nVertexGroups; ++j){
+	//Read vertex group header
+	if(pen_getLine(in,line,nlines) == 0){
+	  nRead += nlines;
+	  char groupName[100];
+	  long int nGroupVertex;
+	  if(sscanf(line.c_str(), " %s %ld ", groupName, &nGroupVertex) != 2){
+	    if(verbose > 0){
+	      printf("pen_meshBodyGeo:configure: Error reading vertex group information."
+		     "Unexpected format in line %lu: \n %s\n", nRead, line.c_str());
+	    }
+	    return PEN_MESHBODY_GEO_UNEXPECTED_LINE_FORMAT;
+	  }
 
-      for(size_t j=0; j<nvertex; ++j){
-	if(pen_getLine(in,50000,line,nlines) == 0){
-	  int index;
+	  //Check vertex number
+	  if(nGroupVertex <= 0){
+	    if(verbose > 0){
+	      printf("pen_meshBodyGeo:configure: Error: The number of vertex in a group"
+		     " must be greater than 0.\n"
+		     " Vertex in group '%s': %ld\n", groupName, nGroupVertex);
+	    }
+	    return PEN_MESHBODY_GEO_INVALID_N_VERTEX_GROUP;	    
+	  }
+
+	  //Create a entry for this vertex group and resize it
+	  std::vector<unsigned>& vgIndex = vgMap[std::string(groupName)];
+	  vgIndex.resize(nGroupVertex);
+
+	  //Read vertex indexes belonging this group
+	  for(long int iv = 0; iv < nGroupVertex; ++iv){
+	    if(pen_getLine(in,line,nlines) == 0){
+	      nRead += nlines;
+	      long int vIndex;
+	      if(sscanf(line.c_str(), " %ld ", &vIndex) != 1){
+		if(verbose > 0){
+		  printf("pen_meshBodyGeo:configure: Error reading vertex group "
+			 "information. Unexpected format in line %lu: \n %s\n",
+			 nRead, line.c_str());
+		}
+		return PEN_MESHBODY_GEO_UNEXPECTED_LINE_FORMAT;
+	      }
+
+	      //Check vertex index
+	      if(vIndex < 0 ||
+		 vIndex >= static_cast<long int>(nvertex)){
+		if(verbose > 0){
+		  printf("pen_meshBodyGeo:configure: Invalid vertex index in group '%s'."
+			 "Index %ld is not in the interval [0,%lu).\n",
+			 groupName, vIndex, nvertex);
+		}
+		return PEN_MESHBODY_GEO_INVALID_VERTEX_INDEX;		
+	      }
+
+	      //Save index
+	      vgIndex[iv] = static_cast<unsigned>(vIndex);
+	    }
+	    else{
+	      if(verbose > 0){
+		printf("pen_meshBodyGeo:configure: Error: Invalid geometry file.\n"
+		       "Unable to read vertex number %ld for vertex group %d "
+		       "in body %lu. Possible end of file reached.",
+		       iv,j,static_cast<unsigned long>(i));
+	      }
+	      return PEN_MESHBODY_GEO_INVALID_FILE;
+	    }
+	  }
+	  
+	}
+	else{
+	  if(verbose > 0){
+	    printf("pen_meshBodyGeo:configure: Error: Invalid geometry file.\n"
+		   "Unable to read vertex group %d data for body %lu. "
+		   "Possible end of file reached.",
+		   j, static_cast<unsigned long>(i));
+	  }
+	  return PEN_MESHBODY_GEO_INVALID_FILE;
+	}	
+      }
+
+      //** Ensure that defined vertex groups during the
+      //configuration are defined also in the geometry file
+
+      //First, check if some transformation has been defined for this body
+
+      const auto search = transMap.find(bodies[i].BALIAS);
+      if(search != transMap.end()){
+	//Transformations have been defined for this body.
+	//Ensure vertex groups are defined in the geometry file
+	for(const pen_meshTransform::group& g : search->second){
+	  if(vgMap.count(g.name) == 0){
+	    if(verbose > 0){
+	      printf("pen_meshBodyGeo:configure: Error: Vertex group '%s'"
+		     " not found in body '%s'.\n",
+		     g.name.c_str(), bodies[i].BALIAS);
+	    }
+	    return PEN_MESHBODY_GEO_VG_NOT_FOUND;
+	  }
+	}
+      }
+
+      //Read all vertex for this body
+      for(size_t j = 0; j < nvertex; ++j){
+	if(pen_getLine(in,line,nlines) == 0){
+	  long int index;
 	  double x,y,z;
 	  nRead += nlines;
-	  //Read vertex of each body
-	  if(sscanf(line," %d  %le  %le  %le", &index, &x, &y, &z) != 4){
+	  if(sscanf(line.c_str()," %ld  %le  %le  %le", &index, &x, &y, &z) != 4){
 	    if(verbose > 0){
 	      printf("pen_meshBodyGeo:configure: Error reading vertex information."
-		     "Unexpected format in line %lu: \n %s\n", nRead, line);
+		     "Unexpected format in line %lu: \n %s\n", nRead, line.c_str());
 	    }
 	    return PEN_MESHBODY_GEO_UNEXPECTED_LINE_FORMAT;
 	  }
 	  
-	  if(index < 0){
+	  if(index < 0 ||
+	     index > static_cast<long int>(nvertex)){
 	    if(verbose > 0){
-	      printf("pen_meshBodyGeo:configure: Error: vertex index must be positive.\n");
+	      printf("pen_meshBodyGeo:configure: Invalid vertex index in body '%s'."
+		     "Index %ld is not in the interval [0,%lu).\n",
+		     bodies[i].BALIAS, index, nvertex);
 	    }
 	    return PEN_MESHBODY_GEO_INVALID_VERTEX_INDEX;
 	  }
 
-	  //Save vertex
+	  //Save vertex data
 	  vertex[index].x = x;
 	  vertex[index].y = y;
-	  vertex[index].z = z;	  
-                    
-	  //Save minimum and maximum value of each coordenate
-	  if(j==0){
-	    //Set mins and maxs as the first read vertex coordenates
-	    bodies[i].boundary.set(x,y,z,x,y,z);
-	  } else {
-	    //Enlarge boundary region
-	    bodies[i].boundary.enlarge(vertex[index]);
-	  }
+	  vertex[index].z = z;
+
 	}
+	else{
+	  if(verbose > 0){
+	    printf("pen_meshBodyGeo:configure: Error: Invalid geometry file.\n"
+		   "Unable to read vertex %lu data for body %lu. "
+		   "Possible end of file reached.",
+		   static_cast<unsigned long>(j), static_cast<unsigned long>(i));	
+	  }
+	  return PEN_MESHBODY_GEO_INVALID_FILE;
+	}
+      }
+
+      //Apply transformations to vertex groups, if required
+      if(transMap.count(bodies[i].BALIAS) != 0){
+	const std::vector<pen_meshTransform::group>& transGroups =
+	  transMap.at(bodies[i].BALIAS);
+	for(size_t ivg = 0; ivg < transGroups.size(); ++ivg){
+	  transGroups[ivg].apply(vgMap.at(transGroups[ivg].name), vertex);
+	}
+      }
+
+      //Create the boundary box
+      //Set mins and maxs as the first read vertex coordenates
+      bodies[i].boundary.set(vertex[0].x,vertex[0].y,vertex[0].z,
+			     vertex[0].x,vertex[0].y,vertex[0].z);      
+      for(size_t j = 1; j < nvertex; ++j){
+	//Enlarge boundary region
+	bodies[i].boundary.enlarge(vertex[j]);	
       }
 
       //Enlarge boundary to avoid rounding errors
@@ -1429,13 +1993,14 @@ int pen_meshBodyGeo::GEOMESH(FILE* in,const unsigned verbose){
             
       for(size_t k=0; k < bodies[i].nTriangles; ++k){
 	unsigned int index[3];
-	if(pen_getLine(in,50000,line,nlines) == 0){
+	if(pen_getLine(in,line,nlines) == 0){
 	  nRead += nlines;
 	  //Read each triangle or face of each body 
-	      if(sscanf(line," %u  %u  %u", &index[0], &index[1], &index[2]) != 3){
+	      if(sscanf(line.c_str()," %u  %u  %u",
+			&index[0], &index[1], &index[2]) != 3){
 		if(verbose > 0){
 		  printf("pen_meshBodyGeo:configure: Error reading triangle faces."
-			 "Unexpected format in line %lu: \n %s\n", nRead, line);
+			 "Unexpected format in line %lu: \n %s\n", nRead, line.c_str());
 		}
 		return PEN_MESHBODY_GEO_UNEXPECTED_LINE_FORMAT;
 	      }
@@ -1443,20 +2008,81 @@ int pen_meshBodyGeo::GEOMESH(FILE* in,const unsigned verbose){
 	  //Fill triangle
 	  triangles[k].fill(vertex[index[0]],vertex[index[1]],vertex[index[2]]);
 	}
+	else{
+	  if(verbose > 0){
+	    printf("pen_meshBodyGeo:configure: Error: Invalid geometry file.\n"
+		   "Unable to read triangle %lu data for body %lu. "
+		   "Possible end of file reached.",
+		   static_cast<unsigned long>(k), static_cast<unsigned long>(i));
+	  }
+	  return PEN_MESHBODY_GEO_INVALID_FILE;
+	}
       }
 
       //Add the region to the regions vector of the first super region
       bodies[i].regions.emplace_back(region);
       bodies[i].regions[0].elements.push_back(region);
     }
-        
+    else{
+      if(verbose > 0){
+	printf("pen_meshBodyGeo:configure: Error: Invalid geometry file.\n"
+	       "Unable to read data for body %lu. Possible end of file reached.",
+	       static_cast<unsigned long>(i));	
+      }
+      return PEN_MESHBODY_GEO_INVALID_FILE;
+    }
+    
     if(verbose > 1){
       printf("Body number %lu\n"
 	     "Body alias: %s\n"
 	     "Parent alias: %s\n"
 	     "Material read: %u\n"
 	     "Number of triangles read: %lu\n"
-	     "Number of vertex read: %lu\n",i, bodies[i].BALIAS, bodies[i].PALIAS, bodies[i].MATER, bodies[i].nTriangles, nvertex);
+	     "Number of vertex read: %lu\n"
+	     "Number of vertex groups: %lu\n",
+	     i, bodies[i].BALIAS, bodies[i].PALIAS,
+	     bodies[i].MATER, bodies[i].nTriangles, nvertex,
+	     static_cast<unsigned long>(vgMap.size()));
+
+      if(vgMap.size() > 0){
+
+	printf("Vertex groups information: \n");
+	
+	//Search transformation groups for this body
+	const auto& search = transMap.find(bodies[i].BALIAS);
+	if(search == transMap.end()){
+	  //No transformations applied to VG
+	  for(const auto& vg : vgMap){
+	    printf("  %20.20s : %8lu vertex, no transformation applied\n",
+		   vg.first.c_str(),
+		   static_cast<unsigned long>(vg.second.size()));
+	  }
+	}else{
+	  //Trasformations have been applied to this body
+	  const std::vector<pen_meshTransform::group>& transGroups = search->second;
+	
+	  for(const auto& vg : vgMap){
+	    printf("  %20.20s : %8lu vertex",
+		   vg.first.c_str(),
+		   static_cast<unsigned long>(vg.second.size()));
+
+	    bool found = false;
+	    for(const pen_meshTransform::group& g : transGroups){
+	      if(g.name.compare(vg.first) == 0){
+		printf(", %4lu transformations applied:\n\n %s\n",
+		       static_cast<unsigned long>(g.size()),
+		       g.stringify().c_str());
+		
+		found = true;
+		break;
+	      }
+	    }
+	    if(!found){
+	      printf(",   no transformations applied\n");
+	    }
+	  }
+	}
+      }
 
       printf("\n");
       //Print minimum and maximum coordenates of the read body
@@ -1478,6 +2104,26 @@ int pen_meshBodyGeo::GEOMESH(FILE* in,const unsigned verbose){
     }
   }
     
+  //Ensure all transformation bodies have been found
+  for(const auto& pair : transMap){
+    //Find the body for this transformation groups
+    bool found = false;
+    for(size_t i = 0; i < NBODYS; ++i){
+      if(pair.first.compare(bodies[i].BALIAS) == 0){
+	found = true;
+	break;
+      }
+    }
+    if(!found){
+      if(verbose > 0){
+	printf("pen_meshBodyGeo:configure: Error: Transformations for body '%s' "
+	       "have been defined in the configuration file, but it is not found"
+	       " in the geometry file.\n",pair.first.c_str());
+      }
+      return PEN_MESHBODY_GEO_BODY_NOT_FOUND;
+    }
+  }
+
   //Assign index to each parent alias
   for(size_t i=0; i<NBODYS; ++i){
     if(strcmp(bodies[i].PALIAS,"VOID") == 0 ||

@@ -36,11 +36,12 @@
 # Create penmain
 add_executable(pen_main ${PROJECT_SOURCE_DIR}/mains/source/pen_main.cpp)
 
-target_include_directories(pen_main PUBLIC ${PROJECT_SOURCE_DIR}/mains/includes)
+#target_include_directories(pen_main PUBLIC ${PROJECT_SOURCE_DIR}/mains/includes)
 target_include_directories(pen_main PUBLIC ${PROJECT_SOURCE_DIR}/kernel/includes)
 
 target_link_libraries(pen_main pen_particles)
-if (MSVC) 
+target_link_libraries(pen_main pen_sim)
+if (MSVC)
 	target_link_libraries(pen_main pen_geos)
 	target_link_libraries(pen_main samplers)
 	target_link_libraries(pen_main tallies)

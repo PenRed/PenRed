@@ -120,7 +120,7 @@ struct BETAS
 };
 
 class pennuc_specificSampler : public abc_specificSampler<pen_particleState>{
-  DECLARE_SAMPLER(pennuc_specificSampler)
+  DECLARE_SPECIFIC_SAMPLER(pennuc_specificSampler, pen_particleState)
 
   private:
 
