@@ -344,10 +344,13 @@ namespace penred{
       
     public:
 
+      //Thread number
       unsigned iThread;
       long long int dumpTime;    //In ms
       std::string dumpFilename;
+      //Enable/disable write partial results
       bool writePartial;
+      //Maximum simulation time
       long long int maxSimTime;  //In ms
 
       //Verbose level

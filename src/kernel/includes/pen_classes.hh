@@ -139,7 +139,39 @@ public:
   virtual unsigned getIBody(const char* elementName) const = 0;
   virtual std::string getBodyName(const unsigned ibody) const = 0;
   virtual void getOffset(double* offset) const { offset[0] = 0.0; offset[1] = 0.0; offset[2] = 0.0; }
+
+  //Method to try to convert the wrapper to a specific geometry type
+  template<class geoType>
+  const geoType* convertTo() const {
+    return dynamic_cast<const geoType*>(this);
+  }
+
+
+  //Methods for nested geometries
+  virtual size_t nInternalGeometries() const { return 0; }
+  virtual const wrapper_geometry* getInternalGeo(const size_t /*index*/) const { return nullptr; }
+  
+  template<class geoType>
+  const geoType* getInternalGeoType (size_t& geoPos, const size_t firstPos = 0) const {
+    const size_t nInternal = nInternalGeometries();
+    if(firstPos >= nInternal)
+      return nullptr;
+    for(size_t i = firstPos; i < nInternal; ++i){
+      //Get internal geometry pointer
+      const wrapper_geometry* internalGeo = getInternalGeo(i);
+      //Try to convert it to the desired class
+      const geoType* pGeoType = internalGeo->convertTo<geoType>();
+      if(pGeoType != nullptr){
+	geoPos = i;
+	return pGeoType;
+      }
+    }
+    geoPos = nInternal;
+    return nullptr;
+  }
+  
   virtual ~wrapper_geometry(){}
+
   
 };
 

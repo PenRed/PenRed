@@ -22,12 +22,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Geometries vector of *combo geometry* instances is now accessible
 - Main stack of particle instances is now accessible
 - Capability to request simulation status information during execution
+- Defined virtual methods to access internal geometries for combined geometry types (like *COMBO*)
+- Seeds rotation in BRACHY source can be enabled/disable
+- Errors on context initialization are now printed via the standard output by default
 
 ### Changed
 - PSF tally is now able to select which particles must be recorded
 - Mathematical template classes have been moved to a independent header file
 - A specfic Macro to declare specific samplers have been created (DECLARE_SPECIFIC_SAMPLER)
 - Replaced context virtual method "getIF" by "setForcing"
+- BRACHY source accepts now DICOM geometries or a combined geometry type with a DICOM inside it
 
 ### Fix
 - Bug: Blender addon crash on quadric geometry export

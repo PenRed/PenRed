@@ -972,19 +972,23 @@ int main(int argc, char** argv){
 
   //Initialize context with specified materials
   FILE* fcontext = nullptr;
+  int contextVerbose = verbose;
   if(contextlogfile.length() > 0){
     //fcontext = fopen("context.rep","w");
     fcontext = fopen(contextlogfile.c_str(),"w");
     if(fcontext == nullptr){
       printf("Error: unable to open context log file '%s'\n",contextlogfile.c_str());
     }
+  }else{
+    fcontext = stdout;
+    contextVerbose = 1;
   }
-  if(context.init(globEmax,fcontext,verbose,matFilenames) != PEN_SUCCESS){
+  if(context.init(globEmax,fcontext,contextVerbose,matFilenames) != PEN_SUCCESS){
     if(fcontext != nullptr) fclose(fcontext);
     printf("Error at context initialization.\n");
     return -5;
   }
-  if(fcontext != nullptr) fclose(fcontext);
+  if(contextlogfile.length() > 0 && fcontext != nullptr) fclose(fcontext);
   
   //****************************
   // Geometry parameters

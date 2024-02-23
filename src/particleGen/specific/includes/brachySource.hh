@@ -47,11 +47,15 @@ class brachy_specificSampler : public abc_specificSampler<pen_particleState>{
   
   //Parameter to select kind of seed to be read from DICOM file 
   int seedID;
+
+  //Enable/disable seed rotation
+  bool seedRotation;
   
   public:
 
   brachy_specificSampler() : abc_specificSampler<pen_particleState>(USE_NONE),
-            seedID(-1){}
+			     seedID(-1),
+			     seedRotation(true){}
 
 
   void skip(const unsigned long long dhists);

@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2023 Universitat de València - UV
-//    Copyright (C) 2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2023-2024 Universitat de València - UV
+//    Copyright (C) 2023-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -71,6 +71,42 @@ class pen_comboGeo : public abc_geometry<pen_comboBody>{
   
   unsigned getIBody(const char*) const final override;
   std::string getBodyName(const unsigned ibody) const final override;
+
+  //Methods for nested geometries
+  inline size_t nInternalGeometries() const final override {
+    size_t nInternal = 0;
+    for(const wrapper_geometry* p : geometries){
+      nInternal += p->nInternalGeometries();
+    }
+    nInternal += geometries.size();
+    return nInternal;
+  }
+  inline const wrapper_geometry* getInternalGeo(const size_t index) const final override {
+
+    size_t actualPos = 0;
+    for(size_t igeo = 0; igeo < geometries.size(); ++igeo){
+
+      //Check inmidiatly internal geometry
+      if(actualPos == index){
+	return geometries[igeo];
+      }
+
+      //Increase actual position
+      ++actualPos;
+
+      //Check internal geometries of internal geometry
+      const wrapper_geometry* pIGeo = geometries[igeo]->getInternalGeo(index-actualPos);
+      if(pIGeo != nullptr)
+	return pIGeo;      
+
+      //Increase actual position skipping internal geometries
+      actualPos += geometries[igeo]->nInternalGeometries();
+    }
+
+    return nullptr;
+  }
+  
+  
 };
 
 #endif

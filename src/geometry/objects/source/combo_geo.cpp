@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2023 Universitat de València - UV
-//    Copyright (C) 2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2023-2024 Universitat de València - UV
+//    Copyright (C) 2023-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
