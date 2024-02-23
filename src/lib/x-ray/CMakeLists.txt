@@ -40,14 +40,14 @@ target_include_directories(pen_xray PUBLIC ${PROJECT_SOURCE_DIR}/lib/x-ray/inclu
 target_link_libraries(pen_xray pen_sim)
 
 if (MSVC)
-	target_link_libraries(pen_main pen_VR)
-	set_target_properties(pen_main PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WHOLEARCHIVE:pen_VR")
+	target_link_libraries(pen_xray pen_VR)
+	set_target_properties(pen_xray PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WHOLEARCHIVE:pen_VR")
 else(MSVC)
 
 	if(APPLE) #Check if is an Apple OS
-		target_link_libraries(pen_main -Wl,-force_load pen_VR)
+		target_link_libraries(pen_xray -Wl,-force_load pen_VR)
 	else(APPLE) #By default assume a Linux OS
-		target_link_libraries(pen_main -Wl,--whole-archive pen_VR -Wl,--no-whole-archive )
+		target_link_libraries(pen_xray -Wl,--whole-archive pen_VR -Wl,--no-whole-archive )
 	endif(APPLE)
 
 endif(MSVC)
