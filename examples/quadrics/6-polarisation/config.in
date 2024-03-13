@@ -35,7 +35,7 @@
 #  Source 1
 #########################
 
-sources/polarized/source1/nhist __NHISTS__
+sources/polarized/source1/nhist 1.0e9
 sources/polarized/source1/kpar "gamma"
 
 
@@ -124,13 +124,12 @@ tallies/ImpactDetector2/linearScale-spc true
 #  VARIANCE REDUCTION   #
 #########################
 
-VR/IForcing/bodies/VR1/body "1"
-VR/IForcing/bodies/VR1/particle "gamma"
-VR/IForcing/bodies/VR1/interaction 1
-VR/IForcing/bodies/VR1/factor 100
-VR/IForcing/bodies/VR1/min-weight 0.1
-VR/IForcing/bodies/VR1/max-weight 1.0
-
+VR/IForcing/VR1/particle "gamma"
+VR/IForcing/VR1/interaction 1
+VR/IForcing/VR1/factor 100
+VR/IForcing/VR1/min-weight 0.1
+VR/IForcing/VR1/max-weight 1.0
+VR/IForcing/VR1/bodies/1 true
 
 #########################
 #  GEOMETRY PARAMETERS  #
@@ -153,9 +152,9 @@ geometry/eabs/3/gamma     1.0e35
 
 materials/cu/number 1
 
-materials/cu/eabs_e- 1.0e9
-materials/cu/eabs_e+ 1.0e9
-materials/cu/eabs_gamma 30.0e3
+materials/cu/eabs/electron 1.0e9
+materials/cu/eabs/positron 1.0e9
+materials/cu/eabs/gamma 30.0e3
 
 materials/cu/C1 0.1
 materials/cu/C2 0.1
@@ -168,9 +167,9 @@ materials/cu/filename "Cu.mat"
 
 materials/vac/number 2
 
-materials/vac/eabs_e- 1.0e9
-materials/vac/eabs_e+ 1.0e9
-materials/vac/eabs_gamma 30.0e3
+materials/vac/eabs/electron 1.0e9
+materials/vac/eabs/positron 1.0e9
+materials/vac/eabs/gamma 30.0e3
 
 materials/vac/C1 0.1
 materials/vac/C2 0.1
@@ -186,5 +185,5 @@ materials/vac/filename "Vacuum.mat"
 # SIMULATION PARAMETERS #
 #########################
 
-simulation/threads __NTHREADS__
-simulation/dump-interval __DUMPTIME__
+simulation/threads 2
+simulation/max-time 600

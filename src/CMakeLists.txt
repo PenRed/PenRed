@@ -37,6 +37,7 @@ CMAKE_POLICY(SET CMP0054 NEW)
 include(CMakeDependentOption)
 
 option(DEVELOPMENT_WARNINGS "Compile with extra warnings for development " OFF)
+option(WITH_EMBEDDED_DB "Build PenRed with embedded data bases " ON)
 option(WITH_DICOM "Build PenRed DICOM " OFF)
 option(WITH_MULTI_THREADING "Build PenRed with multi-threading " ON)
 option(WITH_MPI "Build PenRed with MPI " OFF)
@@ -153,6 +154,11 @@ if (MSVC)
 endif(MSVC)
 
 #-----------------------------------------------------------------------------
+
+# Check if embedded data bases is enabled
+if(WITH_EMBEDDED_DB)
+  add_definitions(-D_PEN_EMBEDDED_DATA_BASE_=1) #enable embedded data bases
+endif(WITH_EMBEDDED_DB)
 
 # Check if DICOM option has been enabled
 if(WITH_DICOM)

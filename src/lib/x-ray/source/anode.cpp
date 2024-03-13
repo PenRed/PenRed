@@ -36,14 +36,14 @@ namespace penred{
 #include "baseAnode.geo"
     };
 
-    void simulate(const unsigned long long nHists,
-		  const double Einit,
-		  const double beamRad,
-		  const pen_context& context,
-		  const pen_VRCluster<pen_state_gPol>& photonVR,
-		  std::vector<detectedPart>& results,
-		  int& seed1, int& seed2,
-		  const bool onlyPhotons){
+    void runAnodeSimulation(const unsigned long long nHists,
+			    const double Einit,
+			    const double beamRad,
+			    const pen_context& context,
+			    const pen_VRCluster<pen_state_gPol>& photonVR,
+			    std::vector<detectedPart>& results,
+			    int& seed1, int& seed2,
+			    const bool onlyPhotons){
 
       //Constants
       constexpr double pi = 3.141592653589793;
@@ -434,7 +434,7 @@ namespace penred{
 #ifdef _PEN_USE_THREADS_
       std::vector<std::thread> threads;
       for(size_t ith = 0; ith < nThreads; ++ith){
-	threads.emplace_back(simulate,
+	threads.emplace_back(runAnodeSimulation,
 			     nHists/nThreads,
 			     eEnergy,
 			     beamRad,
@@ -454,11 +454,12 @@ namespace penred{
       }
 #else
       //Simulate using a single thread
-      simulate(nHists, eEnergy, beamRad, context, photonVR,
-	       results, seeds1[0], seeds2[0], onlyPhotons);
+      runAnodeSimulation(nHists, eEnergy, beamRad, context, photonVR,
+			 results, seeds1[0], seeds2[0], onlyPhotons);
 #endif
       delete geometry;
       return 0;
     }
+
   };
 };

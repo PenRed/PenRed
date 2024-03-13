@@ -112,9 +112,9 @@ geometry/intensity-ranges/ToothDentine/density 2.14
 #########################
 
 materials/Air/number 1
-materials/Air/eabs_e- 1e3
-materials/Air/eabs_e+ 1e3
-materials/Air/eabs_gamma 1e3
+materials/Air/eabs/electron 1e3
+materials/Air/eabs/positron 1e3
+materials/Air/eabs/gamma 1e3
 
 materials/Air/C1 0.05
 materials/Air/C2 0.05
@@ -126,9 +126,9 @@ materials/Air/filename "Air-GeantIV.mat"
 
 
 materials/SoftTissue/number 2
-materials/SoftTissue/eabs_e- 10e3
-materials/SoftTissue/eabs_e+ 10e3
-materials/SoftTissue/eabs_gamma 1e3
+materials/SoftTissue/eabs/electron 10e3
+materials/SoftTissue/eabs/positron 10e3
+materials/SoftTissue/eabs/gamma 1e3
 
 materials/SoftTissue/C1 0.05
 materials/SoftTissue/C2 0.05
@@ -140,9 +140,9 @@ materials/SoftTissue/filename "SoftTissue.mat"
 
 
 materials/BrainTissue/number 3
-materials/BrainTissue/eabs_e- 10e3
-materials/BrainTissue/eabs_e+ 10e3
-materials/BrainTissue/eabs_gamma 1e3
+materials/BrainTissue/eabs/electron 10e3
+materials/BrainTissue/eabs/positron 10e3
+materials/BrainTissue/eabs/gamma 1e3
 
 materials/BrainTissue/C1 0.05
 materials/BrainTissue/C2 0.05
@@ -154,9 +154,9 @@ materials/BrainTissue/filename "BrainTissue.mat"
 
 
 materials/SpinalDisc/number 4
-materials/SpinalDisc/eabs_e- 10e3
-materials/SpinalDisc/eabs_e+ 10e3
-materials/SpinalDisc/eabs_gamma 1e3
+materials/SpinalDisc/eabs/electron 10e3
+materials/SpinalDisc/eabs/positron 10e3
+materials/SpinalDisc/eabs/gamma 1e3
 
 materials/SpinalDisc/C1 0.05
 materials/SpinalDisc/C2 0.05
@@ -168,9 +168,9 @@ materials/SpinalDisc/filename "SpinalDisc-GeantIV.mat"
 
 
 materials/TrabecularBone/number 5
-materials/TrabecularBone/eabs_e- 10e3
-materials/TrabecularBone/eabs_e+ 10e3
-materials/TrabecularBone/eabs_gamma 1e3
+materials/TrabecularBone/eabs/electron 10e3
+materials/TrabecularBone/eabs/positron 10e3
+materials/TrabecularBone/eabs/gamma 1e3
 
 materials/TrabecularBone/C1 0.05
 materials/TrabecularBone/C2 0.05
@@ -182,9 +182,9 @@ materials/TrabecularBone/filename "TrabecularBone_HEAD-GeantIV.mat"
 
 
 materials/CorticalBone/number 6
-materials/CorticalBone/eabs_e- 10e3
-materials/CorticalBone/eabs_e+ 10e3
-materials/CorticalBone/eabs_gamma 1e3
+materials/CorticalBone/eabs/electron 10e3
+materials/CorticalBone/eabs/positron 10e3
+materials/CorticalBone/eabs/gamma 1e3
 
 materials/CorticalBone/C1 0.05
 materials/CorticalBone/C2 0.05
@@ -196,9 +196,9 @@ materials/CorticalBone/filename "CorticalBone.mat"
 
 
 materials/ToothDentine/number 7
-materials/ToothDentine/eabs_e- 10e3
-materials/ToothDentine/eabs_e+ 10e3
-materials/ToothDentine/eabs_gamma 1e3
+materials/ToothDentine/eabs/electron 10e3
+materials/ToothDentine/eabs/positron 10e3
+materials/ToothDentine/eabs/gamma 1e3
 
 materials/ToothDentine/C1 0.05
 materials/ToothDentine/C2 0.05

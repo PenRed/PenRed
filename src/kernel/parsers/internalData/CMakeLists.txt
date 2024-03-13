@@ -34,6 +34,6 @@
 #####################################
 
 # Create geo lib
-add_library(pen_internalData STATIC ${PROJECT_SOURCE_DIR}/kernel/parsers/internalData/source/pen_data.cpp)
+add_library(pen_internalData STATIC ${CMAKE_CURRENT_SOURCE_DIR}/source/pen_parser.cpp ${CMAKE_CURRENT_SOURCE_DIR}/source/pen_reader.cpp)
 
 target_include_directories(pen_internalData PUBLIC ${PROJECT_SOURCE_DIR}/kernel/parsers/internalData/includes)

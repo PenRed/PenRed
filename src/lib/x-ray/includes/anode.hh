@@ -24,7 +24,10 @@
 //    
 //
 
-#include "pen_simulation.hh"
+#ifndef __PEN_X_RAY_ANODE__
+#define __PEN_X_RAY_ANODE__
+
+#include "x-ray-common.hh"
 #include <thread>
 #include <functional>
 
@@ -32,32 +35,14 @@ namespace penred{
 
   namespace xray{
 
-    struct preloadGeos{
-      //Get anode geometry file at compile time
-      static const char* anodeGeoFile;
-      
-    };
-
-    struct detectedPart{
-      pen_particleState state; //Particle state
-      unsigned long dh;        //History increment
-      unsigned kpar;           //Particle type
-
-      inline detectedPart(const pen_particleState& stateIn,
-			  const unsigned long dhIn,
-			  const unsigned kparIn) : state(stateIn),
-						   dh(dhIn),
-						   kpar(kparIn){}
-    };
-
-    void simulate(const unsigned long long nHists,
-		  const double Einit,
-		  const double beamRad,
-		  const pen_context& context,
-		  const pen_VRCluster<pen_state_gPol>& photonVR,
-		  std::vector<detectedPart>& results,
-		  int& seed1, int& seed2,
-		  const bool onlyPhotons);
+    void runAnodeSimulation(const unsigned long long nHists,
+			    const double Einit,
+			    const double beamRad,
+			    const pen_context& context,
+			    const pen_VRCluster<pen_state_gPol>& photonVR,
+			    std::vector<detectedPart>& results,
+			    int& seed1, int& seed2,
+			    const bool onlyPhotons);
 
     //Function to simulate a monoenergetic electron beam aiming an anode
     int simAnode(const char* matFilename,
@@ -72,6 +57,10 @@ namespace penred{
 		 const unsigned verbose = 1,
 		 const unsigned threads2Use = 0);
 
+    
+
   };
 
 };
+
+#endif

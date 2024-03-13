@@ -1663,13 +1663,17 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 int pen_meshBodyGeo::GEOMESH(std::istream& in,
 			     std::map<std::string, std::vector<pen_meshTransform::group>>& transMap,
 			     const unsigned verbose){
+
+  //Create a vector for inlcuded files
+  std::vector<std::ifstream> includes;
+  
   //Read comment lines (start with #)
   std::string line;
   unsigned long nlines;
   unsigned long nRead = 0;
   int nBodies;
     
-  if(pen_getLine(in,line,nlines) == 0){
+  if(meshGetLine(includes,in,line,nlines) == 0){
     nRead += nlines;
     //Read number of bodies in the geometry file
     if(sscanf(line.c_str()," %d",&nBodies) != 1){
@@ -1729,7 +1733,7 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
     //Create a map to store vertex groups
     std::map<std::string,std::vector<unsigned>> vgMap;
     
-    if(pen_getLine(in,line,nlines) == 0){
+    if(meshGetLine(includes,in,line,nlines) == 0){
       nRead += nlines;
       //Read characteristics of each body in the geometry file
       //Create auxiliar variable to ensure material is greater than zero
@@ -1825,7 +1829,7 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
       //Read vertex groups data from geometry file
       for(int j = 0; j < nVertexGroups; ++j){
 	//Read vertex group header
-	if(pen_getLine(in,line,nlines) == 0){
+	if(meshGetLine(includes,in,line,nlines) == 0){
 	  nRead += nlines;
 	  char groupName[100];
 	  long int nGroupVertex;
@@ -1853,7 +1857,7 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
 
 	  //Read vertex indexes belonging this group
 	  for(long int iv = 0; iv < nGroupVertex; ++iv){
-	    if(pen_getLine(in,line,nlines) == 0){
+	    if(meshGetLine(includes,in,line,nlines) == 0){
 	      nRead += nlines;
 	      long int vIndex;
 	      if(sscanf(line.c_str(), " %ld ", &vIndex) != 1){
@@ -1925,7 +1929,7 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
 
       //Read all vertex for this body
       for(size_t j = 0; j < nvertex; ++j){
-	if(pen_getLine(in,line,nlines) == 0){
+	if(meshGetLine(includes,in,line,nlines) == 0){
 	  long int index;
 	  double x,y,z;
 	  nRead += nlines;
@@ -1993,7 +1997,7 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
             
       for(size_t k=0; k < bodies[i].nTriangles; ++k){
 	unsigned int index[3];
-	if(pen_getLine(in,line,nlines) == 0){
+	if(meshGetLine(includes,in,line,nlines) == 0){
 	  nRead += nlines;
 	  //Read each triangle or face of each body 
 	      if(sscanf(line.c_str()," %u  %u  %u",
@@ -2197,6 +2201,75 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
     
   return PEN_MESHBODY_GEO_SUCCESS;
 }
+
+int pen_meshBodyGeo::meshGetLine(std::vector<std::ifstream>& included,
+				 std::istream& root,
+				 std::string&line,
+				 unsigned long& nRead){
+
+  //Clear line
+  line.clear();
+
+  //Read until non empty line
+
+  while(line.empty()){
+    //Check if we must read from main istream or from a included file
+    if(included.size() > 0){
+      //Read from last included file
+      std::ifstream& in = included.back();
+      int err = pen_getLine(in, line, nRead); 
+      if(err != 0){
+	//Error while reading, check if end of file has been reached
+	if(in.eof()){
+	  //End of file reached, close the file and remove the stream
+	  in.close();
+	  included.pop_back();
+	  return meshGetLine(included, root, line, nRead);
+	}else{
+	  //Error reading data, return the error
+	  return err;
+	}
+      }
+    }else{
+      //Read from root stream
+      int err = pen_getLine(root, line, nRead); 
+      if(err != 0){
+	return err;
+      }
+    }
+
+    //After successful read, check if line stores a "include" instruction
+      
+    //Find non white characters
+    const char* whiteChars = " \n\t\r";
+    const std::string::size_type firstCharPos = line.find_first_not_of(whiteChars);
+    if(firstCharPos == std::string::npos){
+      //Empty line
+      line.clear();
+    }else{
+      //Line with data, try to get two words
+      char word1[200], word2[200];
+      word1[0] = '\0';
+      word2[0] = '\0';
+      sscanf(line.c_str(), " %s %s ", word1, word2);
+
+      //Check if it is an include instruction
+      if(std::strcmp(word1,"include") == 0){
+	//Open the file and read from it
+	included.emplace_back(word2);
+	if(!included.back().is_open()){
+	  printf("pen_meshBodyGeo:configure: Error: Unable to "
+		 "open included file '%s'\n", word2);
+	  return -1;
+	}
+	return meshGetLine(included, root, line, nRead);
+      }
+    }
+  }
+
+  return 0;
+}
+
 
 bool pen_meshBodyGeo::canOverlapParent(const unsigned ibody) const {
     

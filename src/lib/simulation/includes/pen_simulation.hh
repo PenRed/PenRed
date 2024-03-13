@@ -45,7 +45,16 @@ namespace penred{
 
   namespace simulation{
 
+    //Define tally function type
     typedef std::function<void(const pen_particleState&,const pen_KPAR,const int)> simFuncType;
+    //Define sample function type
+    template<class particleState>
+    using sampleFuncType =
+      std::function<void(particleState&,      //Generated state
+      pen_KPAR&,           //Generated kpar
+      unsigned long long&, //History increment
+      const unsigned,      //Thread number
+      pen_rand&)>;         //Random generator instance
 
     namespace finishTypes{
       enum finishTypes{
@@ -2002,7 +2011,7 @@ namespace penred{
 
 	  //Check if a report is needed in the configuration
 	  if(++simConfRepCount % 1000 == 0){
-	    status.report(hist);
+	    config.report(hist);
 	    simConfRepCount = 0;
 	  }
 	    	  
@@ -2034,10 +2043,10 @@ namespace penred{
       config.setFinalSeedsFromRand(random);
 
       //Perform a final report
-      status.report(hist);
+      config.report(hist);
 
       //Finish source simulation
-      status.finish();
+      config.finish();
 
       if(verbose > 1){
 	int seed1, seed2;
@@ -2053,7 +2062,235 @@ namespace penred{
       }
       
       //Update maximum simulation time
-      config.maxSimTime -= static_cast<long long int>(status.simTime()*1000.0);
+      config.maxSimTime -= static_cast<long long int>(config.simTime()*1000.0);
+
+      return simFlags::SUCCESS;
+    }
+
+    //Simulation function
+    template<class stateType, class... particleTypes>
+    inline int sampleAndSimulateCond(simConfig& config,
+				     const unsigned long long nhists,
+				     std::string sourceName,
+				     sampleFuncType<stateType>& fsource,
+				     const finishTypes::finishTypes& finishType,
+				     const unsigned& finishValue,
+				     simFuncType& ftally,
+				     particleTypes&... particles){
+
+      //Copy simulation thread
+      const unsigned ithread = config.iThread;
+
+      //Copy verbose level
+      const unsigned verbose = config.verbose;
+
+      //Get simulation status
+      simState& status = config.getStatus();
+
+      //Init this source simulation
+      config.nextSource(sourceName, nhists);
+      
+      //Copy total number of simulated histories
+      const unsigned long long simulated = config.getTotalSimulated();      
+      
+      //Get last simulated history
+      unsigned long long hist = simulated;
+      
+      //Check if there are histories to simulate
+      if(nhists < 1){
+	//No histories required to be simulated
+	if(verbose > 1){
+	  config << config.threadAndSourcePrefix()
+		 << "Nothing to do" << simConfig::endl;
+	}
+	
+	status.setFlag(simFlags::NOTHING_TO_DO);
+	return simFlags::NOTHING_TO_DO;
+      }
+      
+      //Calculate last history to simulate
+      unsigned long long lastHist = simulated+nhists;
+
+      //Read context
+      const auto& context = readContext(particles...);
+      
+      //Create random generator
+      pen_rand random;
+      config.setInitSeedsToRand(random);
+
+      //Create a stopwatch for simulation time
+      pen_stopWatch simLimitWatch(config.maxSimTime);
+      
+      //Start all stopWatch counts
+      simLimitWatch.start();
+
+      //Flag simulation to running
+      status.setFlag(simFlags::RUNNING);      
+      
+      //** Generate first state
+      stateType genState;
+      pen_KPAR genKpar;
+      unsigned long long dhist;
+  
+      //Sample first particle
+      fsource(genState,genKpar,dhist,ithread,random);
+
+      //Check if sampling returns a valid kpar and if the new hist
+      //is under the history limit number
+      if(!findKpar(genKpar, particles...)){
+	//Invalid kpar
+
+	//Update seeds for next source
+	config.setFinalSeedsFromRand(random);
+
+	if(verbose > 0){
+	  config << config.threadAndSourcePrefix()
+		 << "Provided source generated a unknown kpar "
+	    "on first call. Simulation finish due empty source."
+		 << simConfig::endl;
+	}
+	
+	status.setFlag(simFlags::END_OF_SOURCE);
+	config.finish();	
+	return simFlags::END_OF_SOURCE;
+      }
+      if(hist + dhist > lastHist){
+	//Simulation history limit reached
+
+	//Consider "skipped" histories as simulated
+	hist = lastHist;
+
+	//Report simulated histories
+	config.report(hist);
+
+	//Update seeds for next source
+	config.setFinalSeedsFromRand(random);
+
+	if(verbose > 0){
+	  config << config.threadAndSourcePrefix()
+		 << "First history increment is greater than the number of "
+	    "histories to be simulated. Simulation finished."
+		 << simConfig::endl;
+	}
+	
+	//Finish the source simulation
+	status.setFlag(simFlags::SUCCESS);
+	config.finish();
+	
+	return simFlags::SUCCESS;
+      }
+
+      //Increment history counter
+      hist += dhist;
+
+      //Enter history loop
+      unsigned simConfRepCount = 0;
+      for(;;){
+
+	int err = simulateShowerByKparCond(hist, random, finishType, finishValue, ftally,
+					   genState, genKpar, particles...);
+	if(err != errors::SUCCESS &&
+	   err != errors::GEOMETRY_NOT_REACHED){
+	  //Unknown particle ID signals end of source
+	  status.setFlag(simFlags::END_OF_SOURCE);
+
+	  if(verbose > 1){
+	    config << config.threadAndSourcePrefix()
+		   << "End of source reached." << simConfig::endl;
+	  }	  
+	  break;
+	}
+
+	//Get last seeds
+	int lseed1, lseed2;
+	random.getSeeds(lseed1,lseed2);
+    
+	//Sample new particle state
+	fsource(genState,genKpar,dhist,ithread,random);
+    
+	//Check if is a valid particle
+	if(genKpar >= ALWAYS_AT_END){
+
+	  //End of source
+	  status.setFlag(simFlags::END_OF_SOURCE);
+
+	  if(verbose > 1){
+	    config << config.threadAndSourcePrefix()
+		   << "End of source reached." << simConfig::endl;
+	  }
+	  break;
+	}
+
+
+	if(dhist > 0){
+
+	  //Get actual time
+	  const auto tnow = std::chrono::steady_clock::now();
+	  //Check if the simulation must be stopped
+	  if(simLimitWatch.check(tnow)){
+	      
+	    //Save dump
+	    unsigned long long currentHists =
+	      hist-simulated+config.getInitiallySimulated();
+
+	    if(verbose > 1){
+	      config << config.threadAndSourcePrefix()
+		     << "Simulation time limit reached ("
+		     << config.maxSimTime/1000 << "). "
+		     << "at history number " << hist
+		     << " with " << currentHists << "/" << nhists
+		     << " simulated in actual source, with seeds "
+		     << lseed1 << " " << lseed2 << simConfig::endl;
+	    }
+	    
+	    //Finish the simulation
+	    status.setFlag(simFlags::MAX_TIME_REACHED);
+	    break;	
+	  }
+
+	  //Check if a report is needed in the configuration
+	  if(++simConfRepCount % 1000 == 0){
+	    config.report(hist);
+	    simConfRepCount = 0;
+	  }
+	    	  
+	  //Increment history counter
+	  hist += dhist;
+
+	  //Check history limit
+	  if(hist >= lastHist){
+	    //End of simulation
+	    hist = lastHist;
+	    status.setFlag(simFlags::SUCCESS);	      
+	    break;
+	  }
+	}
+      }
+
+      //Update seeds for next source
+      config.setFinalSeedsFromRand(random);
+
+      //Perform a final report
+      config.report(hist);
+
+      //Finish source simulation
+      config.finish();
+
+      if(verbose > 1){
+	int seed1, seed2;
+	config.getSeeds(seed1, seed2);
+	config << config.threadAndSourcePrefix()
+	       << "Simulation finished at history "
+	       << config.getTotalSimulated()
+	       << " with " << config.getSimulatedInSource()-config.getInitiallySimulated()
+	       << "/"
+	       << config.getToSimulateInSource() << " histories simulated and "
+	       << seed1 << " " << seed2 << " as final seeds. Total time: "
+	       << config.simTime() << simConfig::endl;
+      }
+      
+      //Update maximum simulation time
+      config.maxSimTime -= static_cast<long long int>(config.simTime()*1000.0);
 
       return simFlags::SUCCESS;
     }

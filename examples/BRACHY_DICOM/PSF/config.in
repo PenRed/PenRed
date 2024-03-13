@@ -109,9 +109,9 @@ geometry/eabs/5/positron  1.0e35
 #########################
 
 materials/Ir/number 1
-materials/Ir/eabs_e- 1.4e6
-materials/Ir/eabs_e+ 1.4e6
-materials/Ir/eabs_gamma 1e3
+materials/Ir/eabs/electron 1.4e6
+materials/Ir/eabs/positron 1.4e6
+materials/Ir/eabs/gamma 1e3
 materials/Ir/C1 0.05
 materials/Ir/C2 0.05
 materials/Ir/WCC 5.0e3
@@ -119,9 +119,9 @@ materials/Ir/WCR 5.0e3
 materials/Ir/filename "Ir.mat"
 
 materials/Steel/number 2 
-materials/Steel/eabs_e- 7.1e5
-materials/Steel/eabs_e+ 7.1e5
-materials/Steel/eabs_gamma 1e3
+materials/Steel/eabs/electron 7.1e5
+materials/Steel/eabs/positron 7.1e5
+materials/Steel/eabs/gamma 1e3
 materials/Steel/C1 0.05
 materials/Steel/C2 0.05
 materials/Steel/WCC 5.0e3
@@ -129,9 +129,9 @@ materials/Steel/WCR 5.0e3
 materials/Steel/filename "steel316L.mat"
 
 materials/Steel-cable/number 3
-materials/Steel-cable/eabs_e- 5.0e5
-materials/Steel-cable/eabs_e+ 5.0e5
-materials/Steel-cable/eabs_gamma 1e3
+materials/Steel-cable/eabs/electron 5.0e5
+materials/Steel-cable/eabs/positron 5.0e5
+materials/Steel-cable/eabs/gamma 1e3
 materials/Steel-cable/C1 0.05
 materials/Steel-cable/C2 0.05
 materials/Steel-cable/WCC 5.0e3
@@ -139,9 +139,9 @@ materials/Steel-cable/WCR 5.0e3
 materials/Steel-cable/filename "steel316L-cable.mat"
 
 materials/air/number 4
-materials/air/eabs_e- 4.0e3
-materials/air/eabs_e+ 4.0e3
-materials/air/eabs_gamma 1e3
+materials/air/eabs/electron 4.0e3
+materials/air/eabs/positron 4.0e3
+materials/air/eabs/gamma 1e3
 materials/air/C1 0.05
 materials/air/C2 0.05
 materials/air/WCC 4.0e3
@@ -156,4 +156,5 @@ materials/air/filename "Air.mat"
 #########################
 
 simulation/threads 2
+simulation/max-time 600
 

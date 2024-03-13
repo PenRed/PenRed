@@ -35,7 +35,7 @@
 #  Source 1
 #########################
 
-sources/generic/source1/nhist __NHISTS__
+sources/generic/source1/nhist 1.0e7
 sources/generic/source1/kpar "electron"
 
 
@@ -111,22 +111,22 @@ tallies/psf/emax 6.1e6
 #  VARIANCE REDUCTION   #
 #########################
 
-VR/IForcing/bodies/VR1/body "1"
-VR/IForcing/bodies/VR1/particle "electron"
-VR/IForcing/bodies/VR1/interaction 2
-VR/IForcing/bodies/VR1/factor 10.0
-VR/IForcing/bodies/VR1/min-weight 0.6
-VR/IForcing/bodies/VR1/max-weight 1.1
+VR/IForcing/VR1/particle "electron"
+VR/IForcing/VR1/interaction 2
+VR/IForcing/VR1/factor 10.0
+VR/IForcing/VR1/min-weight 0.6
+VR/IForcing/VR1/max-weight 1.1
+VR/IForcing/VR1/bodies/1 true
 
+VR/IForcing/VR2/particle "electron"
+VR/IForcing/VR2/interaction 3
+VR/IForcing/VR2/factor 10.0
+VR/IForcing/VR2/min-weight 0.6
+VR/IForcing/VR2/max-weight 1.1
+VR/IForcing/VR2/bodies/1 true
 
-VR/IForcing/bodies/VR2/body "1"
-VR/IForcing/bodies/VR2/particle "electron"
-VR/IForcing/bodies/VR2/interaction 3
-VR/IForcing/bodies/VR2/factor 10.0
-VR/IForcing/bodies/VR2/min-weight 0.6
-VR/IForcing/bodies/VR2/max-weight 1.1
-
-VR/bremss/bodies/1/splitting 5
+VR/bremss/VRbremss/splitting 5
+VR/bremss/VRbremss/bodies/1 true
 
 VR/x-ray/bodies/1/splitting 4
 
@@ -153,9 +153,9 @@ geometry/eabs/3/positron  1.0e35
 
 materials/wol/number 1
 
-materials/wol/eabs_e- 1.0e5
-materials/wol/eabs_gamma 1.0e4
-materials/wol/eabs_e+ 1.0e5
+materials/wol/eabs/electron 1.0e5
+materials/wol/eabs/gamma 1.0e4
+materials/wol/eabs/positron 1.0e5
 
 materials/wol/C1 0.1
 materials/wol/C2 0.1
@@ -168,9 +168,9 @@ materials/wol/filename "W.mat"
 
 materials/wol1/number 2
 
-materials/wol1/eabs_e- 1.0e5
-materials/wol1/eabs_gamma 1.0e4
-materials/wol1/eabs_e+ 1.0e5
+materials/wol1/eabs/electron 1.0e5
+materials/wol1/eabs/gamma 1.0e4
+materials/wol1/eabs/positron 1.0e5
 
 materials/wol1/C1 0.2
 materials/wol1/C2 0.2
@@ -184,9 +184,9 @@ materials/wol1/filename "W.mat"
 
 materials/air/number 3
 
-materials/air/eabs_e- 1.0e5
-materials/air/eabs_gamma 1.0e4
-materials/air/eabs_e+ 1.0e5
+materials/air/eabs/electron 1.0e5
+materials/air/eabs/gamma 1.0e4
+materials/air/eabs/positron 1.0e5
 
 materials/air/C1 0.2
 materials/air/C2 0.2
@@ -199,9 +199,9 @@ materials/air/filename "Air.mat"
 
 materials/water/number 4
 
-materials/water/eabs_e- 1.0e5
-materials/water/eabs_gamma 1.0e4
-materials/water/eabs_e+ 1.0e5
+materials/water/eabs/electron 1.0e5
+materials/water/eabs/gamma 1.0e4
+materials/water/eabs/positron 1.0e5
 
 materials/water/C1 0.2
 materials/water/C2 0.2
@@ -216,5 +216,5 @@ materials/water/filename "H2O.mat"
 # SIMULATION PARAMETERS #
 #########################
 
-simulation/threads __NTHREADS__
-simulation/dump-interval __DUMPTIME__
+simulation/threads 2
+simulation/max-time 600

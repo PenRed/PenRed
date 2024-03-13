@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2023 Universitat de València - UV
-//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2024 Universitat de València - UV
+//    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -732,6 +732,19 @@ public:
       materials[i] = nullptr;
   }
 
+  // Configuration functions
+  //-------------------------
+
+  //Configuration with no geometry set
+  virtual int config(const double EMAX,
+		     const pen_parserSection& config,
+		     pen_parserSection& matInfo,
+		     const unsigned verbose) = 0;
+
+  //Configuration with geometry set
+  virtual int configWithGeo(const pen_parserSection& config,
+			    const unsigned verbose) = 0;
+
   //Function 'range' is intended to return the range in the specified
   //material for a particle with the specified energy and type
   virtual double range(const double E, const pen_KPAR kpar, const unsigned M) const = 0;
@@ -839,7 +852,26 @@ public:
     maxEABS = new double[(geoBodies+1)*constants::nParTypes];
     if(maxEABS == nullptr)
       return -2;
-    
+
+    //Get materials used by the current geometry
+    bool usedMat[constants::MAXMAT+1];
+    geometry->usedMat(usedMat);
+
+    //Ensure all required materials have been defined
+    for(unsigned i = getNMats()+1; i < constants::MAXMAT+1; ++i){
+      if(usedMat[i]){
+	printf("Error: Geometry uses material %u, which has "
+	       "not been defined in the context configuration.\n",i);
+	return -2;
+      }
+    }
+
+    //Update absortion energies ussing geometry information
+    int err = updateEABS();
+    if(err != 0){
+      printf("Error calculating absorption energies\n");
+      return -3;
+    }
       
     return 0;
   }
@@ -913,7 +945,7 @@ public:
     return 0;
   }
 
-  unsigned getNMats() const {return nMats;}
+  inline unsigned getNMats() const {return nMats;}
   
   inline int setMatEABS(const unsigned M,
 			const unsigned kpar,

@@ -598,6 +598,11 @@ public:
   int GEOMESH(std::istream& in,
 	      std::map<std::string, std::vector<pen_meshTransform::group>>& transMap,
 	      const unsigned verbose);
+  static int meshGetLine(std::vector<std::ifstream>& included,
+			 std::istream& root,
+			 std::string&line,
+			 unsigned long& nRead);
+  
   
   void locate(pen_particleState&) const final override;
   void step(pen_particleState&,

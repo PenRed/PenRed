@@ -24,5 +24,7 @@
 //    
 //
 
+#include "x-ray-common.hh"
 #include "anode.hh"
-
+#include "collimator.hh"
+#include "filter.hh"

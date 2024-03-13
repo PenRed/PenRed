@@ -34,7 +34,7 @@
 #############################
 
 # Create lib
-add_library(pen_xray STATIC ${PROJECT_SOURCE_DIR}/lib/x-ray/source/x-ray.cpp ${PROJECT_SOURCE_DIR}/lib/x-ray/source/anode.cpp)
+add_library(pen_xray STATIC ${PROJECT_SOURCE_DIR}/lib/x-ray/source/x-ray.cpp)
 
 target_include_directories(pen_xray PUBLIC ${PROJECT_SOURCE_DIR}/lib/x-ray/includes)
 target_link_libraries(pen_xray pen_sim)

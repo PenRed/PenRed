@@ -81,6 +81,17 @@ install(
   DESTINATION ${PROJECT_SOURCE_DIR}/compiled/tests/internalData
   )
 
+### Reader test 1
+add_executable(internalDataRead_t1 ${PROJECT_SOURCE_DIR}/tests/internalData/readTest1.cpp)
+
+#target libs
+target_link_libraries(internalDataRead_t1 pen_internalData)
+
+# Install executables
+install(
+  TARGETS internalDataRead_t1
+  DESTINATION ${PROJECT_SOURCE_DIR}/compiled/tests/internalData
+  )
 
 ##########################################################
 

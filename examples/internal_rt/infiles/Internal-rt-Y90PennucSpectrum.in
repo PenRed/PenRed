@@ -391,9 +391,9 @@ geometry/dsmax/44 0.04
 #########################
 
 materials/Air_0/number 1
-materials/Air_0/eabs_e- 1e3
-materials/Air_0/eabs_e+ 1e3
-materials/Air_0/eabs_gamma 1e3
+materials/Air_0/eabs/electron 1e3
+materials/Air_0/eabs/positron 1e3
+materials/Air_0/eabs/gamma 1e3
 materials/Air_0/C1 0.05
 materials/Air_0/C2 0.05
 materials/Air_0/WCC 1e3
@@ -401,9 +401,9 @@ materials/Air_0/WCR 1e3
 materials/Air_0/filename "data/Materials/Air_0.mat"
 
 materials/Lung_1/number 2
-materials/Lung_1/eabs_e- 1e3
-materials/Lung_1/eabs_e+ 1e3
-materials/Lung_1/eabs_gamma 1e3
+materials/Lung_1/eabs/electron 1e3
+materials/Lung_1/eabs/positron 1e3
+materials/Lung_1/eabs/gamma 1e3
 materials/Lung_1/C1 0.05
 materials/Lung_1/C2 0.05
 materials/Lung_1/WCC 1e3
@@ -411,9 +411,9 @@ materials/Lung_1/WCR 1e3
 materials/Lung_1/filename "data/Materials/Lung_1.mat"
 
 materials/Lung_2/number 3
-materials/Lung_2/eabs_e- 1e3
-materials/Lung_2/eabs_e+ 1e3
-materials/Lung_2/eabs_gamma 1e3
+materials/Lung_2/eabs/electron 1e3
+materials/Lung_2/eabs/positron 1e3
+materials/Lung_2/eabs/gamma 1e3
 materials/Lung_2/C1 0.05
 materials/Lung_2/C2 0.05
 materials/Lung_2/WCC 1e3
@@ -421,9 +421,9 @@ materials/Lung_2/WCR 1e3
 materials/Lung_2/filename "data/Materials/Lung_2.mat"
 
 materials/Lung_3/number 4
-materials/Lung_3/eabs_e- 1e3
-materials/Lung_3/eabs_e+ 1e3
-materials/Lung_3/eabs_gamma 1e3
+materials/Lung_3/eabs/electron 1e3
+materials/Lung_3/eabs/positron 1e3
+materials/Lung_3/eabs/gamma 1e3
 materials/Lung_3/C1 0.05
 materials/Lung_3/C2 0.05
 materials/Lung_3/WCC 1e3
@@ -431,9 +431,9 @@ materials/Lung_3/WCR 1e3
 materials/Lung_3/filename "data/Materials/Lung_3.mat"
 
 materials/Lung_4/number 5
-materials/Lung_4/eabs_e- 1e3
-materials/Lung_4/eabs_e+ 1e3
-materials/Lung_4/eabs_gamma 1e3
+materials/Lung_4/eabs/electron 1e3
+materials/Lung_4/eabs/positron 1e3
+materials/Lung_4/eabs/gamma 1e3
 materials/Lung_4/C1 0.05
 materials/Lung_4/C2 0.05
 materials/Lung_4/WCC 1e3
@@ -441,9 +441,9 @@ materials/Lung_4/WCR 1e3
 materials/Lung_4/filename "data/Materials/Lung_4.mat"
 
 materials/Lung_5/number 6
-materials/Lung_5/eabs_e- 1e3
-materials/Lung_5/eabs_e+ 1e3
-materials/Lung_5/eabs_gamma 1e3
+materials/Lung_5/eabs/electron 1e3
+materials/Lung_5/eabs/positron 1e3
+materials/Lung_5/eabs/gamma 1e3
 materials/Lung_5/C1 0.05
 materials/Lung_5/C2 0.05
 materials/Lung_5/WCC 1e3
@@ -451,9 +451,9 @@ materials/Lung_5/WCR 1e3
 materials/Lung_5/filename "data/Materials/Lung_5.mat"
 
 materials/Lung_6/number 7
-materials/Lung_6/eabs_e- 1e3
-materials/Lung_6/eabs_e+ 1e3
-materials/Lung_6/eabs_gamma 1e3
+materials/Lung_6/eabs/electron 1e3
+materials/Lung_6/eabs/positron 1e3
+materials/Lung_6/eabs/gamma 1e3
 materials/Lung_6/C1 0.05
 materials/Lung_6/C2 0.05
 materials/Lung_6/WCC 1e3
@@ -461,9 +461,9 @@ materials/Lung_6/WCR 1e3
 materials/Lung_6/filename "data/Materials/Lung_6.mat"
 
 materials/Lung_7/number 8
-materials/Lung_7/eabs_e- 1e3
-materials/Lung_7/eabs_e+ 1e3
-materials/Lung_7/eabs_gamma 1e3
+materials/Lung_7/eabs/electron 1e3
+materials/Lung_7/eabs/positron 1e3
+materials/Lung_7/eabs/gamma 1e3
 materials/Lung_7/C1 0.05
 materials/Lung_7/C2 0.05
 materials/Lung_7/WCC 1e3
@@ -471,9 +471,9 @@ materials/Lung_7/WCR 1e3
 materials/Lung_7/filename "data/Materials/Lung_7.mat"
 
 materials/Lung_8/number 9
-materials/Lung_8/eabs_e- 1e3
-materials/Lung_8/eabs_e+ 1e3
-materials/Lung_8/eabs_gamma 1e3
+materials/Lung_8/eabs/electron 1e3
+materials/Lung_8/eabs/positron 1e3
+materials/Lung_8/eabs/gamma 1e3
 materials/Lung_8/C1 0.05
 materials/Lung_8/C2 0.05
 materials/Lung_8/WCC 1e3
@@ -481,9 +481,9 @@ materials/Lung_8/WCR 1e3
 materials/Lung_8/filename "data/Materials/Lung_8.mat"
 
 materials/Lung_9/number 10
-materials/Lung_9/eabs_e- 1e3
-materials/Lung_9/eabs_e+ 1e3
-materials/Lung_9/eabs_gamma 1e3
+materials/Lung_9/eabs/electron 1e3
+materials/Lung_9/eabs/positron 1e3
+materials/Lung_9/eabs/gamma 1e3
 materials/Lung_9/C1 0.05
 materials/Lung_9/C2 0.05
 materials/Lung_9/WCC 1e3
@@ -491,9 +491,9 @@ materials/Lung_9/WCR 1e3
 materials/Lung_9/filename "data/Materials/Lung_9.mat"
 
 materials/AT_AG_SI1_10/number 11
-materials/AT_AG_SI1_10/eabs_e- 1e3
-materials/AT_AG_SI1_10/eabs_e+ 1e3
-materials/AT_AG_SI1_10/eabs_gamma 1e3
+materials/AT_AG_SI1_10/eabs/electron 1e3
+materials/AT_AG_SI1_10/eabs/positron 1e3
+materials/AT_AG_SI1_10/eabs/gamma 1e3
 materials/AT_AG_SI1_10/C1 0.05
 materials/AT_AG_SI1_10/C2 0.05
 materials/AT_AG_SI1_10/WCC 1e3
@@ -501,9 +501,9 @@ materials/AT_AG_SI1_10/WCR 1e3
 materials/AT_AG_SI1_10/filename "data/Materials/AT_AG_SI1_10.mat"
 
 materials/AT_AG_SI2_11/number 12
-materials/AT_AG_SI2_11/eabs_e- 1e3
-materials/AT_AG_SI2_11/eabs_e+ 1e3
-materials/AT_AG_SI2_11/eabs_gamma 1e3
+materials/AT_AG_SI2_11/eabs/electron 1e3
+materials/AT_AG_SI2_11/eabs/positron 1e3
+materials/AT_AG_SI2_11/eabs/gamma 1e3
 materials/AT_AG_SI2_11/C1 0.05
 materials/AT_AG_SI2_11/C2 0.05
 materials/AT_AG_SI2_11/WCC 1e3
@@ -511,9 +511,9 @@ materials/AT_AG_SI2_11/WCR 1e3
 materials/AT_AG_SI2_11/filename "data/Materials/AT_AG_SI2_11.mat"
 
 materials/AT_AG_SI3_12/number 13
-materials/AT_AG_SI3_12/eabs_e- 1e3
-materials/AT_AG_SI3_12/eabs_e+ 1e3
-materials/AT_AG_SI3_12/eabs_gamma 1e3
+materials/AT_AG_SI3_12/eabs/electron 1e3
+materials/AT_AG_SI3_12/eabs/positron 1e3
+materials/AT_AG_SI3_12/eabs/gamma 1e3
 materials/AT_AG_SI3_12/C1 0.05
 materials/AT_AG_SI3_12/C2 0.05
 materials/AT_AG_SI3_12/WCC 1e3
@@ -521,9 +521,9 @@ materials/AT_AG_SI3_12/WCR 1e3
 materials/AT_AG_SI3_12/filename "data/Materials/AT_AG_SI3_12.mat"
 
 materials/AT_AG_SI4_13/number 14
-materials/AT_AG_SI4_13/eabs_e- 1e3
-materials/AT_AG_SI4_13/eabs_e+ 1e3
-materials/AT_AG_SI4_13/eabs_gamma 1e3
+materials/AT_AG_SI4_13/eabs/electron 1e3
+materials/AT_AG_SI4_13/eabs/positron 1e3
+materials/AT_AG_SI4_13/eabs/gamma 1e3
 materials/AT_AG_SI4_13/C1 0.05
 materials/AT_AG_SI4_13/C2 0.05
 materials/AT_AG_SI4_13/WCC 1e3
@@ -531,9 +531,9 @@ materials/AT_AG_SI4_13/WCR 1e3
 materials/AT_AG_SI4_13/filename "data/Materials/AT_AG_SI4_13.mat"
 
 materials/AT_AG_SI5_14/number 15
-materials/AT_AG_SI5_14/eabs_e- 1e3
-materials/AT_AG_SI5_14/eabs_e+ 1e3
-materials/AT_AG_SI5_14/eabs_gamma 1e3
+materials/AT_AG_SI5_14/eabs/electron 1e3
+materials/AT_AG_SI5_14/eabs/positron 1e3
+materials/AT_AG_SI5_14/eabs/gamma 1e3
 materials/AT_AG_SI5_14/C1 0.05
 materials/AT_AG_SI5_14/C2 0.05
 materials/AT_AG_SI5_14/WCC 1e3
@@ -541,9 +541,9 @@ materials/AT_AG_SI5_14/WCR 1e3
 materials/AT_AG_SI5_14/filename "data/Materials/AT_AG_SI5_14.mat"
 
 materials/SoftTissus_15/number 16
-materials/SoftTissus_15/eabs_e- 1e3
-materials/SoftTissus_15/eabs_e+ 1e3
-materials/SoftTissus_15/eabs_gamma 1e3
+materials/SoftTissus_15/eabs/electron 1e3
+materials/SoftTissus_15/eabs/positron 1e3
+materials/SoftTissus_15/eabs/gamma 1e3
 materials/SoftTissus_15/C1 0.05
 materials/SoftTissus_15/C2 0.05
 materials/SoftTissus_15/WCC 1e3
@@ -551,9 +551,9 @@ materials/SoftTissus_15/WCR 1e3
 materials/SoftTissus_15/filename "data/Materials/SoftTissus_15.mat"
 
 materials/ConnectiveTissue_16/number 17
-materials/ConnectiveTissue_16/eabs_e- 1e3
-materials/ConnectiveTissue_16/eabs_e+ 1e3
-materials/ConnectiveTissue_16/eabs_gamma 1e3
+materials/ConnectiveTissue_16/eabs/electron 1e3
+materials/ConnectiveTissue_16/eabs/positron 1e3
+materials/ConnectiveTissue_16/eabs/gamma 1e3
 materials/ConnectiveTissue_16/C1 0.05
 materials/ConnectiveTissue_16/C2 0.05
 materials/ConnectiveTissue_16/WCC 1e3
@@ -561,9 +561,9 @@ materials/ConnectiveTissue_16/WCR 1e3
 materials/ConnectiveTissue_16/filename "data/Materials/ConnectiveTissue_16.mat"
 
 materials/Marrow_Bone01_17/number 18
-materials/Marrow_Bone01_17/eabs_e- 1e3
-materials/Marrow_Bone01_17/eabs_e+ 1e3
-materials/Marrow_Bone01_17/eabs_gamma 1e3
+materials/Marrow_Bone01_17/eabs/electron 1e3
+materials/Marrow_Bone01_17/eabs/positron 1e3
+materials/Marrow_Bone01_17/eabs/gamma 1e3
 materials/Marrow_Bone01_17/C1 0.05
 materials/Marrow_Bone01_17/C2 0.05
 materials/Marrow_Bone01_17/WCC 1e3
@@ -571,9 +571,9 @@ materials/Marrow_Bone01_17/WCR 1e3
 materials/Marrow_Bone01_17/filename "data/Materials/Marrow_Bone01_17.mat"
 
 materials/Marrow_Bone02_18/number 19
-materials/Marrow_Bone02_18/eabs_e- 1e3
-materials/Marrow_Bone02_18/eabs_e+ 1e3
-materials/Marrow_Bone02_18/eabs_gamma 1e3
+materials/Marrow_Bone02_18/eabs/electron 1e3
+materials/Marrow_Bone02_18/eabs/positron 1e3
+materials/Marrow_Bone02_18/eabs/gamma 1e3
 materials/Marrow_Bone02_18/C1 0.05
 materials/Marrow_Bone02_18/C2 0.05
 materials/Marrow_Bone02_18/WCC 1e3
@@ -581,9 +581,9 @@ materials/Marrow_Bone02_18/WCR 1e3
 materials/Marrow_Bone02_18/filename "data/Materials/Marrow_Bone02_18.mat"
 
 materials/Marrow_Bone03_19/number 20
-materials/Marrow_Bone03_19/eabs_e- 1e3
-materials/Marrow_Bone03_19/eabs_e+ 1e3
-materials/Marrow_Bone03_19/eabs_gamma 1e3
+materials/Marrow_Bone03_19/eabs/electron 1e3
+materials/Marrow_Bone03_19/eabs/positron 1e3
+materials/Marrow_Bone03_19/eabs/gamma 1e3
 materials/Marrow_Bone03_19/C1 0.05
 materials/Marrow_Bone03_19/C2 0.05
 materials/Marrow_Bone03_19/WCC 1e3
@@ -591,9 +591,9 @@ materials/Marrow_Bone03_19/WCR 1e3
 materials/Marrow_Bone03_19/filename "data/Materials/Marrow_Bone03_19.mat"
 
 materials/Marrow_Bone04_20/number 21
-materials/Marrow_Bone04_20/eabs_e- 1e3
-materials/Marrow_Bone04_20/eabs_e+ 1e3
-materials/Marrow_Bone04_20/eabs_gamma 1e3
+materials/Marrow_Bone04_20/eabs/electron 1e3
+materials/Marrow_Bone04_20/eabs/positron 1e3
+materials/Marrow_Bone04_20/eabs/gamma 1e3
 materials/Marrow_Bone04_20/C1 0.05
 materials/Marrow_Bone04_20/C2 0.05
 materials/Marrow_Bone04_20/WCC 1e3
@@ -601,9 +601,9 @@ materials/Marrow_Bone04_20/WCR 1e3
 materials/Marrow_Bone04_20/filename "data/Materials/Marrow_Bone04_20.mat"
 
 materials/Marrow_Bone05_21/number 22
-materials/Marrow_Bone05_21/eabs_e- 1e3
-materials/Marrow_Bone05_21/eabs_e+ 1e3
-materials/Marrow_Bone05_21/eabs_gamma 1e3
+materials/Marrow_Bone05_21/eabs/electron 1e3
+materials/Marrow_Bone05_21/eabs/positron 1e3
+materials/Marrow_Bone05_21/eabs/gamma 1e3
 materials/Marrow_Bone05_21/C1 0.05
 materials/Marrow_Bone05_21/C2 0.05
 materials/Marrow_Bone05_21/WCC 1e3
@@ -611,9 +611,9 @@ materials/Marrow_Bone05_21/WCR 1e3
 materials/Marrow_Bone05_21/filename "data/Materials/Marrow_Bone05_21.mat"
 
 materials/Marrow_Bone06_22/number 23
-materials/Marrow_Bone06_22/eabs_e- 1e3
-materials/Marrow_Bone06_22/eabs_e+ 1e3
-materials/Marrow_Bone06_22/eabs_gamma 1e3
+materials/Marrow_Bone06_22/eabs/electron 1e3
+materials/Marrow_Bone06_22/eabs/positron 1e3
+materials/Marrow_Bone06_22/eabs/gamma 1e3
 materials/Marrow_Bone06_22/C1 0.05
 materials/Marrow_Bone06_22/C2 0.05
 materials/Marrow_Bone06_22/WCC 1e3
@@ -621,9 +621,9 @@ materials/Marrow_Bone06_22/WCR 1e3
 materials/Marrow_Bone06_22/filename "data/Materials/Marrow_Bone06_22.mat"
 
 materials/Marrow_Bone07_23/number 24
-materials/Marrow_Bone07_23/eabs_e- 1e3
-materials/Marrow_Bone07_23/eabs_e+ 1e3
-materials/Marrow_Bone07_23/eabs_gamma 1e3
+materials/Marrow_Bone07_23/eabs/electron 1e3
+materials/Marrow_Bone07_23/eabs/positron 1e3
+materials/Marrow_Bone07_23/eabs/gamma 1e3
 materials/Marrow_Bone07_23/C1 0.05
 materials/Marrow_Bone07_23/C2 0.05
 materials/Marrow_Bone07_23/WCC 1e3
@@ -631,9 +631,9 @@ materials/Marrow_Bone07_23/WCR 1e3
 materials/Marrow_Bone07_23/filename "data/Materials/Marrow_Bone07_23.mat"
 
 materials/Marrow_Bone08_24/number 25
-materials/Marrow_Bone08_24/eabs_e- 1e3
-materials/Marrow_Bone08_24/eabs_e+ 1e3
-materials/Marrow_Bone08_24/eabs_gamma 1e3
+materials/Marrow_Bone08_24/eabs/electron 1e3
+materials/Marrow_Bone08_24/eabs/positron 1e3
+materials/Marrow_Bone08_24/eabs/gamma 1e3
 materials/Marrow_Bone08_24/C1 0.05
 materials/Marrow_Bone08_24/C2 0.05
 materials/Marrow_Bone08_24/WCC 1e3
@@ -641,9 +641,9 @@ materials/Marrow_Bone08_24/WCR 1e3
 materials/Marrow_Bone08_24/filename "data/Materials/Marrow_Bone08_24.mat"
 
 materials/Marrow_Bone09_25/number 26
-materials/Marrow_Bone09_25/eabs_e- 1e3
-materials/Marrow_Bone09_25/eabs_e+ 1e3
-materials/Marrow_Bone09_25/eabs_gamma 1e3
+materials/Marrow_Bone09_25/eabs/electron 1e3
+materials/Marrow_Bone09_25/eabs/positron 1e3
+materials/Marrow_Bone09_25/eabs/gamma 1e3
 materials/Marrow_Bone09_25/C1 0.05
 materials/Marrow_Bone09_25/C2 0.05
 materials/Marrow_Bone09_25/WCC 1e3
@@ -651,9 +651,9 @@ materials/Marrow_Bone09_25/WCR 1e3
 materials/Marrow_Bone09_25/filename "data/Materials/Marrow_Bone09_25.mat"
 
 materials/Marrow_Bone10_26/number 27
-materials/Marrow_Bone10_26/eabs_e- 1e3
-materials/Marrow_Bone10_26/eabs_e+ 1e3
-materials/Marrow_Bone10_26/eabs_gamma 1e3
+materials/Marrow_Bone10_26/eabs/electron 1e3
+materials/Marrow_Bone10_26/eabs/positron 1e3
+materials/Marrow_Bone10_26/eabs/gamma 1e3
 materials/Marrow_Bone10_26/C1 0.05
 materials/Marrow_Bone10_26/C2 0.05
 materials/Marrow_Bone10_26/WCC 1e3
@@ -661,9 +661,9 @@ materials/Marrow_Bone10_26/WCR 1e3
 materials/Marrow_Bone10_26/filename "data/Materials/Marrow_Bone10_26.mat"
 
 materials/Marrow_Bone11_27/number 28
-materials/Marrow_Bone11_27/eabs_e- 1e3
-materials/Marrow_Bone11_27/eabs_e+ 1e3
-materials/Marrow_Bone11_27/eabs_gamma 1e3
+materials/Marrow_Bone11_27/eabs/electron 1e3
+materials/Marrow_Bone11_27/eabs/positron 1e3
+materials/Marrow_Bone11_27/eabs/gamma 1e3
 materials/Marrow_Bone11_27/C1 0.05
 materials/Marrow_Bone11_27/C2 0.05
 materials/Marrow_Bone11_27/WCC 1e3
@@ -671,9 +671,9 @@ materials/Marrow_Bone11_27/WCR 1e3
 materials/Marrow_Bone11_27/filename "data/Materials/Marrow_Bone11_27.mat"
 
 materials/Marrow_Bone12_28/number 29
-materials/Marrow_Bone12_28/eabs_e- 1e3
-materials/Marrow_Bone12_28/eabs_e+ 1e3
-materials/Marrow_Bone12_28/eabs_gamma 1e3
+materials/Marrow_Bone12_28/eabs/electron 1e3
+materials/Marrow_Bone12_28/eabs/positron 1e3
+materials/Marrow_Bone12_28/eabs/gamma 1e3
 materials/Marrow_Bone12_28/C1 0.05
 materials/Marrow_Bone12_28/C2 0.05
 materials/Marrow_Bone12_28/WCC 1e3
@@ -681,9 +681,9 @@ materials/Marrow_Bone12_28/WCR 1e3
 materials/Marrow_Bone12_28/filename "data/Materials/Marrow_Bone12_28.mat"
 
 materials/Marrow_Bone13_29/number 30
-materials/Marrow_Bone13_29/eabs_e- 1e3
-materials/Marrow_Bone13_29/eabs_e+ 1e3
-materials/Marrow_Bone13_29/eabs_gamma 1e3
+materials/Marrow_Bone13_29/eabs/electron 1e3
+materials/Marrow_Bone13_29/eabs/positron 1e3
+materials/Marrow_Bone13_29/eabs/gamma 1e3
 materials/Marrow_Bone13_29/C1 0.05
 materials/Marrow_Bone13_29/C2 0.05
 materials/Marrow_Bone13_29/WCC 1e3
@@ -691,9 +691,9 @@ materials/Marrow_Bone13_29/WCR 1e3
 materials/Marrow_Bone13_29/filename "data/Materials/Marrow_Bone13_29.mat"
 
 materials/Marrow_Bone14_30/number 31
-materials/Marrow_Bone14_30/eabs_e- 1e3
-materials/Marrow_Bone14_30/eabs_e+ 1e3
-materials/Marrow_Bone14_30/eabs_gamma 1e3
+materials/Marrow_Bone14_30/eabs/electron 1e3
+materials/Marrow_Bone14_30/eabs/positron 1e3
+materials/Marrow_Bone14_30/eabs/gamma 1e3
 materials/Marrow_Bone14_30/C1 0.05
 materials/Marrow_Bone14_30/C2 0.05
 materials/Marrow_Bone14_30/WCC 1e3
@@ -701,9 +701,9 @@ materials/Marrow_Bone14_30/WCR 1e3
 materials/Marrow_Bone14_30/filename "data/Materials/Marrow_Bone14_30.mat"
 
 materials/Marrow_Bone15_31/number 32
-materials/Marrow_Bone15_31/eabs_e- 1e3
-materials/Marrow_Bone15_31/eabs_e+ 1e3
-materials/Marrow_Bone15_31/eabs_gamma 1e3
+materials/Marrow_Bone15_31/eabs/electron 1e3
+materials/Marrow_Bone15_31/eabs/positron 1e3
+materials/Marrow_Bone15_31/eabs/gamma 1e3
 materials/Marrow_Bone15_31/C1 0.05
 materials/Marrow_Bone15_31/C2 0.05
 materials/Marrow_Bone15_31/WCC 1e3
@@ -711,9 +711,9 @@ materials/Marrow_Bone15_31/WCR 1e3
 materials/Marrow_Bone15_31/filename "data/Materials/Marrow_Bone15_31.mat"
 
 materials/AmalgamTooth_32/number 33
-materials/AmalgamTooth_32/eabs_e- 1e3
-materials/AmalgamTooth_32/eabs_e+ 1e3
-materials/AmalgamTooth_32/eabs_gamma 1e3
+materials/AmalgamTooth_32/eabs/electron 1e3
+materials/AmalgamTooth_32/eabs/positron 1e3
+materials/AmalgamTooth_32/eabs/gamma 1e3
 materials/AmalgamTooth_32/C1 0.05
 materials/AmalgamTooth_32/C2 0.05
 materials/AmalgamTooth_32/WCC 1e3
@@ -721,9 +721,9 @@ materials/AmalgamTooth_32/WCR 1e3
 materials/AmalgamTooth_32/filename "data/Materials/AmalgamTooth_32.mat"
 
 materials/AmalgamTooth_33/number 34
-materials/AmalgamTooth_33/eabs_e- 1e3
-materials/AmalgamTooth_33/eabs_e+ 1e3
-materials/AmalgamTooth_33/eabs_gamma 1e3
+materials/AmalgamTooth_33/eabs/electron 1e3
+materials/AmalgamTooth_33/eabs/positron 1e3
+materials/AmalgamTooth_33/eabs/gamma 1e3
 materials/AmalgamTooth_33/C1 0.05
 materials/AmalgamTooth_33/C2 0.05
 materials/AmalgamTooth_33/WCC 1e3
@@ -731,9 +731,9 @@ materials/AmalgamTooth_33/WCR 1e3
 materials/AmalgamTooth_33/filename "data/Materials/AmalgamTooth_33.mat"
 
 materials/AmalgamTooth_34/number 35
-materials/AmalgamTooth_34/eabs_e- 1e3
-materials/AmalgamTooth_34/eabs_e+ 1e3
-materials/AmalgamTooth_34/eabs_gamma 1e3
+materials/AmalgamTooth_34/eabs/electron 1e3
+materials/AmalgamTooth_34/eabs/positron 1e3
+materials/AmalgamTooth_34/eabs/gamma 1e3
 materials/AmalgamTooth_34/C1 0.05
 materials/AmalgamTooth_34/C2 0.05
 materials/AmalgamTooth_34/WCC 1e3
@@ -741,9 +741,9 @@ materials/AmalgamTooth_34/WCR 1e3
 materials/AmalgamTooth_34/filename "data/Materials/AmalgamTooth_34.mat"
 
 materials/AmalgamTooth_35/number 36
-materials/AmalgamTooth_35/eabs_e- 1e3
-materials/AmalgamTooth_35/eabs_e+ 1e3
-materials/AmalgamTooth_35/eabs_gamma 1e3
+materials/AmalgamTooth_35/eabs/electron 1e3
+materials/AmalgamTooth_35/eabs/positron 1e3
+materials/AmalgamTooth_35/eabs/gamma 1e3
 materials/AmalgamTooth_35/C1 0.05
 materials/AmalgamTooth_35/C2 0.05
 materials/AmalgamTooth_35/WCC 1e3
@@ -751,9 +751,9 @@ materials/AmalgamTooth_35/WCR 1e3
 materials/AmalgamTooth_35/filename "data/Materials/AmalgamTooth_35.mat"
 
 materials/MetallImplants_36/number 37
-materials/MetallImplants_36/eabs_e- 1e3
-materials/MetallImplants_36/eabs_e+ 1e3
-materials/MetallImplants_36/eabs_gamma 1e3
+materials/MetallImplants_36/eabs/electron 1e3
+materials/MetallImplants_36/eabs/positron 1e3
+materials/MetallImplants_36/eabs/gamma 1e3
 materials/MetallImplants_36/C1 0.05
 materials/MetallImplants_36/C2 0.05
 materials/MetallImplants_36/WCC 1e3
@@ -761,9 +761,9 @@ materials/MetallImplants_36/WCR 1e3
 materials/MetallImplants_36/filename "data/Materials/MetallImplants_36.mat"
 
 materials/MetallImplants_37/number 38
-materials/MetallImplants_37/eabs_e- 1e3
-materials/MetallImplants_37/eabs_e+ 1e3
-materials/MetallImplants_37/eabs_gamma 1e3
+materials/MetallImplants_37/eabs/electron 1e3
+materials/MetallImplants_37/eabs/positron 1e3
+materials/MetallImplants_37/eabs/gamma 1e3
 materials/MetallImplants_37/C1 0.05
 materials/MetallImplants_37/C2 0.05
 materials/MetallImplants_37/WCC 1e3
@@ -771,9 +771,9 @@ materials/MetallImplants_37/WCR 1e3
 materials/MetallImplants_37/filename "data/Materials/MetallImplants_37.mat"
 
 materials/MetallImplants_38/number 39
-materials/MetallImplants_38/eabs_e- 1e3
-materials/MetallImplants_38/eabs_e+ 1e3
-materials/MetallImplants_38/eabs_gamma 1e3
+materials/MetallImplants_38/eabs/electron 1e3
+materials/MetallImplants_38/eabs/positron 1e3
+materials/MetallImplants_38/eabs/gamma 1e3
 materials/MetallImplants_38/C1 0.05
 materials/MetallImplants_38/C2 0.05
 materials/MetallImplants_38/WCC 1e3
@@ -781,9 +781,9 @@ materials/MetallImplants_38/WCR 1e3
 materials/MetallImplants_38/filename "data/Materials/MetallImplants_38.mat"
 
 materials/MetallImplants_39/number 40
-materials/MetallImplants_39/eabs_e- 1e3
-materials/MetallImplants_39/eabs_e+ 1e3
-materials/MetallImplants_39/eabs_gamma 1e3
+materials/MetallImplants_39/eabs/electron 1e3
+materials/MetallImplants_39/eabs/positron 1e3
+materials/MetallImplants_39/eabs/gamma 1e3
 materials/MetallImplants_39/C1 0.05
 materials/MetallImplants_39/C2 0.05
 materials/MetallImplants_39/WCC 1e3
@@ -791,9 +791,9 @@ materials/MetallImplants_39/WCR 1e3
 materials/MetallImplants_39/filename "data/Materials/MetallImplants_39.mat"
 
 materials/MetallImplants_40/number 41
-materials/MetallImplants_40/eabs_e- 1e3
-materials/MetallImplants_40/eabs_e+ 1e3
-materials/MetallImplants_40/eabs_gamma 1e3
+materials/MetallImplants_40/eabs/electron 1e3
+materials/MetallImplants_40/eabs/positron 1e3
+materials/MetallImplants_40/eabs/gamma 1e3
 materials/MetallImplants_40/C1 0.05
 materials/MetallImplants_40/C2 0.05
 materials/MetallImplants_40/WCC 1e3
@@ -801,9 +801,9 @@ materials/MetallImplants_40/WCR 1e3
 materials/MetallImplants_40/filename "data/Materials/MetallImplants_40.mat"
 
 materials/MetallImplants_41/number 42
-materials/MetallImplants_41/eabs_e- 1e3
-materials/MetallImplants_41/eabs_e+ 1e3
-materials/MetallImplants_41/eabs_gamma 1e3
+materials/MetallImplants_41/eabs/electron 1e3
+materials/MetallImplants_41/eabs/positron 1e3
+materials/MetallImplants_41/eabs/gamma 1e3
 materials/MetallImplants_41/C1 0.05
 materials/MetallImplants_41/C2 0.05
 materials/MetallImplants_41/WCC 1e3
@@ -811,9 +811,9 @@ materials/MetallImplants_41/WCR 1e3
 materials/MetallImplants_41/filename "data/Materials/MetallImplants_41.mat"
 
 materials/MetallImplants_42/number 43
-materials/MetallImplants_42/eabs_e- 1e3
-materials/MetallImplants_42/eabs_e+ 1e3
-materials/MetallImplants_42/eabs_gamma 1e3
+materials/MetallImplants_42/eabs/electron 1e3
+materials/MetallImplants_42/eabs/positron 1e3
+materials/MetallImplants_42/eabs/gamma 1e3
 materials/MetallImplants_42/C1 0.05
 materials/MetallImplants_42/C2 0.05
 materials/MetallImplants_42/WCC 1e3

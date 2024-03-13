@@ -36,7 +36,7 @@
 #  Source 1
 #########################
 
-sources/generic/source1/nhist __NHISTS__
+sources/generic/source1/nhist 1.0e9
 sources/generic/source1/kpar "gamma"
 sources/generic/source1/record-time true
 
@@ -149,9 +149,9 @@ geometry/kdet/1  1
 
 materials/water/number 1
 
-materials/water/eabs_e- 1.0e5
-materials/water/eabs_e+ 1.0e5
-materials/water/eabs_gamma 1.0e4
+materials/water/eabs/electron 1.0e5
+materials/water/eabs/positron 1.0e5
+materials/water/eabs/gamma 1.0e4
 
 materials/water/C1 0.05
 materials/water/C2 0.05
@@ -167,5 +167,5 @@ materials/water/filename "water.mat"
 # SIMULATION PARAMETERS #
 #########################
 
-simulation/threads __NTHREADS__
-simulation/dump-interval __DUMPTIME__
+simulation/threads 2
+simulation/max-time 600

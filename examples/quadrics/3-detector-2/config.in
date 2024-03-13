@@ -36,7 +36,7 @@
 #  Source 1
 #########################
 
-sources/generic/source1/nhist 1.0e7
+sources/generic/source1/nhist 1.0e9
 
 # Spatial sampling
 #########################
@@ -114,9 +114,9 @@ geometry/kdet/1  1
 
 materials/NaI/number 1
 
-materials/NaI/eabs_e- 5.0e4
-materials/NaI/eabs_e+ 5.0e4
-materials/NaI/eabs_gamma 5.0e3
+materials/NaI/eabs/electron 5.0e4
+materials/NaI/eabs/positron 5.0e4
+materials/NaI/eabs/gamma 5.0e3
 
 materials/NaI/C1 0.1
 materials/NaI/C2 0.1
@@ -128,9 +128,9 @@ materials/NaI/filename "NaI.mat"
 
 materials/Fe/number 2
 
-materials/Fe/eabs_e- 5.0e4
-materials/Fe/eabs_e+ 5.0e4
-materials/Fe/eabs_gamma 5.0e3
+materials/Fe/eabs/electron 5.0e4
+materials/Fe/eabs/positron 5.0e4
+materials/Fe/eabs/gamma 5.0e3
 
 materials/Fe/C1 0.1
 materials/Fe/C2 0.1
@@ -147,6 +147,5 @@ materials/Fe/filename "Fe.mat"
 # SIMULATION PARAMETERS #
 #########################
 
-
-simulation/threads 1
-simulation/dump-interval 1.0e35
+simulation/threads 2
+simulation/max-time 600

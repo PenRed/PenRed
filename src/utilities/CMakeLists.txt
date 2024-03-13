@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019-2023 Universitat de València - UV
-#    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2024 Universitat de València - UV
+#    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -37,9 +37,7 @@ include(CMakeDependentOption)
 #         OPTIONS           #
 #############################
 
-CMAKE_DEPENDENT_OPTION(READ_MAT  "Compile read material utility" ON 
-                       "BUILD_UTILITIES" OFF)
-CMAKE_DEPENDENT_OPTION(MAT_RANGE "Compile material range utility" ON
+CMAKE_DEPENDENT_OPTION(PEN_MAT_UTILS  "Compile PENELOPE material utilities" ON
                        "BUILD_UTILITIES" OFF)
 CMAKE_DEPENDENT_OPTION(TALLIES_REGISTER "Compile tallies register" ON
                        "BUILD_UTILITIES" OFF)
@@ -80,42 +78,6 @@ CMAKE_DEPENDENT_OPTION(VIEWERS "Compile viewers" ON
                        
 #       EXECUTABLES         #
 #############################
-
-#-----------------------------------------------------------------------------
-#  Read material
-#############################
-
-if(READ_MAT)
-    # Create read material executable
-    add_executable(readMat ${PROJECT_SOURCE_DIR}/utilities/penMats/readMat.cpp)
-
-    #target libs
-    target_link_libraries(readMat pen_materials)
-
-    # Install readMat executable
-    install(
-    TARGETS readMat
-    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/penMats
-    )
-endif(READ_MAT)
-
-#-----------------------------------------------------------------------------
-#  Pen material ranges
-#############################
-
-if(MAT_RANGE)
-    # Create read material executable
-    add_executable(range ${PROJECT_SOURCE_DIR}/utilities/penMats/range.cpp)
-
-    #target libs
-    target_link_libraries(range pen_particles)
-
-    # Install readMat executable
-    install(
-    TARGETS range
-    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/penMats
-    )
-endif(MAT_RANGE)
   
 #-----------------------------------------------------------------------------
 #  psampler
@@ -473,35 +435,19 @@ endif(MUTREN)
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
+#  MATERIAL UTILITIES
+#############################
+
+if(PEN_MAT_UTILS)
+add_subdirectory(penMats)
+endif(PEN_MAT_UTILS)
+
+#-----------------------------------------------------------------------------
 #  MUTREN
 #############################
 
 if(XRAY)
-    # Create x-ray spectrum estimation executable
-    add_executable(spectrumEstimation ${PROJECT_SOURCE_DIR}/utilities/x-ray/spectrumEstimation.cpp)
-
-    target_link_libraries(spectrumEstimation pen_particles)
-    target_link_libraries(spectrumEstimation samplers)
-    target_link_libraries(spectrumEstimation tallies)
-    target_link_libraries(spectrumEstimation pen_geos)
-
-    # Install mutren executable
-    install(
-    TARGETS spectrumEstimation
-    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/x-ray/spectrumEstimation
-    )
-
-    # Create x-ray anode simulation executable
-    add_executable(anodeSim ${PROJECT_SOURCE_DIR}/utilities/x-ray/simAnode.cpp)
-
-    target_link_libraries(anodeSim pen_xray)
-
-    # Install anode simulation executable
-    install(
-    TARGETS anodeSim
-    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/x-ray/anodeSim
-    )
-
+add_subdirectory(x-ray)
 endif(XRAY)
 #-----------------------------------------------------------------------------
 
@@ -514,3 +460,5 @@ endif(XRAY)
 if(VIEWERS)
     add_subdirectory(viewers)
 endif(VIEWERS)
+
+add_subdirectory(contexts)
