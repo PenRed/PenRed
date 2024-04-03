@@ -50,9 +50,7 @@ namespace penred{
     struct particleTypes {
       static_assert(std::is_base_of<wrapper_context, contextType>::value,
 		    "Structure 'particleTypes' used with a 'context'"
-		    "not derived from 'wrapper_context'");
-      static_assert(false,
-		    "Structure 'particleTypes' used with no specialization");          
+		    "not derived from 'wrapper_context'");         
       typedef std::tuple<void> type;
     };
     template<class contextType>
