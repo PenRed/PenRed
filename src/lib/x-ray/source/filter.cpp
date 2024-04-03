@@ -34,11 +34,12 @@ namespace penred{
 			  double dy,
 			  double dz,
 			  unsigned nVG,
-			  std::ofstream& out,
+			  std::ostream& out,
 			  const unsigned matIndex,
 			  const std::string& filterName,
 			  const std::string& parentName,
-			  const bool numObjects){
+			  const bool numObjects,
+			  const vector3D<double> center){
       
       //Creates a deformable mesh filter with dimensions "dx" x "dy" and
       //"nVG" vertex groups uniformly distributed on the x axis.
@@ -178,11 +179,11 @@ namespace penred{
       out << "# VERTEX LIST" << std::endl;
       out << "# Index (X Y Z)" << std::endl;
 
-      const double originX = -dx/2.0;
-      const double originY = -dy/2.0;
-      const double originZ = -dz/2.0;
-      const double limitY = dy/2.0;
-      const double limitZ = dz/2.0;
+      const double originX = center.x-dx/2.0;
+      const double originY = center.y-dy/2.0;
+      const double originZ = center.z-dz/2.0;
+      const double limitY = center.y+dy/2.0;
+      const double limitZ = center.z+dz/2.0;
       for(size_t ivg = 0; ivg < nVG; ++ivg){
 	double startIndex = ivg*4;
 	double xShift = static_cast<double>(ivg)*dvg;

@@ -599,7 +599,7 @@ class abc_particleStack{
   unsigned int NSEC;
   
  public:
-  abc_particleStack() : NSEC(0) {}
+  constexpr abc_particleStack() : NSEC(0) {}
 
   inline unsigned int getNSec() const {return NSEC;}
   inline void cleans(){NSEC = 0;}
@@ -613,7 +613,7 @@ template<class stateType> class pen_particleStack : public abc_particleStack{
   stateType states[constants::NMS];
  public:
   
-  pen_particleStack() : abc_particleStack() {}
+  constexpr pen_particleStack() : abc_particleStack() {}
 
   void store(const stateType& state)
   {
@@ -672,8 +672,96 @@ template<class stateType> class pen_particleStack : public abc_particleStack{
 // Context
 //-------------------
 
+class wrapper_context{
+
+public:
+  
+  // Configuration functions
+  //-------------------------
+
+  //Configuration with no geometry set
+  virtual int configure(const double EMAX,
+			const pen_parserSection& config,
+			pen_parserSection& matInfo,
+			const unsigned verbose) = 0;
+
+  //Configuration with geometry set
+  virtual int configureWithGeo(const pen_parserSection& config,
+			       const unsigned verbose) = 0;
+  //-----------------------------
+
+  // Functions to get particle transport characteristics 
+  //----------------------------------------------------------
+  
+  //Function 'range' is intended to return the range in the specified
+  //material for a particle with the specified energy and type
+  virtual double range(const double E, const pen_KPAR kpar, const unsigned M) const = 0;
+
+  inline void findRange(double& lowE, double& topE, const double objectiveRange,
+			const pen_KPAR kpar, const unsigned M,
+			const unsigned long maxTries = 1000000, const double tol = 0.001){
+    
+    //Function 'findRange' returns the energy interval corresponding
+    //to the specified range. This one is calculated for one particle
+    //type and material
+    //
+    // * Input: 
+    // lowE : minimum inital energy
+    // topE : maximum initial energy
+    // objectiveRange: Range to be found
+    // kpar : particle type
+    // M    : Material index in context [0,nMaterials)
+    // maxTries : Maximum iterations to found the objective range
+    // tol  : Maximum relative difference between the final lowE and topE.
+    //
+    // * Output:
+    // lowE : final minimum energy of the resulting interval
+    // topE : final maximum energy of the resulting interval
+
+    
+    unsigned nTries = 0;
+    const double maxRatio = 1.0 + tol;
+    do{
+      double midE = (topE+lowE)/2.0;
+      double r = range(midE,kpar,M);
+      if(r == objectiveRange){
+	topE = midE;
+	lowE = midE;
+      }
+      else if(r > objectiveRange){
+	topE = midE;
+      }else{
+	lowE = midE;
+      }
+      ++nTries;
+    }while(nTries < maxTries && topE/lowE > maxRatio);    
+  }
+
+  virtual double avncol(const double E,
+			const pen_KPAR kpar,
+			const int icol,
+			const unsigned imat) const = 0;
+
+  virtual double avninter(const double E,
+			  const pen_KPAR kpar,
+			  const int icol,
+			  const unsigned imat,
+			  const bool calc_piecewise) const = 0;
+
+  //Interaction forcing set function  
+  virtual void setForcing(const double forcerIn,
+			  const pen_KPAR kpar,
+			  const int icol,
+			  const unsigned ibody,
+			  const double weightL,
+			  const double weightU) = 0;    
+
+  //----------------------------------------------------------
+  
+};
+
 template <class baseMat>
-class abc_context{
+class abc_context : public wrapper_context{
 
 private:
 
@@ -731,81 +819,6 @@ public:
     for(unsigned int i = 0; i < constants::MAXMAT; i++)
       materials[i] = nullptr;
   }
-
-  // Configuration functions
-  //-------------------------
-
-  //Configuration with no geometry set
-  virtual int config(const double EMAX,
-		     const pen_parserSection& config,
-		     pen_parserSection& matInfo,
-		     const unsigned verbose) = 0;
-
-  //Configuration with geometry set
-  virtual int configWithGeo(const pen_parserSection& config,
-			    const unsigned verbose) = 0;
-
-  //Function 'range' is intended to return the range in the specified
-  //material for a particle with the specified energy and type
-  virtual double range(const double E, const pen_KPAR kpar, const unsigned M) const = 0;
-
-  inline void findRange(double& lowE, double& topE, const double objectiveRange,
-			const pen_KPAR kpar, const unsigned M,
-			const unsigned long maxTries = 1000000, const double tol = 0.001){
-    
-    //Function 'findRange' returns the energy interval corresponding
-    //to the specified range. This one is calculated for one particle
-    //type and material
-    //
-    // * Input: 
-    // lowE : minimum inital energy
-    // topE : maximum initial energy
-    // objectiveRange: Range to be found
-    // kpar : particle type
-    // M    : Material index in context [0,nMaterials)
-    // maxTries : Maximum iterations to found the objective range
-    // tol  : Maximum relative difference between the final lowE and topE.
-    //
-    // * Output:
-    // lowE : final minimum energy of the resulting interval
-    // topE : final maximum energy of the resulting interval
-
-    
-    unsigned nTries = 0;
-    const double maxRatio = 1.0 + tol;
-    do{
-      double midE = (topE+lowE)/2.0;
-      double r = range(midE,kpar,M);
-      if(r == objectiveRange){
-	topE = midE;
-	lowE = midE;
-      }
-      else if(r > objectiveRange){
-	topE = midE;
-      }else{
-	lowE = midE;
-      }
-      ++nTries;
-    }while(nTries < maxTries && topE/lowE > maxRatio);    
-  }
-
-  virtual double avncol(const double E,
-			const pen_KPAR kpar,
-			const int icol,
-			const unsigned imat) const = 0;
-
-  virtual double avninter(const double E,
-			  const pen_KPAR kpar,
-			  const int icol,
-			  const unsigned imat,
-			  const bool calc_piecewise) const = 0;  
-
-  virtual void setForcing(const double forcerIn,
-			  const pen_KPAR kpar,
-			  const int icol,
-			  const unsigned ibody,
-			  const double weightL,
-			  const double weightU) = 0;  
   
   inline void getMatBaseArray(const abc_material* mats[constants::MAXMAT]) const {
 
@@ -835,9 +848,14 @@ public:
     return geometry->getDSMAX(ibody);
   }
   
-  int setGeometry(const wrapper_geometry* geoIn){
-    if(geoIn == nullptr)
+  int setGeometry(const wrapper_geometry* geoIn, const unsigned verbose = 2){
+    
+    if(geoIn == nullptr){
+      if(verbose > 0){
+	printf("setGeometry: Error: Null geometry\n");
+      }
       return -1;
+    }
 
     //Clear previous geometry
     clearGeo();
@@ -850,8 +868,12 @@ public:
     
     //Allocate memory for absorption energies of each body
     maxEABS = new double[(geoBodies+1)*constants::nParTypes];
-    if(maxEABS == nullptr)
+    if(maxEABS == nullptr){
+      if(verbose > 0){
+	printf("setGeometry: Error: Unable to allocate materials");
+      }
       return -2;
+    }
 
     //Get materials used by the current geometry
     bool usedMat[constants::MAXMAT+1];
@@ -860,33 +882,44 @@ public:
     //Ensure all required materials have been defined
     for(unsigned i = getNMats()+1; i < constants::MAXMAT+1; ++i){
       if(usedMat[i]){
-	printf("Error: Geometry uses material %u, which has "
-	       "not been defined in the context configuration.\n",i);
-	return -2;
+	if(verbose > 0){
+	  printf("setGeometry: Error: Geometry uses material %u, which has "
+		 "not been defined in the context configuration.\n",i);
+	}
+	return -3;
       }
     }
 
-    //Update absortion energies ussing geometry information
+    //Update absorption energies ussing geometry information
     int err = updateEABS();
     if(err != 0){
-      printf("Error calculating absorption energies\n");
-      return -3;
+      if(verbose > 0){
+	printf("setGeometry: Error updating absorption energies\n");
+      }
+      return -4;
     }
       
     return 0;
   }
   inline const wrapper_geometry* readGeometry() const {return geometry;}
   
-  int updateEABS(){
-    if(geometry == nullptr)
+  int updateEABS(const unsigned verbose = 2){
+    if(geometry == nullptr){
+      if(verbose > 0){
+	printf("updateEABS: Error: Geometry not set, null pointer stored.\n");
+      }
       return -1;
+    }
 
     //Check if the number of elements has been changed
     if(geoBodies != geometry->getBodies()){
-      //Geometry has been changed, run set geometry again
-      int err = setGeometry(geometry);
-      if(err != 0)
-	return -2;
+      //Geometry has been changed, run set geometry again,
+      //where "updateEABS" will be called again
+      if(verbose > 1){
+	printf("updateEABS: Number of bodies in the geometry has changed. "
+	       "Reset it via 'setGeometry'.\n");
+      }
+      return setGeometry(geometry);
     }
 
     //Fill absorption energies
@@ -895,8 +928,14 @@ public:
 
       //Get material index for this body
       int mat = geometry->getMat(i);
-      if(mat < 0 || mat > (int)nMats){ //Check material and accept void
+      if(mat < 0 || mat > (int)nMats){ //Check material bounds
 	//Index out of range
+	if(verbose > 0){
+	  printf("updateEABS: Error: Geometry material %d is out of context "
+		 "material range [0,%u]. Check the configuration to set and "
+		 "configure the apropiate number of materials for this geometry.\n",
+		 mat,nMats);
+	}
 	return -3;
       }
 
@@ -1243,5 +1282,7 @@ vr_interfCross(const unsigned long long nhist,
   }
   return de;
 }
+
+
 
 #endif

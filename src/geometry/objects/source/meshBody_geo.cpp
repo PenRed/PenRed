@@ -857,7 +857,8 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
     }
   }
   else{
-    printf("dsmax specified for %lu bodies:\n\n",bodiesAlias.size());    
+    if(verbose > 1)
+      printf("dsmax specified for %lu bodies:\n\n",bodiesAlias.size());
     for(unsigned i = 0; i < bodiesAlias.size(); i++){
       bool found = false;
       std::string key("dsmax/");      
@@ -916,7 +917,8 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
     }
   }
   else{
-    printf("Detector specified for %lu bodies:\n\n",bodiesAlias.size());    
+    if(verbose > 1)
+      printf("Detector specified for %lu bodies:\n\n",bodiesAlias.size());    
     for(unsigned i = 0; i < bodiesAlias.size(); i++){
       std::string key("kdet/");      
       key += bodiesAlias[i];
@@ -990,7 +992,8 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
     }
   }
   else{
-    printf("Region size specified for %lu bodies:\n\n",bodiesAlias.size());    
+    if(verbose > 1)
+      printf("Region size specified for %lu bodies:\n\n",bodiesAlias.size());    
     for(unsigned i = 0; i < bodiesAlias.size(); i++){
       std::string key("RegionElements/");      
       key += bodiesAlias[i];
@@ -1069,8 +1072,9 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
     }
   }
   else{
-    printf("Super region size specified for %lu bodies:\n\n",
-	   bodiesAlias.size());    
+    if(verbose > 1)
+      printf("Super region size specified for %lu bodies:\n\n",
+	     bodiesAlias.size());    
     for(unsigned i = 0; i < bodiesAlias.size(); i++){
       std::string key("SuperRegions/");
       key += bodiesAlias[i];
@@ -1280,17 +1284,20 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
   
 #endif
   
-  // Load Absortion Energies
+  // Load absorption Energies
   //*************************
   bodiesAlias.clear();
   err = config.ls("eabs",bodiesAlias);
   if(err != INTDATA_SUCCESS){
     if(verbose > 1){
-      printf("No absortion energies specified for any body\n");
+      printf("No absorption energies specified for any body\n");
     }
   }
   else{
-    printf("Absortion energies specified for %lu bodies:\n\n",bodiesAlias.size());
+    if(verbose > 1)
+      printf("Absorption energies specified"
+	     " for %lu bodies:\n\n",bodiesAlias.size());
+    
     for(unsigned i = 0; i < bodiesAlias.size(); i++){
       std::string key("eabs/");      
       key += bodiesAlias[i];
@@ -1323,14 +1330,19 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	  err = config.read(key2,eabs);
 	  if(err != INTDATA_SUCCESS){
 	    if(verbose > 0){
-	      printf("pen_meshBodyGeo:configure: Error reading energy absortion at field '%s'. Double expected.\n",key2.c_str());
+	      printf("pen_meshBodyGeo:configure: Error reading"
+		     " energy absorption at field '%s'. "
+		     "Double expected.\n",key2.c_str());
 	    }
 	    return PEN_MESHBODY_GEO_BAD_READ_EABS;
 	  }
 
 	  if(eabs <= 0.0){
 	    if(verbose > 0){
-	      printf("pen_meshBodyGeo:configure: Error: Invalid energy absortion %12.4E for body '%s' particle '%s'. Must be greater than zero.\n",eabs,bodiesAlias[i].c_str(),particleNames[j].c_str());
+	      printf("pen_meshBodyGeo:configure: Error: Invalid energy "
+		     "absorption %12.4E for body '%s' particle '%s'. "
+		     "Must be greater than zero.\n",
+		     eabs,bodiesAlias[i].c_str(),particleNames[j].c_str());
 	    }
 	    return PEN_MESHBODY_GEO_INVALID_EABS;
 	  }

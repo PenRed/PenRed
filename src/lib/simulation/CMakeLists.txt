@@ -40,9 +40,9 @@ if(WITH_MULTI_THREADING)
 endif(WITH_MULTI_THREADING)
 
 # Create lib
-add_library(pen_sim STATIC ${PROJECT_SOURCE_DIR}/lib/simulation/source/pen_simulation.cpp)
+add_library(pen_sim STATIC ${CMAKE_CURRENT_SOURCE_DIR}/source/base_simulation_functions.cpp ${CMAKE_CURRENT_SOURCE_DIR}/source/detector_simulation.cpp)
 
-target_include_directories(pen_sim PUBLIC ${PROJECT_SOURCE_DIR}/lib/simulation/includes)
+target_include_directories(pen_sim PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/includes)
 target_link_libraries(pen_sim pen_geos)
 target_link_libraries(pen_sim samplers)
 target_link_libraries(pen_sim tallies)

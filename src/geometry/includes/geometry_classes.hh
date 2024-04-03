@@ -157,7 +157,7 @@ public:
     body& bodyRef = bodies[bodyIndex];
     for(unsigned j = 0; j < constants::nParTypes; j++){
       if(bodyEABS[j] > 0.0){
-	// Set local absortion energy for specified body
+	// Set local absorption energy for specified body
 	bodyRef.localEABS[j] = bodyEABS[j];
       }
     }

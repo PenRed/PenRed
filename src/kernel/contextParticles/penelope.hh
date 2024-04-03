@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024 Universitat de València - UV
+//    Copyright (C) 2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -22,15 +22,29 @@
 //    contact emails:
 //
 //        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
 //    
 //
 
  
-#ifndef __PENRED_INCLUDE__
-#define __PENRED_INCLUDE__
+#ifndef __PENRED_CONTEXT_PARTICLES_PENELOPE_INCLUDE__
+#define __PENRED_CONTEXT_PARTICLES_PENELOPE_INCLUDE__
 
-#include "../timer/pen_timer.hh"
-#include "../contextParticles/contexts.hh"
+//Implement the 'createContextParticles' partial specialization for this context
+namespace penred{
+  namespace context{
+
+    //Define particle types for this context
+    template<>
+    struct particleTypes<pen_context> {
+      typedef std::tuple<pen_gamma,pen_betaE,pen_betaP> type;
+    };
+
+    //Define particles constructor for this context
+    template<> inline particles<pen_context>::particles(const pen_context& c) :
+      particleTuple({c, getStack<1>(), getStack<2>(), getStack<0>()},
+		    {c, getStack<1>(), getStack<0>()               },
+		    {c, getStack<1>(), getStack<0>(), getStack<2>()}) {}
+  };
+};
 
 #endif

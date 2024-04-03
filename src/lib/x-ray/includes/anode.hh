@@ -35,13 +35,15 @@ namespace penred{
 
   namespace xray{
 
-    void runAnodeSimulation(const unsigned long long nHists,
+    void runAnodeSimulation(const unsigned long long nHists,			    
+			    const unsigned long long maxParticles,
 			    const double Einit,
 			    const double beamRad,
 			    const pen_context& context,
 			    const pen_VRCluster<pen_state_gPol>& photonVR,
 			    std::vector<detectedPart>& results,
 			    int& seed1, int& seed2,
+			    const double colAngle,
 			    const bool onlyPhotons);
 
     //Function to simulate a monoenergetic electron beam aiming an anode
@@ -51,8 +53,10 @@ namespace penred{
 		 const double focalSpot,
 		 const double angle,
 		 const unsigned long long nHists,
+		 const unsigned long long maxParticles,
 		 double& dReg,
 		 std::vector<detectedPart>& results,
+		 const double colAngle = 180.0,
 		 const bool onlyPhotons = true,
 		 const unsigned verbose = 1,
 		 const unsigned threads2Use = 0);

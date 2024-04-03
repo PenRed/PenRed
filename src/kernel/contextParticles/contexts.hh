@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024 Universitat de València - UV
+//    Copyright (C) 2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -22,15 +22,14 @@
 //    contact emails:
 //
 //        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
 //    
 //
 
  
-#ifndef __PENRED_INCLUDE__
-#define __PENRED_INCLUDE__
+#ifndef __PENRED_CONTEXT_PARTICLES_CONTEXTS_INCLUDE__
+#define __PENRED_CONTEXT_PARTICLES_CONTEXTS_INCLUDE__
 
-#include "../timer/pen_timer.hh"
-#include "../contextParticles/contexts.hh"
+#include "base.hh"
+#include "penelope.hh"
 
 #endif

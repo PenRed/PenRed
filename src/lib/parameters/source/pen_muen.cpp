@@ -1,8 +1,8 @@
  
 //
 //
-//    Copyright (C) 2023 Universitat de València - UV
-//    Copyright (C) 2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2023-2024 Universitat de València - UV
+//    Copyright (C) 2023-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -73,12 +73,9 @@ int pen_muen::calculate(const double Emin,
   //Configure dummy geometry
   pen_parserSection dummySection;
   geometry.configure(dummySection,2);
-  
-  //Create elements data base
-  pen_elementDataBase* elementsDB = new pen_elementDataBase;
-  
+    
   //Create a context
-  pen_context context(*elementsDB);
+  pen_context context;
 
   //Set context geometry
   context.setGeometry(&geometry);
@@ -282,12 +279,9 @@ int pen_muen::calculate(const char** energySpectrums,
   //Configure dummy geometry
   pen_parserSection dummySection;
   geometry.configure(dummySection,2);
-  
-  //Create elements data base
-  pen_elementDataBase* elementsDB = new pen_elementDataBase;
-  
+    
   //Create a context
-  pen_context context(*elementsDB);
+  pen_context context;
 
   //Set context geometry
   context.setGeometry(&geometry);

@@ -8260,6 +8260,104 @@ namespace penred{
       return GCOaD_RETURN;
     }
 
+    //Create material auxiliary functions
+    int createMat(const std::string& name,
+		  const double density,
+		  const std::vector<massFraction>& composition,
+		  std::string& errorString,
+		  const std::string& filenameIn){
+
+      //This function creates a material file with the provided data:
+      //
+      // name        : Descriptive material name. Is used to define the material
+      //               filename if "filenameIn" is not provided 
+      // density     : Material density in g/cm**3
+      // composition : Composition vector. Each position defines a element
+      //               atomic number and mass fraction
+      // errorString : If the material creation fails, the error message is stored in
+      // filenameIn  : If provided it is used as the material filename
+      //
+      // return 0 on success, other values on material creation error.
+      
+      //Clear error string
+      errorString.clear();
+
+      std::string filename = filenameIn;
+      if(filename.empty())
+	filename = name + ".mat";
+      
+      //Create a material creator instance
+      materialCreator* creator = new materialCreator();
+
+      //Create a stream to read the material information
+      std::stringstream matStream;
+
+      matStream << 1 << std::endl;
+      matStream << name << std::endl;
+      matStream << composition.size() << std::endl;
+      matStream << 2 << std::endl;
+      for(const auto& element : composition){
+	matStream << element.Z << " "
+		  << element.fraction << std::endl;
+      }
+      matStream << 2 << std::endl;
+      matStream << density << std::endl;
+      matStream << 2 << std::endl;
+      matStream << filename << std::endl;
+
+      creator->PEMATW(matStream, true, filename);
+      if(creator->IRETRN != 0){
+	errorString = creator->REASON;
+	int err = creator->IRETRN;
+	delete creator;
+	return err;
+      }
+      delete creator;
+      return 0;
+    }
+
+
+    int createMat(const unsigned matID,
+		  const std::string& filename,
+		  std::string& errorString){
+
+      //This function creates a predefined material file with the provided data:
+      //
+      // name        : Descriptive material name. Is used to define the material
+      //               filename if "filenameIn" is not provided 
+      // matID       : Material number in the predefined material list
+      //               atomic number and mass fraction
+      // errorString : If the material creation fails, the error message is stored in
+      // filenameIn  : If provided it is used as the material filename
+      //
+      // return 0 on success, other values on material creation error.
+      
+      //Clear error string
+      errorString.clear();
+      
+      //Create a material creator instance
+      materialCreator* creator = new materialCreator();
+
+      //Create a stream to read the material information
+      std::stringstream matStream;
+
+      matStream << 2 << std::endl;
+      matStream << matID << std::endl;
+      matStream << 2 << std::endl;
+      matStream << filename << std::endl;
+
+      creator->PEMATW(matStream, true, filename);
+      if(creator->IRETRN != 0){
+	errorString = creator->REASON;
+	int err = creator->IRETRN;
+	delete creator;
+	return err;
+      }
+      delete creator;
+      return 0;
+    }
+    
+
   };
 };
 

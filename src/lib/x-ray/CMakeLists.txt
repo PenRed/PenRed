@@ -33,10 +33,16 @@
 #  X-RAY LIB
 #############################
 
-# Create lib
-add_library(pen_xray STATIC ${PROJECT_SOURCE_DIR}/lib/x-ray/source/x-ray.cpp)
+set(SOURCE
+${CMAKE_CURRENT_SOURCE_DIR}/source/collimator.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/source/filter.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/source/anode.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/source/utilities.cpp)
 
-target_include_directories(pen_xray PUBLIC ${PROJECT_SOURCE_DIR}/lib/x-ray/includes)
+# Create lib
+add_library(pen_xray STATIC ${SOURCE})
+
+target_include_directories(pen_xray PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/includes)
 target_link_libraries(pen_xray pen_sim)
 
 if (MSVC)

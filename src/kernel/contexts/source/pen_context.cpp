@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2022 Universitat de València - UV
-//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2024 Universitat de València - UV
+//    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -109,6 +109,9 @@ int pen_contextReaderMat::beginSection(const std::string& name,
   else if(family == 2){
     //Subsection in materials
     if(name.empty()){
+      if(verbose > 0){
+	printf("Error: Empty material name");
+      }
       return INVALID_NAME;
     }
     mats.emplace_back(name);
@@ -127,6 +130,7 @@ int pen_contextReaderMat::beginSection(const std::string& name,
     }
     
     mats.back().composition.emplace_back(Z);
+    return SUCCESS;
   }
   
   return UNHANDLED;
@@ -233,7 +237,8 @@ int pen_contextReaderMat::storeString(const std::string& pathInSection,
 				      const unsigned){
   if(family == 2){
     if(pathInSection.compare("filename") == 0){
-      mats.back().filename = element;
+      if(element.compare("-") != 0)
+	mats.back().filename = element;
       return SUCCESS;
     }
   }else if(family == -1){
@@ -676,10 +681,10 @@ int pen_context::init(double EMAX, FILE *IWR, int INFO, std::string PMFILE[const
   return PEN_SUCCESS;
 }
 
-int pen_context::config(const double EMAX,
-			const pen_parserSection& config,
-			pen_parserSection& matInfo,
-			const unsigned verbose){
+int pen_context::configure(const double EMAX,
+			   const pen_parserSection& config,
+			   pen_parserSection& matInfo,
+			   const unsigned verbose){
 
   if(verbose > 1){
     printf(" ** Context configuration:\n\n");
@@ -797,7 +802,7 @@ int pen_context::config(const double EMAX,
       fclose(file);
     }
 
-#if __PEN_EMBEDDED_DATA_BASE__
+#ifdef _PEN_EMBEDDED_DATA_BASE_
     if(!fileAccessible || matData.forceCreation){
 
       //Create the material
@@ -818,34 +823,21 @@ int pen_context::config(const double EMAX,
 #endif
       //******************************************************
 
-      //Create a material creator instance
-      penred::penMaterialCreator::materialCreator creator;
-
-      //Create a stream to read the material information
-      std::stringstream matStream;
-
-      matStream << 1 << std::endl;
-      matStream << matData.name << std::endl;
-      matStream << matData.composition.size() << std::endl;
-      matStream << 2 << std::endl;
-      for(const auto& element : matData.composition){
-	matStream << element.Z << " "
-		  << element.fraction << std::endl;
-      }
-      matStream << 2 << std::endl;
-      matStream << matData.density << std::endl;
-      matStream << 2 << std::endl;
-      matStream << matData.filename << std::endl;
-	
-      creator.PEMATW(matStream, true, matData.filename);
-      if(creator.IRETRN != 0){
+      //Create the material
+      std::string errorString;
+      err = penred::penMaterialCreator::createMat(matData.name,
+						  matData.density,
+						  matData.composition,
+						  errorString,
+						  matData.filename);
+      if(err != 0){
 	if(verbose > 0){
 	  printf("Unable to create material %s.\n"
 		 "%s\n"
 		 "IRETRN =%d\n",
 		 matData.name.c_str(),
-		 creator.REASON,
-		 creator.IRETRN);
+		 errorString.c_str(),
+		 err);
 	}
 	return MATERIAL_CREATION_FAILED;
       }
@@ -988,8 +980,8 @@ int pen_context::config(const double EMAX,
   return SUCCESS;
 }
 
-int pen_context::configWithGeo(const pen_parserSection& config,
-			       const unsigned verbose){
+int pen_context::configureWithGeo(const pen_parserSection& config,
+				  const unsigned verbose){
 
   if(readGeometry() == nullptr)
     return GEOMETRY_NOT_SET;
@@ -1237,7 +1229,10 @@ int pen_context::configWithGeo(const pen_parserSection& config,
 
 double pen_context::range(const double E, const pen_KPAR kpar, const unsigned M) const {
 
-  //This subroutine computes the particle range at the specified energy
+  //  This function computes the range (in cm) of particles of type KPAR
+  //  and energy E in material M. For electrons and positrons, the output
+  //  is the CSDA range. For photons, the delivered value is the mean free
+  //  path (=inverse attenuation coefficient).
 
   const pen_material& mat = readBaseMaterial(M);
 
@@ -1691,12 +1686,10 @@ double pen_context::getIF(const double forcerIn,
 pen_context* pen_context::createAuxContext(double EMAX,
 					   const char* matFilename,
 					   const unsigned verbose){
-
-  //Create elements data base
-  pen_elementDataBase elements;
+  
   //Create a context
   pen_context* context = nullptr;
-  context = new pen_context(elements);
+  context = new pen_context();
   if(context == nullptr){
     if(verbose > 0){
       printf("createAuxContext: Error allocating auxilary context.\n");      

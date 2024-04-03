@@ -601,7 +601,7 @@ class export_penred(Operator, ExportHelper):
 
     
     exportType: bpy.props.EnumProperty(
-        items=[("QUADRICS","Quadrics","Quadric based geometry",'',0), ("MESH","Mesh","Mesh based geometry",'',1)],
+        items=[("MESH","Mesh","Mesh based geometry",'',0), ("QUADRICS","Quadrics","Quadric based geometry",'',1)],
         name="Geometry type",
         description="PenRed geometry type to export",
         default=0,

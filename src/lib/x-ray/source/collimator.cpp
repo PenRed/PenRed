@@ -30,6 +30,59 @@ namespace penred{
 
   namespace xray{
 
+    bool collimateInVoid(pen_particleState& state,
+			 const double zUp,
+			 const double zDown,
+			 const double dxUp, const double dyUp,
+			 const double dxDown, const double dyDown){
+
+      //Reject particles going up
+      if(state.W >= 0.0){
+	return false;
+      }
+
+      //Check if the particle is under the collimator
+      if(state.Z <= zDown){
+	//Do not change this particle state
+	return true;
+      }
+	
+      //Check if the particle is
+      if(state.Z > zUp){
+	//Particle is above the collimator
+	  
+	//Get the distance until the collimato
+	double ds2Col = (state.Z-zUp)/state.W;
+
+	//Check if the particle reaches the enter limits
+	double xIn = state.X + state.U*ds2Col;
+	double yIn = state.Y + state.V*ds2Col;
+
+	if(std::fabs(xIn) >= dxUp/2.0 ||
+	   std::fabs(yIn) >= dyUp/2.0){
+	  return false;
+	}
+      }
+	
+      //At this point, the particle is inside, or can enter, the collimator region
+      //Check if the limits are reached at the collimator end
+      double ds2Out = (state.Z-zDown)/state.W;
+      double xOut = state.X + state.U*ds2Out;
+      double yOut = state.Y + state.V*ds2Out;
+
+      if(std::fabs(xOut) >= dxDown/2.0 ||
+	 std::fabs(yOut) >= dyDown/2.0){
+	return false;
+      }
+	
+      //Particle cross the collimator.
+      //Move it until the collimator end
+      state.X = xOut;
+      state.Y = yOut;
+      state.Z = zDown;
+
+      return true;
+    }
 
     void collimateInVoid(std::vector<detectedPart>& beam,
 			 const double zUp,
@@ -40,6 +93,8 @@ namespace penred{
       //Iterate over particles
       size_t i = 0;
       size_t nPart = beam.size();
+      //Accumulate history increment of skiped particles
+      unsigned long long dh = 0; 
       while(i < nPart){
 	
 	//Get particle state
@@ -47,13 +102,18 @@ namespace penred{
 
 	//Reject particles going up
 	if(state.W >= 0.0){
+	  //Accumulate history increment
+	  dh += beam[i].dh;
 	  beam[i] = beam[--nPart];
 	  continue;
 	}
 
 	//Check if the particle is under the collimator
 	if(state.Z <= zDown){
-	  //Do not change this particle state
+	  //This particle pass the collimator.
+	  //Add history increment and restart it
+	  beam[i].dh += dh;
+	  dh = 0;
 	  ++i;
 	  continue;
 	}
@@ -71,7 +131,9 @@ namespace penred{
 
 	  if(std::fabs(xIn) >= dxUp/2.0 ||
 	     std::fabs(yIn) >= dyUp/2.0){
-	    //Reject the particle
+	    //Accumulate history increment
+	    dh += beam[i].dh;    
+	    //Reject the particle	    
 	    beam[i] = beam[--nPart];
 	    continue;
 	  }
@@ -85,15 +147,22 @@ namespace penred{
 
 	if(std::fabs(xOut) >= dxDown/2.0 ||
 	   std::fabs(yOut) >= dyDown/2.0){
+	  //Accumulate history increment
+	  dh += beam[i].dh;	  
 	  //Reject the particle
 	  beam[i] = beam[--nPart];
 	  continue;
 	}
-
+	
 	//Particle cross the collimator.
 	//Move it until the collimator end
 	state.X = xOut;
 	state.Y = yOut;
+	state.Z = zDown;
+
+	//Add history increment and restart it
+	beam[i].dh += dh;
+	dh = 0;
 	
 	++i;
       }

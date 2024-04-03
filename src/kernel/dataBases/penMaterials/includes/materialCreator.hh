@@ -147,6 +147,7 @@ C
 #include <iostream>
 #include <limits>
 #include <functional>
+#include <vector>
 #include "database.hh"
 
 namespace penred{
@@ -411,6 +412,39 @@ namespace penred{
 
     };
 
+    struct massFraction{
+      unsigned Z;
+      double fraction;
+
+      massFraction() = default;
+      inline massFraction(const unsigned Zin) : Z(Zin) {}
+      inline massFraction(const unsigned Zin,
+			  const double fractionIn) : Z(Zin),
+						     fraction(fractionIn){}
+    };
+
+    int createMat(const std::string& name,
+		  const double density,
+		  const std::vector<massFraction>& elements,
+		  std::string& errorString,
+		  const std::string& filenameIn = "");
+
+    inline int createMat(const std::string& name,
+			 const double density,
+			 const unsigned Z,
+			 std::string& errorString,
+			 const std::string& filenameIn = ""){
+
+      //Create composition
+      std::vector<massFraction> composition;
+      composition.emplace_back(Z,1.0);
+
+      return createMat(name, density, composition, errorString, filenameIn);      
+    }
+
+    int createMat(const unsigned matID,		  
+		  const std::string& filename,
+		  std::string& errorString);    
   };
 };
 

@@ -12,12 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New library to streamline the material creation by code
 - Helper classes to handle configuration definitions, reading and documentation generation in the internal data library
 - Utility named *penContextInfo* which provides an automatically generated documentation of PENELOPE context configuration
+- Library for automatically handling context simulations with automatic particle instantiation
 
 ### Changed
 
+- C++ required standard has been upgrated to C++14
 - Old and depecrated eabs_e+, eabs_e- and eabs_gamma options to specify absorption energies in configuration files have been removed
 - Contexts require now to implement two new pure virtual functions, *config* and *configWithGeo*
 - PENELOPE context configuration has been moved into *config* and *configWithGeo*, streamlining main programs construction
+- The PENELOPE context does not require an element database as a constructor argument
 
 ## [1.9.4] - 2024-02-23
 

@@ -33,6 +33,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <sstream>
+#include <memory>
 
 #ifdef _PEN_EMBEDDED_DATA_BASE_
 #include "materialCreator.hh"
@@ -112,13 +113,7 @@ public:
     std::array<double,constants::nParTypes> maxRanges;
     std::array<double,constants::nParTypes> eabs;
     
-    struct elements{
-      unsigned Z;
-      double fraction;
-
-      inline elements(const unsigned Zin) : Z(Zin) {}
-    };
-    std::vector<elements> composition;
+    std::vector<penred::penMaterialCreator::massFraction> composition;
     
     inline materialData(const std::string& nameIn) : name(nameIn){
       filename = nameIn + ".mat";
@@ -247,6 +242,7 @@ public:
   pen_logGrid grid;
 
   // Element data
+  std::unique_ptr<pen_elementDataBase> pelements;
   pen_elementDataBase& elements;
 
   // RITA random sampling variables
@@ -268,7 +264,8 @@ public:
   //  ----  Bremsstrahlung splitting numbers, IBRSPL(IBODY).
   unsigned int IBRSPL[NBV];
   
-  pen_context(pen_elementDataBase& inElements) : elements(inElements){
+  inline pen_context() : pelements(new pen_elementDataBase()),
+			 elements(*pelements.get()){
     
     //  ****  Variance-reduction parameters.
     
@@ -287,13 +284,14 @@ public:
       IBRSPL[i] = 1;
 
   }
+  
   int init(const double EMAX, FILE *IWR, int INFO, std::string PMFILE[constants::MAXMAT]);
-  int config(const double EMAX,
-	     const pen_parserSection& config,
-	     pen_parserSection& matInfo,
-	     const unsigned verbose = 2) override;
-  int configWithGeo(const pen_parserSection& config,
-		    const unsigned verbose = 2) override;
+  int configure(const double EMAX,
+		const pen_parserSection& config,
+		pen_parserSection& matInfo,
+		const unsigned verbose = 2) override;
+  int configureWithGeo(const pen_parserSection& config,
+		       const unsigned verbose = 2) override;
 
   inline bool isForcing(const unsigned kpar,
 			const unsigned ibody,
@@ -366,6 +364,9 @@ public:
 				       const char* matFilename,
 				       const unsigned verbose);
 
+  //Function to access element DB. Use it only for debug and testing
+  inline pen_elementDataBase& getElementDB() { return elements; }
+
   
 };
 
@@ -399,7 +400,7 @@ materials/${subsection}/number/reader-conditions/noVoid/type "greater"
 materials/${subsection}/number/reader-conditions/noVoid/value 0
 
 materials/${subsection}/filename/reader-description "Material filename to read/write the material information"
-materials/${subsection}/filename/reader-value "material.mat"
+materials/${subsection}/filename/reader-value "-"
 materials/${subsection}/filename/reader-required/type "optional_if_exist"
 materials/${subsection}/filename/reader-required/value "elements"
 
@@ -515,7 +516,6 @@ VR/bremss/${subsection}/materials/${subsection}/reader-value true
 
 )===";  
 };
-
 
 //-----------------------------------------------
 // PENELOPE common  functions

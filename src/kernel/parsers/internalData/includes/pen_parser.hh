@@ -158,7 +158,18 @@ public:
     }
     
   }
-
+  
+  inline operator long long int() const{
+    switch(tag){
+    case INT: return static_cast<long long int>(i);
+    case DOUBLE: return static_cast<long long int>(d);
+    case BOOL: return static_cast<long long int>(b);
+    case CHAR: return static_cast<long long int>(c);
+    default: return i;
+    }
+    
+  }
+  
   inline operator double() const{
     switch(tag){
     case DOUBLE: return d;
@@ -198,6 +209,16 @@ public:
     default: return static_cast<unsigned>(i);
     }
   }
+
+  inline operator unsigned long long() const{
+    switch(tag){
+    case INT: return static_cast<unsigned long long>(i);
+    case DOUBLE: return static_cast<unsigned long long>(d);
+    case BOOL: return static_cast<unsigned long long>(b);
+    case CHAR: return static_cast<unsigned long long>(c);
+    default: return static_cast<unsigned long long>(i);
+    }
+  }  
   
   inline operator float() const{
     switch(tag){

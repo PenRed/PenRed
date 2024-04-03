@@ -120,44 +120,9 @@ void simulate(penred::simulation::simConfig& config,
 	      const pen_VRCluster<pen_particleState>& genericVR,
 	      const pen_VRCluster<pen_state_gPol>& photonVR){
 
-  // Variables list
-  //
-  // Input:
-  //  ithread     : thread number identifier
-  //  pcontext    : simulation context
-  //  psource     : particle source
-  //  ptallies    : simulation tallies
-  //  dumptime    : time between dumps
-  //  dumpFilename: dump file name
-  //
-  // Input/output:
-  //  seed1       : First random generator seed
-  //  seed2       : Second random generator seed
-  //  nsimulated  : total number of simulated histories (including 'initHist')
-
-  //Create particle stacks for electrons, positrons and gamma
-  pen_particleStack<pen_particleState> stackE;
-  pen_particleStack<pen_particleState> stackP;
-  pen_particleStack<pen_state_gPol> stackG;
-  
-  //Create particles to simulate
-  pen_betaE betaE(context,stackE,stackG);
-  pen_gamma gamma(context,stackE,stackP,stackG);
-  pen_betaP betaP(context,stackE,stackG,stackP);
-
-  //Register VR
-  if(genericVR.numVR() > 0){
-    betaE.registerGenericVR(genericVR);
-    gamma.registerGenericVR(genericVR);
-    betaP.registerGenericVR(genericVR);
-  }
-  if(photonVR.numVR() > 0){
-    gamma.registerSpecificVR(photonVR);
-  }
-
   //Perform the simulation
-  penred::simulation::sampleAndSimulate(config, source, tallies,
-					gamma, betaE, betaP);
+  penred::simulation::sampleAndSimulateContext(config, context, source, tallies,
+					       genericVR, photonVR);
   
 }
 
@@ -280,7 +245,7 @@ int main(int argc, char** argv){
   }
 
   printf("***************************************************************\n");
-  printf(" PenRed version: 1.10.0 (12-March-2024) \n");
+  printf(" PenRed version: 1.10.0 (03-April-2024) \n");
   printf(" Copyright (c) 2019-2023 Universitat Politecnica de Valencia\n");
   printf(" Copyright (c) 2019-2023 Universitat de Valencia\n");
   printf(" Reference: Computer Physics Communications, 267 (2021) 108065\n"
@@ -925,11 +890,8 @@ int main(int argc, char** argv){
   // Context
   //****************************
 
-  //Create elements data base
-  pen_elementDataBase* elementsDB = new pen_elementDataBase;
-  
   //Create simulation context
-  pen_context context(*elementsDB);
+  pen_context context;
   
   //Get global maximum energy
   double globEmax = -1.0;
@@ -962,7 +924,7 @@ int main(int argc, char** argv){
 
   //Initialize context with no geometry
   pen_parserSection matInfoSection;
-  if(context.config(globEmax, config, matInfoSection, verbose) != pen_context::SUCCESS){
+  if(context.configure(globEmax, config, matInfoSection, verbose) != pen_context::SUCCESS){
     return -4;
   }
   
@@ -980,7 +942,9 @@ int main(int argc, char** argv){
     return -6;
 
   //Set geometry to context
-  context.setGeometry(geometry);
+  if(context.setGeometry(geometry) != 0){
+    return -6;
+  }
   
   //Set source geometry
   for(unsigned i = 0; i < genericSources.size(); i++)
@@ -991,7 +955,7 @@ int main(int argc, char** argv){
   //------------------------------------------------------------
 
   //Run the second step of context configuration with the geometry
-  err = context.configWithGeo(config, verbose);
+  err = context.configureWithGeo(config, verbose);
   if(err != pen_context::SUCCESS){
     return -9;
   }
@@ -1334,11 +1298,11 @@ int main(int argc, char** argv){
       // Single thread
       //****************
       
-      // Simulate      
-      simulate(simConfigs[0], context,
-	       genericSources[iSource],
-	       talliesVect[0],
-	       genericVR, photonVR);
+      // Simulate
+      penred::simulation::sampleAndSimulateContext(simConfigs[0], context,
+						   genericSources[iSource],
+						   talliesVect[0],
+						   genericVR, photonVR);
       
 #ifdef _PEN_USE_THREADS_
     }
@@ -1371,7 +1335,7 @@ int main(int argc, char** argv){
 					 std::ref(talliesVect[ithread]),
 					 std::ref(genericVR),
 					 std::ref(photonVR)));
-
+	
 #ifdef _PEN_UNIX_
 	//Set affinity for unix systems using pthreads
 	if(CPUaffinity){
@@ -1423,12 +1387,11 @@ int main(int argc, char** argv){
       //****************
       
       // Simulate 
-      simulate<pen_state_gPol>(simConfigs[0],
-			       context,
-			       polarisedGammaSources[iSource],
-			       talliesVect[0],
-			       genericVR,
-			       photonVR);
+      penred::simulation::sampleAndSimulateContext(simConfigs[0], context,
+						   polarisedGammaSources[iSource],
+						   talliesVect[0],
+						   genericVR,
+						   photonVR);
       
 #ifdef _PEN_USE_THREADS_
     }
@@ -1672,9 +1635,6 @@ int main(int argc, char** argv){
   //Free memory
   delete geometry;
   geometry = nullptr;
-
-  delete elementsDB;
-  elementsDB = nullptr;
   
   return 0;
 }

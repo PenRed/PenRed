@@ -78,3 +78,19 @@
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/penMats
     )
 
+#-----------------------------------------------------------------------------
+#  Pen material creator from list
+###################################
+
+    # Create read material executable
+    add_executable(createListedMat ${CMAKE_CURRENT_SOURCE_DIR}/createListedMat.cpp)
+
+    #target libs
+    target_link_libraries(createListedMat penelope_material_db)
+
+    # Install readMat executable
+    install(
+    TARGETS createListedMat
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/penMats
+    )
+

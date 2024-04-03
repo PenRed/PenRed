@@ -33,24 +33,26 @@ namespace penred{
 
   namespace xray{
 
+    enum errors{
+      SUCCESS = 0,
+      NEGATIVE_DISTANCE,
+      INVALID_Z,
+      INVALID_SIZE,
+      NO_FILTER_PROVIDED,
+      UNABLE_TO_CREATE_MATERIAL,
+      ERROR_ON_CONTEXT_INITIALIZATION,
+      ERROR_ON_GEOMETRY_INITIALIZATION,
+      ERROR_UNABLE_TO_OPEN_FILE,
+    };
+    
+    using detectedPart = simulation::detectedPart;
+
     struct preloadGeos{
       //Get anode geometry file at compile time
       static const char* anodeGeoFile;
       
     };
 
-    struct detectedPart{
-      pen_particleState state; //Particle state
-      unsigned long dh;        //History increment
-      unsigned kpar;           //Particle type
-
-      detectedPart() = default;
-      inline detectedPart(const pen_particleState& stateIn,
-			  const unsigned long dhIn,
-			  const unsigned kparIn) : state(stateIn),
-						   dh(dhIn),
-						   kpar(kparIn){}
-    };
   };
 };
 

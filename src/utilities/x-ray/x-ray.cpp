@@ -24,39 +24,41 @@
 //    
 //
 
-#ifndef __PEN_X_RAY_COLLIMATOR__
-#define __PEN_X_RAY_COLLIMATOR__
+#include "x-ray.hh"
 
-#include "x-ray-common.hh"
+int main(int argc, char** argv){
 
-namespace penred{
+  if(argc < 2){
+    printf("usage: %s config-file\n", argv[0]);
 
-  namespace xray{
-
-    bool collimateInVoid(pen_particleState& state,
-			 const double zUp,
-			 const double zDown,
-			 const double dxUp, const double dyUp,
-			 const double dxDown, const double dyDown);
+    printf("\n%s\n",
+	   pen_readerSection::readObjectSection<penred::xray::readerHVL>().stringify().c_str());
     
-    void collimateInVoid(std::vector<detectedPart>& beam,
-			 const double zUp,
-			 const double zDown,
-			 const double dxUp, const double dyUp,
-			 const double dxDown, const double dyDown);
+    return 1;
+  }
 
+  //Parse configuration file
+  pen_parserSection config;
+  std::string errorLine;
+  unsigned long errorLineNum;
+  int err = parseFile(argv[1],config,errorLine,errorLineNum);
 
-    void createBaseCollimator(double dx, double dxInTop, double dxInBot,
-			      double dy, double dyInTop, double dyInBot,
-			      double dz,
-			      std::ofstream& out,
-			      const unsigned matIndex,
-			      const std::string& collimatorName,
-			      const std::string& parentName,
-			      const bool numObjects);    
-    
-  };
-};
+  //printf("Configuration:\n");
+  //printf("%s\n", config.stringify().c_str());
+  
+  if(err != INTDATA_SUCCESS){
+    printf("Error parsing configuration.\n");
+    printf("Error code: %d\n",err);
+    printf("Error message: %s\n",pen_parserError(err));
+    printf("Error located at line %lu, at text: %s\n",
+	   errorLineNum,errorLine.c_str());
+    return -1;
+  }
 
-
-#endif
+  //Calculate HVL
+  std::vector<penred::xray::detectedPart> particles;
+  double hvl;
+  err = penred::xray::HVL(config, particles, hvl, 2);
+  
+  return 0;  
+}

@@ -38,11 +38,13 @@ namespace penred{
 			  double dy,
 			  double dz,
 			  unsigned nVG,
-			  std::ofstream& out,
+			  std::ostream& out,
 			  const unsigned matIndex,
 			  const std::string& filterName,
 			  const std::string& parentName,
-			  const bool numObjects);
+			  const bool numObjects,
+			  const vector3D<double> center =
+			  vector3D<double>(0.0,0.0,0.0));
     
   };
 };

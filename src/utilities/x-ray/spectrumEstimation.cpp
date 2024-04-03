@@ -1,7 +1,7 @@
 //
 //
-//    Copyright (C) 2023 Universitat de València - UV
-//    Copyright (C) 2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2023-2024 Universitat de València - UV
+//    Copyright (C) 2023-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -1124,11 +1124,8 @@ int main(int argc, const char** argv){
   // ** Create simulation context  
   //*******************************
 
-  //Create elements data base
-  pen_elementDataBase* elementsDBsim = new pen_elementDataBase;
-  
   //Create a context
-  pen_context contextSim(*elementsDBsim);
+  pen_context contextSim;
 
   // ** Materials 
   //***************
@@ -1371,11 +1368,8 @@ int main(int argc, const char** argv){
   // ** Create objective context  
   //*******************************
 
-  //Create elements data base
-  pen_elementDataBase* elementsDBobj = new pen_elementDataBase;
-  
   //Create a context
-  pen_context contextObj(*elementsDBobj);
+  pen_context contextObj;
   
   
   // ** Objective mu values
