@@ -35,7 +35,7 @@ jobs:
 
     - name: Build and compile
       run: |
-        cmake -DWITH_DICOM="OFF" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DWITH_LB="OFF" ../
+        cmake -DWITH_DICOM="OFF" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DWITH_LB="OFF" -DWITH_EMBEDDED_DB="OFF" ../
         cmake --build . --config Release --target install
       working-directory: ${{ github.workspace }}/src/build
               
