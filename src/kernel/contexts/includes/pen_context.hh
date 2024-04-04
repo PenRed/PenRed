@@ -35,6 +35,7 @@
 #include <sstream>
 #include <memory>
 
+#include "dataBasesCommon.hh"
 #ifdef _PEN_EMBEDDED_DATA_BASE_
 #include "materialCreator.hh"
 #endif
@@ -113,7 +114,7 @@ public:
     std::array<double,constants::nParTypes> maxRanges;
     std::array<double,constants::nParTypes> eabs;
     
-    std::vector<penred::penMaterialCreator::massFraction> composition;
+    std::vector<penred::massFraction> composition;
     
     inline materialData(const std::string& nameIn) : name(nameIn){
       filename = nameIn + ".mat";

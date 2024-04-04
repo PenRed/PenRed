@@ -26,6 +26,10 @@
 #    
 #
 
+# Create common DB lib
+add_library(commonDB STATIC ${CMAKE_CURRENT_SOURCE_DIR}/dataBasesCommon.cpp)
+
+target_include_directories(commonDB PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 #############################
 #  ADD SUB-FOLDERS

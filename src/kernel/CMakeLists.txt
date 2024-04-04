@@ -69,6 +69,7 @@ add_library(pen_contexts STATIC ${PROJECT_SOURCE_DIR}/kernel/contexts/source/pen
 
 target_include_directories(pen_contexts PUBLIC ${PROJECT_SOURCE_DIR}/kernel/contexts/includes)
 
+target_link_libraries(pen_contexts commonDB)
 target_link_libraries(pen_contexts pen_internalData)
 target_link_libraries(pen_contexts pen_materials)
 

@@ -149,6 +149,7 @@ C
 #include <functional>
 #include <vector>
 #include "database.hh"
+#include "dataBasesCommon.hh"
 
 namespace penred{
 
@@ -411,17 +412,6 @@ namespace penred{
 		   const bool disableOutput = false,
 		   const std::string& filename = std::string(""));
 
-    };
-
-    struct massFraction{
-      unsigned Z;
-      double fraction;
-
-      massFraction() = default;
-      inline massFraction(const unsigned Zin) : Z(Zin) {}
-      inline massFraction(const unsigned Zin,
-			  const double fractionIn) : Z(Zin),
-						     fraction(fractionIn){}
     };
 
     int createMat(const std::string& name,

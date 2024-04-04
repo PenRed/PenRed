@@ -71,7 +71,7 @@ CMAKE_DEPENDENT_OPTION(MUTREN "Compile mutren" ON
                        "BUILD_UTILITIES" OFF) 
 
 CMAKE_DEPENDENT_OPTION(XRAY "Compile x-ray utilities" ON
-                       "BUILD_UTILITIES" OFF)
+                       "BUILD_UTILITIES;WITH_EMBEDDED_DB" OFF)
 
 CMAKE_DEPENDENT_OPTION(VIEWERS "Compile viewers" ON
                        "BUILD_UTILITIES" OFF)                       
