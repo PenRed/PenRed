@@ -65,7 +65,7 @@
 #-----------------------------------------------------------------------------
 #  Pen material creator
 #############################
-
+if(NOT MSVC)
     # Create read material executable
     add_executable(createMat ${CMAKE_CURRENT_SOURCE_DIR}/createMat.cpp)
 
@@ -77,6 +77,7 @@
     TARGETS createMat
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/penMats
     )
+endif(NOT MSVC)
 
 #-----------------------------------------------------------------------------
 #  Pen material creator from list
