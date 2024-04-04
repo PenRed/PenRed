@@ -61,13 +61,13 @@ class pen_comboGeo : public abc_geometry<pen_comboBody>{
 
   const std::vector<wrapper_geometry*>& readGeometries() const { return geometries; }
   
-  int configure(const pen_parserSection& /*config*/, unsigned verbose);
-  void locate(pen_particleState&) const;
+  int configure(const pen_parserSection& /*config*/, unsigned verbose) final override;
+  void locate(pen_particleState&) const final override;
   void step(pen_particleState&,
 	    double,
 	    double &,
 	    double &,
-	    int &) const;
+	    int &) const final override;
   
   unsigned getIBody(const char*) const final override;
   std::string getBodyName(const unsigned ibody) const final override;

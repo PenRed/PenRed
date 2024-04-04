@@ -342,7 +342,7 @@ struct pen_readerElement{
 
   std::string stringify(const size_t nSpaces = 0) const;
   inline std::string stringifyExample() const{
-    if(defaultValue.readTag() == STRING)
+    if(defaultValue.readTag() == pen_parserElement::STRING)
       return "\"" + defaultValue.stringify() + "\"";
     else
       return defaultValue.stringify();
@@ -355,7 +355,7 @@ struct pen_readerElement{
     conditions.clear();
   }
 
-  inline pen_parserElementTypes readTag() const{
+  inline pen_parserElement::types readTag() const{
     return defaultValue.readTag();
   }
 
@@ -410,7 +410,7 @@ protected:
   
 };
 
-struct pen_readerSection{
+class pen_readerSection{
 
 public:
   static const std::string subsectionArrayKey;

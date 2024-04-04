@@ -36,7 +36,11 @@ CMAKE_POLICY(SET CMP0054 NEW)
 #-----------------------------------------------------------------------------
 include(CMakeDependentOption)
 
-option(WITH_EMBEDDED_DB "Build PenRed with embedded data bases " ON)
+if (MSVC)
+  option(WITH_EMBEDDED_DB "Build PenRed with embedded data bases " FALSE)
+else (MSVC)
+  option(WITH_EMBEDDED_DB "Build PenRed with embedded data bases " ON)
+endif (MSVC)
 option(WITH_DICOM "Build PenRed DICOM " OFF)
 option(WITH_MULTI_THREADING "Build PenRed with multi-threading " ON)
 option(WITH_MPI "Build PenRed with MPI " OFF)
@@ -58,8 +62,6 @@ option(BUILD_STATIC "Enable static compilation" OFF)
 mark_as_advanced(FORCE BUILD_STATIC)
 option(BUILD_C_BINDS "Compile C binds" OFF)
 mark_as_advanced(FORCE BUILD_C_BINDS)
-option(WITH_DEBUG "Compile with debug flag" OFF)
-mark_as_advanced(WITH_DEBUG)
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
@@ -72,7 +74,6 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # set compiler flags
-set(CMAKE_CXX_FLAGS "-Wall -Wpedantic -Wextra -Wshadow")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 
@@ -90,10 +91,6 @@ endif(BUILD_STATIC)
 
 # Compilation options
 
-if (WITH_DEBUG)
-	add_compile_options(-g)
-endif(WITH_DEBUG)
-
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   # using GCC
 
@@ -101,7 +98,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         add_compile_options(-march=native)
   endif (WITH_NATIVE)
 
-  add_compile_options(-Wno-unused-result -Wno-deprecated-copy -frecord-gcc-switches)
+  add_compile_options(-Wall -Wpedantic -Wextra -Wshadow -frecord-gcc-switches -Wno-unused-result -Wno-overlength-strings)
 
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # using Clang
@@ -110,7 +107,7 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         add_compile_options(-march=native)
   endif (WITH_NATIVE)
 
-  add_compile_options(-Wc++14-compat -Wc++14-compat-pedantic -Wno-unused-result -Wno-deprecated-copy)
+  add_compile_options(-Wall -Wpedantic -Wextra -Wshadow -Wc++14-compat -Wc++14-compat-pedantic -Wno-unused-result -Wno-overlength-strings)
 
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
   # using Intel C++
@@ -238,6 +235,3 @@ if(BUILD_C_BINDS)
     add_subdirectory(bindings/C)
 endif(BUILD_C_BINDS)
 #-----------------------------------------------------------------------------
-
-# Install database
-#install(DIRECTORY ../dataBases/ DESTINATION penRed)

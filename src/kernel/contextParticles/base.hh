@@ -51,7 +51,7 @@ namespace penred{
       static_assert(std::is_base_of<wrapper_context, contextType>::value,
 		    "Structure 'particleTypes' used with a 'context'"
 		    "not derived from 'wrapper_context'");         
-      typedef std::tuple<void> type;
+      typedef std::tuple<> type;
     };
     template<class contextType>
     using particleTypes_t = typename particleTypes<contextType>::type;
@@ -117,9 +117,9 @@ namespace penred{
     
     // ** Define a function to generate a tuple with stack types for a specific context
     template<class contextType, size_t N = 0>
-    constexpr std::enable_if_t<N >= particleNTypes<contextType>::value, std::tuple<void>>
+    constexpr std::enable_if_t<N >= particleNTypes<contextType>::value, std::tuple<>>
     createStackTuple(){
-      return std::tuple<void>();
+      return std::tuple<>();
     }
 
     template<class contextType, size_t N = 0>
@@ -287,7 +287,7 @@ namespace penred{
       template<class stateType, class... otherStateTypes>
       inline std::enable_if_t<sizeof...(otherStateTypes) == 0,void>
       _registerVR(const std::enable_if_t<!std::is_same<stateType, pen_particleState>::value, const abc_VR<stateType>>& vr,
-		  const abc_VR<otherStateTypes>&... vrRemaining){
+		  const abc_VR<otherStateTypes>&...){
 	_registerSpecificVR<stateType,0>(vr);
       }
 
@@ -295,7 +295,7 @@ namespace penred{
       template<class stateType, class... otherStateTypes>
       inline std::enable_if_t<sizeof...(otherStateTypes) == 0,void>
       _registerVR(const std::enable_if_t<std::is_same<stateType, pen_particleState>::value, const abc_VR<stateType>>& vr,
-		  const abc_VR<otherStateTypes>&... vrRemaining){
+		  const abc_VR<otherStateTypes>&...){
 	_registerGenericVR<0>(vr);
       }
       
@@ -338,7 +338,7 @@ namespace penred{
       }
 
       //Function to register generic VR in all particles
-      inline void registerGenericVR(const abc_VR<pen_particleState>& vrIn){
+      inline void registerGenericVR(const abc_VR<pen_particleState>&){
 	_registerGenericVR<0>();
       }
 

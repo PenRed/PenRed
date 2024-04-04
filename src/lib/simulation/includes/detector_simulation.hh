@@ -185,7 +185,7 @@ namespace penred{
       }
 
       sampleFuncType<pen_particleState> fsource =
-	[&nextPart, &result, &initParticles]
+	[&nextPart, &initParticles]
 	(pen_particleState& state,    //Generated state
 	 pen_KPAR& kpar,          //Generated kpar
 	 unsigned long long& dh,  //History increment

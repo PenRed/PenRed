@@ -1553,7 +1553,7 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	std::atomic<bool> sharedIntersect{false};
 
 	for(size_t ith = 0; ith < nOverlapThreads; ++ith){
-	  overlapThreads.push_back(std::thread([&,ith](){
+	  overlapThreads.push_back(std::thread([&](){
 
 	    unsigned int iover = atomicCount++;
 	    while(iover < body.nOverlap){

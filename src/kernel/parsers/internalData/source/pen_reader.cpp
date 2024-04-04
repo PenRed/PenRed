@@ -217,10 +217,10 @@ int pen_readerCondition::parse(const pen_parserSection& s,
     //A constant value is provided
     condPath.clear();
     //Check if it is an integer or a double
-    if(data.readTag() == pen_parserDataTypes::DOUBLE){
+    if(data.readTag() == pen_parserData::DOUBLE){
       valType = DOUBLE;
       data.read(condDouble);
-    }else if(data.readTag() == pen_parserDataTypes::INT){
+    }else if(data.readTag() == pen_parserData::INT){
       valType = INT;
       data.read(condInt);	
     }else{
@@ -246,9 +246,6 @@ int pen_readerElement::parse(const pen_parserSection& s,
   //Clear
   clear();
   
-  //Create a key counter
-  unsigned nKeys = 0;
-
   std::string prefix = prefixIn;
   if(!prefix.empty()){
     if(prefix.back() != '/'){
@@ -264,22 +261,18 @@ int pen_readerElement::parse(const pen_parserSection& s,
     errorString = prefix + valueKey;
     return INTDATA_READER_NOT_A_ELEMENT;
   }
-  ++nKeys;
 
   // ** Description section
   //It is a element, try to read the description
   if(s.read((prefix + descriptionKey).c_str(), description) != INTDATA_SUCCESS){
     //Description not provided
     description.assign("");
-  }else{
-    ++nKeys;
   }
 
   // ** "Required" section
   //Try to read and parse the "required" section
   pen_parserSection reqSec;
   if(s.readSubsection((prefix + requiredKey).c_str(),reqSec) == INTDATA_SUCCESS){
-    ++nKeys;
     int err = required.parse(reqSec);
     errorString = prefix + requiredKey;
     if(err != INTDATA_SUCCESS)
@@ -294,7 +287,6 @@ int pen_readerElement::parse(const pen_parserSection& s,
   std::vector<std::string> conditionKeys;
   s.ls((prefix + conditionKey).c_str(),conditionKeys);
   if(conditionKeys.size() > 0){
-    ++nKeys;
 
     //Resize conditions vector
     conditions.resize(conditionKeys.size());
@@ -333,19 +325,19 @@ pen_readerElement::checkConditions(const pen_parserSection& s,
 				   int* failed) const {
   //Check the type
   switch(d.readTag()){
-  case INT: {
+  case pen_parserData::INT: {
     int aux = d;
     return checkConditions(s,aux,actualSectionPath,failed);
   }
-  case DOUBLE: {
+  case pen_parserData::DOUBLE: {
     double aux = d;
     return checkConditions(s,aux,actualSectionPath,failed);
   }
-  case BOOL: {
+  case pen_parserData::BOOL: {
     bool aux = d;
     return checkConditions(s,aux,actualSectionPath,failed);
   }
-  case CHAR: {
+  case pen_parserData::CHAR: {
     char aux = d;
     return checkConditions(s,aux,actualSectionPath,failed);
   }
@@ -360,7 +352,7 @@ pen_readerElement::checkConditions(const pen_parserSection& s,
 				   int* failed) const {
 
   //Check the type
-  if(e.readTag() != SCALAR)
+  if(e.readTag() != pen_parserElement::SCALAR)
     return true; //Actually, only conditions to scalar types can be applied
     
     
@@ -815,7 +807,7 @@ int pen_readerSection::readSectionNoChecks(const pen_parserSection& in,
     
     //Check tag and store element
     switch(eIn.readTag()){
-    case SCALAR:{
+    case pen_parserElement::SCALAR:{
       //Read data
       pen_parserData data;
       eIn.read(data);
@@ -828,7 +820,7 @@ int pen_readerSection::readSectionNoChecks(const pen_parserSection& in,
       }
       break;
     }
-    case STRING:{
+    case pen_parserElement::STRING:{
       //Read string
       std::string data;
       if(eIn.read(data) != INTDATA_SUCCESS){
@@ -846,7 +838,7 @@ int pen_readerSection::readSectionNoChecks(const pen_parserSection& in,
       }
       break;
     }
-    case ARRAY:{
+    case pen_parserElement::ARRAY:{
       //Read number of elements in the array
       const size_t arraySize = eIn.size();
 

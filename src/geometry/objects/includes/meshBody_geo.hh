@@ -221,6 +221,8 @@ namespace pen_meshTransform{
     
     virtual void apply(v3D& v) const = 0;
     virtual std::string stringify() const = 0;
+
+    inline virtual ~base(){}
   };
 
   struct trans : base{

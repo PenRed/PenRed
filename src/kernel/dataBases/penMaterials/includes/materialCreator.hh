@@ -201,7 +201,7 @@ namespace penred{
       double ETS[CDCSEP_NE], ETL[CDCSEP_NE], TH[NA], THR[NA], XMU[NA], XMUL[NA],
 	ECS[CDCSEP_NE], ETCS1[CDCSEP_NE], ETCS2[CDCSEP_NE], EDCS[CDCSEP_NE][NA],
 	PCS[CDCSEP_NE], PTCS1[CDCSEP_NE], PTCS2[CDCSEP_NE],
-	PDCS[CDCSEP_NE][NA], DCSI[NA], DCSIL[NA], CSI, TCS1I, TCS2I;
+	PDCS[CDCSEP_NE][NA], DCSI[NA]; //DCSIL[NA], CSI, TCS1I, TCS2I;
 
       struct{
       // GCOaT, GCOaD (change E --> EE, M --> MM, IO --> IOSC)
@@ -331,14 +331,15 @@ namespace penred{
   
       //CGCO
       //  ****  Compton scattering.
-      double FCO[NOCO], UICO[NOCO], FJ0[NOCO], PTRSH[NOCO];
+      double FCO[NOCO], UICO[NOCO], FJ0[NOCO]; //PTRSH[NOCO];
       int KZCO[NOCO], KSCO[NOCO], NOSCCO;
 
       //CEBR
       //  ****  Bremsstrahlung emission.
-      double WB[NBW], PBCUT[NEGP], WBCUT[NEGP],
-	PDFB[NEGP][NBW], DPDFB[NEGP][NBW],
-	PACB[NEGP][NBW], ZBR2;
+      double WB[NBW]; //PBCUT[NEGP], WBCUT[NEGP],
+      //PDFB[NEGP][NBW], DPDFB[NEGP][NBW],
+      //PACB[NEGP][NBW],
+      double ZBR2;
 
       struct{
 	double EI, EE, CPS, AMOL, MOM;

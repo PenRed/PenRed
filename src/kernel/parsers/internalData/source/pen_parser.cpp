@@ -93,84 +93,95 @@ const char* pen_parserError(const int err){
 
 
 pen_parserData::pen_parserData(){
-  tag = CHAR;
+  tag = pen_parserData::CHAR;
   c = '\0';
 }
 pen_parserData::pen_parserData(const char val){
   c = val;
-  tag = CHAR;
+  tag = pen_parserData::CHAR;
 }
 pen_parserData::pen_parserData(const int val){
   i = val;
-  tag = INT;
+  tag = pen_parserData::INT;
 }
 pen_parserData::pen_parserData(const double val){
   d = val;
-  tag = DOUBLE;
+  tag = pen_parserData::DOUBLE;
 }
 pen_parserData::pen_parserData(const bool val){
   b = val;
-  tag = BOOL;
+  tag = pen_parserData::BOOL;
 }
 pen_parserData::pen_parserData(const pen_parserData& val){
   tag = val.readTag();
   switch(tag){
-  case CHAR: c = val.c; break;
-  case INT: i = val.i; break;
-  case DOUBLE: d = val.d; break;
-  case BOOL: b = val.b; break;
+  case pen_parserData::CHAR: c = val.c; break;
+  case pen_parserData::INT: i = val.i; break;
+  case pen_parserData::DOUBLE: d = val.d; break;
+  case pen_parserData::BOOL: b = val.b; break;
   }
 
 }
 
 pen_parserData& pen_parserData::operator=(const char val){
   c = val;
-  tag = CHAR;  
+  tag = pen_parserData::CHAR;  
   return *this;
 }
 pen_parserData& pen_parserData::operator=(const int val){
   i = val;
-  tag = INT;
+  tag = pen_parserData::INT;
   return *this;
 }
 pen_parserData& pen_parserData::operator=(const double val){
   d = val;
-  tag = DOUBLE;  
+  tag = pen_parserData::DOUBLE;  
   return *this;
 }
 pen_parserData& pen_parserData::operator=(const bool val){
   b = val;
-  tag = BOOL;  
+  tag = pen_parserData::BOOL;  
+  return *this;
+}
+pen_parserData& pen_parserData::operator=(const pen_parserData& val){
+  tag = val.readTag();
+  switch(tag){
+  case pen_parserData::CHAR: c = val.c; break;
+  case pen_parserData::INT: i = val.i; break;
+  case pen_parserData::DOUBLE: d = val.d; break;
+  case pen_parserData::BOOL: b = val.b; break;
+  }
   return *this;
 }
 
+
 int pen_parserData::read(char& vget) const{
-  if(tag == CHAR){
+  if(tag == pen_parserData::CHAR){
     vget = c;
     return INTDATA_SUCCESS;
   }
   return INTDATA_NOT_A_CHAR;
 }
 int pen_parserData::read(int& vget) const{
-  if(tag == INT){
+  if(tag == pen_parserData::INT){
     vget = i;
     return INTDATA_SUCCESS;
   }
   return INTDATA_NOT_A_INT;  
 }
 int pen_parserData::read(double& vget) const{
-  if(tag == DOUBLE){
+  if(tag == pen_parserData::DOUBLE){
     vget = d;
     return INTDATA_SUCCESS;
   }
-  else if(tag == INT){
+  else if(tag == pen_parserData::INT){
     vget = double(i);
     return INTDATA_SUCCESS;
   }
   return INTDATA_NOT_A_DOUBLE;  
 }
 int pen_parserData::read(bool& vget) const{
-  if(tag == BOOL){
+  if(tag == pen_parserData::BOOL){
     vget = b;
     return INTDATA_SUCCESS;
   }
@@ -185,16 +196,16 @@ int pen_parserData::read(pen_parserData& vget) const{
 void pen_parserData::stringify(std::string& strout) const{
   char buffer[20];
   switch(tag){
-  case CHAR: {
+  case pen_parserData::CHAR: {
     buffer[0] = '\'';
     buffer[1] = c;
     buffer[2] = '\'';
     buffer[3] = '\0';
     break;
   }
-  case INT: snprintf(buffer,sizeof(buffer),"%d",i); break;
-  case DOUBLE: snprintf(buffer,sizeof(buffer),"%14.5E",d); break;
-  case BOOL: snprintf(buffer,sizeof(buffer),"%s", b ? "true" : "false"); break;
+  case pen_parserData::INT: snprintf(buffer,sizeof(buffer),"%d",i); break;
+  case pen_parserData::DOUBLE: snprintf(buffer,sizeof(buffer),"%14.5E",d); break;
+  case pen_parserData::BOOL: snprintf(buffer,sizeof(buffer),"%s", b ? "true" : "false"); break;
   }
   strout.assign(buffer);
 }
@@ -382,7 +393,7 @@ pen_parserArray& pen_parserArray::operator=(const pen_parserArray& c){
 
 //Assignment functions
 int pen_parserArray::assign(const pen_parserElement& c){
-  if(c.readTag() == STRING){
+  if(c.readTag() == pen_parserElement::STRING){
     return INTDATA_NOT_A_ARRAY;
   }
   assign(c.array);
@@ -464,7 +475,7 @@ int pen_parserArray::parse(const std::string& strIn){
 
 //Constructors
 pen_parserElement::pen_parserElement(){
-  tag = SCALAR;
+  tag = pen_parserElement::SCALAR;
   array.append('\0');
 }
 
@@ -473,45 +484,53 @@ pen_parserElement::pen_parserElement(const pen_parserElement& c) : tag(c.tag),
 								   str(c.str)
 {}
 
-pen_parserElement::pen_parserElement(const pen_parserData& c) : tag(SCALAR){
+pen_parserElement::pen_parserElement(const pen_parserData& c) :
+  tag(pen_parserElement::SCALAR){
   array.append(c);
 }
 
-pen_parserElement::pen_parserElement(const pen_parserArray& c) : tag(ARRAY),
-								 array(c)
+pen_parserElement::pen_parserElement(const pen_parserArray& c) :
+  tag(pen_parserElement::ARRAY),
+  array(c)
 {}
 
-pen_parserElement::pen_parserElement(const std::string& c) : tag(STRING),
-							     str(c)
+pen_parserElement::pen_parserElement(const std::string& c) :
+  tag(pen_parserElement::STRING),
+  str(c)
 {}
 
-pen_parserElement::pen_parserElement(const char* c) : tag(STRING),
-							     str(c)
+pen_parserElement::pen_parserElement(const char* c) :
+  tag(pen_parserElement::STRING),
+  str(c)
 {
 }
 
-pen_parserElement::pen_parserElement(const char c) : tag(SCALAR){
+pen_parserElement::pen_parserElement(const char c) :
+  tag(pen_parserElement::SCALAR){
   array.append(c);
 }
-pen_parserElement::pen_parserElement(const int c) : tag(SCALAR){
+pen_parserElement::pen_parserElement(const int c) :
+  tag(pen_parserElement::SCALAR){
   array.append(c);
 }
-pen_parserElement::pen_parserElement(const double c) : tag(SCALAR){
+pen_parserElement::pen_parserElement(const double c) :
+  tag(pen_parserElement::SCALAR){
   array.append(c);
 }
-pen_parserElement::pen_parserElement(const bool c) : tag(SCALAR){
+pen_parserElement::pen_parserElement(const bool c) :
+  tag(pen_parserElement::SCALAR){
   array.append(c);
 }
 
 //Remove data
 int pen_parserElement::remove(const unsigned index){
-  if(tag != ARRAY)
+  if(tag != pen_parserElement::ARRAY)
     return INTDATA_NOT_A_ARRAY;
 
   return array.remove(index);
 }
 int pen_parserElement::remove(const unsigned begin, const unsigned end){
-  if(tag != ARRAY)
+  if(tag != pen_parserElement::ARRAY)
     return INTDATA_NOT_A_ARRAY;
 
   return array.remove(begin,end);
@@ -525,17 +544,17 @@ pen_parserElement& pen_parserElement::operator=(const pen_parserElement& c){
   return *this;
 }
 pen_parserElement& pen_parserElement::operator=(const pen_parserArray& c){
-  if(tag != ARRAY){
+  if(tag != pen_parserElement::ARRAY){
     clear();
-    tag = ARRAY;
+    tag = pen_parserElement::ARRAY;
   }
   array = c;
   return *this;  
 }
 pen_parserElement& pen_parserElement::operator=(const pen_parserData& c){
-  if(tag != SCALAR){
+  if(tag != pen_parserElement::SCALAR){
     clear();
-    tag = SCALAR;
+    tag = pen_parserElement::SCALAR;
     array.append(c);
   }
   else{
@@ -544,17 +563,17 @@ pen_parserElement& pen_parserElement::operator=(const pen_parserData& c){
   return *this;
 }
 pen_parserElement& pen_parserElement::operator=(const std::string& c){
-  if(tag != STRING){
+  if(tag != pen_parserElement::STRING){
     clear();
-    tag = STRING;
+    tag = pen_parserElement::STRING;
   }
   str.assign(c);
   return *this;
 }
 pen_parserElement& pen_parserElement::operator=(const char* c){
-  if(tag != STRING){
+  if(tag != pen_parserElement::STRING){
     clear();
-    tag = STRING;
+    tag = pen_parserElement::STRING;
   }
   str.assign(c);
   return *this;
@@ -578,7 +597,8 @@ pen_parserElement& pen_parserElement::operator=(const bool c){
 
 //Access elements
 pen_parserData& pen_parserElement::operator[](const unsigned index){
-  if(tag == ARRAY || tag == SCALAR){
+  if(tag == pen_parserElement::ARRAY ||
+     tag == pen_parserElement::SCALAR){
     return array[index];
   }
   char error[400];
@@ -589,13 +609,13 @@ pen_parserData& pen_parserElement::operator[](const unsigned index){
 
 //Stringify function
 void pen_parserElement::stringify(std::string& strout) const{
-  if(tag == SCALAR){
+  if(tag == pen_parserElement::SCALAR){
     array.at(0).stringify(strout);
   }
-  else if(tag == ARRAY){
+  else if(tag == pen_parserElement::ARRAY){
     array.stringify(strout);
   }
-  else if(tag == STRING){
+  else if(tag == pen_parserElement::STRING){
     strout.assign(str);
   }
 }
@@ -617,13 +637,13 @@ int pen_parserElement::parse(const std::string& strIn){
   //Try to parse element as a array
   int errArray = array.parse(strClear);
   if(errArray == INTDATA_SUCCESS){
-    tag = ARRAY;
+    tag = pen_parserElement::ARRAY;
     return INTDATA_SUCCESS;
   }
   
   //Clear array
   array.clear();
-  tag = SCALAR;
+  tag = pen_parserElement::SCALAR;
   array.append('\0');
   
   //Try to parse element as data

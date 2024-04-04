@@ -92,17 +92,19 @@ enum pen_parserErrors{INTDATA_SUCCESS = 0,
 
 const char* pen_parserError(const int err);
 
-enum pen_parserDataTypes {CHAR, INT, DOUBLE, BOOL};
-enum pen_parserElementTypes {SCALAR,ARRAY,STRING};
-
 struct pen_parserData;
 struct pen_parserArray;
 struct pen_parserElement;
 struct pen_parserSection;
 
 struct pen_parserData{
+
+public:
+  
+  enum types {CHAR, INT, DOUBLE, BOOL};
+  
 private:
-  enum pen_parserDataTypes tag;
+  types tag;
   union{
     char c;
     int i;
@@ -122,6 +124,7 @@ public:
   pen_parserData& operator=(const int);
   pen_parserData& operator=(const double);
   pen_parserData& operator=(const bool);
+  pen_parserData& operator=(const pen_parserData&);
 
   int read(char&) const;
   int read(int&) const;
@@ -144,16 +147,16 @@ public:
   }
   int parse(const std::string&);
   
-  inline pen_parserDataTypes readTag() const{
+  inline pen_parserData::types readTag() const{
     return tag;
   }
   
   inline operator int() const{
     switch(tag){
-    case INT: return i;
-    case DOUBLE: return static_cast<int>(d);
-    case BOOL: return static_cast<int>(b);
-    case CHAR: return static_cast<int>(c);
+    case pen_parserData::INT: return i;
+    case pen_parserData::DOUBLE: return static_cast<int>(d);
+    case pen_parserData::BOOL: return static_cast<int>(b);
+    case pen_parserData::CHAR: return static_cast<int>(c);
     default: return i;
     }
     
@@ -161,10 +164,10 @@ public:
   
   inline operator long long int() const{
     switch(tag){
-    case INT: return static_cast<long long int>(i);
-    case DOUBLE: return static_cast<long long int>(d);
-    case BOOL: return static_cast<long long int>(b);
-    case CHAR: return static_cast<long long int>(c);
+    case pen_parserData::INT: return static_cast<long long int>(i);
+    case pen_parserData::DOUBLE: return static_cast<long long int>(d);
+    case pen_parserData::BOOL: return static_cast<long long int>(b);
+    case pen_parserData::CHAR: return static_cast<long long int>(c);
     default: return i;
     }
     
@@ -172,60 +175,60 @@ public:
   
   inline operator double() const{
     switch(tag){
-    case DOUBLE: return d;
-    case INT: return static_cast<double>(i);
-    case BOOL: return static_cast<double>(b);
-    case CHAR: return static_cast<double>(c);
+    case pen_parserData::DOUBLE: return d;
+    case pen_parserData::INT: return static_cast<double>(i);
+    case pen_parserData::BOOL: return static_cast<double>(b);
+    case pen_parserData::CHAR: return static_cast<double>(c);
     default: return d;
     }
   }
 
   inline operator bool() const{
     switch(tag){
-    case BOOL: return b;
-    case INT: return static_cast<bool>(i);
-    case DOUBLE: return d == 0.0;
-    case CHAR: return static_cast<bool>(c);
+    case pen_parserData::BOOL: return b;
+    case pen_parserData::INT: return static_cast<bool>(i);
+    case pen_parserData::DOUBLE: return d == 0.0;
+    case pen_parserData::CHAR: return static_cast<bool>(c);
     default: return b;
     }
   }
 
   inline operator char() const{
     switch(tag){
-    case CHAR: return c;
-    case INT: return static_cast<char>(i);
-    case BOOL: return static_cast<char>(b);
-    case DOUBLE: return static_cast<char>(d);
+    case pen_parserData::CHAR: return c;
+    case pen_parserData::INT: return static_cast<char>(i);
+    case pen_parserData::BOOL: return static_cast<char>(b);
+    case pen_parserData::DOUBLE: return static_cast<char>(d);
     default: return c;
     }
   }
 
   inline operator unsigned() const{
     switch(tag){
-    case INT: return static_cast<unsigned>(i);
-    case DOUBLE: return static_cast<unsigned>(d);
-    case BOOL: return static_cast<unsigned>(b);
-    case CHAR: return static_cast<unsigned>(c);
+    case pen_parserData::INT: return static_cast<unsigned>(i);
+    case pen_parserData::DOUBLE: return static_cast<unsigned>(d);
+    case pen_parserData::BOOL: return static_cast<unsigned>(b);
+    case pen_parserData::CHAR: return static_cast<unsigned>(c);
     default: return static_cast<unsigned>(i);
     }
   }
 
   inline operator unsigned long long() const{
     switch(tag){
-    case INT: return static_cast<unsigned long long>(i);
-    case DOUBLE: return static_cast<unsigned long long>(d);
-    case BOOL: return static_cast<unsigned long long>(b);
-    case CHAR: return static_cast<unsigned long long>(c);
+    case pen_parserData::INT: return static_cast<unsigned long long>(i);
+    case pen_parserData::DOUBLE: return static_cast<unsigned long long>(d);
+    case pen_parserData::BOOL: return static_cast<unsigned long long>(b);
+    case pen_parserData::CHAR: return static_cast<unsigned long long>(c);
     default: return static_cast<unsigned long long>(i);
     }
   }  
   
   inline operator float() const{
     switch(tag){
-    case DOUBLE: return static_cast<float>(d);
-    case INT: return static_cast<float>(i);
-    case BOOL: return static_cast<float>(b);
-    case CHAR: return static_cast<float>(c);
+    case pen_parserData::DOUBLE: return static_cast<float>(d);
+    case pen_parserData::INT: return static_cast<float>(i);
+    case pen_parserData::BOOL: return static_cast<float>(b);
+    case pen_parserData::CHAR: return static_cast<float>(c);
     default: return static_cast<float>(d);
     }
   }
@@ -343,17 +346,21 @@ public:
 
 struct pen_parserElement{
   friend struct pen_parserArray;
+
+public:
+  enum types {SCALAR,ARRAY,STRING};
+  
 private:
-  enum pen_parserElementTypes tag;
+  types tag;
   pen_parserArray array;
   std::string str;
 
   //Append template functions
   template<class T>
   int appendT(const T data){
-    if(tag == SCALAR){
-      tag = ARRAY;
-    } else if(tag == STRING){
+    if(tag == pen_parserElement::SCALAR){
+      tag = pen_parserElement::ARRAY;
+    } else if(tag == pen_parserElement::STRING){
       return INTDATA_NOT_A_ARRAY;
     }
 
@@ -365,7 +372,7 @@ private:
   //Read functions
   template<class T>
   int readT(T& value, const unsigned index = 0) const{
-    if(tag == STRING)
+    if(tag == pen_parserElement::STRING)
       return INTDATA_NOT_A_ARRAY;
     
     return array.read(value,index);
@@ -374,7 +381,7 @@ private:
   //Assignment functions for arrays
   template<class T>
   int setT(const T value, const unsigned index = 0){
-    if(tag == STRING)
+    if(tag == pen_parserElement::STRING)
       return INTDATA_NOT_A_ARRAY;
 
     return array.set(value,index);
@@ -434,14 +441,14 @@ public:
     return readT(value,index);
   }
   inline int read(std::string& value, const unsigned = 0) const{
-    if(tag != STRING)
+    if(tag != pen_parserElement::STRING)
       return INTDATA_NOT_A_STRING;
 
     value.assign(str);
     return INTDATA_SUCCESS;
   }
   inline int read(pen_parserArray& value, const unsigned = 0) const{
-    if(tag != ARRAY)
+    if(tag != pen_parserElement::ARRAY)
       return INTDATA_NOT_A_ARRAY;
 
     value = array;
@@ -472,19 +479,19 @@ public:
   inline void clear(){
     array.clear();
     str.clear();
-    tag = SCALAR;
+    tag = pen_parserElement::SCALAR;
     array.append('\0');
   }
   inline unsigned size() const {
     switch(tag){
-    case ARRAY: return array.size();
-    case SCALAR: return 1;
-    case STRING: return str.length();
+    case pen_parserElement::ARRAY: return array.size();
+    case pen_parserElement::SCALAR: return 1;
+    case pen_parserElement::STRING: return str.length();
     default: return 1;
     }
   }
   
-  inline pen_parserElementTypes readTag() const{
+  inline pen_parserElement::types readTag() const{
     return tag;
   }
 

@@ -33,16 +33,18 @@ namespace penred{
 
   namespace xray{
 
-    enum errors{
-      SUCCESS = 0,
-      NEGATIVE_DISTANCE,
-      INVALID_Z,
-      INVALID_SIZE,
-      NO_FILTER_PROVIDED,
-      UNABLE_TO_CREATE_MATERIAL,
-      ERROR_ON_CONTEXT_INITIALIZATION,
-      ERROR_ON_GEOMETRY_INITIALIZATION,
-      ERROR_UNABLE_TO_OPEN_FILE,
+    namespace errors{
+      enum errors{
+	SUCCESS = 0,
+	NEGATIVE_DISTANCE,
+	INVALID_Z,
+	INVALID_SIZE,
+	NO_FILTER_PROVIDED,
+	UNABLE_TO_CREATE_MATERIAL,
+	ERROR_ON_CONTEXT_INITIALIZATION,
+	ERROR_ON_GEOMETRY_INITIALIZATION,
+	ERROR_UNABLE_TO_OPEN_FILE,
+      };
     };
     
     using detectedPart = simulation::detectedPart;

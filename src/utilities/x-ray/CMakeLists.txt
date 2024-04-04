@@ -25,20 +25,6 @@
 #
 #
 
-    # Create x-ray spectrum estimation executable
-    add_executable(spectrumEstimation ${PROJECT_SOURCE_DIR}/utilities/x-ray/spectrumEstimation.cpp)
-
-    target_link_libraries(spectrumEstimation pen_particles)
-    target_link_libraries(spectrumEstimation samplers)
-    target_link_libraries(spectrumEstimation tallies)
-    target_link_libraries(spectrumEstimation pen_geos)
-
-    # Install mutren executable
-    install(
-    TARGETS spectrumEstimation
-    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/x-ray/spectrumEstimation
-    )
-
     # Create x-ray anode simulation executable
     add_executable(anodeSim ${PROJECT_SOURCE_DIR}/utilities/x-ray/simAnode.cpp)
 

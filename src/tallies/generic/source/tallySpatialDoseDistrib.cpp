@@ -467,7 +467,7 @@ int pen_SpatialDoseDistrib::configure(const wrapper_geometry& geometry,
     }
 
     for(size_t ith = 0; ith < nCalcThreads; ++ith){
-      calcThreads.push_back(std::thread([&,ith](){
+      calcThreads.push_back(std::thread([&](){
 
 	pen_particleState state;
       

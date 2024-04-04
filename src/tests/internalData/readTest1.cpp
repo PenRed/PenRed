@@ -272,7 +272,7 @@ struct test_reader : public pen_readerStorage{
 
   inline int storeString(const std::string& pathInSection,
 			 const std::string& element,
-			 const unsigned){
+			 const unsigned) override {
     if(actualSection == 1){
       if(pathInSection.compare("particle") == 0){
 	vsources.back().particleType = element;

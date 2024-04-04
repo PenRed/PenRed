@@ -307,12 +307,12 @@ public:
 
   double range(const double E,
 	       const pen_KPAR kpar,
-	       const unsigned M) const;
+	       const unsigned M) const override;
 
   double avncol(const double E,
 		const pen_KPAR kpar,
 		const int icol,
-		const unsigned imat) const;
+		const unsigned imat) const override;
 
   double IMFP(const double E,
 	      const pen_KPAR kpar,
@@ -323,7 +323,7 @@ public:
 		  const pen_KPAR kpar,
 		  const int icol,
 		  const unsigned imat,
-		  const bool calc_piecewise) const;
+		  const bool calc_piecewise) const override;
 
   double getIF(const double forcerIn,
 	       const pen_KPAR kpar,
@@ -336,7 +336,7 @@ public:
 			 const int icol,
 			 const unsigned ibody,
 			 const double weightL,
-			 const double weightU){
+			 const double weightU) override{
 
     //Read body material
     unsigned imat = readGeometry()->getMat(ibody);

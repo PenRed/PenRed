@@ -49,16 +49,16 @@ namespace penred{
 	 coldx1 < 0.0 || coldy1 < 0.0 ||
 	 coldx2 < 0.0 || coldy2 < 0.0){
 
-	return NEGATIVE_DISTANCE;
+	return errors::NEGATIVE_DISTANCE;
       }
 
       if(filters.size() == 0){
-	return NO_FILTER_PROVIDED;
+	return errors::NO_FILTER_PROVIDED;
       }
 
       if(particlesIn.size() == 0){
 	//No particles to simulate
-	return SUCCESS;
+	return errors::SUCCESS;
       }
 
       //Get maximum energy and total number of histories
@@ -74,9 +74,9 @@ namespace penred{
       double filtersEnd = filterZorigin;
       for(const auto& f : filters){
 	if(f.first == 0)
-	  return INVALID_Z;
+	  return errors::INVALID_Z;
 	if(f.second <= 0.0)
-	  return INVALID_SIZE;
+	  return errors::INVALID_SIZE;
 	filtersEnd -= f.second;
       }
       filtersEnd -= 0.1;
@@ -127,7 +127,7 @@ namespace penred{
 		   errorString.c_str(),
 		   err);
 	  }
-	  return UNABLE_TO_CREATE_MATERIAL;
+	  return errors::UNABLE_TO_CREATE_MATERIAL;
 	}
 
 	//Create filter geometry
@@ -185,7 +185,7 @@ namespace penred{
       pen_parserSection mateInfoSection;
       int err = contextSim.configure(maxE, contextConfig, mateInfoSection, verbose);
       if(err != pen_context::SUCCESS){
-	return ERROR_ON_CONTEXT_INITIALIZATION;
+	return errors::ERROR_ON_CONTEXT_INITIALIZATION;
       }
 
       // * Configure geometry
@@ -224,7 +224,7 @@ namespace penred{
 	       "Please, report this error\n");
 	delete geometry;
 	printf("      Geometry string: \n%s\n.", ss.str().c_str());
-	return ERROR_ON_GEOMETRY_INITIALIZATION;
+	return errors::ERROR_ON_GEOMETRY_INITIALIZATION;
       }
 
       //Set geometry in context
@@ -232,7 +232,7 @@ namespace penred{
 	printf("Unexpected Error: Unable to set the geometry to context. "
 	       "Please, report this error\n");
 	delete geometry;
-	return ERROR_ON_GEOMETRY_INITIALIZATION;
+	return errors::ERROR_ON_GEOMETRY_INITIALIZATION;
       }
 
       //Set the number of threads to use
@@ -329,7 +329,7 @@ namespace penred{
 		      coldx1, coldy1,
 		      coldx2, coldy2);
       
-      return SUCCESS;
+      return errors::SUCCESS;
     }
 
     int readerHVL::beginSectionFamily(const std::string& pathInSection,
@@ -646,7 +646,7 @@ namespace penred{
 				       "x-ray-anode-spectrum.dat",
 				       200, nHists) != 0){
 	  printf("Error: Unable to open file 'x-ray-anode-spectrum.dat'\n");
-	  return ERROR_UNABLE_TO_OPEN_FILE;
+	  return errors::ERROR_UNABLE_TO_OPEN_FILE;
 	}
 
 	printf("   - Printing anode spatial distribution to 'x-ray-anode-spatial.dat'.\n");
@@ -655,7 +655,7 @@ namespace penred{
 					"x-ray-anode-spatial.dat",
 					200, nHists) != 0){
 	  printf("Error: Unable to open file 'x-ray-anode-spatial.dat'\n");
-	  return ERROR_UNABLE_TO_OPEN_FILE;
+	  return errors::ERROR_UNABLE_TO_OPEN_FILE;
 	}	
 	
       }
@@ -704,7 +704,7 @@ namespace penred{
 	  printf("Error: Unable to open file 'x-ray-collimated-anode-spectrum.dat'\n");
 	  printf(" Number of particles: %lu\n",
 		 static_cast<unsigned long>(actualParticles.size()));
-	  return ERROR_UNABLE_TO_OPEN_FILE;
+	  return errors::ERROR_UNABLE_TO_OPEN_FILE;
 	}
 
 	printf("   - Printing collimated anode spectrum to"
@@ -716,7 +716,7 @@ namespace penred{
 	  printf("Error: Unable to open file 'x-ray-collimated-anode-spatial.dat'\n");
 	  printf(" Number of particles: %lu\n",
 		 static_cast<unsigned long>(actualParticles.size()));
-	  return ERROR_UNABLE_TO_OPEN_FILE;
+	  return errors::ERROR_UNABLE_TO_OPEN_FILE;
 	}
 		
       }
@@ -779,7 +779,7 @@ namespace penred{
 				  verbose > 3 ? verbose : 1,
 				  filterGeoFilename);
 
-      if(err != SUCCESS){
+      if(err != errors::SUCCESS){
 	return -3;
       }
 
@@ -793,7 +793,7 @@ namespace penred{
 				       "x-ray-filtered-spectrum.dat",
 				       200, nHists) != 0){
 	  printf("Error: Unable to open file 'x-ray-filtered-spectrum.dat'\n");
-	  return ERROR_UNABLE_TO_OPEN_FILE;
+	  return errors::ERROR_UNABLE_TO_OPEN_FILE;
 	}
 
 	printf("   - Printing filtered spatial distribution to"
@@ -803,7 +803,7 @@ namespace penred{
 				       "x-ray-filtered-spatial.dat",
 					200, nHists) != 0){
 	  printf("Error: Unable to open file 'x-ray-filtered-spatial.dat'\n");
-	  return ERROR_UNABLE_TO_OPEN_FILE;
+	  return errors::ERROR_UNABLE_TO_OPEN_FILE;
 	}	
       }
       
@@ -813,7 +813,7 @@ namespace penred{
 
 
       hvl = 1.0; //CACA
-      return SUCCESS;
+      return errors::SUCCESS;
     }
     
   };

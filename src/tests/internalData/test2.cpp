@@ -103,25 +103,25 @@ int main(){
     
     //Check readTag
     err = data1.readTag();
-    if(err != CHAR)
+    if(err != pen_parserData::CHAR)
     {
         printf("set5: Error code %d\n", err);
     }
     
     err = data2.readTag();
-    if(err != INT)
+    if(err != pen_parserData::INT)
     {
         printf("set6: Error code %d\n", err);
     }
     
     err = data3.readTag();
-    if(err != DOUBLE)
+    if(err != pen_parserData::DOUBLE)
     {
         printf("set7: Error code %d\n", err);
     }
     
     err = data4.readTag();
-    if(err != BOOL)
+    if(err != pen_parserData::BOOL)
     {
         printf("set8: Error code %d\n", err);
     }
