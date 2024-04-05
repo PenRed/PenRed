@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019-2021 Universitat de València - UV
-#    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2024 Universitat de València - UV
+#    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -30,6 +30,6 @@
 rm -r build
 mkdir build
 cd build
-cmake -DWITH_DICOM="OFF" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DWITH_LB="OFF" -DDEVELOPMENT_WARNINGS="ON" ../
+cmake -DWITH_DICOM="OFF" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DWITH_LB="OFF" ../
 cmake --build . --config Release --target install
 cd ..
