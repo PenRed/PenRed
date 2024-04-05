@@ -65,7 +65,7 @@
 #-----------------------------------------------------------------------------
 #  Pen material creator
 #############################
-if(NOT MSVC)
+if(BUILD_EMBEDDED_DBS)
     # Create read material executable
     add_executable(createMat ${CMAKE_CURRENT_SOURCE_DIR}/createMat.cpp)
 
@@ -77,12 +77,13 @@ if(NOT MSVC)
     TARGETS createMat
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/penMats
     )
-endif(NOT MSVC)
+endif(BUILD_EMBEDDED_DBS)
 
 #-----------------------------------------------------------------------------
 #  Pen material creator from list
 ###################################
 
+if(BUILD_EMBEDDED_DBS)
     # Create read material executable
     add_executable(createListedMat ${CMAKE_CURRENT_SOURCE_DIR}/createListedMat.cpp)
 
@@ -94,4 +95,5 @@ endif(NOT MSVC)
     TARGETS createListedMat
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/penMats
     )
+endif(BUILD_EMBEDDED_DBS)
 

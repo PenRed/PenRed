@@ -36,4 +36,6 @@ target_include_directories(commonDB PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 #############################
 
 # PENELOPE materials
-add_subdirectory(penMaterials)
+if(BUILD_EMBEDDED_DBS)
+    add_subdirectory(penMaterials)
+endif(BUILD_EMBEDDED_DBS)

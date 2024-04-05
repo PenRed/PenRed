@@ -36,12 +36,20 @@ CMAKE_POLICY(SET CMP0054 NEW)
 #-----------------------------------------------------------------------------
 include(CMakeDependentOption)
 
+# Embedded DB options
 if (MSVC)
-  option(WITH_EMBEDDED_DB "Build PenRed with embedded data bases " FALSE)
+  option(BUILD_EMBEDDED_DBS "Build PenRed embedded data bases " FALSE)
 else (MSVC)
-  option(WITH_EMBEDDED_DB "Build PenRed with embedded data bases " ON)
+  option(BUILD_EMBEDDED_DBS "Build PenRed embedded data bases " ON)
 endif (MSVC)
+
+CMAKE_DEPENDENT_OPTION(WITH_EMBEDDED_DB "Build PenRed main programs with embedded data bases " ON
+                       "BUILD_EMBEDDED_DBS" OFF)
+
+#######################
+
 option(WITH_DICOM "Build PenRed DICOM " OFF)
+
 option(WITH_MULTI_THREADING "Build PenRed with multi-threading " ON)
 option(WITH_MPI "Build PenRed with MPI " OFF)
 
@@ -75,7 +83,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # set compiler flags
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
-set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 
 if(BUILD_STATIC)
     #SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
@@ -98,7 +105,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         add_compile_options(-march=native)
   endif (WITH_NATIVE)
 
-  add_compile_options(-Wall -Wpedantic -Wextra -Wshadow -frecord-gcc-switches -Wno-unused-result -Wno-overlength-strings)
+  add_compile_options(-O2 -Wall -Wpedantic -Wextra -Wshadow -frecord-gcc-switches -Wno-unused-result -Wno-overlength-strings)
 
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # using Clang
@@ -107,7 +114,7 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         add_compile_options(-march=native)
   endif (WITH_NATIVE)
 
-  add_compile_options(-Wall -Wpedantic -Wextra -Wshadow -Wc++14-compat -Wc++14-compat-pedantic -Wno-unused-result -Wno-overlength-strings)
+  add_compile_options(-O2 -Wall -Wpedantic -Wextra -Wshadow -Wc++14-compat -Wc++14-compat-pedantic -Wno-unused-result -Wno-overlength-strings)
 
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
   # using Intel C++
@@ -116,7 +123,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         add_compile_options(-xHost)
   endif (WITH_NATIVE)
 
-  add_compile_options(-no-prec-div -fp-model precise -prec-sqrt)
+  add_compile_options(-O2 -no-prec-div -fp-model precise -prec-sqrt)
 
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   # using Visual Studio C++
@@ -125,6 +132,7 @@ endif()
 if (MSVC) 
   # using Visual Studio C++
   add_compile_options(/arch:AVX2)
+  add_compile_options(/O2)
 
   # Disable some warnings
   add_compile_options(/wd4267) #Conversion from size_t to uintn_t, unsigned int or int
