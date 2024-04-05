@@ -36,18 +36,6 @@ CMAKE_POLICY(SET CMP0054 NEW)
 #-----------------------------------------------------------------------------
 include(CMakeDependentOption)
 
-# Embedded DB options
-if (MSVC)
-  option(BUILD_EMBEDDED_DBS "Build PenRed embedded data bases " FALSE)
-else (MSVC)
-  option(BUILD_EMBEDDED_DBS "Build PenRed embedded data bases " ON)
-endif (MSVC)
-
-CMAKE_DEPENDENT_OPTION(WITH_EMBEDDED_DB "Build PenRed main programs with embedded data bases " ON
-                       "BUILD_EMBEDDED_DBS" OFF)
-
-#######################
-
 option(WITH_DICOM "Build PenRed DICOM " OFF)
 
 option(WITH_MULTI_THREADING "Build PenRed with multi-threading " ON)
@@ -98,6 +86,9 @@ endif(BUILD_STATIC)
 
 # Compilation options
 
+# Set if is possible to create embedded DB depending on compiler
+set(ALLOW_EMBEDDED_DB true)
+
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   # using GCC
 
@@ -107,7 +98,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 
   add_compile_options(-O2 -Wall -Wpedantic -Wextra -Wshadow -frecord-gcc-switches -Wno-unused-result -Wno-overlength-strings)
 
-elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
   # using Clang
 
   if (WITH_NATIVE)
@@ -127,10 +118,6 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
 
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   # using Visual Studio C++
-endif()
-
-if (MSVC) 
-  # using Visual Studio C++
   add_compile_options(/arch:AVX2)
   add_compile_options(/O2)
 
@@ -144,19 +131,33 @@ if (MSVC)
   # Check if MPI option has been enabled
   if(WITH_MPI)
 	add_compile_options(/MP) #enable MPI
-  endif(WITH_MPI) 
+  endif(WITH_MPI)
   # Needed for M_PI to be visible in visual studio.
   ADD_DEFINITIONS(-D_USE_MATH_DEFINES)
 
   # Removes the warnings about unsafe methods such as strcpy, std::copy,
   # memcmp, etc.
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE -D_SCL_SECURE_NO_DEPRECATE)
-  
+
   # We need a stack size of 8MB (as it is default on linux)
   # See https://github.com/open62541/open62541/issues/1326
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
-	
-endif(MSVC)
+
+  #Disable embedded DB creation
+  set(ALLOW_EMBEDDED_DB false)
+
+else()
+  #Other compilers
+  add_compile_options(-O2)
+endif()
+
+# Embedded DB options
+CMAKE_DEPENDENT_OPTION(BUILD_EMBEDDED_DBS "Build PenRed embedded data bases " ON
+                       "ALLOW_EMBEDDED_DB" OFF)
+CMAKE_DEPENDENT_OPTION(WITH_EMBEDDED_DB "Build PenRed main programs with embedded data bases " ON
+                       "BUILD_EMBEDDED_DBS" OFF)
+
+#######################
 
 #-----------------------------------------------------------------------------
 
