@@ -70,7 +70,7 @@ CMAKE_DEPENDENT_OPTION(DICOM_KERNELS "Compile DICOM kernels utility" ON
 CMAKE_DEPENDENT_OPTION(MUTREN "Compile mutren" ON
                        "BUILD_UTILITIES" OFF) 
 
-CMAKE_DEPENDENT_OPTION(XRAY "Compile x-ray utilities" ON
+CMAKE_DEPENDENT_OPTION(XRAY "Compile x-ray utilities" OFF
                        "BUILD_UTILITIES;WITH_EMBEDDED_DB" OFF)
 
 CMAKE_DEPENDENT_OPTION(VIEWERS "Compile viewers" ON

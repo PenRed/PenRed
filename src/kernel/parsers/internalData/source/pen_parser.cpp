@@ -616,7 +616,7 @@ void pen_parserElement::stringify(std::string& strout) const{
     array.stringify(strout);
   }
   else if(tag == pen_parserElement::STRING){
-    strout.assign(str);
+    strout.assign("\"" + str + "\"");
   }
 }
 
@@ -931,7 +931,7 @@ void pen_parserSection::stringify(std::string& strout) const{
   elementMap::const_iterator it;
   for(it = elements.begin(); it != elements.end(); it++){
     it->second.stringify(aux);
-    strout += it->first + ": " + aux + '\n';
+    strout += it->first + " " + aux + '\n';
   }
 }
 

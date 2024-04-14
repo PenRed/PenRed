@@ -40,9 +40,39 @@ void printstate(FILE* fout, const pen_particleState& state){
 }
 
 void pen_tallyTracking::tally_beginSim(){
-  fout = fopen("tracking.dat","w");
-  fprintf(fout,"%s\n\n",baseStateHeader());  
+
+  if(debug){
+    fout = fopen("tracking-debug.dat","w");
+    fprintf(fout,"%s\n\n",baseStateHeader());
+  }
+
+  for(size_t i = 0; i < constants::nParTypes; ++i){
+    std::string filename = std::string(particleName(i)) + "-tracks.dat";
+    trackFiles[i] = fopen(filename.c_str(), "w");
+    fprintf(trackFiles[i],"#%s\n",baseStateHeader());
+  }
+  
   active = true;
+  sampledToPrint = false;
+}
+
+void pen_tallyTracking::tally_endSim(const unsigned long long){
+
+  if(debug){
+    if(fout != nullptr){
+      fclose(fout);
+      fout = nullptr;
+    }
+  }
+  
+  for(size_t i = 0; i < constants::nParTypes; ++i){
+    if(trackFiles[i] != nullptr){
+      fclose(trackFiles[i]);
+      trackFiles[i] = nullptr;
+    }
+  }
+
+  active = false;
 }
 
 void pen_tallyTracking::tally_beginPart(const unsigned long long /*nhist*/,
@@ -51,8 +81,21 @@ void pen_tallyTracking::tally_beginPart(const unsigned long long /*nhist*/,
 					const pen_particleState& state){
 
   if(active){
-    fprintf(fout,"#Begin particle simulation of kpar %d:\n",kpar);
-    printstate(fout,state);
+    
+    if(debug){
+      fprintf(fout,"#Begin particle simulation of kpar %d:\n",kpar);
+      printstate(fout,state);
+    }
+
+    //Check if a previous sampled state must be printed
+    if(sampledToPrint){
+      printstate(trackFiles[kpar],auxState);
+      sampledToPrint = false;
+    }
+    
+    //Print particle start position
+    printstate(trackFiles[kpar],state);    
+    
   }
 }
 
@@ -63,24 +106,34 @@ void pen_tallyTracking::tally_sampledPart(const unsigned long long nhist,
 					  const pen_particleState& state){
 
   if(nhist < nhists){
-    
-    if(dhist > 0){
-      fprintf(fout,"#Begin history %llu:\n",nhist);
-      fprintf(fout,"#      kpar -> %d\n",kpar);
-      fprintf(fout,"#X,Y,Z (cm) -> %12.4E, %12.4E, %12.4E \n",
-	      state.X,state.Y,state.Z);
-      fprintf(fout,"#    E (eV) -> %12.4E\n",state.E);
-      printstate(fout,state);
-    } else{
 
-      fprintf(fout,"#Sampled particle in the same history %llu:\n",nhist);
-      fprintf(fout,"#      kpar -> %d\n",kpar);
-      fprintf(fout,"#X,Y,Z (cm) -> %12.4E, %12.4E, %12.4E \n",
-	      state.X,state.Y,state.Z);
-      fprintf(fout,"#    E (eV) -> %12.4E\n",state.E);
-      printstate(fout,state);      
+    if(debug){
+      if(dhist > 0){
+	fprintf(fout,"#Begin history %llu:\n",nhist);
+	fprintf(fout,"#      kpar -> %d\n",kpar);
+	fprintf(fout,"#X,Y,Z (cm) -> %12.4E, %12.4E, %12.4E \n",
+		state.X,state.Y,state.Z);
+	fprintf(fout,"#    E (eV) -> %12.4E\n",state.E);
+	printstate(fout,state);
+      } else{
+
+	fprintf(fout,"#Sampled particle in the same history %llu:\n",nhist);
+	fprintf(fout,"#      kpar -> %d\n",kpar);
+	fprintf(fout,"#X,Y,Z (cm) -> %12.4E, %12.4E, %12.4E \n",
+		state.X,state.Y,state.Z);
+	fprintf(fout,"#    E (eV) -> %12.4E\n",state.E);
+	printstate(fout,state);      
       
+      }
     }
+
+    //Print sample position if it is in void
+    if(state.MAT == 0){
+      //Save state to print it if reach the geometry system
+      auxState = state;
+      sampledToPrint = true;
+    }
+    
   } else{
     active = false;
   }
@@ -93,32 +146,59 @@ void pen_tallyTracking::tally_move2geo(const unsigned long long /*nhist*/,
 				       const double /*dsef*/,
 				       const double /*dstot*/){
 
-  if(active){
+  if(active && debug){
     fprintf(fout,"# Moved to geometry.\n");
     printstate(fout,state);
   }  
 }
 
 void pen_tallyTracking::tally_endPart(const unsigned long long /*nhist*/,
-				    const pen_KPAR /*kpar*/,
+				    const pen_KPAR kpar,
 				    const pen_particleState& state){
   if(active){
-    fprintf(fout,"# Particle simulation ended.\n");
-    printstate(fout,state);
+
+    if(debug){
+      fprintf(fout,"# Particle simulation ended.\n");
+      printstate(fout,state);
+    }
+
+    //Let empty lines to separate particles
+    if(!sampledToPrint){
+      fprintf(trackFiles[kpar], "\n\n");
+    }
+    else{
+      sampledToPrint = false;
+    }
   }
 }
 
 void pen_tallyTracking::tally_step(const unsigned long long /*nhist*/,
-				   const pen_KPAR /*kpar*/,
+				   const pen_KPAR kpar,
 				   const pen_particleState& state,
 				   const tally_StepData& stepData){
   if(active){
-    fprintf(fout,"# Particle moved dsef = %12.4E cm, dstot = %12.4E cm, deSoft = %12.4E eV.\n",stepData.dsef,stepData.dstot,stepData.softDE);
-    fprintf(fout,"# Energy deposited at (%12.4E,%12.4E,%12.4E).\n",
-	    stepData.softX,stepData.softY,stepData.softZ);
-    fprintf(fout,"# Previous IBody: %u, actual IBody: %u\n",
-	    stepData.originIBODY,state.IBODY);
-    printstate(fout,state);
+    if(debug){
+      fprintf(fout,"# Particle moved dsef = %12.4E cm, dstot = %12.4E cm, deSoft = %12.4E eV.\n",
+	      stepData.dsef,stepData.dstot,stepData.softDE);
+      fprintf(fout,"# Energy deposited at (%12.4E,%12.4E,%12.4E).\n",
+	      stepData.softX,stepData.softY,stepData.softZ);
+      fprintf(fout,"# Previous IBody: %u, actual IBody: %u\n",
+	      stepData.originIBODY,state.IBODY);
+      printstate(fout,state);
+    }
+
+    //Check if the particle scapes the geometry system
+    if(state.MAT == 0){
+      //Create a new state moving the particle to the geometry boundary
+      auxState = state;
+      auxState.X = xlast + auxState.U*stepData.dsef;
+      auxState.Y = ylast + auxState.V*stepData.dsef;
+      auxState.Z = zlast + auxState.W*stepData.dsef;
+      printstate(trackFiles[kpar],auxState);
+    }else{
+      //Print state after moving
+      printstate(trackFiles[kpar],state);
+    }
   }
 
 }
@@ -127,7 +207,7 @@ void pen_tallyTracking::tally_interfCross(const unsigned long long /*nhist*/,
 					  const unsigned /*kdet*/,
 					  const pen_KPAR /*kpar*/,
 					  const pen_particleState& /*state*/){
-  if(active){
+  if(active && debug){
     fprintf(fout,"# Particle crossed an interface\n");
   }
 
@@ -138,18 +218,32 @@ void pen_tallyTracking::tally_jump(const unsigned long long /*nhist*/,
 				 const pen_particleState& state,
 				 const double ds){
   if(active){
-    fprintf(fout,"# Particle will jump %12.4Ecm.\n",ds);
-    printstate(fout,state);
+
+    if(debug){
+      fprintf(fout,"# Particle will jump %12.4Ecm.\n",ds);
+      printstate(fout,state);
+    }
+
+    //Save particle last position
+    xlast = state.X;
+    ylast = state.Y;
+    zlast = state.Z;
   }
 }
 
 void pen_tallyTracking::tally_knock(const unsigned long long /*nhist*/,
-				  const pen_KPAR /*kpar*/,
+				  const pen_KPAR kpar,
 				  const pen_particleState& state,
 				  const int icol){
   if(active){
-    fprintf(fout,"# Particle suffers interaction %d.\n",icol);
-    printstate(fout,state);
+    if(debug){
+      fprintf(fout,"# Particle suffers interaction %d.\n",icol);
+      printstate(fout,state);
+    }
+
+    //Print state after interaction
+    printstate(trackFiles[kpar],state);
+
   }
 }
 
@@ -179,8 +273,17 @@ int pen_tallyTracking::configure(const wrapper_geometry& /*geometry*/,
   nhists = static_cast<unsigned long long>(nhistsAux);
   if(verbose > 1){
     printf("Histories to track: %llu\n",nhists);
-  }  
+  }
 
+  //Check if debug file is requested
+  err = config.read("debug", debug);
+  if(err != INTDATA_SUCCESS){
+    debug = false;
+  }else{
+    if(verbose > 1){
+      printf("Tracking debug is %s\n", debug ? "enabled" : "disabled");
+    }
+  }
   
   return 0;
 }

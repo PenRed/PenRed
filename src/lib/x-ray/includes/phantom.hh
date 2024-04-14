@@ -24,45 +24,29 @@
 //    
 //
 
-#ifndef __PEN_X_RAY_COMMON__
-#define __PEN_X_RAY_COMMON__
+#ifndef __PEN_X_RAY_PHANTOM__
+#define __PEN_X_RAY_PHANTOM__
 
-#include "pen_simulation.hh"
+#include "x-ray-common.hh"
+#include <string>
+#include <iostream>
 
 namespace penred{
 
   namespace xray{
 
-    namespace errors{
-      enum errors{
-	SUCCESS = 0,
-	NEGATIVE_DISTANCE,
-	INVALID_Z,
-	INVALID_SIZE,
-	INVALID_DISTANCE,
-	NO_FILTER_PROVIDED,
-	UNABLE_TO_CREATE_MATERIAL,
-	UNABLE_TO_GENERATE_SPECTRUM,
-	ERROR_ON_CONTEXT_INITIALIZATION,
-	ERROR_ON_GEOMETRY_INITIALIZATION,
-	ERROR_UNABLE_TO_OPEN_FILE,
-      };
-    };
+    int simCylPhantom(const char* matFilename,
+		      const double eMin,
+		      const vector3D<double>& isocenter,		      
+		      const double phantomDiam,
+		      const double iso2Detector,
+		      const double detDx, const double detDy,
+		      std::vector<detectedPart>& particlesIn,
+		      const bool onlyPhotons,
+		      const unsigned verbose = 1,
+		      const unsigned threads2Use = 0,
+		      const std::string geoFilename = "");
     
-    using detectedPart = simulation::detectedPart;
-
-    struct preloadGeos{
-      //Get anode geometry file at compile time
-      static constexpr const char* anodeGeoFile = {
-        #include "baseAnode.geo"
-      };
-
-      static constexpr const char* phantomCylGeoFile = {
-        #include "baseCylPhantom.geo"
-      };
-      
-    };
-
   };
 };
 

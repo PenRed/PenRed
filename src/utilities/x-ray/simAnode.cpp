@@ -52,7 +52,7 @@ int main(int argc, char** argv){
   std::vector<penred::xray::detectedPart> results;
   double dReg;
   int err = penred::xray::simAnode(matFilename, beamE, eMin, fs, angle,
-				   nHist, 100000000, dReg, results, true, 2);
+				   nHist, 100000000, dReg, results, 180.0, true, 2);
   if(err != 0){
     printf("Error on anode simulation.\n");
     return -2;

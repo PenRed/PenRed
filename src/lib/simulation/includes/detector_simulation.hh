@@ -49,19 +49,44 @@ namespace penred{
 			  const pen_KPAR kparIn) : state(stateIn),
 						   dh(dhIn),
 						   kpar(kparIn){}
+
+      static int getSpectrum(std::vector<double>& spectrum,
+			     const std::vector<detectedPart>& data,
+			     const double eMin,
+			     const double eMax,
+			     const unsigned nBins,
+			     unsigned long long& nHists);
+
+      static inline int getSpectrum(std::vector<double>& spectrum,
+				    const std::vector<detectedPart>& data,
+				    const unsigned nBins,
+				    unsigned long long& nHists){
+	
+	//Get maximum and minimum energy
+	double maxE = 0.0;
+	double minE = 1.0e35;
+	for(const detectedPart& part : data){
+	  if(maxE < part.state.E)
+	    maxE = part.state.E;
+	  if(minE > part.state.E)
+	    minE = part.state.E;
+	}
+
+	return getSpectrum(spectrum, data, minE, maxE, nBins, nHists);	
+      }      
       
       static int printSpectrum(const std::vector<detectedPart>& data,
 			       const std::string& filename,
 			       const double eMin,
 			       const double eMax,
 			       const unsigned nBins,
-			       unsigned long long nHists = 0);
+			       unsigned long long& nHists);
 
       
       static inline int printSpectrum(const std::vector<detectedPart>& data,
 				      const std::string& filename,
 				      const unsigned nBins,
-				      unsigned long long nHists = 0){
+				      unsigned long long& nHists){
 	
 	//Get maximum and minimum energy
 	double maxE = 0.0;
@@ -74,22 +99,150 @@ namespace penred{
 	}
 
 	return printSpectrum(data, filename, minE, maxE, nBins, nHists);	
+      }      
+
+
+      static int getProfileX(std::vector<double>& profile,
+			     const std::vector<detectedPart>& data,
+			     const unsigned nBins,
+			     const double xMin, const double xMax,
+			     const double yMin, const double yMax,
+			     const double zMin, const double zMax,
+			     unsigned long long& nHists);
+
+      static inline int getProfileX(std::vector<double>& profile,
+				    const std::vector<detectedPart>& data,
+				    const unsigned nBins,
+				    const double yMin, const double yMax,
+				    unsigned long long& nHists){
+	
+	//Get maximum and minimum energy
+	double xMin =  1.0e35;
+	double xMax = -1.0e35;
+	
+	for(const detectedPart& part : data){
+
+	  //X
+	  if(xMax < part.state.X)
+	    xMax = part.state.X;
+	  if(xMin > part.state.X)
+	    xMin = part.state.X;
+	}
+
+	return getProfileX(profile, data, nBins,
+			   xMin, xMax, yMin, yMax,
+			   -1.0e35, 1.0e35, nHists);	
       }
 
+      static int printProfileX(const std::vector<detectedPart>& data,
+			       const std::string& filename,
+			       const unsigned nBins,
+			       const double xMin, const double xMax,
+			       const double yMin, const double yMax,
+			       const double zMin, const double zMax,
+			       unsigned long long& nHists);
 
+      static inline int printProfileX(const std::vector<detectedPart>& data,
+				      const std::string& filename,
+				      const unsigned nBins,
+				      const double yMin, const double yMax,
+				      unsigned long long& nHists){
+	
+	//Get maximum and minimum energy
+	double xMin =  1.0e35;
+	double xMax = -1.0e35;
+	
+	for(const detectedPart& part : data){
+
+	  //X
+	  if(xMax < part.state.X)
+	    xMax = part.state.X;
+	  if(xMin > part.state.X)
+	    xMin = part.state.X;
+	}
+
+	return printProfileX(data, filename, nBins,
+			     xMin, xMax, yMin, yMax,
+			     -1.0e35, 1.0e35, nHists);	
+      }
+
+      static int getProfileY(std::vector<double>& profile,
+			     const std::vector<detectedPart>& data,
+			     const unsigned nBins,
+			     const double xMin, const double xMax,
+			     const double yMin, const double yMax,
+			     const double zMin, const double zMax,
+			     unsigned long long& nHists);
+
+      static inline int getProfileY(std::vector<double>& profile,
+				    const std::vector<detectedPart>& data,
+				    const unsigned nBins,
+				    const double xMin, const double xMax,
+				    unsigned long long& nHists){
+	
+	//Get maximum and minimum energy
+	double yMin =  1.0e35;
+	double yMax = -1.0e35;
+	
+	for(const detectedPart& part : data){
+
+	  //Y
+	  if(yMax < part.state.Y)
+	    yMax = part.state.Y;
+	  if(yMin > part.state.Y)
+	    yMin = part.state.Y;
+	}
+
+	return getProfileY(profile, data, nBins,
+			   xMin, xMax, yMin, yMax,
+			   -1.0e35, 1.0e35, nHists);	
+      }
+
+      static int printProfileY(const std::vector<detectedPart>& data,
+			       const std::string& filename,
+			       const unsigned nBins,
+			       const double xMin, const double xMax,
+			       const double yMin, const double yMax,
+			       const double zMin, const double zMax,
+			       unsigned long long& nHists);
+
+      static inline int printProfileY(const std::vector<detectedPart>& data,
+				      const std::string& filename,
+				      const unsigned nBins,
+				      const double xMin, const double xMax,
+				      unsigned long long& nHists){
+	
+	//Get maximum and minimum energy
+	double yMin =  1.0e35;
+	double yMax = -1.0e35;
+	
+	for(const detectedPart& part : data){
+
+	  //Y
+	  if(yMax < part.state.Y)
+	    yMax = part.state.Y;
+	  if(yMin > part.state.Y)
+	    yMin = part.state.Y;
+	}
+
+	return printProfileY(data, filename, nBins,
+			     xMin, xMax, yMin, yMax,
+			     -1.0e35, 1.0e35, nHists);	
+      }      
+      
       static int printSpatialXY(const std::vector<detectedPart>& data,
 				const std::string& filename,
-				const unsigned nBins,
+				const unsigned nBinsX, const unsigned nBinsY,
 				const double xMin, const double xMax,
 				const double yMin, const double yMax,
-				const double zMin = -1.0e35,
-				const double zMax =  1.0e35,
-				unsigned long long nHists = 0);
+				const double zMin, const double zMax,
+				unsigned long long& nHists);
 
       static inline int printSpatialXY(const std::vector<detectedPart>& data,
 				       const std::string& filename,
-				       const unsigned nBins,
-				       unsigned long long nHists = 0){
+				       const unsigned nBinsX,
+				       const unsigned nBinsY,
+				       unsigned long long& nHists){
 	
 	//Get maximum and minimum energy
 	double xMin =  1.0e35;
@@ -109,13 +262,19 @@ namespace penred{
 	  if(yMax < part.state.Y)
 	    yMax = part.state.Y;
 	  if(yMin > part.state.Y)
-	    yMin = part.state.Y;	  
+	    yMin = part.state.Y;
 	}
 
-	return printSpatialXY(data, filename, nBins,
-			      xMin, xMax, yMin, yMax, nHists);	
+	return printSpatialXY(data, filename, nBinsX, nBinsY,
+			      xMin, xMax, yMin, yMax, -1.0e35, 1.0e35, nHists);	
       }
-      
+
+      static inline int printSpatialXY(const std::vector<detectedPart>& data,
+				       const std::string& filename,
+				       const unsigned nBins,
+				       unsigned long long& nHists){
+	return printSpatialXY(data, filename, nBins, nBins, nHists);		
+      }
     };
 
     template<class stateType, class contextType, class... vrTypes>
@@ -139,7 +298,7 @@ namespace penred{
       //
       
       //Create the tally function
-      unsigned long long lastTalliedHist = 0;
+      unsigned long long lastTalliedHist = 0llu;
       tallyFuncType ftallyFuncs = [&result, &lastTalliedHist]
 	(const pen_particleState& state,
 	 const pen_KPAR kpar,

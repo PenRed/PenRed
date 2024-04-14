@@ -571,7 +571,7 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 
 	//Check it
 	if(transIndex < 0 ||
-	   transIndex > static_cast<int>(transformNames.size())){
+	   transIndex >= static_cast<int>(transformNames.size())){
 	  if(verbose > 0){
 	    printf("pen_meshBodyGeo:configure: Error: Invalid transformation '%s' index"
 		   " for vertex group '%s' in body '%s'.\n"
@@ -693,10 +693,13 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	      printf("UNEXPECTED ERROR: Unable to create generic translation."
 		     " Please, report this.");
 	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
-	    }	    
+	    }
 	  }
 	}
 	else if(transType.compare("SCALE")   == 0 ||
+		transType.compare("SCALE_X") == 0 ||
+		transType.compare("SCALE_Y") == 0 ||
+		transType.compare("SCALE_Z") == 0 ||
 		transType.compare("SCALE_XY") == 0 ||
 		transType.compare("SCALE_XZ") == 0 ||
 		transType.compare("SCALE_YZ") == 0){
@@ -716,7 +719,28 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	  }
 
 	  //Check which scale transform is
-	  if(transType.compare("SCALE_XY") == 0){
+	  if(transType.compare("SCALE_X") == 0){
+	    if(transG.setScaleX(transIndex, f) != 0){
+	      printf("UNEXPECTED ERROR: Unable to create scale transform on X axis."
+		     " Please, report this.");
+	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	    }
+	  }
+	  else if(transType.compare("SCALE_Y") == 0){
+	    if(transG.setScaleY(transIndex, f) != 0){
+	      printf("UNEXPECTED ERROR: Unable to create scale transform on Y axis."
+		     " Please, report this.");
+	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	    }
+	  }
+	  else if(transType.compare("SCALE_Z") == 0){
+	    if(transG.setScaleZ(transIndex, f) != 0){
+	      printf("UNEXPECTED ERROR: Unable to create scale transform on Z axis."
+		     " Please, report this.");
+	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	    }
+	  }
+	  else if(transType.compare("SCALE_XY") == 0){
 	    if(transG.setScaleXY(transIndex, f) != 0){
 	      printf("UNEXPECTED ERROR: Unable to create scale transform on XY plane."
 		     " Please, report this.");

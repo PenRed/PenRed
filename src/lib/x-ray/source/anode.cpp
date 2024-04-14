@@ -31,11 +31,6 @@ namespace penred{
 
   namespace xray{
 
-    //Get anode geometry file at compile time
-    const char* preloadGeos::anodeGeoFile = {
-#include "baseAnode.geo"
-    };
-
     void runAnodeSimulation(const unsigned long long nHists,
 			    const unsigned long long maxParticles,
 			    const double Einit,

@@ -38,8 +38,14 @@ class pen_tallyTracking : public pen_genericTally<pen_particleState> {
 
 private:
   FILE* fout;
+  std::array<FILE*, constants::nParTypes> trackFiles;
   unsigned long long nhists;
   bool active;
+  bool debug;
+
+  double xlast, ylast, zlast;
+  bool sampledToPrint;
+  pen_particleState auxState;
 public:
 
   pen_tallyTracking() : pen_genericTally( USE_BEGINSIM |
@@ -50,14 +56,20 @@ public:
 					  USE_STEP |
 					  USE_INTERFCROSS |
 					  USE_JUMP |
-					  USE_KNOCK),
+					  USE_KNOCK |
+					  USE_ENDSIM),
 			fout(nullptr),
 			nhists(0),
-			active(true)
+			active(true),
+			debug(false),
+			sampledToPrint(false)
   {}
   
   
   void tally_beginSim();
+
+  void tally_endSim(const unsigned long long /*nhist*/);
+  
   void tally_beginPart(const unsigned long long /*nhist*/,
 		       const unsigned /*kdet*/,
 		       const pen_KPAR kpar,
