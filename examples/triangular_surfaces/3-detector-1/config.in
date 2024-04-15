@@ -141,9 +141,9 @@ geometry/kdet/Cylinder  1
 
 materials/NaI/number 1
 
-materials/NaI/eabs_e- 5.0e4
-materials/NaI/eabs_e+ 5.0e4
-materials/NaI/eabs_gamma 5.0e3
+materials/NaI/eabs/electron 5.0e4
+materials/NaI/eabs/positron 5.0e4
+materials/NaI/eabs/gamma 5.0e3
 
 materials/NaI/C1 0.1
 materials/NaI/C2 0.1
@@ -155,9 +155,9 @@ materials/NaI/filename "NaI.mat"
 
 materials/Fe/number 2
 
-materials/Fe/eabs_e- 5.0e4
-materials/Fe/eabs_e+ 5.0e4
-materials/Fe/eabs_gamma 5.0e3
+materials/Fe/eabs/electron 5.0e4
+materials/Fe/eabs/positron 5.0e4
+materials/Fe/eabs/gamma 5.0e3
 
 materials/Fe/C1 0.1
 materials/Fe/C2 0.1
@@ -169,9 +169,9 @@ materials/Fe/filename "Fe.mat"
 
 materials/Void/number 3
 
-materials/Void/eabs_e- 5.0e4
-materials/Void/eabs_e+ 5.0e4
-materials/Void/eabs_gamma 5.0e3
+materials/Void/eabs/electron 5.0e4
+materials/Void/eabs/positron 5.0e4
+materials/Void/eabs/gamma 5.0e3
 
 materials/Void/C1 0.1
 materials/Void/C2 0.1
@@ -187,5 +187,5 @@ materials/Void/filename "void.mat"
 #########################
 
 
-simulation/threads 4
-simulation/dump-interval 3600
+simulation/threads 2
+simulation/max-time 600

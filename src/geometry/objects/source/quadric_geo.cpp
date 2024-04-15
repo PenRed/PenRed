@@ -255,17 +255,18 @@ int pen_quadricGeo::configure(const pen_parserSection& config, const unsigned ve
     }
   }
 
-  // Load Absortion Energies
+  // Load Absorption Energies
   //*************************
   bodiesAlias.clear();
   err = config.ls("eabs",bodiesAlias);
   if(err != INTDATA_SUCCESS){
     if(verbose > 1){
-      printf("No absortion energies specified for any body\n");
+      printf("No absorption energies specified for any body\n");
     }
   }
   else{
-    printf("Absortion energies specified for %lu bodies:\n\n",bodiesAlias.size());
+    printf("Absorption energies specified for %lu bodies:\n\n",
+	   bodiesAlias.size());
     for(unsigned i = 0; i < bodiesAlias.size(); i++){
       std::string key("eabs/");      
       key += bodiesAlias[i];
@@ -298,14 +299,19 @@ int pen_quadricGeo::configure(const pen_parserSection& config, const unsigned ve
 	  err = config.read(key2,eabs);
 	  if(err != INTDATA_SUCCESS){
 	    if(verbose > 0){
-	      printf("pen_quadricGeo:configure: Error reading energy absortion at field '%s'. Double expected.\n",key2.c_str());
+	      printf("pen_quadricGeo:configure: Error reading energy "
+		     "absorption at field '%s'. Double expected.\n",
+		     key2.c_str());
 	    }
 	    return PEN_QUAD_GEO_BAD_READ_EABS;
 	  }
 
 	  if(eabs <= 0.0){
 	    if(verbose > 0){
-	      printf("pen_quadricGeo:configure: Error: Invalid energy absortion %12.4E for body '%s' particle '%s'. Must be greater than zero.\n",eabs,bodiesAlias[i].c_str(),particleNames[j].c_str());
+	      printf("pen_quadricGeo:configure: Error: Invalid energy "
+		     "absorption %12.4E for body '%s' particle '%s'. "
+		     "Must be greater than zero.\n",
+		     eabs,bodiesAlias[i].c_str(),particleNames[j].c_str());
 	    }
 	    return PEN_QUAD_GEO_INVALID_EABS;
 	  }

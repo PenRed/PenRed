@@ -31,19 +31,16 @@ namespace penred{
 
   namespace xray{
 
-    //Get anode geometry file at compile time
-    const char* preloadGeos::anodeGeoFile = {
-#include "baseAnode.geo"
-    };
-
-    void simulate(const unsigned long long nHists,
-		  const double Einit,
-		  const double beamRad,
-		  const pen_context& context,
-		  const pen_VRCluster<pen_state_gPol>& photonVR,
-		  std::vector<detectedPart>& results,
-		  int& seed1, int& seed2,
-		  const bool onlyPhotons){
+    void runAnodeSimulation(const unsigned long long nHists,
+			    const unsigned long long maxParticles,
+			    const double Einit,
+			    const double beamRad,
+			    const pen_context& context,
+			    const pen_VRCluster<pen_state_gPol>& photonVR,
+			    std::vector<detectedPart>& results,
+			    int& seed1, int& seed2,
+			    const double colAngle,
+			    const bool onlyPhotons){
 
       //Constants
       constexpr double pi = 3.141592653589793;
@@ -87,36 +84,51 @@ namespace penred{
       //Init last history registered counter
       unsigned long long lastHist = 0;
 
+      //Calculate maximum deviation. Note that scoring particles
+      //come with -Z direction
+      const double colAngleRad = colAngle*pi/180.0;
+      const double minW = -cos(colAngleRad);
+      
       //Define scoring function
-      simulation::simFuncType f;
+      simulation::tallyFuncType f;
       if(onlyPhotons){
-	f = [&hist, &lastHist, &results](const pen_particleState& state,
-					 const pen_KPAR kpar,
-					 const int val){
+	f = [&hist, &lastHist, &results, minW]
+	  (const pen_particleState& state,
+	   const pen_KPAR kpar,
+	   const unsigned long long,
+	   const int val){
 	  if(val == 1){
 	    if(kpar == PEN_PHOTON){
+
+	      if(state.W < minW){ //Note that scoring particles has W < 0	      
+		results.emplace_back(state,
+				     hist-lastHist,
+				     kpar);
+		lastHist = hist;
+	      }
+	    }
+	  }
+	};
+      }else{
+	f = [&hist, &lastHist, &results, minW]
+	  (const pen_particleState& state,
+	   const pen_KPAR kpar,
+	   const unsigned long long,
+	   const int val){
+	  if(val == 1){
+	    if(state.W < minW){ //Note that scoring particles has W < 0	      
+	    
 	      results.emplace_back(state,
 				   hist-lastHist,
 				   kpar);
 	      lastHist = hist;
 	    }
 	  }
-	};
-      }else{
-	f = [&hist, &lastHist, &results](const pen_particleState& state,
-					 const pen_KPAR kpar,
-					 const int val){
-	  if(val == 1){
-	    results.emplace_back(state,
-				 hist-lastHist,
-				 kpar);
-	    lastHist = hist;
-	  }
 	};	
       }
       
       //Simulation loop
-      while(hist < nHists){
+      while(hist < nHists && results.size() < maxParticles){
 
 	//Increase history counter
 	++hist;
@@ -149,8 +161,10 @@ namespace penred{
 		 const double focalSpot,
 		 const double angle,
 		 const unsigned long long nHists,
+		 const unsigned long long maxParticles,
 		 double& dReg,
 		 std::vector<detectedPart>& results,
+		 const double colAngle,
 		 const bool onlyPhotons,
 		 const unsigned verbose,
 		 const unsigned threads2Use){
@@ -166,6 +180,7 @@ namespace penred{
       // focalSpot   : Anode effective focal spot
       // angle       : Anode angle in deg
       // nHists      : Number of histories to simulate
+      // colAngle    : Collimation angle in Deg. Particles with a direction angle (compared with -Z) greater than the specified value will be ignored
       // onlyPhotons : Flags if only photons, or all particles, must be registered 
       //
       // Output:
@@ -261,58 +276,64 @@ namespace penred{
       dReg = 0.6;
 
       if(verbose > 1){
-	printf("          x-ray kvp : %15.5E\n"
-	       "Efective focal spot : %.4f\n"
-	       "  Anode angle (Deg) : %.4f\n"
-	       "   Histories to sim : %llu\n",
-	       eEnergy/1000.0, focalSpot, angle,nHists);
+	printf("          x-ray kvp    : %.2f\n"
+	       "Minimum tallied energy : %.2f keV\n"
+	       "Efective focal spot    : %.4f\n"
+	       "  Anode angle (Deg)    : %.4f\n"
+	       "   Histories to sim    : %llu\n",
+	       eEnergy/1000.0, eMin/1000.0, focalSpot, angle,nHists);
       }
 
       // ** Create simulation context  
       //*******************************
-
-      //Create elements data base
-      pen_elementDataBase* elementsDBsim = new pen_elementDataBase;
   
       //Create a context
-      pen_context contextSim(*elementsDBsim);
+      pen_context contextSim;
 
-      // ** Materials 
-      //***************
+      //Create context configuration
+      pen_parserSection contextConf;
+      contextConf.set("context-log", "context-simAnode.rep");
 
-      //Create a single material in the context
-      int errmat = contextSim.setMats<pen_material>(1);
-      if(errmat != 0){
-	if(verbose > 0)
-	  printf("simAnode: Error: Unable to create simulation context materials: %d.\n",errmat);
-	return -2;
-      }
+      //Materials
+      contextConf.set("materials/anode/number", 1);
+      contextConf.set("materials/anode/eabs/electron", eMin);
+      contextConf.set("materials/anode/eabs/positron", eMin);
+      contextConf.set("materials/anode/eabs/gamma", eMin);
+      contextConf.set("materials/anode/C1", 0.05);
+      contextConf.set("materials/anode/C2", 0.05);
+      contextConf.set("materials/anode/WCC", std::min(5e3,eEnergy/100.0));
+      contextConf.set("materials/anode/WCR", std::min(5e3,eEnergy/100.0));
+      contextConf.set("materials/anode/filename", matFilename);
 
-      //Get the reference to the anode material
-      pen_material& mat = contextSim.getBaseMaterial(0);
+      //VR
+      contextConf.set("VR/IForcing/bremss/particle", "electron");
+      contextConf.set("VR/IForcing/bremss/interaction", BETAe_HARD_BREMSSTRAHLUNG);
+      contextConf.set("VR/IForcing/bremss/factor", 400);
+      contextConf.set("VR/IForcing/bremss/min-weight", 0.1);
+      contextConf.set("VR/IForcing/bremss/max-weight", 2.0);
+      contextConf.set("VR/IForcing/bremss/bodies/anode", true);
 
-      //Set material parameters
-      mat.C1  = 0.05;
-      mat.C2  = 0.05;
-      mat.WCC = std::min(5e3,eEnergy/100.0);
-      mat.WCR = std::min(5e3,eEnergy/100.0);
+      contextConf.set("VR/IForcing/innerShell/particle", "electron");
+      contextConf.set("VR/IForcing/innerShell/interaction", BETAe_HARD_INNER_SHELL);
+      contextConf.set("VR/IForcing/innerShell/factor", 400);
+      contextConf.set("VR/IForcing/innerShell/min-weight", 0.1);
+      contextConf.set("VR/IForcing/innerShell/max-weight", 2.0);
+      contextConf.set("VR/IForcing/innerShell/bodies/anode", true);
 
-      mat.EABS[PEN_ELECTRON] = eMin;
-      mat.EABS[PEN_POSITRON] = eMin;
-      mat.EABS[PEN_PHOTON]   = eMin;
+      contextConf.set("VR/bremss/split4/splitting", 4);
+      contextConf.set("VR/bremss/split4/bodies/anode", true);      
 
       // ** Init context
       //********************
-      std::string simMatFilePaths[constants::MAXMAT];
-      simMatFilePaths[0].assign(matFilename);
-  
-      FILE* fcontext = fopen("context-simAnode.rep", "w");
-      if(contextSim.init(eEnergy,fcontext,verbose,simMatFilePaths) != PEN_SUCCESS){
-	fclose(fcontext);
-	printf("simAnode: Error at simulation context initialization. See context report.\n");
+      pen_parserSection matInfo;
+      if(contextSim.configure(eEnergy,
+			      contextConf,
+			      matInfo,
+			      verbose) != pen_context::SUCCESS){
+	printf("simAnode: Error at simulation context initialization. "
+	       "See context report.\n");
 	return -3;
       }
-      fclose(fcontext);
 
       // ** Geometry
       //**************
@@ -370,7 +391,8 @@ namespace penred{
       //Configure geometry
       if(geometry->configure(config,verbose) != PEN_MESHBODY_GEO_SUCCESS){
 	if(verbose > 0){
-	  printf("Unexpected Error: Unable to construct the geometry. Please, report this error\n");
+	  printf("Unexpected Error: Unable to construct the geometry. "
+		 "Please, report this error\n");
 	}
 	delete geometry;
 	return -4;
@@ -379,11 +401,13 @@ namespace penred{
       //Set the geometry to the simulation context
       contextSim.setGeometry(geometry);
 
-      //Update eabs information
-      contextSim.updateEABS();
-
-      //Get anode body
-      unsigned anodeIndex = geometry->getIBody("anode");
+      //Run context configuration step with geometry
+      if(contextSim.configureWithGeo(contextConf,
+				     verbose) != pen_context::SUCCESS){
+	printf("simAnode: Error at simulation context initialization with geometry. "
+	       "Report this error.\n");
+	return -5;
+      }
 
       // ** Convigure VR
       //*******************
@@ -391,7 +415,7 @@ namespace penred{
       //x-ray splitting
       pen_parserSection configVRsplitting;
       configVRsplitting.set("x-ray/type", "XRAY_SPLITTING");
-      configVRsplitting.set("x-ray/anode/splitting", 4);
+      configVRsplitting.set("x-ray/bodies/anode/splitting", 4);
 
       pen_VRCluster<pen_state_gPol> photonVR;
       photonVR.name.assign("Photon-VR");
@@ -402,15 +426,6 @@ namespace penred{
 	delete geometry;
 	return -5;
       }
-
-      //Set interaction forcing to force x-ray production
-      contextSim.setForcing(100, PEN_ELECTRON,
-			    BETAe_HARD_BREMSSTRAHLUNG,
-			    anodeIndex, 0.1, 2);
-
-      contextSim.setForcing(100, PEN_ELECTRON,
-			    BETAe_HARD_INNER_SHELL,
-			    anodeIndex, 0.1, 2);
       
       // ** Configure seeds
       //**********************
@@ -434,14 +449,16 @@ namespace penred{
 #ifdef _PEN_USE_THREADS_
       std::vector<std::thread> threads;
       for(size_t ith = 0; ith < nThreads; ++ith){
-	threads.emplace_back(simulate,
+	threads.emplace_back(runAnodeSimulation,
 			     nHists/nThreads,
+			     maxParticles/nThreads+1,
 			     eEnergy,
 			     beamRad,
 			     std::ref(contextSim),
 			     std::ref(photonVR),
 			     std::ref(localResults[ith]),
 			     std::ref(seeds1[ith]), std::ref(seeds2[ith]),
+			     colAngle,
 			     onlyPhotons);
       }
 
@@ -454,11 +471,15 @@ namespace penred{
       }
 #else
       //Simulate using a single thread
-      simulate(nHists, eEnergy, beamRad, context, photonVR,
-	       results, seeds1[0], seeds2[0], onlyPhotons);
+      runAnodeSimulation(nHists, maxParticles,
+			 eEnergy, beamRad, context, photonVR,
+			 results, seeds1[0], seeds2[0],
+			 colAngle,
+			 onlyPhotons);
 #endif
       delete geometry;
       return 0;
     }
+
   };
 };

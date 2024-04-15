@@ -210,12 +210,13 @@ int main()
   //Declare random generator
   pen_rand randoms;
   
-  //Create elements data base
-  pen_elementDataBase elementsDB;
   
   //Create a context
-  pen_context context(elementsDB);
+  pen_context context;
 
+  //Create elements data base
+  pen_elementDataBase elementsDB = context.getElementDB();
+  
   //Add material to context
   int errmat = context.setMats<pen_material>(1);
   if(errmat != 0)

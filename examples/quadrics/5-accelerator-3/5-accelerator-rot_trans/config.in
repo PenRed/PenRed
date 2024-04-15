@@ -104,21 +104,19 @@ tallies/ImpactDetector3/linearScale-spc true
 #  VARIANCE REDUCTION   #
 #########################
 
-VR/IForcing/bodies/VR1/body "4"
-VR/IForcing/bodies/VR1/particle "gamma"
-VR/IForcing/bodies/VR1/interaction 1
-VR/IForcing/bodies/VR1/factor 50.0
-VR/IForcing/bodies/VR1/min-weight 0.01
-VR/IForcing/bodies/VR1/max-weight 5.0
+VR/IForcing/VR1/particle "gamma"
+VR/IForcing/VR1/interaction 1
+VR/IForcing/VR1/factor 50.0
+VR/IForcing/VR1/min-weight 0.01
+VR/IForcing/VR1/max-weight 5.0
+VR/IForcing/VR1/bodies/4 true
 
-
-VR/IForcing/bodies/VR2/body "4"
-VR/IForcing/bodies/VR2/particle "gamma"
-VR/IForcing/bodies/VR2/interaction 2
-VR/IForcing/bodies/VR2/factor 50.0
-VR/IForcing/bodies/VR2/min-weight 0.01
-VR/IForcing/bodies/VR2/max-weight 5.0
-
+VR/IForcing/VR2/particle "gamma"
+VR/IForcing/VR2/interaction 2
+VR/IForcing/VR2/factor 50.0
+VR/IForcing/VR2/min-weight 0.01
+VR/IForcing/VR2/max-weight 5.0
+VR/IForcing/VR2/bodies/4 true
 
 #########################
 #  GEOMETRY PARAMETERS  #
@@ -138,9 +136,9 @@ geometry/kdet/13  3
 
 materials/wol/number 1
 
-materials/wol/eabs_e- 1.0e5
-materials/wol/eabs_gamma 1.0e4
-materials/wol/eabs_e+ 1.0e5
+materials/wol/eabs/electron 1.0e5
+materials/wol/eabs/gamma 1.0e4
+materials/wol/eabs/positron 1.0e5
 
 materials/wol/C1 0.1
 materials/wol/C2 0.1
@@ -153,9 +151,9 @@ materials/wol/filename "W.mat"
 
 materials/wol1/number 2
 
-materials/wol1/eabs_e- 1.0e5
-materials/wol1/eabs_gamma 1.0e4
-materials/wol1/eabs_e+ 1.0e5
+materials/wol1/eabs/electron 1.0e5
+materials/wol1/eabs/gamma 1.0e4
+materials/wol1/eabs/positron 1.0e5
 
 materials/wol1/C1 0.2
 materials/wol1/C2 0.2
@@ -169,9 +167,9 @@ materials/wol1/filename "W.mat"
 
 materials/air/number 3
 
-materials/air/eabs_e- 1.0e5
-materials/air/eabs_gamma 1.0e4
-materials/air/eabs_e+ 1.0e5
+materials/air/eabs/electron 1.0e5
+materials/air/eabs/gamma 1.0e4
+materials/air/eabs/positron 1.0e5
 
 materials/air/C1 0.2
 materials/air/C2 0.2
@@ -183,9 +181,9 @@ materials/air/filename "Air.mat"
 
 materials/water/number 4
 
-materials/water/eabs_e- 1.0e5
-materials/water/eabs_gamma 1.0e4
-materials/water/eabs_e+ 1.0e5
+materials/water/eabs/electron 1.0e5
+materials/water/eabs/gamma 1.0e4
+materials/water/eabs/positron 1.0e5
 
 materials/water/C1 0.2
 materials/water/C2 0.2
@@ -196,11 +194,9 @@ materials/water/WCR 2.0e3
 materials/water/filename "H2O.mat"
 
 
-
-
 #########################
 # SIMULATION PARAMETERS #
 #########################
 
-simulation/threads 5
-simulation/dump-interval 3600
+simulation/threads 2
+simulation/max-time 600

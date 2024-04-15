@@ -35,7 +35,7 @@
 #  Source 1
 #########################
 
-sources/generic/source1/nhist __NHISTS__
+sources/generic/source1/nhist 1.0e9
 sources/generic/source1/kpar "gamma"
 
 # Directional sampling
@@ -165,9 +165,9 @@ geometry/kdet/3  3
 
 materials/water/number 1
 
-materials/water/eabs_e- 5.0e4
-materials/water/eabs_e+ 5.0e4
-materials/water/eabs_gamma 1.0e4
+materials/water/eabs/electron 5.0e4
+materials/water/eabs/positron 5.0e4
+materials/water/eabs/gamma 1.0e4
 
 materials/water/C1 0.10
 materials/water/C2 0.10
@@ -180,9 +180,9 @@ materials/water/filename "water.mat"
 
 materials/al/number 2
 
-materials/al/eabs_e- 5.0e4
-materials/al/eabs_e+ 5.0e4
-materials/al/eabs_gamma 1.0e4
+materials/al/eabs/electron 5.0e4
+materials/al/eabs/positron 5.0e4
+materials/al/eabs/gamma 1.0e4
 
 materials/al/C1 0.10
 materials/al/C2 0.10
@@ -195,9 +195,9 @@ materials/al/filename "Al.mat"
 
 materials/water1/number 3
 
-materials/water1/eabs_e- 5.0e4
-materials/water1/eabs_e+ 5.0e4
-materials/water1/eabs_gamma 1.0e4
+materials/water1/eabs/electron 5.0e4
+materials/water1/eabs/positron 5.0e4
+materials/water1/eabs/gamma 1.0e4
 
 materials/water1/C1 0.10
 materials/water1/C2 0.10
@@ -212,5 +212,5 @@ materials/water1/filename "water.mat"
 # SIMULATION PARAMETERS #
 #########################
 
-simulation/threads __NTHREADS__
-simulation/dump-interval __DUMPTIME__
+simulation/threads 2
+simulation/max-time 600

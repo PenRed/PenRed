@@ -28,11 +28,14 @@
 //    
 //
 
-#include "pen_simulation.hh"
+#include "base_simulation_functions.hh"
 
 namespace penred{
 
   namespace simulation{
+
+    //End line defition
+    constexpr simConfig::Endl simConfig::endl;
 
     simConfig::simConfig() :
       iSeed1(1), iSeed2(1),

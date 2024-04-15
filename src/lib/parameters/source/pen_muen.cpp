@@ -1,8 +1,8 @@
  
 //
 //
-//    Copyright (C) 2023 Universitat de València - UV
-//    Copyright (C) 2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2023-2024 Universitat de València - UV
+//    Copyright (C) 2023-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -73,12 +73,9 @@ int pen_muen::calculate(const double Emin,
   //Configure dummy geometry
   pen_parserSection dummySection;
   geometry.configure(dummySection,2);
-  
-  //Create elements data base
-  pen_elementDataBase* elementsDB = new pen_elementDataBase;
-  
+    
   //Create a context
-  pen_context context(*elementsDB);
+  pen_context context;
 
   //Set context geometry
   context.setGeometry(&geometry);
@@ -282,12 +279,9 @@ int pen_muen::calculate(const char** energySpectrums,
   //Configure dummy geometry
   pen_parserSection dummySection;
   geometry.configure(dummySection,2);
-  
-  //Create elements data base
-  pen_elementDataBase* elementsDB = new pen_elementDataBase;
-  
+    
   //Create a context
-  pen_context context(*elementsDB);
+  pen_context context;
 
   //Set context geometry
   context.setGeometry(&geometry);
@@ -550,9 +544,9 @@ double pen_muen::simulate(const pen_context& context,
   double DSMAX = 1.0e20;
 
   double EDPT = 0.0;
-  double ETRT = 0.0;
+  //double ETRT = 0.0;
   double EDPT2 = 0.0;
-  double ETRT2 = 0.0;
+  //double ETRT2 = 0.0;
     
   //Create timers
   long long int mili2finish = static_cast<long long int>(simTime)*1000;
@@ -586,7 +580,7 @@ double pen_muen::simulate(const pen_context& context,
     }while(icol == GAMMA_DELTA);
 
     double EDP = E0 - state.E;
-    double ETR = EDP;
+    //double ETR = EDP;
 
     pen_state_gPol auxGammaState;
     bool continueSim = true;
@@ -599,7 +593,7 @@ double pen_muen::simulate(const pen_context& context,
 	continueSim = true;
 	stackG.get(auxGammaState);
 	EDP -= auxGammaState.E;
-	if(auxGammaState.ILB[0] == 2) ETR -= auxGammaState.E;
+	//if(auxGammaState.ILB[0] == 2) ETR -= auxGammaState.E;
       }
 
       //Count electrons
@@ -649,7 +643,7 @@ double pen_muen::simulate(const pen_context& context,
 
     //Add history results to global counters
     EDPT += EDP;  EDPT2 += EDP*EDP;
-    ETRT += ETR;  ETRT2 += ETR*ETR;
+    //ETRT += ETR;  ETRT2 += ETR*ETR;
 
     //Ensure a minimum number of histories
     if(nhist < minHists)

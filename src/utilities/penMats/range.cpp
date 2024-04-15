@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2021 Universitat de València - UV
-//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2024 Universitat de València - UV
+//    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -69,10 +69,8 @@ int main(int argc, char** argv)
   // Configure context
   //*********************
 
-  //Create elements data base
-  pen_elementDataBase elements;
   //Create a context
-  pen_context context(elements);
+  pen_context context;
 
   //Set the number of materials to context (1)
   int errmat = context.setMats<pen_material>(1);

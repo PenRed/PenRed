@@ -79,11 +79,8 @@ int main(int argc, const char** argv){
   pen_parserSection dummySection;
   geometry.configure(dummySection,2);
   
-  //Create elements data base
-  pen_elementDataBase* elementsDB = new pen_elementDataBase;
-  
   //Create a context
-  pen_context context(*elementsDB);
+  pen_context context;
 
   //Set context geometry
   context.setGeometry(&geometry);

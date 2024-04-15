@@ -35,7 +35,7 @@
 #  Source 1
 #########################
 
-sources/generic/source1/nhist 1.0e5
+sources/generic/source1/nhist 1.0e9
 sources/generic/source1/kpar "electron"
 
 # Directional sampling
@@ -135,22 +135,22 @@ tallies/AngularDetector/linearScale true
 #  VARIANCE REDUCTION   #
 #########################
 
-VR/IForcing/bodies/BremssIF/body "disc"
-VR/IForcing/bodies/BremssIF/particle "electron"
-VR/IForcing/bodies/BremssIF/interaction 2
-VR/IForcing/bodies/BremssIF/factor 2000
-VR/IForcing/bodies/BremssIF/min-weight 0.1
-VR/IForcing/bodies/BremssIF/max-weight 2
+VR/IForcing/BremssIF/particle "electron"
+VR/IForcing/BremssIF/interaction 2
+VR/IForcing/BremssIF/factor 2000
+VR/IForcing/BremssIF/min-weight 0.1
+VR/IForcing/BremssIF/max-weight 2
+VR/IForcing/BremssIF/bodies/disc true
 
+VR/IForcing/x-rayIF/particle "electron"
+VR/IForcing/x-rayIF/interaction 3
+VR/IForcing/x-rayIF/factor 200
+VR/IForcing/x-rayIF/min-weight 0.1
+VR/IForcing/x-rayIF/max-weight 2
+VR/IForcing/x-rayIF/bodies/disc true
 
-VR/IForcing/bodies/x-rayIF/body "disc"
-VR/IForcing/bodies/x-rayIF/particle "electron"
-VR/IForcing/bodies/x-rayIF/interaction 3
-VR/IForcing/bodies/x-rayIF/factor 200
-VR/IForcing/bodies/x-rayIF/min-weight 0.1
-VR/IForcing/bodies/x-rayIF/max-weight 2
-
-VR/bremss/bodies/disc/splitting 2
+VR/bremss/split2/splitting 2
+VR/bremss/split2/bodies/disc true
 
 VR/photon/x-ray/type "XRAY_SPLITTING"
 VR/photon/x-ray/bodies/disc/splitting 2
@@ -172,9 +172,9 @@ geometry/kdet/disc  1
 
 materials/cu/number 1
 
-materials/cu/eabs_e- 1.0e3
-materials/cu/eabs_e+ 1.0e3
-materials/cu/eabs_gamma 1.0e3
+materials/cu/eabs/electron 1.0e3
+materials/cu/eabs/positron 1.0e3
+materials/cu/eabs/gamma 1.0e3
 
 materials/cu/C1 0.05
 materials/cu/C2 0.05
@@ -190,5 +190,5 @@ materials/cu/filename "Cu.mat"
 # SIMULATION PARAMETERS #
 #########################
 
-simulation/threads 4
-simulation/dump-interval 1.0e35
+simulation/threads 2
+simulation/max-time 600

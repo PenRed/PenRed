@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019-2023 Universitat de València - UV
-#    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2024 Universitat de València - UV
+#    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -36,8 +36,8 @@ CMAKE_POLICY(SET CMP0054 NEW)
 #-----------------------------------------------------------------------------
 include(CMakeDependentOption)
 
-option(DEVELOPMENT_WARNINGS "Compile with extra warnings for development " OFF)
 option(WITH_DICOM "Build PenRed DICOM " OFF)
+
 option(WITH_MULTI_THREADING "Build PenRed with multi-threading " ON)
 option(WITH_MPI "Build PenRed with MPI " OFF)
 
@@ -58,14 +58,19 @@ option(BUILD_STATIC "Enable static compilation" OFF)
 mark_as_advanced(FORCE BUILD_STATIC)
 option(BUILD_C_BINDS "Compile C binds" OFF)
 mark_as_advanced(FORCE BUILD_C_BINDS)
-option(WITH_DEBUG "Compile with debug flag" OFF)
-mark_as_advanced(WITH_DEBUG)
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
 # Project name
 project(PenRed LANGUAGES CXX)
 #-----------------------------------------------------------------------------
+
+# specify the C++ standard
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+# set compiler flags
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
 
 if(BUILD_STATIC)
     #SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
@@ -81,9 +86,8 @@ endif(BUILD_STATIC)
 
 # Compilation options
 
-if (WITH_DEBUG)
-	add_compile_options(-g)
-endif(WITH_DEBUG)
+# Set if is possible to create embedded DB depending on compiler
+set(ALLOW_EMBEDDED_DB true)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   # using GCC
@@ -92,24 +96,16 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         add_compile_options(-march=native)
   endif (WITH_NATIVE)
 
-  if (DEVELOPMENT_WARNINGS)
-  	add_compile_options(-std=c++11 -Wall -Wpedantic -Wextra -Wshadow -O2 -Wno-unused-result -Wno-deprecated-copy -frecord-gcc-switches)
-  else (DEVELOPMENT_WARNINGS)
-	add_compile_options(-std=c++11 -Wall -O2 -frecord-gcc-switches)
-  endif (DEVELOPMENT_WARNINGS)
+  add_compile_options(-O2 -Wall -Wpedantic -Wextra -Wshadow -frecord-gcc-switches -Wno-unused-result -Wno-overlength-strings)
 
-elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
   # using Clang
 
   if (WITH_NATIVE)
         add_compile_options(-march=native)
   endif (WITH_NATIVE)
 
-  if (DEVELOPMENT_WARNINGS)
-  	add_compile_options(-std=c++11 -Wall -Wpedantic -Wextra -Wshadow -Wc++11-compat -Wc++11-compat-pedantic -O2 -Wno-unused-result -Wno-deprecated-copy)
-  else (DEVELOPMENT_WARNINGS)
-	add_compile_options(-std=c++11 -Wall -O2)
-  endif (DEVELOPMENT_WARNINGS)
+  add_compile_options(-O2 -Wall -Wpedantic -Wextra -Wshadow -Wc++14-compat -Wc++14-compat-pedantic -Wno-unused-result -Wno-overlength-strings)
 
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
   # using Intel C++
@@ -118,15 +114,12 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         add_compile_options(-xHost)
   endif (WITH_NATIVE)
 
-  add_compile_options(-std=c++11 -O2 -no-prec-div -fp-model precise -prec-sqrt)
+  add_compile_options(-O2 -no-prec-div -fp-model precise -prec-sqrt)
 
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   # using Visual Studio C++
-endif()
-
-if (MSVC) 
-  # using Visual Studio C++
   add_compile_options(/arch:AVX2)
+  add_compile_options(/O2)
 
   # Disable some warnings
   add_compile_options(/wd4267) #Conversion from size_t to uintn_t, unsigned int or int
@@ -138,21 +131,40 @@ if (MSVC)
   # Check if MPI option has been enabled
   if(WITH_MPI)
 	add_compile_options(/MP) #enable MPI
-  endif(WITH_MPI) 
+  endif(WITH_MPI)
   # Needed for M_PI to be visible in visual studio.
   ADD_DEFINITIONS(-D_USE_MATH_DEFINES)
 
   # Removes the warnings about unsafe methods such as strcpy, std::copy,
   # memcmp, etc.
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE -D_SCL_SECURE_NO_DEPRECATE)
-  
+
   # We need a stack size of 8MB (as it is default on linux)
   # See https://github.com/open62541/open62541/issues/1326
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
-	
-endif(MSVC)
+
+  #Disable embedded DB creation
+  set(ALLOW_EMBEDDED_DB false)
+
+else()
+  #Other compilers
+  add_compile_options(-O2)
+endif()
+
+# Embedded DB options
+CMAKE_DEPENDENT_OPTION(BUILD_EMBEDDED_DBS "Build PenRed embedded data bases " ON
+                       "ALLOW_EMBEDDED_DB" OFF)
+CMAKE_DEPENDENT_OPTION(WITH_EMBEDDED_DB "Build PenRed main programs with embedded data bases " ON
+                       "BUILD_EMBEDDED_DBS" OFF)
+
+#######################
 
 #-----------------------------------------------------------------------------
+
+# Check if embedded data bases is enabled
+if(WITH_EMBEDDED_DB)
+  add_definitions(-D_PEN_EMBEDDED_DATA_BASE_=1) #enable embedded data bases
+endif(WITH_EMBEDDED_DB)
 
 # Check if DICOM option has been enabled
 if(WITH_DICOM)
@@ -232,6 +244,3 @@ if(BUILD_C_BINDS)
     add_subdirectory(bindings/C)
 endif(BUILD_C_BINDS)
 #-----------------------------------------------------------------------------
-
-# Install database
-#install(DIRECTORY ../dataBases/ DESTINATION penRed)

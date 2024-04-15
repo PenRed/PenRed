@@ -35,7 +35,7 @@
 #  Source 1
 #########################
 
-sources/generic/source1/nhist 1.0e6
+sources/generic/source1/nhist 1.0e9
 sources/generic/source1/kpar "electron"
 
 # Directional sampling
@@ -149,9 +149,9 @@ geometry/kdet/disc  1
 
 materials/cu/number 1
 
-materials/cu/eabs_e- 1.0e3
-materials/cu/eabs_e+ 1.0e3
-materials/cu/eabs_gamma 1.0e3
+materials/cu/eabs/electron 1.0e3
+materials/cu/eabs/positron 1.0e3
+materials/cu/eabs/gamma 1.0e3
 
 materials/cu/C1 0.05
 materials/cu/C2 0.05
@@ -167,5 +167,5 @@ materials/cu/filename "Cu.mat"
 # SIMULATION PARAMETERS #
 #########################
 
-simulation/threads 4
-simulation/dump-interval 3600
+simulation/threads 2
+simulation/max-time 600

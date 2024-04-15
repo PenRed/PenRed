@@ -35,7 +35,7 @@
 #  Source 1
 #########################
 
-sources/generic/source1/nhist 1e5
+sources/generic/source1/nhist 1e9
 sources/generic/source1/kpar "electron"
 sources/generic/source1/record-time true
 
@@ -126,56 +126,28 @@ tallies/ImpactDetector2/nbin-age 500
 #  VARIANCE REDUCTION   #
 #########################
 
-VR/IForcing/bodies/VR1/body "Anode"
-VR/IForcing/bodies/VR1/particle "electron"
-VR/IForcing/bodies/VR1/interaction 2
-VR/IForcing/bodies/VR1/factor 400
-VR/IForcing/bodies/VR1/min-weight 0.1
-VR/IForcing/bodies/VR1/max-weight 2
+VR/IForcing/VR1/particle "electron"
+VR/IForcing/VR1/interaction 2
+VR/IForcing/VR1/factor 400
+VR/IForcing/VR1/min-weight 0.1
+VR/IForcing/VR1/max-weight 2
+VR/IForcing/VR1/bodies/Anode true
+VR/IForcing/VR1/bodies/filter true
+VR/IForcing/VR1/bodies/detector true
 
+VR/IForcing/VR2/particle "electron"
+VR/IForcing/VR2/interaction 3
+VR/IForcing/VR2/factor 400
+VR/IForcing/VR2/min-weight 0.1
+VR/IForcing/VR2/max-weight 2
+VR/IForcing/VR2/bodies/Anode true
+VR/IForcing/VR2/bodies/filter true
+VR/IForcing/VR2/bodies/detector true
 
-VR/IForcing/bodies/VR2/body "Anode"
-VR/IForcing/bodies/VR2/particle "electron"
-VR/IForcing/bodies/VR2/interaction 3
-VR/IForcing/bodies/VR2/factor 400
-VR/IForcing/bodies/VR2/min-weight 0.1
-VR/IForcing/bodies/VR2/max-weight 2
-
-VR/bremss/bodies/Anode/splitting 4
-
-VR/IForcing/bodies/VR3/body "filter"
-VR/IForcing/bodies/VR3/particle "electron"
-VR/IForcing/bodies/VR3/interaction 2
-VR/IForcing/bodies/VR3/factor 400
-VR/IForcing/bodies/VR3/min-weight 0.1
-VR/IForcing/bodies/VR3/max-weight 2
-
-
-VR/IForcing/bodies/VR4/body "filter"
-VR/IForcing/bodies/VR4/particle "electron"
-VR/IForcing/bodies/VR4/interaction 3
-VR/IForcing/bodies/VR4/factor 400
-VR/IForcing/bodies/VR4/min-weight 0.1
-VR/IForcing/bodies/VR4/max-weight 2
-
-VR/bremss/bodies/filter/splitting 4
-
-VR/IForcing/bodies/VR5/body "detector"
-VR/IForcing/bodies/VR5/particle "electron"
-VR/IForcing/bodies/VR5/interaction 2
-VR/IForcing/bodies/VR5/factor 400
-VR/IForcing/bodies/VR5/min-weight 0.1
-VR/IForcing/bodies/VR5/max-weight 2
-
-
-VR/IForcing/bodies/VR6/body "detector"
-VR/IForcing/bodies/VR6/particle "electron"
-VR/IForcing/bodies/VR6/interaction 3
-VR/IForcing/bodies/VR6/factor 400
-VR/IForcing/bodies/VR6/min-weight 0.1
-VR/IForcing/bodies/VR6/max-weight 2
-
-VR/bremss/bodies/detector/splitting 4
+VR/bremss/split4/splitting 4
+VR/bremss/split4/bodies/Anode true
+VR/bremss/split4/bodies/filter true
+VR/bremss/split4/bodies/detector true
 
 VR/photon/x-ray/type "XRAY_SPLITTING"
 VR/photon/x-ray/bodies/Anode/splitting 4
@@ -213,9 +185,9 @@ geometry/eabs/detector/positron  1.0e35
 
 materials/wol/number 1
 
-materials/wol/eabs_e- 5.0e3
-materials/wol/eabs_e+ 5.0e3
-materials/wol/eabs_gamma 5.0e3
+materials/wol/eabs/electron 5.0e3
+materials/wol/eabs/positron 5.0e3
+materials/wol/eabs/gamma 5.0e3
 
 materials/wol/C1 0.05
 materials/wol/C2 0.05
@@ -228,9 +200,9 @@ materials/wol/filename "W.mat"
 
 materials/al/number 2
 
-materials/al/eabs_e- 5.0e3
-materials/al/eabs_e+ 5.0e3
-materials/al/eabs_gamma 5.0e3
+materials/al/eabs/electron 5.0e3
+materials/al/eabs/positron 5.0e3
+materials/al/eabs/gamma 5.0e3
 
 materials/al/C1 0.05
 materials/al/C2 0.05
@@ -243,9 +215,9 @@ materials/al/filename "Al.mat"
 
 materials/si/number 3
 
-materials/si/eabs_e- 5.0e3
-materials/si/eabs_e+ 5.0e3
-materials/si/eabs_gamma 5.0e3
+materials/si/eabs/electron 5.0e3
+materials/si/eabs/positron 5.0e3
+materials/si/eabs/gamma 5.0e3
 
 materials/si/C1 0.05
 materials/si/C2 0.05
@@ -258,9 +230,9 @@ materials/si/filename "Si.mat"
 
 materials/Void/number 4
 
-materials/Void/eabs_e- 1.0e3
-materials/Void/eabs_e+ 1.0e3
-materials/Void/eabs_gamma 1.0e3
+materials/Void/eabs/electron 1.0e3
+materials/Void/eabs/positron 1.0e3
+materials/Void/eabs/gamma 1.0e3
 
 materials/Void/C1 0.1
 materials/Void/C2 0.1
@@ -275,5 +247,5 @@ materials/Void/filename "void.mat"
 # SIMULATION PARAMETERS #
 #########################
 
-simulation/threads 8
-simulation/dump-interval 3600
+simulation/threads 2
+simulation/max-time 600

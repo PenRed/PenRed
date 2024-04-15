@@ -50,22 +50,18 @@ int createGeometry(wrapper_geometry*& geometry,
 		   const pen_context& context,
 		   const unsigned verbose);
 
+/*
 int createMaterials(pen_context& context,
 		    std::string filenames[constants::MAXMAT],
 		    const pen_parserSection& config,
 		    const double globEmax,
 		    const unsigned verbose);
-
-int setVarianceReduction(pen_context& context,
-			 const wrapper_geometry& geometry,
+*/
+int setVarianceReduction(const wrapper_geometry& geometry,
 			 const pen_parserSection& config,
 			 pen_VRCluster<pen_particleState>& genericVR,
 			 pen_VRCluster<pen_state_gPol>& photonVR,
 			 const unsigned verbose);
-
-pen_context* createAuxContext(double EMAX,
-			      const char* matFilename,
-			      const unsigned verbose);
 
 template<class stateType>
 int configureSource(pen_specificStateGen<stateType>& source,
@@ -124,44 +120,9 @@ void simulate(penred::simulation::simConfig& config,
 	      const pen_VRCluster<pen_particleState>& genericVR,
 	      const pen_VRCluster<pen_state_gPol>& photonVR){
 
-  // Variables list
-  //
-  // Input:
-  //  ithread     : thread number identifier
-  //  pcontext    : simulation context
-  //  psource     : particle source
-  //  ptallies    : simulation tallies
-  //  dumptime    : time between dumps
-  //  dumpFilename: dump file name
-  //
-  // Input/output:
-  //  seed1       : First random generator seed
-  //  seed2       : Second random generator seed
-  //  nsimulated  : total number of simulated histories (including 'initHist')
-
-  //Create particle stacks for electrons, positrons and gamma
-  pen_particleStack<pen_particleState> stackE;
-  pen_particleStack<pen_particleState> stackP;
-  pen_particleStack<pen_state_gPol> stackG;
-  
-  //Create particles to simulate
-  pen_betaE betaE(context,stackE,stackG);
-  pen_gamma gamma(context,stackE,stackP,stackG);
-  pen_betaP betaP(context,stackE,stackG,stackP);
-
-  //Register VR
-  if(genericVR.numVR() > 0){
-    betaE.registerGenericVR(genericVR);
-    gamma.registerGenericVR(genericVR);
-    betaP.registerGenericVR(genericVR);
-  }
-  if(photonVR.numVR() > 0){
-    gamma.registerSpecificVR(photonVR);
-  }
-
   //Perform the simulation
-  penred::simulation::sampleAndSimulate(config, source, tallies,
-					gamma, betaE, betaP);
+  penred::simulation::sampleAndSimulateContext(config, context, source, tallies,
+					       genericVR, photonVR);
   
 }
 
@@ -177,7 +138,7 @@ void printUserInputOptions(const char* filename){
 	 "independent line in a file named '%s'.\n"
 	 "\n"
 	 "It is recommended to create the instruction file with a different\n"
-	 "name and then rename it to '%s' to avoid processing when the file\n"
+	 "name and then rename it to '%s' to avoid processing the file\n"
 	 "while still being edited. For example, status can be obtained using: \n"
 	 "\n"
 	 " echo \"get status\" > userInstructions.txt\n\n", filename, filename);
@@ -284,7 +245,7 @@ int main(int argc, char** argv){
   }
 
   printf("***************************************************************\n");
-  printf(" PenRed version: 1.9.4 (19-February-2024) \n");
+  printf(" PenRed version: 1.10.0 (03-April-2024) \n");
   printf(" Copyright (c) 2019-2023 Universitat Politecnica de Valencia\n");
   printf(" Copyright (c) 2019-2023 Universitat de Valencia\n");
   printf(" Reference: Computer Physics Communications, 267 (2021) 108065\n"
@@ -929,11 +890,8 @@ int main(int argc, char** argv){
   // Context
   //****************************
 
-  //Create elements data base
-  pen_elementDataBase* elementsDB = new pen_elementDataBase;
-  
   //Create simulation context
-  pen_context context(*elementsDB);
+  pen_context context;
   
   //Get global maximum energy
   double globEmax = -1.0;
@@ -963,32 +921,12 @@ int main(int argc, char** argv){
   printf("\n\n------------------------------------\n\n");
   printf(" **** Materials ****\n");
   printf(" *******************\n\n");
-  
-  std::string matFilenames[constants::MAXMAT];
-  
-  if(createMaterials(context,matFilenames,config,globEmax,verbose) != 0)
+
+  //Initialize context with no geometry
+  pen_parserSection matInfoSection;
+  if(context.configure(globEmax, config, matInfoSection, verbose) != pen_context::SUCCESS){
     return -4;
-
-
-  //Initialize context with specified materials
-  FILE* fcontext = nullptr;
-  int contextVerbose = verbose;
-  if(contextlogfile.length() > 0){
-    //fcontext = fopen("context.rep","w");
-    fcontext = fopen(contextlogfile.c_str(),"w");
-    if(fcontext == nullptr){
-      printf("Error: unable to open context log file '%s'\n",contextlogfile.c_str());
-    }
-  }else{
-    fcontext = stdout;
-    contextVerbose = 1;
   }
-  if(context.init(globEmax,fcontext,contextVerbose,matFilenames) != PEN_SUCCESS){
-    if(fcontext != nullptr) fclose(fcontext);
-    printf("Error at context initialization.\n");
-    return -5;
-  }
-  if(contextlogfile.length() > 0 && fcontext != nullptr) fclose(fcontext);
   
   //****************************
   // Geometry parameters
@@ -1004,7 +942,9 @@ int main(int argc, char** argv){
     return -6;
 
   //Set geometry to context
-  context.setGeometry(geometry);
+  if(context.setGeometry(geometry) != 0){
+    return -6;
+  }
   
   //Set source geometry
   for(unsigned i = 0; i < genericSources.size(); i++)
@@ -1013,36 +953,11 @@ int main(int argc, char** argv){
     polarisedGammaSources[i].setGeometry(geometry);  
 
   //------------------------------------------------------------
-  
-  //Check if all required materials for the specified geometry have been created
-  bool usedMaterials[constants::MAXMAT+1];
-  geometry->usedMat(usedMaterials);
 
-  unsigned missingMats = 0;
-  for(unsigned i = 1; i <= constants::MAXMAT; i++){  //Avoid void material (0)
-    if(matFilenames[i-1].length() == 0 && usedMaterials[i]){
-      if(verbose > 0){
-	printf("Error: Material %d is required by the geometry, but has not been configured.\n", i);
-      }
-      missingMats++;
-    }
-    else if(matFilenames[i-1].length() > 0 && !usedMaterials[i]){
-      if(verbose > 0){
-	printf("Warning: Material %d has been configured but is not used at specified geometry.\n",i);
-      }
-    }
-  }
-
-  if(missingMats > 0){
-    printf("Error: Missing %d materials to use the specified geometry.\n",missingMats);
-    return -6;
-  }
-
-  //Update absortion energies ussing geometry information
-  err = context.updateEABS();
-  if(err != 0){
-    printf("Error calculating absorption energies\n");
-    return -8;
+  //Run the second step of context configuration with the geometry
+  err = context.configureWithGeo(config, verbose);
+  if(err != pen_context::SUCCESS){
+    return -9;
   }
   
   //****************************
@@ -1262,7 +1177,7 @@ int main(int argc, char** argv){
   //****************************
   pen_VRCluster<pen_particleState> genericVR;
   pen_VRCluster<pen_state_gPol> photonVR;
-  int vrRet = setVarianceReduction(context,*geometry,config,
+  int vrRet = setVarianceReduction(*geometry,config,
 				   genericVR,photonVR,verbose);
   if(vrRet < 0){
     if(verbose > 0){
@@ -1383,11 +1298,11 @@ int main(int argc, char** argv){
       // Single thread
       //****************
       
-      // Simulate      
-      simulate(simConfigs[0], context,
-	       genericSources[iSource],
-	       talliesVect[0],
-	       genericVR, photonVR);
+      // Simulate
+      penred::simulation::sampleAndSimulateContext(simConfigs[0], context,
+						   genericSources[iSource],
+						   talliesVect[0],
+						   genericVR, photonVR);
       
 #ifdef _PEN_USE_THREADS_
     }
@@ -1420,7 +1335,7 @@ int main(int argc, char** argv){
 					 std::ref(talliesVect[ithread]),
 					 std::ref(genericVR),
 					 std::ref(photonVR)));
-
+	
 #ifdef _PEN_UNIX_
 	//Set affinity for unix systems using pthreads
 	if(CPUaffinity){
@@ -1472,12 +1387,11 @@ int main(int argc, char** argv){
       //****************
       
       // Simulate 
-      simulate<pen_state_gPol>(simConfigs[0],
-			       context,
-			       polarisedGammaSources[iSource],
-			       talliesVect[0],
-			       genericVR,
-			       photonVR);
+      penred::simulation::sampleAndSimulateContext(simConfigs[0], context,
+						   polarisedGammaSources[iSource],
+						   talliesVect[0],
+						   genericVR,
+						   photonVR);
       
 #ifdef _PEN_USE_THREADS_
     }
@@ -1721,9 +1635,6 @@ int main(int argc, char** argv){
   //Free memory
   delete geometry;
   geometry = nullptr;
-
-  delete elementsDB;
-  elementsDB = nullptr;
   
   return 0;
 }
@@ -2096,302 +2007,8 @@ int createGeometry(wrapper_geometry*& geometry,
   return 0;
 }
 
-int createMaterials(pen_context& context,
-		    std::string filenames[constants::MAXMAT],
-		    const pen_parserSection& config,
-		    const double globEmax,
-		    const unsigned verbose){
 
-  //Try to read global particle ranges for all particles
-  std::array<double,constants::nParTypes> maxRanges{-1.0};
-  pen_parserSection rangesSection;
-  if(config.readSubsection("material-ranges",rangesSection) == INTDATA_SUCCESS){
-
-    if(verbose > 1){
-      printf("Global maximum ranges specified:\n");      
-    }
-    
-    //Read maximum ranges for each particle type
-    for(unsigned ip = 0; ip < constants::nParTypes; ++ip){
-      double partRange;
-      if(rangesSection.read(particleName(ip),partRange) == INTDATA_SUCCESS){
-	maxRanges[ip] = partRange;
-	if(verbose > 1){
-	  printf("  + %15s: %15.3E cm\n", particleName(ip), maxRanges[ip]);
-	}
-      }
-    }
-      
-  }
-
-  std::array<double,constants::nParTypes> defaultEabs{1.0e3};
-  pen_parserSection eabsSection;
-  if(config.readSubsection("material-eabs",eabsSection) == INTDATA_SUCCESS){
-
-    if(verbose > 1){
-      printf("Global absorption energies specified:\n");      
-    }
-    
-    //Read maximum ranges for each particle type
-    for(unsigned ip = 0; ip < constants::nParTypes; ++ip){
-      double partEabs;
-      if(eabsSection.read(particleName(ip),partEabs) == INTDATA_SUCCESS){
-	defaultEabs[ip] = partEabs;
-	if(verbose > 1){
-	  printf("  + %15s: %15.3E cm\n", particleName(ip), defaultEabs[ip]);
-	}
-      }
-    }
-      
-  }
-
-  
-  //Extract materials section
-  pen_parserSection matSection;
-  if(config.readSubsection("materials",matSection) != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("createMaterials: Error: Configuration 'materials' section doesn't exist.\n");
-    }
-    return -1;
-  }
-
-  //Get "materials" subsections (each one correspond to one material)
-  std::vector<std::string> matNames;
-  matSection.ls(matNames);
-
-  if(verbose > 1){
-    printf("Number of materials: %u\n", unsigned(matNames.size()));
-    
-    for(unsigned i = 0; i < matNames.size(); i++)
-      printf("\t%s\n",matNames[i].c_str());
-  }
-  
-  if(matNames.size() == 0){
-    if(verbose > 0){
-      printf("Error: No material found at configuration. Simulation requires, at last, one material.\n");
-    }
-    return -2;
-  }
-  
-  if(matNames.size() > constants::MAXMAT){
-    if(verbose > 0){
-      printf("Error: %d materials found. The maximum number of materials is %d.\n",int(matNames.size()),constants::MAXMAT);
-    }
-    return -2;
-  }
-  
-  //Set materials to context
-  int errmat = context.setMats<pen_material>(matNames.size());
-  if(errmat != 0)
-    {
-      printf("Error creating materials: %d.\n",errmat);
-      return -7;
-    }
-  
-  //Iterate over each material
-  int err = 0;
-  for(unsigned i = 0; i < matNames.size(); i++){
-
-    printf("\n\n------------------------------------\n\n");
-    printf(" **** Material '%s'\n\n",matNames[i].c_str());
-
-    //Extract material subsection
-    pen_parserSection oneMatSec;
-    if(matSection.readSubsection(matNames[i],oneMatSec) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("createMaterials: Error: Unable to read mat section 'materials/%s'.\n",matNames[i].c_str());
-      }
-      err++;
-      continue;
-    }
-  
-    //Get material number
-    int index;
-    //Get absortion energies
-    if(oneMatSec.read("number",index) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("createMaterials: Error: Unable to read 'materials/%s/number'. Integer expected.\n",matNames[i].c_str());
-      }
-      err++;
-      continue;
-    }
-
-    if(index < 1 || index > int(constants::MAXMAT)){
-      if(verbose > 0){
-	printf("createMaterials: Error: Material index ('materials/%s/number') out of range (1-%d).\n",matNames[i].c_str(),constants::MAXMAT);
-      }
-      err++;
-      continue;
-    }
-
-    //Calculate material index
-    int j = index-1;
-
-    //Read material filename
-    //#######################
-    if(oneMatSec.read("filename",filenames[j]) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("createMaterials: Error: Unable to read 'materials/%s/filename'. String expected.\n",matNames[j].c_str());
-      }
-      err++;
-    }
-    
-    //Get material
-    pen_material& mat = context.getBaseMaterial(j);
-
-    //Set default C1, C2, WCC and WCR
-    mat.C1=0.05;
-    mat.C2=0.05;
-    mat.WCC=1.0e3;
-    mat.WCR=1.0e3;    
-        
-    //Get absortion energies
-    //#######################
-
-    std::array<double,constants::nParTypes> localRanges = maxRanges;
-    pen_context* rangeContext = nullptr;
-    for(unsigned ip = 0; ip < constants::nParTypes; ++ip){
-      double partRange;
-      double eabs;
-      std::string key = std::string("range/")+particleName(ip);
-      //Try to read local range for this particle
-      if(oneMatSec.read(key,partRange) == INTDATA_SUCCESS){
-	localRanges[ip] = partRange;
-      }
-
-      key = std::string("eabs/")+particleName(ip);
-      //Assign absortion energy by range, explicit value or default value
-      if(localRanges[ip] > 0.0){
-
-	//Create range context if has not previously created
-	if(rangeContext == nullptr)
-	  rangeContext = createAuxContext(globEmax,
-					  filenames[j].c_str(),
-					  verbose);
-	if(rangeContext == nullptr){
-	  if(verbose > 0){
-	    printf("createMaterials: Error: Unable to create "
-		   "auxiliary context to calculate range limits.\n");
-	  }
-	  err++;
-	  break;
-	}
-	  
-	// + Range
-	double topE = globEmax;
-	double lowE = 50;
-	double objectiveRange = localRanges[ip];
-	unsigned nTries = 0;
-	do{
-	  double midE = (topE+lowE)/2.0;
-	  double range = rangeContext->range(midE,static_cast<pen_KPAR>(ip),0);
-	  if(range == objectiveRange){
-	    topE = midE;
-	    lowE = midE;
-	  }
-	  else if(range > objectiveRange){
-	    topE = midE;
-	  }else{
-	    lowE = midE;
-	  }
-	  ++nTries;
-	}while(nTries < 1000000 && topE/lowE > 1.001);
-	if(topE == globEmax)
-	  mat.EABS[ip] = 1.0e35;
-	else
-	  mat.EABS[ip] = lowE;
-	
-      }else if(oneMatSec.read(key,eabs) == INTDATA_SUCCESS){
-	// + Explicit value
-	mat.EABS[ip] = eabs;
-      }else{
-	// + Default value
-	mat.EABS[ip] = defaultEabs[ip];
-      }
-    }
-
-    //Free range context if has been created
-    if(rangeContext != nullptr){
-      delete rangeContext;
-    }
-    
-    // ** WARNING: DEPRECATED **
-    // ** This options is mantained for retrocompatibility
-    double eabs;
-    if(oneMatSec.read("eabs_e-",eabs) == INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("createMaterials: Warning: Parameter 'materials/%s/eabs_e-' is "
-	       "deprecated and will be removed. Use "
-	       "'materials/%s/eabs/electron' instead.\n",
-	       matNames[j].c_str(),matNames[j].c_str());
-      }
-      mat.EABS[PEN_ELECTRON] = eabs;
-    }
-    if(oneMatSec.read("eabs_e+",eabs) == INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("createMaterials: Warning: Parameter 'materials/%s/eabs_e+' is "
-	       "deprecated and will be removed. Use "
-	       "'materials/%s/eabs/positron' instead.\n",
-	       matNames[j].c_str(),matNames[j].c_str());
-      }
-      mat.EABS[PEN_POSITRON] = eabs;      
-    }
-    if(oneMatSec.read("eabs_gamma",eabs) == INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("createMaterials: Warning: Parameter 'materials/%s/eabs_gamma' is "
-	       "deprecated and will be removed. Use "
-	       "'materials/%s/eabs/gamma' instead.\n",
-	       matNames[j].c_str(),matNames[j].c_str());
-      }
-      mat.EABS[PEN_PHOTON] = eabs;     
-    }
-    //**************************
-    
-    //Get C1 and C2
-    //##################
-    double C1,C2;
-    if(oneMatSec.read("C1",C1) == INTDATA_SUCCESS){
-      mat.C1 = C1;
-    }
-    if(oneMatSec.read("C2",C2) == INTDATA_SUCCESS){
-      mat.C2 = C2;
-    }
-
-    //Read WCC and WCR
-    //##################
-
-    //Set default values
-    mat.WCC = std::min(5e3,mat.EABS[PEN_ELECTRON]/100.0);
-    mat.WCR = std::min(5e3,mat.EABS[PEN_PHOTON]/100.0);
-
-    //Read values provided by the user
-    double WCC, WCR;
-    if(oneMatSec.read("WCC",WCC) == INTDATA_SUCCESS){
-      mat.WCC = WCC;
-    }
-    if(oneMatSec.read("WCR",WCR) == INTDATA_SUCCESS){
-      mat.WCR = WCR;
-    }
-    
-    if(verbose > 0){
-      printf("      C1 =%11.4E       C2 =%11.4E\n",mat.C1,mat.C2);
-      printf("     WCC =%11.4E eV,   WCR =%11.4E eV\n",mat.WCC,(mat.WCR > 10.0E0 ? mat.WCR : 10.0E0));
-      printf("  electron EABS: %11.4E eV\n",mat.EABS[PEN_ELECTRON]);
-      printf("     gamma EABS: %11.4E eV\n",mat.EABS[PEN_PHOTON]);
-      printf("  positron EABS: %11.4E eV\n",mat.EABS[PEN_POSITRON]);
-
-      printf("\n Material filename: '%s'.\n",filenames[j].c_str());
-      printf("\n Material number: %d.\n",index);      
-    }
-    
-    printf("\n\n------------------------------------\n\n");
-  }
-
-  return err;
-}
-
-int setVarianceReduction(pen_context& context,
-			 const wrapper_geometry& geometry,
+int setVarianceReduction(const wrapper_geometry& geometry,
 			 const pen_parserSection& config,
 			 pen_VRCluster<pen_particleState>& genericVR,
 			 pen_VRCluster<pen_state_gPol>& photonVR,
@@ -2406,547 +2023,8 @@ int setVarianceReduction(pen_context& context,
     return 1;
   }
 
-  int err;
-
   if(verbose > 1)printf("\n");
   
-  //Get materials used by the current geometry
-  bool usedMat[constants::MAXMAT+1];
-  geometry.usedMat(usedMat);
-  
-  //*********************
-  // Interaction Forcing
-  //*********************
-  
-  //Try to Read interaction forcing parameters for materials and bodies.
-  //Notice that body configuration will overwrite material one.
-
-  // Materials
-  //************
-  
-  std::vector<std::string> IFmats;
-  VRSection.ls("IForcing/materials",IFmats);
-
-  if(IFmats.size() > 0){
-    if(verbose > 1){
-      printf("\n\n **** Material interaction forcing:\n\n");
-      printf("  Mat |    Particle    | Interaction |  IF factor  | Weight Range\n");      
-    }
-    
-    for(unsigned imname = 0; imname < IFmats.size(); imname++){
-
-      //Get ibody name section
-      pen_parserSection matSection;
-      std::string matSecKey = std::string("IForcing/materials/") + IFmats[imname];
-      if(VRSection.readSubsection(matSecKey,matSection) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  printf("setVarianceReduction: 'VR/%s' is not a section, skip this material.\n",matSecKey.c_str());
-	}
-	continue;
-      }
-
-      // Material index
-      //***********************
-
-      //Read index
-      int imat;
-      err = matSection.read("mat-index",imat);
-      if(err != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  printf("setVarianceReduction: Error: Material index not specified for material section '%s'. Integer expected\n",IFmats[imname].c_str());
-	}
-      }
-
-      //Check if material index is in range
-      if(imat < 1 || imat > (int)constants::MAXMAT){
-	if(verbose > 0){
-	  printf("setVarianceReduction: Error: Specified index (%d) for material section '%s' out of range.\n",imat,IFmats[imname].c_str());
-	}
-	return -1;
-      }
-
-      //Check if material is used at current geometry
-      if(!usedMat[imat]){
-	if(verbose > 0){
-	  printf("setVarianceReduction: Error: Specified index (%d) for material section '%s' is not used at current geometry.\n",imat,IFmats[imname].c_str());
-	}
-	return -2;
-      }
-
-      // IF Parameters
-      //****************
-
-      std::string particle;
-      unsigned kpar;
-      int icol;
-      double weightL,weightU,forcer;
-      
-      //Read particle name
-      err = matSection.read("particle",particle);
-      if(err != INTDATA_SUCCESS){
-	if(verbose > 0)
-	  printf("setVarianceReduction: Missing field 'particle' for interaction forcing on material section '%s'. String expected.\n",IFmats[imname].c_str());
-	return -3;
-      }
-      //Get kpar
-      kpar = particleID(particle.c_str());
-      if(kpar == ALWAYS_AT_END){
-	if(verbose > 0){
-	  printf("setVarianceReduction: Error: Unknown particle type specified on interaction forcing for material section '%s': '%s'\n",IFmats[imname].c_str(),particle.c_str());
-	}
-	return -4;
-      }
-
-      //Get interaction index
-      err = matSection.read("interaction",icol);
-      if(err != INTDATA_SUCCESS){
-	if(verbose > 0)
-	  printf("setVarianceReduction: Error: Unable to read field 'interaction' for interaction forcing on material section '%s'. Integer expected.\n",IFmats[imname].c_str());
-	return -5;
-      }
-
-      //Check interaction
-      if(icol < 0 || icol >= (int)constants::MAXINTERACTIONS){
-	if(verbose > 0)
-	  printf("setVarianceReduction: Error: Interaction index (%d) out of range at interaction forcing on material section '%s'.\n",icol,IFmats[imname].c_str());
-	return -6;
-      }
-
-      //Get forcing factor
-      err = matSection.read("factor",forcer);
-      if(err != INTDATA_SUCCESS){
-	if(verbose > 0)
-	  printf("setVarianceReduction: Error: Unable to read field 'factor' for interaction forcing on material section '%s', interaction %d. Real number expected.\n",IFmats[imname].c_str(),icol);
-	return -7;
-      }
-
-      //Read weight range
-      err = matSection.read("min-weight",weightL);
-      if(err != INTDATA_SUCCESS){
-	weightL = 0.0;
-	if(verbose > 2){
-	  printf("field 'min-weight' no specified, real number expected.\n");
-	  printf(" minimum weight will be set to 0.0\n");
-	}
-      }
-      err = matSection.read("max-weight",weightU);
-      if(err != INTDATA_SUCCESS){
-	weightU = 1.0e6;
-	if(verbose > 2){
-	  printf("field 'max-weight' no specified, real number expected.\n");
-	  printf(" maximum weight will be set to 1.0e6\n");
-	}
-      }
-
-      if(weightL < 0.0 || weightU <= weightL){
-	if(verbose > 0){
-	  printf("setVarianceReduction: Error: Invalid weight range for interaction forcing on material '%s', interaction %d:\n",IFmats[imname].c_str(),icol);
-	  printf("               minimum weight: %12.4E\n",weightL);
-	  printf("               maximum weight: %12.4E\n",weightU);
-	}
-	return -8;	
-      }
-
-      //Print information
-      if(verbose > 1){
-	printf(" %4u  %15.15s   %11d   %11.4E   %12.4E - %12.4E\n",imat,particle.c_str(),icol,forcer,weightL,weightU);
-      }
-
-      //Set parameters for bodies with this material index
-      for(unsigned ibody = 0; ibody < geometry.getBodies(); ibody++){
-	
-	if(geometry.getMat(ibody) != (unsigned)imat) continue;
-
-	
-	if(ibody >= context.NBV){
-	  if(verbose > 0){
-	    printf("setVarianceReduction: Error: Maximum body index for IF reached (%u)\n",context.NBV);
-	  }
-	  return -8;
-	}
-
-
-	//Set interaction forcing in context
-	context.setForcing(forcer, static_cast<pen_KPAR>(kpar),
-			   icol, ibody, weightL, weightU);
-      }
-    }
-    
-  }
-  else if(verbose > 1){
-    printf("No materials specified to use interaction forcing.\n");
-  }
-  
-
-  // Bodies
-  //************
-  
-  std::vector<std::string> IFbodies;
-  VRSection.ls("IForcing/bodies",IFbodies);
-
-  if(IFbodies.size() > 0){
-    if(verbose > 1){
-      printf("\n\n **** Body interaction forcing:\n\n");
-      printf(" Body |    Particle    | Interaction |  IF factor  | Weight Range\n");      
-    }
-
-    for(unsigned ibname = 0; ibname < IFbodies.size(); ibname++){
-
-      //Get ibody name section
-      pen_parserSection bodySection;
-      std::string bodySecKey = std::string("IForcing/bodies/") + IFbodies[ibname];
-      if(VRSection.readSubsection(bodySecKey,bodySection) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  printf("setVarianceReduction: 'VR/%s' is not a section, skip this body.\n",bodySecKey.c_str());
-	}
-	continue;
-      }
-
-      //Read body alias
-      std::string bodyAlias;
-      unsigned ibody;
-      err = bodySection.read("body",bodyAlias);
-      if(err == INTDATA_SUCCESS){
-	//Check if specified body exists ang get the corresponding index
-	ibody = geometry.getIBody(bodyAlias.c_str());
-	if(ibody >= geometry.getBodies()){
-	  if(verbose > 0){
-	    printf("setVarianceReduction: Body '%s' doesn't exists in loaded geometry.\n",bodyAlias.c_str());
-	  }
-	  return -9;
-	}
-      }
-      else{
-	//Try to read body as integer index
-	int auxibody;
-	err = bodySection.read("body",auxibody);
-	if(err != INTDATA_SUCCESS){
-	  if(verbose > 0){
-	    printf("setVarianceReduction: Error: Unable to read 'VR/%s/body'. Integer or string expected.\n",bodySecKey.c_str());
-	  }
-	  return -9;
-	}
-	if(auxibody < 0 || auxibody >= (int)context.NBV){
-	  if(verbose > 0)
-	    printf("setVarianceReduction: Error: Specified body index (%d) out of range.\n",auxibody);
-	  return -9;
-	}
-	ibody = (unsigned)auxibody;
-      }
-
-      if(ibody >= context.NBV){
-	if(verbose > 0){
-	  printf("setVarianceReduction: Error: Maximum body index for IF is (%u)\n",context.NBV);
-	  printf("                  specified index: %u\n",ibody);
-	}
-	return -9;	  
-      }
-      
-      //Read kpar, icol and weight limits
-      std::string particle;
-      unsigned kpar;
-      int icol;
-      double weightL,weightU,forcer;
-      
-      //Read particle name
-      err = bodySection.read("particle",particle);
-      if(err != INTDATA_SUCCESS){
-	if(verbose > 0)
-	  printf("setVarianceReduction: Missing field 'particle' for interaction forcing on body section '%s'. String expected.\n",IFbodies[ibname].c_str());
-	return -10;
-      }
-      //Get kpar
-      kpar = particleID(particle.c_str());
-      if(kpar == ALWAYS_AT_END){
-	if(verbose > 0){
-	  printf("setVarianceReduction: Error: Unknown particle type specified on interaction forcing for body section '%s': '%s'\n",IFbodies[ibname].c_str(),particle.c_str());
-	}
-	return -11;
-      }
-
-      //Get interaction index
-      err = bodySection.read("interaction",icol);
-      if(err != INTDATA_SUCCESS){
-	if(verbose > 0)
-	  printf("setVarianceReduction: Error: Unable to read field 'interaction' for interaction forcing on body section '%s'. Integer expected.\n",IFbodies[ibname].c_str());
-	return -12;
-      }
-
-      //Check interaction
-      if(icol < 0 || icol >= (int)constants::MAXINTERACTIONS){
-	if(verbose > 0)
-	  printf("setVarianceReduction: Error: Interaction index (%d) out of range at interaction forcing on body section '%s'. Integer expected.\n",icol,IFbodies[ibname].c_str());
-	return -13;
-      }
-
-      //Get forcing factor
-      err = bodySection.read("factor",forcer);
-      if(err != INTDATA_SUCCESS){
-	if(verbose > 0)
-	  printf("setVarianceReduction: Error: Unable to read field 'factor' for interaction forcing on body section '%s', interaction %d. Real number expected.\n",IFbodies[ibname].c_str(),icol);
-	return -14;
-      }
-
-      //Read weight range
-      err = bodySection.read("min-weight",weightL);
-      if(err != INTDATA_SUCCESS){
-	weightL = 0.0;
-	if(verbose > 2){
-	  printf("field 'min-weight' no specified, real number expected.\n");
-	  printf(" minimum weight will be set to 0.0\n");
-	}
-      }
-      err = bodySection.read("max-weight",weightU);
-      if(err != INTDATA_SUCCESS){
-	weightU = 1.0;
-	if(verbose > 2){
-	  printf("field 'max-weight' no specified, real number expected.\n");
-	  printf(" maximum weight will be set to 1.0\n");
-	}
-      }
-
-      if(weightL < 0.0 || weightU <= weightL){
-	if(verbose > 0){
-	  printf("setVarianceReduction: Error: Invalid weight range for interaction forcing on body section '%s', interaction %d:\n",IFbodies[ibname].c_str(),icol);
-	  printf("               minimum weight: %12.4E\n",weightL);
-	  printf("               maximum weight: %12.4E\n",weightU);
-	}
-	return -15;	
-      }
-
-      //Print information
-      if(verbose > 1){
-	printf(" %4u  %15.15s   %11d   %11.4E   %12.4E - %12.4E\n",ibody,particle.c_str(),icol,forcer,weightL,weightU);
-      }
-
-      //Set interaction forcing in context
-      context.setForcing(forcer, static_cast<pen_KPAR>(kpar),
-			 icol, ibody, weightL, weightU);
-    }
-  }
-  else if(verbose > 1){
-    printf("No bodies specified to use interaction forcing.\n");
-  }
-
-  //Print final interaction forcing information
-  if(verbose > 1){
-    printf("\n\nEnabled Interaction forcing:\n\n");
-    printf(" Body |    Particle    | Interaction |  IF factor  | Weight Range\n");
-    for(unsigned i = 0; i < context.NBV; i++){
-      for(unsigned j = 0; j < constants::nParTypes; j++){
-	if(!context.LFORCE[i][j]){continue;}
-	for(unsigned k = 0; k < constants::MAXINTERACTIONS; k++){
-	  if(context.FORCE[i][j][k] > 1.0){
-	    printf(" %4u  %15.15s   %11d   %11.4E   %12.4E - %12.4E\n",
-		   i,particleName(j),k,context.FORCE[i][j][k],
-		   context.WRANGES[i][2*j],context.WRANGES[i][2*j+1]);
-	  }
-	}
-      }
-    }
-    printf("\n\n");
-  }
-
-
-  //**************************
-  // Bremsstrahlung splitting
-  //**************************
-
-  // Materials
-  //************
-
-  std::vector<std::string> bremssMat;
-  VRSection.ls("bremss/materials",bremssMat);
-
-  if(bremssMat.size() > 0){
-    if(verbose > 1){
-      printf("\n\n **** Material bremsstrahlung splitting:\n\n");
-      printf("  Mat  | Bremss splitting\n");      
-    }
-    
-    for(unsigned imname = 0; imname < bremssMat.size(); imname++){
-
-      //Get ibody name section
-      pen_parserSection matSection;
-      std::string matSecKey = std::string("bremss/materials/") + bremssMat[imname];
-      if(VRSection.readSubsection(matSecKey,matSection) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  printf("setVarianceReduction: 'VR/%s' is not a section, skip this material.\n",matSecKey.c_str());
-	}
-	continue;
-      }
-
-      // Material index
-      //***********************
-
-      //Read index
-      int imat;
-      err = matSection.read("mat-index",imat);
-      if(err != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  printf("setVarianceReduction: Error: Material index not specified for material '%s'. Integer expected\n",bremssMat[imname].c_str());
-	}
-      }
-
-      //Check if material index is in range
-      if(imat < 1 || imat > (int)constants::MAXMAT){
-	if(verbose > 0){
-	  printf("setVarianceReduction: Error: Specified index (%d) for material '%s' out of range.\n",imat,bremssMat[imname].c_str());
-	}
-	return -16;
-      }
-
-      //Check if material is used at current geometry
-      if(!usedMat[imat]){
-	if(verbose > 0){
-	  printf("setVarianceReduction: Error: Specified index (%d) for material '%s' is not used at current geometry.\n",imat,bremssMat[imname].c_str());
-	}
-	return -17;
-      }
-
-      //Get splitting factor
-      int splitting;
-      err = matSection.read("splitting",splitting);
-      if(err != INTDATA_SUCCESS){
-	if(verbose > 0)
-	  printf("setVarianceReduction: Error: Unable to read field 'splitting' for bremsstrahlung splitting on material '%s'. Integer expected.\n",bremssMat[imname].c_str());
-	return -18;
-      }
-
-      //Check splitting factor
-      if(splitting < 1){
-	if(verbose > 0)
-	  printf("setVarianceReduction: Error: Invalid bremsstrahlung splitting factor (%d).\n",splitting);
-	return -19;
-      }
-
-      //Set splitting factor for bodies with this material index
-      for(unsigned ibody = 0; ibody < geometry.getBodies(); ibody++){
-	
-	if(geometry.getMat(ibody) != (unsigned)imat) continue;
-
-	if(ibody >= context.NBV){
-	  if(verbose > 0){
-	    printf("setVarianceReduction: Error: Maximum body index for IF reached (%u)\n",context.NBV);
-	  }
-	  return -19;
-	}
-	
-	if(context.LFORCE[ibody][PEN_ELECTRON] || context.LFORCE[ibody][PEN_POSITRON]){
-	  context.IBRSPL[ibody] = (unsigned)splitting;	  
-	}
-      }
-
-      //Print configuration
-      if(verbose > 1){
-	printf(" %5d   %5d\n", imat,splitting);
-      }
-      
-    }
-  }
-  else if(verbose > 1){
-    printf("No material with bremsstrahlung splitting enabled.\n");
-  }
-  
-  // Bodies
-  //************
-
-  std::vector<std::string> bremssBodies;
-  VRSection.ls("bremss/bodies",bremssBodies);
-
-  if(bremssBodies.size() > 0){
-    if(verbose > 1){
-      printf("\n\n **** Body bremsstrahlung splitting:\n\n");
-      printf(" Body  | Bremss splitting\n");      
-    }
-    
-    for(unsigned ibname = 0; ibname < bremssBodies.size(); ibname++){
-
-      //Get ibody name section
-      pen_parserSection bodySection;
-      std::string bodySecKey = std::string("bremss/bodies/") + bremssBodies[ibname];
-      if(VRSection.readSubsection(bodySecKey,bodySection) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  printf("setVarianceReduction: 'VR/%s' is not a section, skip this body.\n",bodySecKey.c_str());
-	}
-	continue;
-      }
-
-      // Body index
-      //***********************
-
-      //Check if specified body exists
-      unsigned ibody = geometry.getIBody(bremssBodies[ibname].c_str());
-      if(ibody >= geometry.getBodies()){
-	if(verbose > 0){
-	  printf("setVarianceReduction: Body '%s' doesn't exists in loaded geometry.\n",bremssBodies[ibname].c_str());
-	}
-	return -20;
-      }
-      else if(ibody >= context.NBV){
-	if(verbose > 0){
-	  printf("setVarianceReduction: Error: Maximum body index for IF is (%u)\n",context.NBV);
-	  printf("                  specified index: %u\n",ibody);
-	}
-	return -20;	  
-      }
-
-      //Check if in this body IF has been enabled
-      if(!context.LFORCE[ibody][PEN_ELECTRON] && !context.LFORCE[ibody][PEN_POSITRON]){
-	if(verbose > 0){
-	  printf("setVarianceReduction: Body '%s' (index %u) has not enabled interaction forcing.\n",bremssBodies[ibname].c_str(),ibody);
-	}
-	return -21;
-      }
-
-      // Splitting factor
-      //***********************
-
-      //Get splitting factor
-      int splitting;
-      err = bodySection.read("splitting",splitting);
-      if(err != INTDATA_SUCCESS){
-	if(verbose > 0)
-	  printf("setVarianceReduction: Error: Unable to read field 'splitting' for bremsstrahlung splitting on body '%s'. Integer expected.\n",bremssBodies[ibname].c_str());
-	return -22;
-      }
-
-      //Check splitting factor
-      if(splitting < 1){
-	if(verbose > 0)
-	  printf("setVarianceReduction: Error: Invalid bremsstrahlung splitting factor (%d).\n",splitting);
-	return -23;
-      }
-
-      //Set splitting factor for specified body
-      context.IBRSPL[ibody] = (unsigned)splitting;	  
-
-      //Print configuration
-      if(verbose > 1){
-	printf(" %5d   %5d\n", ibody,splitting);
-      }
-      
-    }
-  }
-  else if(verbose > 1){
-    printf("No bodies with bremsstrahlung splitting enabled.\n");
-  }
-
-  if(verbose > 1){
-    printf("\n\nFinal bremsstrahlung splitting:\n\n");
-    printf(" Body  | Bremss splitting\n");      
-    for(unsigned ibody = 0; ibody < context.NBV; ibody++){
-      
-      if(context.IBRSPL[ibody] > 1)
-	printf(" %5u   %5u\n", ibody,context.IBRSPL[ibody]);
-    }
-    printf("\n\n");
-  }
-
-  //**************************
-  // Other VR techniques
-  //**************************
-
   pen_parserSection VRgeneric;
   if(VRSection.readSubsection("generic",VRgeneric) != INTDATA_SUCCESS){
     if(verbose > 1){
@@ -2983,73 +2061,4 @@ int setVarianceReduction(pen_context& context,
   //printf("*****************************\n");
   
   return 0;
-}
-
-pen_context* createAuxContext(double EMAX,
-			      const char* matFilename,
-			      const unsigned verbose){
-
-  //Create elements data base
-  pen_elementDataBase elements;
-  //Create a context
-  pen_context* context = nullptr;
-  context = new pen_context(elements);
-  if(context == nullptr){
-    if(verbose > 0){
-      printf("createAuxContext: Error allocating auxilary context.\n");      
-    }
-    return nullptr;
-  }
-
-  //Set the number of materials to context (1)
-  int errmat = context->setMats<pen_material>(1);
-  if(errmat != 0){
-    if(verbose > 0){
-      printf("createAuxContext: Error at context "
-	     "material creation: %d.\n",errmat);
-    }
-    delete context;
-    return nullptr;
-  }
-  
-  //Get the material
-  pen_material& mat = context->getBaseMaterial(0);
-
-  //Configure the material
-  mat.C1=0.2;
-  mat.C2=0.2;
-  mat.WCC=1.0e3;
-  mat.WCR=1.0e3;
-
-  mat.EABS[PEN_ELECTRON] = 50.0E0;
-  mat.EABS[PEN_PHOTON]   = 50.0E0;
-  mat.EABS[PEN_POSITRON] = 50.0E0;
-
-  FILE* fcontext = nullptr;
-  
-  if(verbose > 0){
-    fcontext = fopen("rangeContext.rep","w");
-    if(fcontext == nullptr){
-      printf("createAuxContext: Error: unable to create "
-	     "file 'rangeContext.rep'\n");
-      delete context;
-      return nullptr;
-    }
-  }
-  
-  int INFO = 1;
-  std::string PMFILEstr[constants::MAXMAT];
-  PMFILEstr[0].assign(matFilename);
-  int err = context->init(EMAX,nullptr,INFO,PMFILEstr);
-  if(err != 0){
-    if(verbose > 0){
-      printf("createAuxContext: Error: Unable to configure range context."
-	     "More details can be found in 'rangeContext.rep' file.\n");
-    }
-    delete context;
-    return nullptr;
-  }
-
-  return context;
-  
 }

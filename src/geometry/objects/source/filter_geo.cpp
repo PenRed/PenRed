@@ -236,7 +236,7 @@ int pen_filterGeo::configure(const pen_parserSection& config, unsigned verbose){
       err = filterSection.read(eabsPath,eabs);
       if(err != INTDATA_SUCCESS){
 	    if(verbose > 0){
-	      printf("pen_filterGeo:configure: Error reading energy absortion"
+	      printf("pen_filterGeo:configure: Error reading energy absorption"
 		     " at field '%s' for filter '%s'. Double expected.\n",
 		     eabsPath.c_str(), filter.c_str());
 	    }
@@ -246,7 +246,7 @@ int pen_filterGeo::configure(const pen_parserSection& config, unsigned verbose){
       if(eabs <= 0.0){
 	if(verbose > 0){
 	  printf("pen_filterGeo:configure: Error: Invalid energy "
-		 "absortion (%12.4E eV) for filter '%s' particle '%s'. "
+		 "absorption (%12.4E eV) for filter '%s' particle '%s'. "
 		 "Must be greater than zero.\n",
 		 eabs,filter.c_str(),particleNames[j].c_str());
 	}

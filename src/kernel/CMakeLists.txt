@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019-2021 Universitat de València - UV
-#    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2024 Universitat de València - UV
+#    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -69,7 +69,13 @@ add_library(pen_contexts STATIC ${PROJECT_SOURCE_DIR}/kernel/contexts/source/pen
 
 target_include_directories(pen_contexts PUBLIC ${PROJECT_SOURCE_DIR}/kernel/contexts/includes)
 
+target_link_libraries(pen_contexts commonDB)
+target_link_libraries(pen_contexts pen_internalData)
 target_link_libraries(pen_contexts pen_materials)
+
+if(WITH_EMBEDDED_DB)
+    target_link_libraries(pen_contexts penelope_material_db)
+endif(WITH_EMBEDDED_DB)
 
 # Create pen_particles lib
 #############################
@@ -88,6 +94,9 @@ target_include_directories(pen_timer PUBLIC ${PROJECT_SOURCE_DIR}/kernel/timer)
 #############################
 #  ADD SUB-FOLDERS
 #############################
+
+# data base
+add_subdirectory(dataBases)
 
 # data folder
 add_subdirectory(parsers)

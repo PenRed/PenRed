@@ -571,7 +571,7 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 
 	//Check it
 	if(transIndex < 0 ||
-	   transIndex > static_cast<int>(transformNames.size())){
+	   transIndex >= static_cast<int>(transformNames.size())){
 	  if(verbose > 0){
 	    printf("pen_meshBodyGeo:configure: Error: Invalid transformation '%s' index"
 		   " for vertex group '%s' in body '%s'.\n"
@@ -693,10 +693,13 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	      printf("UNEXPECTED ERROR: Unable to create generic translation."
 		     " Please, report this.");
 	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
-	    }	    
+	    }
 	  }
 	}
 	else if(transType.compare("SCALE")   == 0 ||
+		transType.compare("SCALE_X") == 0 ||
+		transType.compare("SCALE_Y") == 0 ||
+		transType.compare("SCALE_Z") == 0 ||
 		transType.compare("SCALE_XY") == 0 ||
 		transType.compare("SCALE_XZ") == 0 ||
 		transType.compare("SCALE_YZ") == 0){
@@ -716,7 +719,28 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	  }
 
 	  //Check which scale transform is
-	  if(transType.compare("SCALE_XY") == 0){
+	  if(transType.compare("SCALE_X") == 0){
+	    if(transG.setScaleX(transIndex, f) != 0){
+	      printf("UNEXPECTED ERROR: Unable to create scale transform on X axis."
+		     " Please, report this.");
+	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	    }
+	  }
+	  else if(transType.compare("SCALE_Y") == 0){
+	    if(transG.setScaleY(transIndex, f) != 0){
+	      printf("UNEXPECTED ERROR: Unable to create scale transform on Y axis."
+		     " Please, report this.");
+	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	    }
+	  }
+	  else if(transType.compare("SCALE_Z") == 0){
+	    if(transG.setScaleZ(transIndex, f) != 0){
+	      printf("UNEXPECTED ERROR: Unable to create scale transform on Z axis."
+		     " Please, report this.");
+	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	    }
+	  }
+	  else if(transType.compare("SCALE_XY") == 0){
 	    if(transG.setScaleXY(transIndex, f) != 0){
 	      printf("UNEXPECTED ERROR: Unable to create scale transform on XY plane."
 		     " Please, report this.");
@@ -857,7 +881,8 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
     }
   }
   else{
-    printf("dsmax specified for %lu bodies:\n\n",bodiesAlias.size());    
+    if(verbose > 1)
+      printf("dsmax specified for %lu bodies:\n\n",bodiesAlias.size());
     for(unsigned i = 0; i < bodiesAlias.size(); i++){
       bool found = false;
       std::string key("dsmax/");      
@@ -916,7 +941,8 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
     }
   }
   else{
-    printf("Detector specified for %lu bodies:\n\n",bodiesAlias.size());    
+    if(verbose > 1)
+      printf("Detector specified for %lu bodies:\n\n",bodiesAlias.size());    
     for(unsigned i = 0; i < bodiesAlias.size(); i++){
       std::string key("kdet/");      
       key += bodiesAlias[i];
@@ -990,7 +1016,8 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
     }
   }
   else{
-    printf("Region size specified for %lu bodies:\n\n",bodiesAlias.size());    
+    if(verbose > 1)
+      printf("Region size specified for %lu bodies:\n\n",bodiesAlias.size());    
     for(unsigned i = 0; i < bodiesAlias.size(); i++){
       std::string key("RegionElements/");      
       key += bodiesAlias[i];
@@ -1069,8 +1096,9 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
     }
   }
   else{
-    printf("Super region size specified for %lu bodies:\n\n",
-	   bodiesAlias.size());    
+    if(verbose > 1)
+      printf("Super region size specified for %lu bodies:\n\n",
+	     bodiesAlias.size());    
     for(unsigned i = 0; i < bodiesAlias.size(); i++){
       std::string key("SuperRegions/");
       key += bodiesAlias[i];
@@ -1280,17 +1308,20 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
   
 #endif
   
-  // Load Absortion Energies
+  // Load absorption Energies
   //*************************
   bodiesAlias.clear();
   err = config.ls("eabs",bodiesAlias);
   if(err != INTDATA_SUCCESS){
     if(verbose > 1){
-      printf("No absortion energies specified for any body\n");
+      printf("No absorption energies specified for any body\n");
     }
   }
   else{
-    printf("Absortion energies specified for %lu bodies:\n\n",bodiesAlias.size());
+    if(verbose > 1)
+      printf("Absorption energies specified"
+	     " for %lu bodies:\n\n",bodiesAlias.size());
+    
     for(unsigned i = 0; i < bodiesAlias.size(); i++){
       std::string key("eabs/");      
       key += bodiesAlias[i];
@@ -1323,14 +1354,19 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	  err = config.read(key2,eabs);
 	  if(err != INTDATA_SUCCESS){
 	    if(verbose > 0){
-	      printf("pen_meshBodyGeo:configure: Error reading energy absortion at field '%s'. Double expected.\n",key2.c_str());
+	      printf("pen_meshBodyGeo:configure: Error reading"
+		     " energy absorption at field '%s'. "
+		     "Double expected.\n",key2.c_str());
 	    }
 	    return PEN_MESHBODY_GEO_BAD_READ_EABS;
 	  }
 
 	  if(eabs <= 0.0){
 	    if(verbose > 0){
-	      printf("pen_meshBodyGeo:configure: Error: Invalid energy absortion %12.4E for body '%s' particle '%s'. Must be greater than zero.\n",eabs,bodiesAlias[i].c_str(),particleNames[j].c_str());
+	      printf("pen_meshBodyGeo:configure: Error: Invalid energy "
+		     "absorption %12.4E for body '%s' particle '%s'. "
+		     "Must be greater than zero.\n",
+		     eabs,bodiesAlias[i].c_str(),particleNames[j].c_str());
 	    }
 	    return PEN_MESHBODY_GEO_INVALID_EABS;
 	  }
@@ -1541,7 +1577,7 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	std::atomic<bool> sharedIntersect{false};
 
 	for(size_t ith = 0; ith < nOverlapThreads; ++ith){
-	  overlapThreads.push_back(std::thread([&,ith](){
+	  overlapThreads.push_back(std::thread([&](){
 
 	    unsigned int iover = atomicCount++;
 	    while(iover < body.nOverlap){
@@ -1663,13 +1699,17 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 int pen_meshBodyGeo::GEOMESH(std::istream& in,
 			     std::map<std::string, std::vector<pen_meshTransform::group>>& transMap,
 			     const unsigned verbose){
+
+  //Create a vector for inlcuded files
+  std::vector<std::ifstream> includes;
+  
   //Read comment lines (start with #)
   std::string line;
   unsigned long nlines;
   unsigned long nRead = 0;
   int nBodies;
     
-  if(pen_getLine(in,line,nlines) == 0){
+  if(meshGetLine(includes,in,line,nlines) == 0){
     nRead += nlines;
     //Read number of bodies in the geometry file
     if(sscanf(line.c_str()," %d",&nBodies) != 1){
@@ -1729,7 +1769,7 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
     //Create a map to store vertex groups
     std::map<std::string,std::vector<unsigned>> vgMap;
     
-    if(pen_getLine(in,line,nlines) == 0){
+    if(meshGetLine(includes,in,line,nlines) == 0){
       nRead += nlines;
       //Read characteristics of each body in the geometry file
       //Create auxiliar variable to ensure material is greater than zero
@@ -1825,7 +1865,7 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
       //Read vertex groups data from geometry file
       for(int j = 0; j < nVertexGroups; ++j){
 	//Read vertex group header
-	if(pen_getLine(in,line,nlines) == 0){
+	if(meshGetLine(includes,in,line,nlines) == 0){
 	  nRead += nlines;
 	  char groupName[100];
 	  long int nGroupVertex;
@@ -1853,7 +1893,7 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
 
 	  //Read vertex indexes belonging this group
 	  for(long int iv = 0; iv < nGroupVertex; ++iv){
-	    if(pen_getLine(in,line,nlines) == 0){
+	    if(meshGetLine(includes,in,line,nlines) == 0){
 	      nRead += nlines;
 	      long int vIndex;
 	      if(sscanf(line.c_str(), " %ld ", &vIndex) != 1){
@@ -1925,7 +1965,7 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
 
       //Read all vertex for this body
       for(size_t j = 0; j < nvertex; ++j){
-	if(pen_getLine(in,line,nlines) == 0){
+	if(meshGetLine(includes,in,line,nlines) == 0){
 	  long int index;
 	  double x,y,z;
 	  nRead += nlines;
@@ -1993,7 +2033,7 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
             
       for(size_t k=0; k < bodies[i].nTriangles; ++k){
 	unsigned int index[3];
-	if(pen_getLine(in,line,nlines) == 0){
+	if(meshGetLine(includes,in,line,nlines) == 0){
 	  nRead += nlines;
 	  //Read each triangle or face of each body 
 	      if(sscanf(line.c_str()," %u  %u  %u",
@@ -2197,6 +2237,75 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
     
   return PEN_MESHBODY_GEO_SUCCESS;
 }
+
+int pen_meshBodyGeo::meshGetLine(std::vector<std::ifstream>& included,
+				 std::istream& root,
+				 std::string&line,
+				 unsigned long& nRead){
+
+  //Clear line
+  line.clear();
+
+  //Read until non empty line
+
+  while(line.empty()){
+    //Check if we must read from main istream or from a included file
+    if(included.size() > 0){
+      //Read from last included file
+      std::ifstream& in = included.back();
+      int err = pen_getLine(in, line, nRead); 
+      if(err != 0){
+	//Error while reading, check if end of file has been reached
+	if(in.eof()){
+	  //End of file reached, close the file and remove the stream
+	  in.close();
+	  included.pop_back();
+	  return meshGetLine(included, root, line, nRead);
+	}else{
+	  //Error reading data, return the error
+	  return err;
+	}
+      }
+    }else{
+      //Read from root stream
+      int err = pen_getLine(root, line, nRead); 
+      if(err != 0){
+	return err;
+      }
+    }
+
+    //After successful read, check if line stores a "include" instruction
+      
+    //Find non white characters
+    const char* whiteChars = " \n\t\r";
+    const std::string::size_type firstCharPos = line.find_first_not_of(whiteChars);
+    if(firstCharPos == std::string::npos){
+      //Empty line
+      line.clear();
+    }else{
+      //Line with data, try to get two words
+      char word1[200], word2[200];
+      word1[0] = '\0';
+      word2[0] = '\0';
+      sscanf(line.c_str(), " %s %s ", word1, word2);
+
+      //Check if it is an include instruction
+      if(std::strcmp(word1,"include") == 0){
+	//Open the file and read from it
+	included.emplace_back(word2);
+	if(!included.back().is_open()){
+	  printf("pen_meshBodyGeo:configure: Error: Unable to "
+		 "open included file '%s'\n", word2);
+	  return -1;
+	}
+	return meshGetLine(included, root, line, nRead);
+      }
+    }
+  }
+
+  return 0;
+}
+
 
 bool pen_meshBodyGeo::canOverlapParent(const unsigned ibody) const {
     

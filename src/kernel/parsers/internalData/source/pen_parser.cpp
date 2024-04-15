@@ -26,126 +26,162 @@
 //
 
 
-#include "pen_data.hh"
+#include "pen_parser.hh"
 
 const char* pen_parserError(const int err){
   switch(err){
-  case INTDATA_SUCCESS: return "Success";break;
-  case INTDATA_INVALID_KEY: return "Invalid key";break;
-  case INTDATA_NOT_A_SCALAR: return "Scalar expected";break;
-  case INTDATA_NOT_A_ARRAY: return "Array expected";break;
-  case INTDATA_NOT_A_STRING: return "String expected";break;
-  case INTDATA_NOT_A_SECTION: return "Section expected";break;
-  case INTDATA_KEY_IS_NOT_PATH: return "Key is not a path";break;
-  case INTDATA_NOT_A_CHAR: return "Character expected";break;
-  case INTDATA_NOT_A_INT: return "Integer expected";break;
-  case INTDATA_NOT_A_DOUBLE: return "Double expected";break;
-  case INTDATA_NOT_A_BOOL: return "Boolean expected";break;
-  case INTDATA_OUT_OF_RANGE: return "Out of range";break;
-  case INTDATA_BAD_ALLOCATION: return "Bad allocation";break;
-  case INTDATA_USED_KEY: return "Used key";break;
-  case INTDATA_UNUSED_KEY: return "Unused key";break;
-  case INTDATA_EMPTY_KEY: return "Empty key";break;
-  case INTDATA_NOT_A_ELEMENT: return "Is not an element";break;
-  case INTDATA_INVALID_PREFIX: return "Invalid prefix";break;
-  case INTDATA_KEY_NO_EXIST: return "Key doesn't exists";break;
-  case INTDATA_PARSE_STRING_EMPTY: return "Empty string";break;
+  case INTDATA_SUCCESS: return "Success";
+  case INTDATA_INVALID_KEY: return "Invalid key";
+  case INTDATA_NOT_A_SCALAR: return "Scalar expected";
+  case INTDATA_NOT_A_ARRAY: return "Array expected";
+  case INTDATA_NOT_A_STRING: return "String expected";
+  case INTDATA_NOT_A_SECTION: return "Section expected";
+  case INTDATA_KEY_IS_NOT_PATH: return "Key is not a path";
+  case INTDATA_NOT_A_CHAR: return "Character expected";
+  case INTDATA_NOT_A_INT: return "Integer expected";
+  case INTDATA_NOT_A_DOUBLE: return "Double expected";
+  case INTDATA_NOT_A_BOOL: return "Boolean expected";
+  case INTDATA_OUT_OF_RANGE: return "Out of range";
+  case INTDATA_BAD_ALLOCATION: return "Bad allocation";
+  case INTDATA_USED_KEY: return "Used key";
+  case INTDATA_UNUSED_KEY: return "Unused key";
+  case INTDATA_EMPTY_KEY: return "Empty key";
+  case INTDATA_NOT_A_ELEMENT: return "Is not an element";
+  case INTDATA_INVALID_PREFIX: return "Invalid prefix";
+  case INTDATA_KEY_NO_EXIST: return "Key doesn't exists";
+  case INTDATA_PARSE_STRING_EMPTY: return "Empty string";
   case INTDATA_PARSE_STRING_PARTIAL_UNUSED:
-    return "Parsed string partially unused";break;
+    return "Parsed string partially unused";
   case INTDATA_PARSE_STRING_INVALID_CHARACTER:
-    return "Invalid parsed character";break;
-  case INTDATA_PARSE_STRING_INVALID_DATA: return "Invalid parsed data";break;
-  case INTDATA_PARSE_STRING_INVALID_ARRAY: return "Invalid parsed array";break;
-  case INTDATA_PARSE_STRING_INVALID_STRING: return "Invalid parsed string";break;
-  case INTDATA_PARSE_STRING_INVALID_ELEMENT: return "Invalid parsed element";break;
-  case INTDATA_PARSE_STRING_INVALID_VALUE: return "Invalid parsed value";break;
-  case INTDATA_NULL_STRING: return "Null string";break;
-  case INTDATA_OPEN_FILE: return "Null file pointer";break;
-  case INTDATA_UNKNOWN_ERROR: return "Unknown error";break;
+    return "Invalid parsed character";
+  case INTDATA_PARSE_STRING_INVALID_DATA: return "Invalid parsed data";
+  case INTDATA_PARSE_STRING_INVALID_ARRAY: return "Invalid parsed array";
+  case INTDATA_PARSE_STRING_INVALID_STRING: return "Invalid parsed string";
+  case INTDATA_PARSE_STRING_INVALID_ELEMENT: return "Invalid parsed element";
+  case INTDATA_PARSE_STRING_INVALID_VALUE: return "Invalid parsed value";
+  case INTDATA_NULL_STRING: return "Null string";
+  case INTDATA_OPEN_FILE: return "Null file pointer";
+  case INTDATA_READER_NOT_A_SECTION: return "Unexpected element on reader parsing";
+  case INTDATA_READER_NOT_A_ELEMENT: return "Unexpected element on reader parsing";
+  case INTDATA_READER_REQUIRED_NOT_A_SECTION:
+    return "Invalid 'required' provided to reader. Not a section";
+  case INTDATA_READER_REQUIRED_WITH_NO_TYPE:
+    return "Invalid 'required' provided to reader. Not type";
+  case INTDATA_READER_REQUIRED_UNKNOWN_TYPE:
+    return "Invalid 'required' provided to reader. Unknown type";
+  case INTDATA_READER_REQUIRED_INVALID_VALUE:
+    return "Invalid 'required' provided to reader. Invalid value";
+  case INTDATA_READER_CONDITION_NOT_A_SECTION:
+    return "Invalid condition. Not a section";
+  case INTDATA_READER_CONDITION_WITH_NO_TYPE:
+    return "Invalid condition. No type provided";
+  case INTDATA_READER_CONDITION_UNKNOWN_TYPE:
+    return "Invalid condition. Unknown type";
+  case INTDATA_READER_CONDITION_INVALID_VALUE:
+    return "Invalid condition. Invalid type";
+  case INTDATA_UNKNOWN_ERROR: return "Unknown error";
+  case INTDATA_READER_REQUIREMENTS_AND_CONDITIONS_NOT_FULFILLED :
+    return "Conditions and requirements not fulfilled";
+  case INTDATA_READER_SINGLE_VALUE_SECTION_WITH_MULTIPLE_KEYS :
+    return "Mutliple keys assigned to a single element subsection";
+  case INTDATA_READER_SPECIFIC_READER_ERROR:
+    return "Error returned from specific reader";
+    
   default: return "Non tabulated error";
   }
 }
 
 
 pen_parserData::pen_parserData(){
-  tag = CHAR;
+  tag = pen_parserData::CHAR;
   c = '\0';
 }
 pen_parserData::pen_parserData(const char val){
   c = val;
-  tag = CHAR;
+  tag = pen_parserData::CHAR;
 }
 pen_parserData::pen_parserData(const int val){
   i = val;
-  tag = INT;
+  tag = pen_parserData::INT;
 }
 pen_parserData::pen_parserData(const double val){
   d = val;
-  tag = DOUBLE;
+  tag = pen_parserData::DOUBLE;
 }
 pen_parserData::pen_parserData(const bool val){
   b = val;
-  tag = BOOL;
+  tag = pen_parserData::BOOL;
 }
 pen_parserData::pen_parserData(const pen_parserData& val){
   tag = val.readTag();
   switch(tag){
-  case CHAR: c = val.c; break;
-  case INT: i = val.i; break;
-  case DOUBLE: d = val.d; break;
-  case BOOL: b = val.b; break;
+  case pen_parserData::CHAR: c = val.c; break;
+  case pen_parserData::INT: i = val.i; break;
+  case pen_parserData::DOUBLE: d = val.d; break;
+  case pen_parserData::BOOL: b = val.b; break;
   }
 
 }
 
 pen_parserData& pen_parserData::operator=(const char val){
   c = val;
-  tag = CHAR;  
+  tag = pen_parserData::CHAR;  
   return *this;
 }
 pen_parserData& pen_parserData::operator=(const int val){
   i = val;
-  tag = INT;
+  tag = pen_parserData::INT;
   return *this;
 }
 pen_parserData& pen_parserData::operator=(const double val){
   d = val;
-  tag = DOUBLE;  
+  tag = pen_parserData::DOUBLE;  
   return *this;
 }
 pen_parserData& pen_parserData::operator=(const bool val){
   b = val;
-  tag = BOOL;  
+  tag = pen_parserData::BOOL;  
+  return *this;
+}
+pen_parserData& pen_parserData::operator=(const pen_parserData& val){
+  tag = val.readTag();
+  switch(tag){
+  case pen_parserData::CHAR: c = val.c; break;
+  case pen_parserData::INT: i = val.i; break;
+  case pen_parserData::DOUBLE: d = val.d; break;
+  case pen_parserData::BOOL: b = val.b; break;
+  }
   return *this;
 }
 
+
 int pen_parserData::read(char& vget) const{
-  if(tag == CHAR){
+  if(tag == pen_parserData::CHAR){
     vget = c;
     return INTDATA_SUCCESS;
   }
   return INTDATA_NOT_A_CHAR;
 }
 int pen_parserData::read(int& vget) const{
-  if(tag == INT){
+  if(tag == pen_parserData::INT){
     vget = i;
     return INTDATA_SUCCESS;
   }
   return INTDATA_NOT_A_INT;  
 }
 int pen_parserData::read(double& vget) const{
-  if(tag == DOUBLE){
+  if(tag == pen_parserData::DOUBLE){
     vget = d;
     return INTDATA_SUCCESS;
   }
-  else if(tag == INT){
+  else if(tag == pen_parserData::INT){
     vget = double(i);
     return INTDATA_SUCCESS;
   }
   return INTDATA_NOT_A_DOUBLE;  
 }
 int pen_parserData::read(bool& vget) const{
-  if(tag == BOOL){
+  if(tag == pen_parserData::BOOL){
     vget = b;
     return INTDATA_SUCCESS;
   }
@@ -160,16 +196,16 @@ int pen_parserData::read(pen_parserData& vget) const{
 void pen_parserData::stringify(std::string& strout) const{
   char buffer[20];
   switch(tag){
-  case CHAR: {
+  case pen_parserData::CHAR: {
     buffer[0] = '\'';
     buffer[1] = c;
     buffer[2] = '\'';
     buffer[3] = '\0';
     break;
   }
-  case INT: snprintf(buffer,sizeof(buffer),"%d",i); break;
-  case DOUBLE: snprintf(buffer,sizeof(buffer),"%14.5E",d); break;
-  case BOOL: snprintf(buffer,sizeof(buffer),"%s", b ? "true" : "false"); break;
+  case pen_parserData::INT: snprintf(buffer,sizeof(buffer),"%d",i); break;
+  case pen_parserData::DOUBLE: snprintf(buffer,sizeof(buffer),"%14.5E",d); break;
+  case pen_parserData::BOOL: snprintf(buffer,sizeof(buffer),"%s", b ? "true" : "false"); break;
   }
   strout.assign(buffer);
 }
@@ -357,7 +393,7 @@ pen_parserArray& pen_parserArray::operator=(const pen_parserArray& c){
 
 //Assignment functions
 int pen_parserArray::assign(const pen_parserElement& c){
-  if(c.readTag() == STRING){
+  if(c.readTag() == pen_parserElement::STRING){
     return INTDATA_NOT_A_ARRAY;
   }
   assign(c.array);
@@ -439,7 +475,7 @@ int pen_parserArray::parse(const std::string& strIn){
 
 //Constructors
 pen_parserElement::pen_parserElement(){
-  tag = SCALAR;
+  tag = pen_parserElement::SCALAR;
   array.append('\0');
 }
 
@@ -448,45 +484,53 @@ pen_parserElement::pen_parserElement(const pen_parserElement& c) : tag(c.tag),
 								   str(c.str)
 {}
 
-pen_parserElement::pen_parserElement(const pen_parserData& c) : tag(SCALAR){
+pen_parserElement::pen_parserElement(const pen_parserData& c) :
+  tag(pen_parserElement::SCALAR){
   array.append(c);
 }
 
-pen_parserElement::pen_parserElement(const pen_parserArray& c) : tag(ARRAY),
-								 array(c)
+pen_parserElement::pen_parserElement(const pen_parserArray& c) :
+  tag(pen_parserElement::ARRAY),
+  array(c)
 {}
 
-pen_parserElement::pen_parserElement(const std::string& c) : tag(STRING),
-							     str(c)
+pen_parserElement::pen_parserElement(const std::string& c) :
+  tag(pen_parserElement::STRING),
+  str(c)
 {}
 
-pen_parserElement::pen_parserElement(const char* c) : tag(STRING),
-							     str(c)
+pen_parserElement::pen_parserElement(const char* c) :
+  tag(pen_parserElement::STRING),
+  str(c)
 {
 }
 
-pen_parserElement::pen_parserElement(const char c) : tag(SCALAR){
+pen_parserElement::pen_parserElement(const char c) :
+  tag(pen_parserElement::SCALAR){
   array.append(c);
 }
-pen_parserElement::pen_parserElement(const int c) : tag(SCALAR){
+pen_parserElement::pen_parserElement(const int c) :
+  tag(pen_parserElement::SCALAR){
   array.append(c);
 }
-pen_parserElement::pen_parserElement(const double c) : tag(SCALAR){
+pen_parserElement::pen_parserElement(const double c) :
+  tag(pen_parserElement::SCALAR){
   array.append(c);
 }
-pen_parserElement::pen_parserElement(const bool c) : tag(SCALAR){
+pen_parserElement::pen_parserElement(const bool c) :
+  tag(pen_parserElement::SCALAR){
   array.append(c);
 }
 
 //Remove data
 int pen_parserElement::remove(const unsigned index){
-  if(tag != ARRAY)
+  if(tag != pen_parserElement::ARRAY)
     return INTDATA_NOT_A_ARRAY;
 
   return array.remove(index);
 }
 int pen_parserElement::remove(const unsigned begin, const unsigned end){
-  if(tag != ARRAY)
+  if(tag != pen_parserElement::ARRAY)
     return INTDATA_NOT_A_ARRAY;
 
   return array.remove(begin,end);
@@ -500,17 +544,17 @@ pen_parserElement& pen_parserElement::operator=(const pen_parserElement& c){
   return *this;
 }
 pen_parserElement& pen_parserElement::operator=(const pen_parserArray& c){
-  if(tag != ARRAY){
+  if(tag != pen_parserElement::ARRAY){
     clear();
-    tag = ARRAY;
+    tag = pen_parserElement::ARRAY;
   }
   array = c;
   return *this;  
 }
 pen_parserElement& pen_parserElement::operator=(const pen_parserData& c){
-  if(tag != SCALAR){
+  if(tag != pen_parserElement::SCALAR){
     clear();
-    tag = SCALAR;
+    tag = pen_parserElement::SCALAR;
     array.append(c);
   }
   else{
@@ -519,17 +563,17 @@ pen_parserElement& pen_parserElement::operator=(const pen_parserData& c){
   return *this;
 }
 pen_parserElement& pen_parserElement::operator=(const std::string& c){
-  if(tag != STRING){
+  if(tag != pen_parserElement::STRING){
     clear();
-    tag = STRING;
+    tag = pen_parserElement::STRING;
   }
   str.assign(c);
   return *this;
 }
 pen_parserElement& pen_parserElement::operator=(const char* c){
-  if(tag != STRING){
+  if(tag != pen_parserElement::STRING){
     clear();
-    tag = STRING;
+    tag = pen_parserElement::STRING;
   }
   str.assign(c);
   return *this;
@@ -553,7 +597,8 @@ pen_parserElement& pen_parserElement::operator=(const bool c){
 
 //Access elements
 pen_parserData& pen_parserElement::operator[](const unsigned index){
-  if(tag == ARRAY || tag == SCALAR){
+  if(tag == pen_parserElement::ARRAY ||
+     tag == pen_parserElement::SCALAR){
     return array[index];
   }
   char error[400];
@@ -564,14 +609,14 @@ pen_parserData& pen_parserElement::operator[](const unsigned index){
 
 //Stringify function
 void pen_parserElement::stringify(std::string& strout) const{
-  if(tag == SCALAR){
+  if(tag == pen_parserElement::SCALAR){
     array.at(0).stringify(strout);
   }
-  else if(tag == ARRAY){
+  else if(tag == pen_parserElement::ARRAY){
     array.stringify(strout);
   }
-  else if(tag == STRING){
-    strout.assign(str);
+  else if(tag == pen_parserElement::STRING){
+    strout.assign("\"" + str + "\"");
   }
 }
 
@@ -592,13 +637,13 @@ int pen_parserElement::parse(const std::string& strIn){
   //Try to parse element as a array
   int errArray = array.parse(strClear);
   if(errArray == INTDATA_SUCCESS){
-    tag = ARRAY;
+    tag = pen_parserElement::ARRAY;
     return INTDATA_SUCCESS;
   }
   
   //Clear array
   array.clear();
-  tag = SCALAR;
+  tag = pen_parserElement::SCALAR;
   array.append('\0');
   
   //Try to parse element as data
@@ -886,7 +931,7 @@ void pen_parserSection::stringify(std::string& strout) const{
   elementMap::const_iterator it;
   for(it = elements.begin(); it != elements.end(); it++){
     it->second.stringify(aux);
-    strout += it->first + ": " + aux + '\n';
+    strout += it->first + " " + aux + '\n';
   }
 }
 
@@ -1056,7 +1101,6 @@ int pen_parserSection::ls(std::string& key, std::vector<std::string>& vect) cons
 pen_parserSection::~pen_parserSection(){
   clear();
 }
-
 
 //Auxiliar functions
 int parseFile(const char* filename,

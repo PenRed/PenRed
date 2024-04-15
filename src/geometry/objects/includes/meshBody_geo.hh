@@ -221,6 +221,8 @@ namespace pen_meshTransform{
     
     virtual void apply(v3D& v) const = 0;
     virtual std::string stringify() const = 0;
+
+    inline virtual ~base(){}
   };
 
   struct trans : base{
@@ -306,6 +308,54 @@ namespace pen_meshTransform{
   
   };
 
+  struct scaleX : base{
+
+    double factor;
+
+    scaleX(const double factorIn) : factor(factorIn) {}    
+  
+    inline void apply(v3D& v) const override {
+      v.x = (v.x-cm.x)*factor + cm.x;
+    }
+    inline std::string stringify() const override {
+      return std::string("Scale on X axis, with factor ") +
+	std::to_string(factor);
+    }
+  
+  };
+
+  struct scaleY : base{
+
+    double factor;
+
+    scaleY(const double factorIn) : factor(factorIn) {}    
+  
+    inline void apply(v3D& v) const override {
+      v.y = (v.y-cm.y)*factor + cm.y;
+    }
+    inline std::string stringify() const override {
+      return std::string("Scale on Y axis, with factor ") +
+	std::to_string(factor);
+    }
+  
+  };
+
+  struct scaleZ : base{
+
+    double factor;
+
+    scaleZ(const double factorIn) : factor(factorIn) {}    
+  
+    inline void apply(v3D& v) const override {
+      v.z = (v.z-cm.z)*factor + cm.z;
+    }
+    inline std::string stringify() const override {
+      return std::string("Scale on Z axis, with factor ") +
+	std::to_string(factor);
+    }
+  
+  };  
+  
   struct scaleXY : base{
 
     double factor;
@@ -428,8 +478,9 @@ namespace pen_meshTransform{
     }
 
     //Set transform functions
-    inline int setTranslation(const size_t i, const v3D& dir, const double ds){
+    inline int setTranslation(const size_t i, v3D dir, const double ds){
       if(i >= transforms.size() ) return 1;
+      dir.normalize();
       transforms[i] =
 	std::unique_ptr<base>(new trans(dir,ds));
       return 0;
@@ -458,6 +509,24 @@ namespace pen_meshTransform{
 	std::unique_ptr<base>(new scale(f));
       return 0;
     }
+    inline int setScaleX(const size_t i, const double f){
+      if(i >= transforms.size() ) return 1;
+      transforms[i] =
+	std::unique_ptr<base>(new scaleX(f));
+      return 0;
+    }
+    inline int setScaleY(const size_t i, const double f){
+      if(i >= transforms.size() ) return 1;
+      transforms[i] =
+	std::unique_ptr<base>(new scaleY(f));
+      return 0;
+    }
+    inline int setScaleZ(const size_t i, const double f){
+      if(i >= transforms.size() ) return 1;
+      transforms[i] =
+	std::unique_ptr<base>(new scaleZ(f));
+      return 0;
+    }    
     inline int setScaleXY(const size_t i, const double f){
       if(i >= transforms.size() ) return 1;
       transforms[i] =
@@ -598,6 +667,11 @@ public:
   int GEOMESH(std::istream& in,
 	      std::map<std::string, std::vector<pen_meshTransform::group>>& transMap,
 	      const unsigned verbose);
+  static int meshGetLine(std::vector<std::ifstream>& included,
+			 std::istream& root,
+			 std::string&line,
+			 unsigned long& nRead);
+  
   
   void locate(pen_particleState&) const final override;
   void step(pen_particleState&,

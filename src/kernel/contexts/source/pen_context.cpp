@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2022 Universitat de València - UV
-//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2024 Universitat de València - UV
+//    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -28,6 +28,458 @@
 
  
 #include "pen_context.hh"
+
+// Material reader
+int pen_contextReaderMat::beginSectionFamily(const std::string& pathInSection,
+					  const size_t,
+					  const unsigned){
+
+  //First level sections
+  if(family == -1){
+    if(pathInSection.compare("material-ranges") == 0){
+      family = 0;
+      return SUCCESS;
+    }
+    else if(pathInSection.compare("material-eabs") == 0){
+      family = 1;
+      return SUCCESS;
+    }
+    else if(pathInSection.compare("materials") == 0){
+      family = 2;
+      return SUCCESS;
+    }
+  }
+  //Sections in "materials"
+  else if(family == 2){
+    if(pathInSection.compare("elements") == 0){
+      family = 3;
+      return SUCCESS;
+    }
+    else if(pathInSection.compare("range") == 0){
+      family = 4;
+      return SUCCESS;
+    }
+    else if(pathInSection.compare("eabs") == 0){
+      family = 5;
+      return SUCCESS;
+    }    
+  }
+  
+  return UNHANDLED;
+}
+
+int pen_contextReaderMat::endSectionFamily(const unsigned){
+
+  if(family == 0 || family == 1 || family == 2){
+    //End material-ranges, material-eabs, materials section
+    family = -1;
+    return SUCCESS;
+  }
+  //End materials/${subsection} subsections. Return to "material" subsection
+  else if(family == 3 || family == 4 || family == 5){
+    //End elements, range or eabs subsections
+    family = 2;
+    return SUCCESS;
+  }
+  
+  return UNHANDLED;
+}
+
+int pen_contextReaderMat::beginSection(const std::string& name,
+				       const unsigned verbose){
+
+  if(family == 0 || family == 1 || family == 4 || family == 5){
+    //Subsection in material-ranges, material-eabs, material range or eabs
+    
+    //Get particle ID from particle "name"
+    actualPartID = particleID(name.c_str());
+    if(actualPartID == ALWAYS_AT_END){
+      if(verbose > 0){
+	printf("Error: Unknown particle type %s\n"
+	       " Known particles:\n", name.c_str());
+	for(size_t i = 0; i < constants::nParTypes; ++i){
+	  printf("    %s\n", particleName(i));
+	}
+	
+      }
+      return UNKNOWN_PARTICLE;
+    }
+    return SUCCESS;
+  }
+  else if(family == 2){
+    //Subsection in materials
+    if(name.empty()){
+      if(verbose > 0){
+	printf("Error: Empty material name");
+      }
+      return INVALID_NAME;
+    }
+    mats.emplace_back(name);
+    return SUCCESS;
+  }
+  else if(family == 3){
+    //Subsection in materials/${subsection}/elements
+
+    //Try to convert the section name to an integer
+    unsigned Z;
+    if(sscanf(name.c_str(), "%u", &Z) != 1){
+      if(verbose > 0){
+	printf("Error: Unknown atomic number: %s\n", name.c_str());
+      }
+      return INVALID_ATOMIC_NUMBER;      
+    }
+    
+    mats.back().composition.emplace_back(Z);
+    return SUCCESS;
+  }
+  
+  return UNHANDLED;
+}
+
+int pen_contextReaderMat::endSection(const unsigned){ return SUCCESS; }  
+
+int pen_contextReaderMat::storeElement(const std::string& pathInSection,
+				       const pen_parserData& element,
+				       const unsigned verbose){
+
+  if(family == 0){
+    //Subsection in material-ranges
+    
+    if(pathInSection.empty()){
+      if(actualPartID >= ALWAYS_AT_END){
+	if(verbose > 0){
+	  printf("Error: Unexpected error, unknown "
+		 "particle id %u\n", actualPartID);
+	}
+	return UNKNOWN_PARTICLE;
+      }else{
+	maxRanges[actualPartID] = element;
+	return SUCCESS;
+      }
+    }
+  }
+  else if(family == 1){
+    //Subsection in material-eabs
+    
+    if(pathInSection.empty()){
+      if(actualPartID >= ALWAYS_AT_END){
+	if(verbose > 0){
+	  printf("Error: Unexpected error, unknown "
+		 "particle id %u\n", actualPartID);
+	}
+	return UNKNOWN_PARTICLE;
+      }else{
+	defaultEabs[actualPartID] = element;
+	return SUCCESS;
+      }
+    }
+  }
+  else if(family == 2){
+    //Subsection in materials
+    
+    if(pathInSection.compare("number") == 0){
+      mats.back().index = element;
+      return SUCCESS;
+    }
+    else if(pathInSection.compare("force-creation") == 0){
+      mats.back().forceCreation = element;
+      return SUCCESS;
+    }
+    else if(pathInSection.compare("density") == 0){
+      mats.back().density = element;
+      return SUCCESS;
+    }
+    else if(pathInSection.compare("C1") == 0){
+      mats.back().C1 = element;
+      return SUCCESS;
+    }
+    else if(pathInSection.compare("C2") == 0){
+      mats.back().C2 = element;
+      return SUCCESS;
+    }
+    else if(pathInSection.compare("WCC") == 0){
+      mats.back().WCC = element;
+      return SUCCESS;
+    }
+    else if(pathInSection.compare("WCR") == 0){
+      mats.back().WCR = element;
+      return SUCCESS;
+    }
+
+  }
+  else if(family == 3){
+    //Subsection in materials/${subsection}/elements
+    if(pathInSection.empty()){
+      mats.back().composition.back().fraction = element;
+      return SUCCESS;
+    }
+  }
+  else if(family == 4){
+    //Subsection in materials/${subsection}/range
+    if(pathInSection.empty()){
+      mats.back().maxRanges[actualPartID] = element;
+      return SUCCESS;
+    }
+  }
+  else if(family == 5){
+    //Subsection in materials/${subsection}/eabs
+    if(pathInSection.empty()){
+      mats.back().eabs[actualPartID] = element;
+      return SUCCESS;
+    }
+  }
+  
+  return UNHANDLED;
+}
+
+int pen_contextReaderMat::storeString(const std::string& pathInSection,
+				      const std::string& element,
+				      const unsigned){
+  if(family == 2){
+    if(pathInSection.compare("filename") == 0){
+      if(element.compare("-") != 0)
+	mats.back().filename = element;
+      return SUCCESS;
+    }
+  }else if(family == -1){
+    if(pathInSection.compare("context-log") == 0){
+      contextlogfile = element;
+      return SUCCESS;
+    }
+  }
+  return UNHANDLED;  
+}
+
+// VR reader
+int pen_contextReaderVR::beginSectionFamily(const std::string& pathInSection,
+					    const size_t,
+					    const unsigned){
+
+  //First level sections
+  if(family == -1){
+    if(pathInSection.compare("VR/IForcing") == 0){
+      family = 0;
+      return SUCCESS;
+    }
+    else if(pathInSection.compare("VR/bremss") == 0){
+      family = 3;
+      return SUCCESS;
+    }
+  }
+  //Sections in "VR/IForcing"
+  else if(family == 0){
+    if(pathInSection.compare("bodies") == 0){
+      family = 1;
+      return SUCCESS;
+    }
+    else if(pathInSection.compare("materials") == 0){
+      family = 2;
+      return SUCCESS;
+    }
+  }
+  //Sections in "VR/bremss"
+  else if(family == 3){
+    if(pathInSection.compare("bodies") == 0){
+      family = 4;
+      return SUCCESS;
+    }
+    else if(pathInSection.compare("materials") == 0){
+      family = 5;
+      return SUCCESS;
+    }
+  }
+  return UNHANDLED;
+}
+
+int pen_contextReaderVR::endSectionFamily(const unsigned){
+
+  if(family == 0 || family == 3){
+    //VR/IForcing or VR/bremss sections
+    family = -1;
+    return SUCCESS;
+  }
+  //End VR/IForcing/${subsection} subsections. Return to "VR/IForcing" subsection
+  else if(family == 1 || family == 2){
+    family = 0;
+    return SUCCESS;
+  }
+  //End VR/bremss/${subsection} subsections. Return to "VR/bremss" subsection
+  else if(family == 4 || family == 5){
+    family = 3;
+    return SUCCESS;
+  }
+  
+  return UNHANDLED;
+}
+
+int pen_contextReaderVR::beginSection(const std::string& name,
+				      const unsigned verbose){
+
+  //Interaction forcing sections
+  if(family == 0){
+    //VR/IForcing begins
+    iforcing.emplace_back(name);
+    return SUCCESS;
+  }
+  else if(family == 1){
+    //VR/IForcing/${subsection}/bodies begins
+    iforcing.back().enabledBodies.emplace_back(name);
+    return SUCCESS;
+  }
+  else if(family == 2){
+    //VR/IForcing/${subsection}/materials begins
+
+    //Convert name to material index
+    unsigned imat;
+    if(sscanf(name.c_str(), "%u", &imat) != 1){
+      if(verbose > 0){
+	printf("Error: Invalid material index: %s\n", name.c_str());
+      }
+      return INVALID_MATERIAL_INDEX;      
+    }
+    if(imat <= 0 || imat >= constants::MAXMAT){
+      if(verbose > 0){
+	printf("Error: Material index must be in the interval (0,%u)\n",
+	       constants::MAXMAT);
+      }
+      return INVALID_MATERIAL_INDEX;      
+    }
+    iforcing.back().enabledMats.emplace_back(imat);
+    return SUCCESS;
+  }
+  //Bremsstrahlung splitting sections
+  else if(family == 3){
+    //VR/bremss begins
+    bremss.emplace_back(name);
+    return SUCCESS;
+  }
+  else if(family == 4){
+    //VR/bremss/${subsection}/bodies begins
+    bremss.back().enabledBodies.emplace_back(name);
+    return SUCCESS;
+  }
+  else if(family == 5){
+    //VR/bremss/${subsection}/materials begins
+
+    //Convert name to material index
+    unsigned imat;
+    if(sscanf(name.c_str(), "%u", &imat) != 1){
+      if(verbose > 0){
+	printf("Error: Invalid material index: %s\n", name.c_str());
+      }
+      return INVALID_MATERIAL_INDEX;      
+    }
+    if(imat <= 0 || imat >= constants::MAXMAT){
+      if(verbose > 0){
+	printf("Error: Material index must be in the interval (0,%u)\n",
+	       constants::MAXMAT);
+      }
+      return INVALID_MATERIAL_INDEX;      
+    }
+    bremss.back().enabledMats.emplace_back(imat);
+    return SUCCESS;
+  }
+  
+  return UNHANDLED;
+}
+
+int pen_contextReaderVR::endSection(const unsigned){ return SUCCESS; }  
+
+int pen_contextReaderVR::storeElement(const std::string& pathInSection,
+				       const pen_parserData& element,
+				       const unsigned verbose){
+
+  //Interaction forcing sections
+  if(family == 0){
+    if(pathInSection.compare("interaction") == 0){
+      iforcing.back().interaction = element;
+      if(iforcing.back().interaction >= constants::MAXINTERACTIONS){
+	if(verbose > 0)
+	  printf("Error: Interaction index (%u) out of range.\n",
+		 iforcing.back().interaction);
+	return INVALID_INTERACTION_INDEX;
+      }
+      return SUCCESS;
+    }
+    else if(pathInSection.compare("factor") == 0){
+      iforcing.back().factor = element;
+      return SUCCESS;
+    }
+    else if(pathInSection.compare("min-weight") == 0){
+      iforcing.back().minW = element;
+      return SUCCESS;
+    }    
+    else if(pathInSection.compare("max-weight") == 0){
+      iforcing.back().maxW = element;
+      return SUCCESS;
+    }
+  }
+  else if(family == 1){
+    //VR/IForcing/${subsection}/bodies
+    if(pathInSection.empty()){
+      if(!element){
+	iforcing.back().enabledBodies.pop_back();
+      }
+      return SUCCESS;
+    }
+  }
+  else if(family == 2){
+    //VR/IForcing/${subsection}/materials
+    if(pathInSection.empty()){
+      if(!element){
+	iforcing.back().enabledMats.pop_back();
+      }
+      return SUCCESS;
+    }
+  }
+  //Bremsstrahlung splitting sections
+  else if(family == 3){
+    if(pathInSection.compare("splitting") == 0){
+      bremss.back().factor = element;
+      return SUCCESS;
+    }
+  }
+  else if(family == 4){
+    //VR/bremss/${subsection}/bodies
+    if(pathInSection.empty()){
+      if(!element){
+	bremss.back().enabledBodies.pop_back();
+      }
+      return SUCCESS;
+    }
+  }
+  else if(family == 5){
+    //VR/bremss/${subsection}/materials
+    if(pathInSection.empty()){
+      if(!element){
+	bremss.back().enabledMats.pop_back();
+      }
+      return SUCCESS;
+    }
+  }
+  
+  return UNHANDLED;
+}
+
+int pen_contextReaderVR::storeString(const std::string& pathInSection,
+				     const std::string& element,
+				     const unsigned verbose){
+  if(family == 0){
+    if(pathInSection.compare("particle") == 0){
+      unsigned kpar = particleID(element.c_str());
+      if(kpar == ALWAYS_AT_END){
+	if(verbose > 0){
+	  printf("Error: Unknown particle id %u\n",
+		 kpar);
+	}
+	return UNKNOWN_PARTICLE;	
+      }
+      iforcing.back().particleType = static_cast<pen_KPAR>(kpar);
+      return SUCCESS;
+    }
+  }
+  return UNHANDLED;  
+}
 
 int pen_context::init(double EMAX, FILE *IWR, int INFO, std::string PMFILE[constants::MAXMAT])
 {
@@ -229,9 +681,558 @@ int pen_context::init(double EMAX, FILE *IWR, int INFO, std::string PMFILE[const
   return PEN_SUCCESS;
 }
 
+int pen_context::configure(const double EMAX,
+			   const pen_parserSection& config,
+			   pen_parserSection& matInfo,
+			   const unsigned verbose){
+
+  if(verbose > 1){
+    printf(" ** Context configuration:\n\n");
+  }
+  
+  //Read material information from config section
+  pen_contextReaderMat matReader;
+  int err = matReader.read(config,verbose);
+  if(err != pen_contextReaderMat::SUCCESS){
+    return err;
+  }
+
+  //Process material data
+  if(verbose > 1){
+    printf("   + Global maximum ranges:\n\n");
+    unsigned count = 0;
+    for(unsigned i = 0; i < constants::nParTypes; ++i){
+      if(matReader.maxRanges[i] > 0.0){
+	printf("     - %s : %E cm\n",
+	       particleName(i), matReader.maxRanges[i]);
+	++count;
+      }
+    }
+    if(count == 0){
+      printf("     - No range specified\n");
+    }
+    printf("\n");
+
+    printf("   + Default global absorption energies:\n\n");
+    for(unsigned i = 0; i < constants::nParTypes; ++i){
+      printf("     - %s : %E eV\n",
+	     particleName(i), matReader.defaultEabs[i]);
+      
+    }
+    printf("\n");
+
+    printf("  + Number of materials: %u\n",
+	   static_cast<unsigned>(matReader.mats.size()));    
+  }
+
+  // ** Check number of materials
+  if(matReader.mats.size() == 0){
+    if(verbose > 0){
+      printf("Error: No material found at configuration. "
+	     "Simulation requires, at least, one material.\n");
+    }
+    return NO_MATERIAL_PROVIDED;
+  }
+  
+  if(matReader.mats.size() > constants::MAXMAT){
+    if(verbose > 0){
+      printf("Error: %d materials found. The maximum "
+	     "number of materials is %d.\n",
+	     static_cast<unsigned>(matReader.mats.size()),
+	     constants::MAXMAT);
+    }
+    return TOO_MUCH_MATERIALS;
+  }
+
+  // ** Set materials in the context
+  err = setMats<pen_material>(matReader.mats.size());
+  if(err != 0){
+    printf("Error creating materials: %d.\n",err);
+    return UNABLE_TO_CREATE_MATERIALS;
+  }
+
+  //Create a vector with materials filenames
+  std::string matFilenames[constants::MAXMAT];
+
+  //Iterate over each material to configure it
+  for(size_t i = 0; i < matReader.mats.size(); ++i){
+
+    //Get material reader reference
+    const pen_contextReaderMat::materialData& matData =
+      matReader.mats[i];
+    
+    if(verbose > 1){
+      printf("\n\n------------------------------------\n\n");
+      printf(" **** Material '%s'\n\n",matData.name.c_str());
+    }
+
+    //Ensure material index is inside bounds
+    if(getNMats() <= matData.index-1){
+      if(verbose > 0){
+	printf("Error: Material index must be lesser or equal"
+	       " to the total number of materials.\n"
+	       "    Error material     : %s\n"
+	       "    Material index     : %u\n"
+	       "    Number of materials: %u\n",
+	       matData.name.c_str(), matData.index,
+	       getNMats());
+      }
+      return MATERIAL_OUT_OF_RANGE;
+    }
+
+    //Check if this material has already been set
+    if(!matFilenames[matData.index-1].empty()){
+      if(verbose > 0){
+	printf("Error: Material with index %u has been "
+	       "defined multiple times\n", matData.index);
+      }
+      return MATERIAL_DEFINED_TWICE;
+    }
+    
+    //Save material filename
+    matFilenames[matData.index-1] = matData.filename;
+
+    //Check if the file exists or if the
+    //material construction is forced
+    FILE* file = nullptr;
+    file = fopen(matData.filename.c_str(), "r");
+    bool fileAccessible = false;
+    if(file != nullptr){
+      fileAccessible = true;
+      fclose(file);
+    }
+
+#ifdef _PEN_EMBEDDED_DATA_BASE_
+    if(!fileAccessible || matData.forceCreation){
+
+      //Create the material
+      if(matData.composition.size() == 0){
+	if(verbose > 0){
+	  printf("Error: Unable to create material %s."
+		 " No composition provided.\n",
+		 matData.name.c_str());
+	}
+	return MISSING_MATERIAL_COMPOSITION;
+      }
+
+      //******************************************************
+      //Fix the minimum number of exponent digits in MVS to 2 
+#ifdef _MSC_VER
+      unsigned int prev_exponent_format =
+	_set_output_format(_TWO_DIGIT_EXPONENT);
+#endif
+      //******************************************************
+
+      //Create the material
+      std::string errorString;
+      err = penred::penMaterialCreator::createMat(matData.name,
+						  matData.density,
+						  matData.composition,
+						  errorString,
+						  matData.filename);
+      if(err != 0){
+	if(verbose > 0){
+	  printf("Unable to create material %s.\n"
+		 "%s\n"
+		 "IRETRN =%d\n",
+		 matData.name.c_str(),
+		 errorString.c_str(),
+		 err);
+	}
+	return MATERIAL_CREATION_FAILED;
+      }
+    }
+#else
+    if(!fileAccessible){
+      if(verbose > 0){
+	printf("Error: Unable to access material file '%s'\n",
+	       matData.filename.c_str());
+      }
+      return UNABLE_TO_ACCESS_MATERIAL_FILE;
+    }
+#endif
+
+    
+    //Get context material
+    pen_material& mat = getBaseMaterial(matData.index-1);
+
+    //Set initial parameters for class II transport
+    mat.C1 = matData.C1;
+    mat.C2 = matData.C2;
+    mat.WCC = matData.WCC;
+    mat.WCR = matData.WCR;
+
+    //Set particle absorption energies
+    pen_context* rangeContext = nullptr;
+    for(unsigned ip = 0; ip < constants::nParTypes; ++ip){
+      double partRange = matReader.maxRanges[ip];
+      if(matData.maxRanges[ip] > 0.0)
+	partRange = matData.maxRanges[ip];
+      double eabs = matReader.defaultEabs[ip];
+      if(matData.eabs[ip] > 0.0){
+	eabs = matData.eabs[ip];
+      }
+
+      //Assign absortion energy by range, explicit value or default value
+      if(partRange > 0.0 && matData.eabs[ip] < 0.0){
+
+	//Create range context if has not previously created
+	if(rangeContext == nullptr)
+	  rangeContext = createAuxContext(EMAX,
+					  matData.filename.c_str(),
+					  verbose);
+	if(rangeContext == nullptr){
+	  if(verbose > 0){
+	    printf("Error: Unable to create auxiliary "
+		   "context to calculate range limits.\n");
+	  }
+	  return RANGE_CONTEXT_CREATION_FAILED;
+	}
+	  
+	// + Range
+	double topE = EMAX;
+	double lowE = 50;
+	double objectiveRange = partRange;
+	unsigned nTries = 0;
+	do{
+	  double midE = (topE+lowE)/2.0;
+	  double range = rangeContext->range(midE,static_cast<pen_KPAR>(ip),0);
+	  if(range == objectiveRange){
+	    topE = midE;
+	    lowE = midE;
+	  }
+	  else if(range > objectiveRange){
+	    topE = midE;
+	  }else{
+	    lowE = midE;
+	  }
+	  ++nTries;
+	}while(nTries < 1000000 && topE/lowE > 1.001);
+	if(topE == EMAX)
+	  mat.EABS[ip] = 1.0e35;
+	else
+	  mat.EABS[ip] = lowE;
+	
+      }
+      else{
+	// + Set absorption energy
+	mat.EABS[ip] = eabs;
+      }
+    }    
+
+    //Free range context if has been created
+    if(rangeContext != nullptr){
+      delete rangeContext;
+    }
+
+    //Check WCC and WCR values
+    if(mat.WCC <= 0.0){
+      mat.WCC = std::min(5e3,mat.EABS[PEN_ELECTRON]/100.0);
+    }
+    if(mat.WCR <= 0.0){
+      mat.WCR = std::min(5e3,mat.EABS[PEN_PHOTON]/100.0);
+    }
+
+    if(verbose > 1){
+      printf("      C1 =%11.4E       C2 =%11.4E\n",mat.C1,mat.C2);
+      printf("     WCC =%11.4E eV,   WCR =%11.4E eV\n",
+	     mat.WCC,(mat.WCR > 10.0E0 ? mat.WCR : 10.0E0));
+      printf("  electron EABS: %11.4E eV\n",mat.EABS[PEN_ELECTRON]);
+      printf("     gamma EABS: %11.4E eV\n",mat.EABS[PEN_PHOTON]);
+      printf("  positron EABS: %11.4E eV\n",mat.EABS[PEN_POSITRON]);
+      
+      printf("\n Material filename: '%s'.\n",matData.filename.c_str());
+      printf("\n Material number: %d.\n",matData.index);
+      
+      printf("\n\n------------------------------------\n\n");    
+    }    
+  }
+
+  //Once materials have been configured, init context
+  FILE* fcontext = nullptr;
+  int contextVerbose = verbose;
+  if(matReader.contextlogfile.length() > 0){
+    fcontext = fopen(matReader.contextlogfile.c_str(),"w");
+    if(fcontext == nullptr){
+      printf("Error: unable to open context log file '%s'\n",
+	     matReader.contextlogfile.c_str());
+    }
+  }else{
+    fcontext = stdout;
+    contextVerbose = 1;
+  }
+  if(init(EMAX,fcontext,contextVerbose,matFilenames) != PEN_SUCCESS){
+    if(fcontext != nullptr) fclose(fcontext);
+    printf("Error at context initialization.\n");
+    return ERROR_AT_CONTEXT_INIT;
+  }
+  if(matReader.contextlogfile.length() > 0 && fcontext != nullptr) fclose(fcontext);
+
+  //Construct material information section
+  matInfo.clear();
+  for(unsigned imat = 0; imat < getNMats(); imat++){
+    std::string matPrefix = "materials/" + matReader.mats[imat].name;
+    matInfo.set((matPrefix + "/ID").c_str(),(int)imat+1);
+    matInfo.set((matPrefix + "/density").c_str(),
+		readBaseMaterial(imat).readDens());
+  }
+
+  return SUCCESS;
+}
+
+int pen_context::configureWithGeo(const pen_parserSection& config,
+				  const unsigned verbose){
+
+  if(readGeometry() == nullptr)
+    return GEOMETRY_NOT_SET;
+
+  //Read VR information from config section
+  pen_contextReaderVR VRReader;
+  int err = VRReader.read(config,verbose);
+  if(err != pen_contextReaderVR::SUCCESS){
+    return err;
+  }
+
+  //Get materials used by the current geometry
+  bool usedMat[constants::MAXMAT+1];
+  readGeometry()->usedMat(usedMat);
+  
+  if(VRReader.iforcing.size() == 0 && VRReader.bremss.size() == 0)
+    return SUCCESS;
+  
+  if(verbose > 1){
+    printf("  * Context variance reduction configuration:\n\n");
+  }
+  
+
+  //Iterate over interaction forcing data
+  for(const pen_contextReaderVR::IFdata& ifdata : VRReader.iforcing){
+    
+    if(verbose > 1){
+      printf("    + Interaction forcing %s:\n"
+	     "  Particle    | Interaction |  IF factor  | Weight Range\n"
+	     " %12s       %2u           %+4f       (%f,%f)\n\n",
+	     ifdata.name.c_str(),
+	     particleName(ifdata.particleType),
+	     ifdata.interaction,
+	     ifdata.factor,
+	     ifdata.minW, ifdata.maxW);
+    }
+
+    //Iterate over material indexes
+    if(ifdata.enabledMats.size() > 0){
+      if(verbose > 1){
+	printf("      - Applied on materials: \n");
+      }
+      for(const unsigned& imat : ifdata.enabledMats){
+	//Check if the material is used in the geometry
+	if(!usedMat[imat]){
+	  if(verbose > 0){
+	    printf("Error: Specified material index (%u) for "
+		   "interaction forcing '%s' is not used at current geometry.\n",
+		   imat, ifdata.name.c_str());
+	  }
+	  return UNUSED_MATERIAL;
+	}
+
+	if(verbose > 1){
+	  printf("        + %u \n", imat);
+	}
+
+	//Set parameters for bodies with this material index
+	for(unsigned ibody = 0; ibody < readGeometry()->getBodies(); ibody++){
+	
+	  if(readGeometry()->getMat(ibody) != imat) continue;
+	  
+	  if(ibody >= NBV){
+	    if(verbose > 0){
+	      printf("Error: Maximum body index for IF reached (%u)\n",NBV);
+	    }
+	    return MAXIMUM_BODY_IF_REACHED;
+	  }
+
+	  //Set interaction forcing in context
+	  setForcing(ifdata.factor, ifdata.particleType,
+			     ifdata.interaction, ibody,
+			     ifdata.minW, ifdata.maxW);
+	}
+      }
+
+      if(verbose > 1){
+	printf("\n");
+      }
+      
+    }
+
+    //Iterate over enabled bodies
+    if(ifdata.enabledBodies.size() > 0){
+      if(verbose > 1){
+	printf("      - Applied on bodies: \n");
+      }
+    }
+    for(const std::string& bodyAlias : ifdata.enabledBodies){
+
+      if(verbose > 1){
+	printf("        + %s \n", bodyAlias.c_str());
+      }
+      
+      unsigned ibody = readGeometry()->getIBody(bodyAlias.c_str());
+      if(ibody >= readGeometry()->getBodies()){
+	if(verbose > 0){
+	  printf("Error: Body '%s' doesn't exists in loaded geometry.\n",
+		 bodyAlias.c_str());
+	}
+	return UNKNOWN_BODY;
+      }
+
+      if(ibody >= NBV){
+	if(verbose > 0){
+	  printf("Error: Maximum body index for IF is (%u)\n",NBV);
+	  printf("                  specified index: %u\n",ibody);
+	}
+	return MAXIMUM_BODY_IF_REACHED;	  
+      }
+
+      //Set interaction forcing in context
+      setForcing(ifdata.factor, ifdata.particleType,
+		 ifdata.interaction, ibody,
+		 ifdata.minW, ifdata.maxW);
+    } 
+
+    if(verbose > 1){
+      printf("\n");
+    }
+    
+  }
+
+  //Iterate over bremss data
+  if(VRReader.bremss.size() > 0){
+    
+    for(const pen_contextReaderVR::bremssData& bremss : VRReader.bremss){
+      if(verbose > 1){
+	printf("    + Bremsstrahlung splitting %s:\n"
+	       "  Splitting \n"
+	       "    %4u \n\n",
+	       bremss.name.c_str(),
+	       bremss.factor);
+      }
+
+      //Iterate over material indexes
+      if(bremss.enabledMats.size() > 0){
+	if(verbose > 1){
+	  printf("      - Applied on materials: \n");
+	}
+      }
+      for(const unsigned& imat : bremss.enabledMats){
+	//Check if the material is used in the geometry
+	if(!usedMat[imat]){
+	  if(verbose > 0){
+	    printf("Error: Specified material index (%u) for "
+		   "Bremsstrahlung splitting '%s' is not used at current geometry.\n",
+		   imat, bremss.name.c_str());
+	  }
+	  return UNUSED_MATERIAL;
+	}
+
+	if(verbose > 1){
+	  printf("        + %u \n", imat);
+	}
+
+	//Set parameters for bodies with this material index
+	for(unsigned ibody = 0; ibody < readGeometry()->getBodies(); ibody++){
+	
+	  if(readGeometry()->getMat(ibody) != imat) continue;
+	  
+	  if(ibody >= NBV){
+	    if(verbose > 0){
+	      printf("Error: Maximum body index for Bremssthralung"
+		     " splitting reached (%u)\n",
+		     NBV);
+	    }
+	    return MAXIMUM_BODY_IF_REACHED;
+	  }
+
+	  //Set bremss splitting in context
+	  if(LFORCE[ibody][PEN_ELECTRON] || LFORCE[ibody][PEN_POSITRON]){
+	    IBRSPL[ibody] = bremss.factor;	  
+	  }else{
+	    if(verbose > 1){
+	      printf("Warning: Bremss factor specified with no "
+		     "interaction forcing in body %s."
+		     " Value will be ignored.\n",
+		     readGeometry()->getBodyName(ibody).c_str());
+	    }
+	  }
+	}
+      }
+
+      if(verbose > 1){
+	printf("\n");
+      }
+      
+      //Iterate over enabled bodies
+      if(bremss.enabledBodies.size() > 0){
+	if(verbose > 1){
+	  printf("      - Applied on bodies: \n");
+	}
+      }
+      for(const std::string& bodyAlias : bremss.enabledBodies){
+
+	if(verbose > 1){
+	  printf("        + %s \n", bodyAlias.c_str());
+	}
+      
+	unsigned ibody = readGeometry()->getIBody(bodyAlias.c_str());
+	if(ibody >= readGeometry()->getBodies()){
+	  if(verbose > 0){
+	    printf("Error: Body '%s' doesn't exists in loaded geometry.\n",
+		   bodyAlias.c_str());
+	  }
+	  return UNKNOWN_BODY;
+	}
+
+	if(ibody >= NBV){
+	  if(verbose > 0){
+	    printf("Error: Maximum body index for Bremssthralung"
+		   " splitting reached (%u)\n",
+		   NBV);
+	  }
+	  return MAXIMUM_BODY_IF_REACHED;
+	}
+
+	//Set bremss splitting in context
+	if(LFORCE[ibody][PEN_ELECTRON] || LFORCE[ibody][PEN_POSITRON]){
+	  IBRSPL[ibody] = bremss.factor;	  
+	}else{
+	  if(verbose > 1){
+	    printf("Warning: Bremss factor specified with no "
+		   "interaction forcing in body %s."
+		   " Value will be ignored.\n",
+		   readGeometry()->getBodyName(ibody).c_str());
+	  }
+	}
+	
+      }
+
+      if(verbose > 1){
+	printf("\n");
+      }
+
+      
+    }
+    
+  }
+
+  return SUCCESS;
+}
+
+
 double pen_context::range(const double E, const pen_KPAR kpar, const unsigned M) const {
 
-  //This subroutine computes the particle range at the specified energy
+  //  This function computes the range (in cm) of particles of type KPAR
+  //  and energy E in material M. For electrons and positrons, the output
+  //  is the CSDA range. For photons, the delivered value is the mean free
+  //  path (=inverse attenuation coefficient).
 
   const pen_material& mat = readBaseMaterial(M);
 
@@ -681,6 +1682,74 @@ double pen_context::getIF(const double forcerIn,
 
   return forcer;
 }
+
+pen_context* pen_context::createAuxContext(double EMAX,
+					   const char* matFilename,
+					   const unsigned verbose){
+  
+  //Create a context
+  pen_context* context = nullptr;
+  context = new pen_context();
+  if(context == nullptr){
+    if(verbose > 0){
+      printf("createAuxContext: Error allocating auxilary context.\n");      
+    }
+    return nullptr;
+  }
+
+  //Set the number of materials to context (1)
+  int errmat = context->setMats<pen_material>(1);
+  if(errmat != 0){
+    if(verbose > 0){
+      printf("createAuxContext: Error at context "
+	     "material creation: %d.\n",errmat);
+    }
+    delete context;
+    return nullptr;
+  }
+  
+  //Get the material
+  pen_material& mat = context->getBaseMaterial(0);
+
+  //Configure the material
+  mat.C1=0.2;
+  mat.C2=0.2;
+  mat.WCC=1.0e3;
+  mat.WCR=1.0e3;
+
+  mat.EABS[PEN_ELECTRON] = 50.0E0;
+  mat.EABS[PEN_PHOTON]   = 50.0E0;
+  mat.EABS[PEN_POSITRON] = 50.0E0;
+
+  FILE* fcontext = nullptr;
+  
+  if(verbose > 0){
+    fcontext = fopen("rangeContext.rep","w");
+    if(fcontext == nullptr){
+      printf("createAuxContext: Error: unable to create "
+	     "file 'rangeContext.rep'\n");
+      delete context;
+      return nullptr;
+    }
+  }
+  
+  int INFO = 1;
+  std::string PMFILEstr[constants::MAXMAT];
+  PMFILEstr[0].assign(matFilename);
+  int err = context->init(EMAX,nullptr,INFO,PMFILEstr);
+  if(err != 0){
+    if(verbose > 0){
+      printf("createAuxContext: Error: Unable to configure range context."
+	     "More details can be found in 'rangeContext.rep' file.\n");
+    }
+    delete context;
+    return nullptr;
+  }
+
+  return context;
+  
+}
+
 
 void DIRECT(const double CDT, const double DF, double &U, double &V, double &W)
 {

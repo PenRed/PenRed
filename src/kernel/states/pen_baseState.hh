@@ -78,10 +78,6 @@ pen_particleState() : E(0.0), X(0.0), Y(0.0), Z(0.0),
     ILB[4] = 0;    
   }
 
-pen_particleState(const pen_particleState& c){
-  *this = c;
-}
-
   inline double posMod() const {return sqrt(X*X+Y*Y+Z*Z);}
   inline double posMod2() const {return X*X+Y*Y+Z*Z;}
   

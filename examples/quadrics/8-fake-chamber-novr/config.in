@@ -108,9 +108,9 @@ geometry/processed-geo-file "report.geo"
 #Phantom water
 materials/phantom/number 1
 
-materials/phantom/eabs_e- 200.0e3
-materials/phantom/eabs_e+ 200.0e3
-materials/phantom/eabs_gamma 1.0e3
+materials/phantom/eabs/electron 200.0e3
+materials/phantom/eabs/positron 200.0e3
+materials/phantom/eabs/gamma 1.0e3
 
 materials/phantom/C1 0.05
 materials/phantom/C2 0.05
@@ -124,9 +124,9 @@ materials/phantom/filename "water.mat"
 #Envelope water
 materials/envelope/number 2
 
-materials/envelope/eabs_e- 1.0e3
-materials/envelope/eabs_e+ 1.0e3
-materials/envelope/eabs_gamma 1.0e3
+materials/envelope/eabs/electron 1.0e3
+materials/envelope/eabs/positron 1.0e3
+materials/envelope/eabs/gamma 1.0e3
 
 materials/envelope/C1 0.00
 materials/envelope/C2 0.00
@@ -139,9 +139,9 @@ materials/envelope/filename "water.mat"
 #Chamber top material
 materials/chamberTop/number 3
 
-materials/chamberTop/eabs_e- 1.0e3
-materials/chamberTop/eabs_e+ 1.0e3
-materials/chamberTop/eabs_gamma 1.0e3
+materials/chamberTop/eabs/electron 1.0e3
+materials/chamberTop/eabs/positron 1.0e3
+materials/chamberTop/eabs/gamma 1.0e3
 
 materials/chamberTop/C1 0.00
 materials/chamberTop/C2 0.00
@@ -154,9 +154,9 @@ materials/chamberTop/filename "pmma.mat"
 #Chamber active volume material
 materials/activeVol/number 4
 
-materials/activeVol/eabs_e- 1.0e3
-materials/activeVol/eabs_e+ 1.0e3
-materials/activeVol/eabs_gamma 1.0e3
+materials/activeVol/eabs/electron 1.0e3
+materials/activeVol/eabs/positron 1.0e3
+materials/activeVol/eabs/gamma 1.0e3
 
 materials/activeVol/C1 0.00
 materials/activeVol/C2 0.00
@@ -169,9 +169,9 @@ materials/activeVol/filename "air.mat"
 #Chamber bot material
 materials/chamberBot/number 5
 
-materials/chamberBot/eabs_e- 1.0e3
-materials/chamberBot/eabs_e+ 1.0e3
-materials/chamberBot/eabs_gamma 1.0e3
+materials/chamberBot/eabs/electron 1.0e3
+materials/chamberBot/eabs/positron 1.0e3
+materials/chamberBot/eabs/gamma 1.0e3
 
 materials/chamberBot/C1 0.00
 materials/chamberBot/C2 0.00
@@ -184,9 +184,9 @@ materials/chamberBot/filename "pmma.mat"
 #Water "shield"
 materials/tap/number 6
 
-materials/tap/eabs_e- 1.0e9
-materials/tap/eabs_e+ 1.0e9
-materials/tap/eabs_gamma 1.0e9
+materials/tap/eabs/electron 1.0e9
+materials/tap/eabs/positron 1.0e9
+materials/tap/eabs/gamma 1.0e9
 
 materials/tap/C1 0.05
 materials/tap/C2 0.05
@@ -201,5 +201,5 @@ materials/tap/filename "water.mat"
 # SIMULATION PARAMETERS #
 #########################
 
-simulation/threads 8
-simulation/dump-interval 1e35
+simulation/threads 2
+simulation/max-time 600
