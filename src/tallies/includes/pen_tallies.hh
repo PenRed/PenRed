@@ -161,6 +161,13 @@ protected:
     dump.toDump(subTally.dump);
   }
 
+  //Include measurement in dump
+  template<class valType, size_t dim>
+  inline void toDump(penred::measurements::measurement<valType, dim>& m){
+    dump.toDump(m.getData().data(), m.getNBins());
+    dump.toDump(m.getData2().data(), m.getNBins());
+  }
+
   //Create filenames with output dir path, thread and MPI number
   std::string createFilename(const char* filename) const{
 

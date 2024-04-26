@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] -
+
+### Added
+
+- Auxiliary *measurement* and *results* classes to the penred::measurements namespace to automate the tallying of magnitudes with arbitrary dimensions, as well as the generation and reading of formatted files
+
+- Auxiliary *aliasing* class to the penred::sampling namespace to automate the sampling of distributions of arbitrary dimension using Walker's aliasing. Distributions can be obtained from the *measurement* and *results* classes
+
+- *DETECTION_SPATIAL_DISTRIB* tally to generate 1D, 2D, 3D, or 4D spatial and energy distributions of impinging particles in a specific detector
+
+- *1D_MEASURE*, *2D_MEASURE*, and *3D_MEASURE* spatial samplers to sample particle positions according to 1D, 2D, and 3D distributions, respectively. These distributions can be generated with the *DETECTION_SPATIAL_DISTRIB*
+
+- Configuration example for utilizing the new tallies and sampler. It is located in *examples/quadrics/9-measure-source*
+
+### Changed
+
+- The compilation of the TCP library is now optional, allowing the code to be compiled without the ASIO library
+
 ## [1.10.0] - 2024-04-15
 
 ### Added

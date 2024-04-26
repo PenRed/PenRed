@@ -324,6 +324,39 @@ float LB::guessWorker::addMeasure(const std::chrono::steady_clock::time_point& a
 // *** load balance task class *** 
 //
 
+int LB::task::parseAssigned(const std::string& response,
+			    unsigned long long& newAssign,
+			    int& errCode){
+  //Extract error flag from the response
+  int flag;
+  errCode = LB_SUCCESS;
+  int nread = sscanf(response.c_str(),"%d",&flag);
+  if(nread != 1){
+    return LB_ERROR_UNEXPECTED_FORMAT;    
+  }
+
+  if(flag != 0){
+    //Error, get error code
+    nread = sscanf(response.c_str(),"%*d %d",&errCode);
+    if(nread != 1){
+      return LB_ERROR_UNEXPECTED_FORMAT;    
+    }
+    return LB_REMOTE_ERROR;
+  }
+
+  //Success, get assigned iterations
+  nread = sscanf(response.c_str(),"%*d %*s %llu",
+		 &newAssign);
+  if(nread != 1){
+    return LB_ERROR_UNEXPECTED_FORMAT;    
+  }
+
+  return LB_SUCCESS;
+}
+
+// ********************** TCP SUPPORT **********************
+#ifdef _PEN_USE_TCP_        
+
 int LB::task::extConnect(FILE* flog,
 			 bool blockWrite,
 			 const unsigned verbose){
@@ -386,36 +419,6 @@ int LB::task::extSendAndRecv(char message[pen_tcp::messageLen],
   }
 
   return PEN_TCP_SUCCESS;
-}
-
-int LB::task::parseAssigned(const std::string& response,
-			    unsigned long long& newAssign,
-			    int& errCode){
-  //Extract error flag from the response
-  int flag;
-  errCode = LB_SUCCESS;
-  int nread = sscanf(response.c_str(),"%d",&flag);
-  if(nread != 1){
-    return LB_ERROR_UNEXPECTED_FORMAT;    
-  }
-
-  if(flag != 0){
-    //Error, get error code
-    nread = sscanf(response.c_str(),"%*d %d",&errCode);
-    if(nread != 1){
-      return LB_ERROR_UNEXPECTED_FORMAT;    
-    }
-    return LB_REMOTE_ERROR;
-  }
-
-  //Success, get assigned iterations
-  nread = sscanf(response.c_str(),"%*d %*s %llu",
-		 &newAssign);
-  if(nread != 1){
-    return LB_ERROR_UNEXPECTED_FORMAT;    
-  }
-
-  return LB_SUCCESS;
 }
 
 int LB::task::extStart(int& TCPerr,
@@ -817,6 +820,169 @@ int LB::task::extAssign(int& TCPerr,
   return LB_SUCCESS;
 }
 
+void LB::task::extStartHandler(const unsigned retries,
+			       std::chrono::seconds sleeptime,
+			       const unsigned verbose,
+			       const bool trusted){
+  //Check if external balance has been configured
+  if(ext_balance){
+
+    // ********************** HTTP SUPPORT **********************
+#ifdef _PEN_USE_LB_HTTP_
+    // HTTP
+    //*******
+    if(ext_http){
+      for(unsigned i = 0; i < retries; ++i){
+	int serverErr;
+	int ret = extStartHTTP(serverErr,verbose,trusted);
+	if(ret == LB_SUCCESS || ret == LB_ERROR_MPI_RANK_0_EXPECTED)
+	  break;
+	
+	std::this_thread::sleep_for(sleeptime);	
+      }
+      return;
+    }
+#endif
+    // **********************   HTTP END   **********************
+    
+    // Raw TCP
+    //**********
+    //Send start request
+    for(unsigned i = 0; i < retries; ++i){
+      int TCPerr;
+      int serverErr;
+      int ret = extStart(TCPerr,serverErr,verbose,trusted);
+      if(ret == LB_SUCCESS || ret == LB_ERROR_MPI_RANK_0_EXPECTED)
+	break;
+	
+      std::this_thread::sleep_for(sleeptime);	
+    }
+    
+  }
+}
+
+void LB::task::extReportHandler(const unsigned long long nIterDone,
+				const std::chrono::steady_clock::time_point& rep_time,
+				const std::chrono::seconds sleeptime,
+				const unsigned verbose,
+				const bool trusted){
+  if(ext_balance){
+
+    // ********************** HTTP SUPPORT **********************
+#ifdef _PEN_USE_LB_HTTP_
+    // HTTP
+    //*******
+    if(ext_http){
+      int serverErr;
+      int errRep = extReportHTTP(serverErr,nIterDone,rep_time,verbose,trusted);
+      if(errRep != LB_SUCCESS){
+	if(errRep != LB_REMOTE_ERROR){
+	  //Connection error, try again
+	  std::this_thread::sleep_for(sleeptime);	
+	  errRep = extReportHTTP(serverErr,nIterDone,rep_time,verbose,trusted);
+	  if(errRep == LB_SUCCESS)
+	    return;
+	}
+
+	if(errRep == LB_REMOTE_ERROR &&
+	   (serverErr == LB_ERROR_WORKER_OUT_OF_RANGE ||
+	    serverErr == LB_ERROR_WORKER_NOT_STARTED)){
+	  //Worker start has not been registered. Send a start petition
+	  extStartHandler(2,sleeptime,verbose);
+	  extReportHTTP(serverErr,nIterDone,rep_time,verbose,trusted);
+	}
+      }     
+      return;
+    }
+#endif
+    // **********************   HTTP END   **********************
+    
+    int TCPerr;
+    int serverErr;
+    int errRep = extReport(TCPerr,serverErr,nIterDone,rep_time,verbose,trusted);
+    if(errRep != LB_SUCCESS){
+      if(errRep == LB_TCP_CONNECTION_FAIL ||
+	 errRep == LB_TCP_COMMUNICATION_FAIL){
+	//Connection error, try again
+	std::this_thread::sleep_for(sleeptime);	
+	errRep = extReport(TCPerr,serverErr,nIterDone,rep_time,verbose,trusted);
+	if(errRep == LB_SUCCESS)
+	  return;
+      }
+
+      if(errRep == LB_REMOTE_ERROR &&
+	 (serverErr == LB_ERROR_WORKER_OUT_OF_RANGE ||
+	  serverErr == LB_ERROR_WORKER_NOT_STARTED)){
+	//Worker start has not been registered. Send a start petition
+	extStartHandler(2,sleeptime,verbose);
+	extReport(TCPerr,serverErr,nIterDone,rep_time,verbose,trusted);
+      }
+    }
+  }
+}
+
+void LB::task::extFinishHandler(const unsigned long long nIterDone,
+				const std::chrono::steady_clock::time_point& rep_time,
+				const std::chrono::seconds sleeptime,
+				const unsigned verbose){
+  if(ext_balance){
+
+    // ********************** HTTP SUPPORT **********************
+#ifdef _PEN_USE_LB_HTTP_
+    // HTTP
+    //*******
+    if(ext_http){
+      int serverErr;
+      int errRep = extFinishHTTP(serverErr,nIterDone,rep_time,verbose);
+      if(errRep != LB_SUCCESS){
+	if(errRep != LB_REMOTE_ERROR){
+	  //Connection error, try again
+	  std::this_thread::sleep_for(sleeptime);	
+	  errRep = extFinishHTTP(serverErr,nIterDone,rep_time,verbose);
+	  if(errRep == LB_SUCCESS)
+	    return;
+	}
+
+	if(errRep == LB_REMOTE_ERROR &&
+	   (serverErr == LB_ERROR_WORKER_OUT_OF_RANGE ||
+	    serverErr == LB_ERROR_WORKER_NOT_STARTED)){
+	  //Worker start has not been registered. Send a start petition
+	  extStartHandler(2,sleeptime,verbose);
+	  extFinishHTTP(serverErr,nIterDone,rep_time,verbose);
+	}
+      }     
+      return;
+    }
+#endif
+    // **********************   HTTP END   **********************
+    
+    int TCPerr;
+    int serverErr;
+    int errRep = extFinish(TCPerr,serverErr,nIterDone,rep_time,verbose);
+    if(errRep != LB_SUCCESS){
+      if(errRep == LB_TCP_CONNECTION_FAIL ||
+	 errRep == LB_TCP_COMMUNICATION_FAIL){
+	//Connection error, try again
+	std::this_thread::sleep_for(sleeptime);	
+	errRep = extFinish(TCPerr,serverErr,nIterDone,rep_time,verbose);
+	if(errRep == LB_SUCCESS)
+	  return;
+      }
+
+      if(errRep == LB_REMOTE_ERROR  &&
+	 (serverErr == LB_ERROR_WORKER_OUT_OF_RANGE ||
+	  serverErr == LB_ERROR_WORKER_NOT_STARTED)){
+	//Try to register the worker start and, then, finish it
+	extStartHandler(2,sleeptime,verbose);
+	extFinish(TCPerr,serverErr,nIterDone,rep_time,verbose);
+      }
+    }
+  }
+}
+
+#endif
+// **********************   TCP END   **********************
+
 // ********************** HTTP SUPPORT **********************
 #ifdef _PEN_USE_LB_HTTP_
 
@@ -1119,166 +1285,6 @@ int LB::task::extFinishHTTP(int& serverErr,
 #endif
 // **********************   HTTP END   **********************
 
-void LB::task::extStartHandler(const unsigned retries,
-			       std::chrono::seconds sleeptime,
-			       const unsigned verbose,
-			       const bool trusted){
-  //Check if external balance has been configured
-  if(ext_balance){
-
-    // ********************** HTTP SUPPORT **********************
-#ifdef _PEN_USE_LB_HTTP_
-    // HTTP
-    //*******
-    if(ext_http){
-      for(unsigned i = 0; i < retries; ++i){
-	int serverErr;
-	int ret = extStartHTTP(serverErr,verbose,trusted);
-	if(ret == LB_SUCCESS || ret == LB_ERROR_MPI_RANK_0_EXPECTED)
-	  break;
-	
-	std::this_thread::sleep_for(sleeptime);	
-      }
-      return;
-    }
-#endif
-    // **********************   HTTP END   **********************
-    
-    // Raw TCP
-    //**********
-    //Send start request
-    for(unsigned i = 0; i < retries; ++i){
-      int TCPerr;
-      int serverErr;
-      int ret = extStart(TCPerr,serverErr,verbose,trusted);
-      if(ret == LB_SUCCESS || ret == LB_ERROR_MPI_RANK_0_EXPECTED)
-	break;
-	
-      std::this_thread::sleep_for(sleeptime);	
-    }
-    
-  }
-}
-
-void LB::task::extReportHandler(const unsigned long long nIterDone,
-				const std::chrono::steady_clock::time_point& rep_time,
-				const std::chrono::seconds sleeptime,
-				const unsigned verbose,
-				const bool trusted){
-  if(ext_balance){
-
-    // ********************** HTTP SUPPORT **********************
-#ifdef _PEN_USE_LB_HTTP_
-    // HTTP
-    //*******
-    if(ext_http){
-      int serverErr;
-      int errRep = extReportHTTP(serverErr,nIterDone,rep_time,verbose,trusted);
-      if(errRep != LB_SUCCESS){
-	if(errRep != LB_REMOTE_ERROR){
-	  //Connection error, try again
-	  std::this_thread::sleep_for(sleeptime);	
-	  errRep = extReportHTTP(serverErr,nIterDone,rep_time,verbose,trusted);
-	  if(errRep == LB_SUCCESS)
-	    return;
-	}
-
-	if(errRep == LB_REMOTE_ERROR &&
-	   (serverErr == LB_ERROR_WORKER_OUT_OF_RANGE ||
-	    serverErr == LB_ERROR_WORKER_NOT_STARTED)){
-	  //Worker start has not been registered. Send a start petition
-	  extStartHandler(2,sleeptime,verbose);
-	  extReportHTTP(serverErr,nIterDone,rep_time,verbose,trusted);
-	}
-      }     
-      return;
-    }
-#endif
-    // **********************   HTTP END   **********************
-    
-    int TCPerr;
-    int serverErr;
-    int errRep = extReport(TCPerr,serverErr,nIterDone,rep_time,verbose,trusted);
-    if(errRep != LB_SUCCESS){
-      if(errRep == LB_TCP_CONNECTION_FAIL ||
-	 errRep == LB_TCP_COMMUNICATION_FAIL){
-	//Connection error, try again
-	std::this_thread::sleep_for(sleeptime);	
-	errRep = extReport(TCPerr,serverErr,nIterDone,rep_time,verbose,trusted);
-	if(errRep == LB_SUCCESS)
-	  return;
-      }
-
-      if(errRep == LB_REMOTE_ERROR &&
-	 (serverErr == LB_ERROR_WORKER_OUT_OF_RANGE ||
-	  serverErr == LB_ERROR_WORKER_NOT_STARTED)){
-	//Worker start has not been registered. Send a start petition
-	extStartHandler(2,sleeptime,verbose);
-	extReport(TCPerr,serverErr,nIterDone,rep_time,verbose,trusted);
-      }
-    }
-  }
-}
-
-void LB::task::extFinishHandler(const unsigned long long nIterDone,
-				const std::chrono::steady_clock::time_point& rep_time,
-				const std::chrono::seconds sleeptime,
-				const unsigned verbose){
-  if(ext_balance){
-
-    // ********************** HTTP SUPPORT **********************
-#ifdef _PEN_USE_LB_HTTP_
-    // HTTP
-    //*******
-    if(ext_http){
-      int serverErr;
-      int errRep = extFinishHTTP(serverErr,nIterDone,rep_time,verbose);
-      if(errRep != LB_SUCCESS){
-	if(errRep != LB_REMOTE_ERROR){
-	  //Connection error, try again
-	  std::this_thread::sleep_for(sleeptime);	
-	  errRep = extFinishHTTP(serverErr,nIterDone,rep_time,verbose);
-	  if(errRep == LB_SUCCESS)
-	    return;
-	}
-
-	if(errRep == LB_REMOTE_ERROR &&
-	   (serverErr == LB_ERROR_WORKER_OUT_OF_RANGE ||
-	    serverErr == LB_ERROR_WORKER_NOT_STARTED)){
-	  //Worker start has not been registered. Send a start petition
-	  extStartHandler(2,sleeptime,verbose);
-	  extFinishHTTP(serverErr,nIterDone,rep_time,verbose);
-	}
-      }     
-      return;
-    }
-#endif
-    // **********************   HTTP END   **********************
-    
-    int TCPerr;
-    int serverErr;
-    int errRep = extFinish(TCPerr,serverErr,nIterDone,rep_time,verbose);
-    if(errRep != LB_SUCCESS){
-      if(errRep == LB_TCP_CONNECTION_FAIL ||
-	 errRep == LB_TCP_COMMUNICATION_FAIL){
-	//Connection error, try again
-	std::this_thread::sleep_for(sleeptime);	
-	errRep = extFinish(TCPerr,serverErr,nIterDone,rep_time,verbose);
-	if(errRep == LB_SUCCESS)
-	  return;
-      }
-
-      if(errRep == LB_REMOTE_ERROR  &&
-	 (serverErr == LB_ERROR_WORKER_OUT_OF_RANGE ||
-	  serverErr == LB_ERROR_WORKER_NOT_STARTED)){
-	//Try to register the worker start and, then, finish it
-	extStartHandler(2,sleeptime,verbose);
-	extFinish(TCPerr,serverErr,nIterDone,rep_time,verbose);
-      }
-    }
-  }
-}
-
 int LB::task::setWorkers(const size_t nw, const unsigned verbose){
 
   //Clear current configuration and prepare a new one
@@ -1366,9 +1372,12 @@ int LB::task::workerStart(const size_t iw, const unsigned verbose){
     started = true; //Task begins now
     finished = false;
 
+    
     // **** External LB **** //
+#ifdef _PEN_USE_TCP_        
     //If enabled, send a start request to external balancer
     extStartHandler(5,std::chrono::seconds(5),verbose);
+#endif
     // **** External LB **** //
     
 // **************************** MPI ********************************* //
@@ -1499,6 +1508,8 @@ bool LB::task::workerFinish(const size_t iw,
 
   // **** External LB **** //      
 #ifndef _PEN_USE_MPI_
+#ifdef _PEN_USE_TCP_        
+
       //If MPI is not enabled, external balance finish requests
       //are handled here
       if(ext_balance){
@@ -1507,6 +1518,7 @@ bool LB::task::workerFinish(const size_t iw,
 			 std::chrono::steady_clock::now(),
 			 std::chrono::seconds(5),verbose);
       }
+#endif
 #endif
   // **** External LB **** //      
     }
@@ -1699,12 +1711,14 @@ int LB::task::checkPoint(const unsigned verbose){
   // **** External LB **** //
   bool forceUpdate = false;
 #ifndef _PEN_USE_MPI_
+#ifdef _PEN_USE_TCP_        
   //If MPI is not enabled, external balance reports are handled at checkpoints
   unsigned long long prevIterations = iterations;
   extReportHandler(iterPred,actualTime,
 		   std::chrono::seconds(5),verbose,true);
   if(prevIterations != iterations)
       forceUpdate = true;
+#endif
 #endif
   // **** External LB **** //
 
@@ -2225,6 +2239,7 @@ unsigned long long LB::task::balanceMPI(const unsigned verbose){
     return 1000000000000000;
 
   // **** External LB **** //
+#ifdef _PEN_USE_TCP_        
   if(ext_balance){
     //Send a report to the external load balancer
     //Get actual time
@@ -2233,6 +2248,7 @@ unsigned long long LB::task::balanceMPI(const unsigned verbose){
     extReportHandler(predDoneMPI(actualTime),actualTime,
 		     std::chrono::seconds(5),verbose,true);
   }
+#endif
   // **** External LB **** //
 
   unsigned long long MPIremainingTime = 0ull;
@@ -2260,6 +2276,7 @@ unsigned long long LB::task::balanceMPI(const unsigned verbose){
   }
 
   // **** External LB **** //
+#ifdef _PEN_USE_TCP_        
   if(ext_balance && MPIremainingTime <= threshold){
     //Send finish signal with all iterations completed
     std::chrono::steady_clock::time_point actualTime =
@@ -2267,6 +2284,7 @@ unsigned long long LB::task::balanceMPI(const unsigned verbose){
     extFinishHandler(MPIiterations,actualTime + std::chrono::seconds(2),
 		     std::chrono::seconds(5),verbose);
   }
+#endif
   // **** External LB **** //
   
   return MPIremainingTime;
@@ -3238,6 +3256,9 @@ int LB::task::extHTTPserver(const unsigned extern_iw,
 #endif
 // **********************   HTTP END   **********************
 
+// ********************** TCP SUPPORT **********************
+#ifdef _PEN_USE_TCP_        
+
 int LB::task::extLBserver(const unsigned extern_iw,
 			  const char* host,
 			  const char* port,
@@ -3324,10 +3345,16 @@ int LB::task::extLBserver(const unsigned extern_iw,
   ext_balance = true;
   return LB_SUCCESS;
 }
+#endif
+// **********************   TCP END   **********************
+
  
 //********************
 //**  Task server
 //********************
+
+// ********************** TCP SUPPORT **********************
+#ifdef _PEN_USE_TCP_
 
 int LB::taskServer::setLogFile(const char* logFileName,
 			       const unsigned verbose){
@@ -4308,31 +4335,32 @@ void LB::taskServer::monitor(const bool local,
   }
 }
 
-void LB::taskServer::createError(const int prefix, const int errcode,
-				 const char* errmessage,
-				 char err[pen_tcp::messageLen],
-				 const unsigned verbose){
 
-  //Construct error message
-  if(errmessage == nullptr){
-    snprintf(err,pen_tcp::messageLen,"%d\n%d\n",prefix,errcode);
-  }
-  else{
-    snprintf(err,pen_tcp::messageLen,"%d\n%d\n%s\n",
-	     prefix,errcode,errmessage);
-  }
+ void LB::taskServer::createError(const int prefix, const int errcode,
+				  const char* errmessage,
+				  char err[pen_tcp::messageLen],
+				  const unsigned verbose){
 
-  if(filterLog(verbose,2)){
-    fprintf(flog,"%07ld s - Error message\n"
-	    "                  Prefix: %d\n"
-	    "              Error code: %d\n"
-	    "           Error message: %s\n",
-	    static_cast<long int>(timeStamp()),
-	    prefix,errcode,
-	    errmessage == nullptr ? "none" : errmessage);
-    fflush(flog);
-  }
-}
+   //Construct error message
+   if(errmessage == nullptr){
+     snprintf(err,pen_tcp::messageLen,"%d\n%d\n",prefix,errcode);
+   }
+   else{
+     snprintf(err,pen_tcp::messageLen,"%d\n%d\n%s\n",
+	      prefix,errcode,errmessage);
+   }
+
+   if(filterLog(verbose,2)){
+     fprintf(flog,"%07ld s - Error message\n"
+	     "                  Prefix: %d\n"
+	     "              Error code: %d\n"
+	     "           Error message: %s\n",
+	     static_cast<long int>(timeStamp()),
+	     prefix,errcode,
+	     errmessage == nullptr ? "none" : errmessage);
+     fflush(flog);
+   }
+ }
 
 int LB::taskServer::printReport(FILE* fout) const{
 
@@ -4356,3 +4384,6 @@ LB::taskServer::~taskServer(){
   flog = nullptr;
   clear();
 }
+
+#endif
+// ********************** TCP END **********************

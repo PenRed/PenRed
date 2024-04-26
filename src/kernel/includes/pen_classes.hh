@@ -42,7 +42,7 @@
 #include "../states/pen_baseState.hh"
 #include "pen_constants.hh"
 #include "../errors/pen_errors.hh"
-#include "../rands/includes/pen_random.hh"
+#include "../rands/includes/pen_randoms.hh"
 #include "../parsers/internalData/includes/pen_data.hh"
 
 #include "math_classes.hh"

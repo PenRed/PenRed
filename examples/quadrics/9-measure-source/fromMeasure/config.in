@@ -1,0 +1,129 @@
+
+#
+#
+#    Copyright (C) 2024 Universitat de València - UV
+#    Copyright (C) 2024 Universitat Politècnica de València - UPV
+#
+#    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
+#
+#    PenRed is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    PenRed is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+#
+#    You should have received a copy of the GNU Affero General Public License
+#    along with PenRed.  If not, see <https://www.gnu.org/licenses/>. 
+#
+#
+#    contact emails:
+#
+#        vicent.gimenez.alventosa@gmail.com
+#        vicente.gimenez@uv.es
+#    
+#
+
+
+#########################
+##  SOURCES           ###
+#########################
+
+#------------------------
+#  Source 1
+#########################
+
+sources/generic/source1/nhist 1.0e10
+sources/generic/source1/kpar "gamma"
+
+# Directional sampling
+#########################
+
+sources/generic/source1/direction/type "CONE"
+
+
+# Set theta
+sources/generic/source1/direction/theta 180.0
+
+# Set phi
+sources/generic/source1/direction/phi 0.0
+
+# Set oberture (alpha)
+sources/generic/source1/direction/alpha 0.0
+
+
+# Energy sampling
+#########################
+
+sources/generic/source1/energy/type "MONOENERGETIC"
+
+# Set energy
+sources/generic/source1/energy/energy 1.0e5
+
+
+# Spatial sampling
+#########################
+
+sources/generic/source1/spatial/type "2D_MEASURE"
+
+sources/generic/source1/spatial/filename "source.dat"
+
+sources/generic/source1/spatial/constant-coordinate 0.0
+sources/generic/source1/spatial/plane "xy"
+
+sources/generic/source1/spatial/dx 0.0
+sources/generic/source1/spatial/dy 0.0
+sources/generic/source1/spatial/dz 0.0
+
+#########################
+##  TALLIES           ###
+#########################
+
+tallies/SpatialDetectior1/type "DETECTION_SPATIAL_DISTRIB"
+tallies/SpatialDetectior1/spatial/nx 100
+tallies/SpatialDetectior1/spatial/xmin -8.0
+tallies/SpatialDetectior1/spatial/xmax  8.0
+tallies/SpatialDetectior1/spatial/ny 50
+tallies/SpatialDetectior1/spatial/ymin -4.0
+tallies/SpatialDetectior1/spatial/ymax  4.0
+tallies/SpatialDetectior1/detector 1
+tallies/SpatialDetectior1/particle "gamma"
+
+#########################
+#  GEOMETRY PARAMETERS  #
+#########################
+
+geometry/type "PEN_QUADRIC"
+geometry/input-file "measure.geo"
+geometry/processed-geo-file "report.geo"
+
+
+geometry/kdet/2  1
+
+#########################
+#       MATERIALS       #
+#########################
+
+materials/dummy/number 1
+
+materials/dummy/eabs/electron 1.0e35
+materials/dummy/eabs/positron 1.0e35
+materials/dummy/eabs/gamma 1.0e35
+
+materials/dummy/C1 0.05
+materials/dummy/C2 0.05
+
+materials/dummy/WCC 2.0e3
+materials/dummy/WCR 2.0e3
+
+materials/dummy/filename "water.mat"
+
+#########################
+# SIMULATION PARAMETERS #
+#########################
+
+simulation/threads 12
+simulation/max-time 1800

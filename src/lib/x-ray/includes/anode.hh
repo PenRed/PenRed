@@ -46,6 +46,15 @@ namespace penred{
 			    const double colAngle,
 			    const bool onlyPhotons);
 
+    void runAnodeDistribSimulation(const unsigned long long nHists,
+				   const double Einit,
+				   const pen_context& context,
+				   const pen_VRCluster<pen_state_gPol>& photonVR,
+				   measurements::measurement<double,1>& spectrum,
+				   measurements::measurement<double,2>& spatialDistrib,
+				   int& seed1, int& seed2,
+				   const double colAngle);
+
     //Function to simulate a monoenergetic electron beam aiming an anode
     int simAnode(const char* matFilename,
 		 const double eEnergy,
@@ -61,10 +70,20 @@ namespace penred{
 		 const unsigned verbose = 1,
 		 const unsigned threads2Use = 0);
 
-    
 
-  };
+    int simAnodeDistrib(const char* matFilename,
+			const double eEnergy,
+			const double eMin,
+			const double angle,
+			const unsigned long long nHists,
+			double& dReg,
+			measurements::measurement<double,1>& spectrum,
+			measurements::measurement<double,2>& spatialDistrib,
+			const double colAngle = 180,
+			const unsigned verbose = 1,
+			const unsigned threads2Use = 0);
+  }; // namespace x-ray
 
-};
+}; // namespace penred
 
 #endif

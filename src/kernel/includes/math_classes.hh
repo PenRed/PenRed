@@ -1,8 +1,8 @@
  
 //
 //
-//    Copyright (C) 2023 Universitat de València - UV
-//    Copyright (C) 2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2023-2024 Universitat de València - UV
+//    Copyright (C) 2023-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -28,6 +28,16 @@
 
 #ifndef __PEN_MATH_CLASSES__
 #define __PEN_MATH_CLASSES__
+
+#include <cmath>
+#include <numeric>
+#include <functional>
+#include <istream>
+#include <string>
+#include <limits>
+#include <vector>
+#include <array>
+#include <sstream>
 
 //--------------------------------
 // Auxiliar structs and classes
@@ -1149,5 +1159,990 @@ struct container : public box<T>{
   }
 
 };
+
+//Define a structures to save measures
+namespace penred{
+  namespace measurements{
+
+    typedef std::pair<double, double> limitsType;
+
+    inline std::string triml(const std::string& strin){
+      const std::string delimiters = " \n\r\t\f\v";
+      size_t first = strin.find_first_not_of(delimiters);
+      return (first == std::string::npos) ? "" : strin.substr(first);
+    }
+
+    inline std::string trimr(const std::string& strin){
+      const std::string delimiters = " \n\r\t\f\v";
+      size_t last = strin.find_last_not_of(delimiters);
+      return (last == std::string::npos) ? "" : strin.substr(0,last+1);
+    }
+
+    inline std::string trim(const std::string& strin){
+      return trimr(triml(strin));
+    }
+    
+    template<class type, size_t dim = 1>
+    class results{
+  
+    public:
+
+      enum errors{
+	SUCCESS = 0,
+	DIMENSION_NOT_FOUND,
+	DIMENSION_MISMATCH,
+	EFFECTIVE_DIMENSIONS_MISMATCH,
+	NUMBER_OF_BINS_NOT_FOUND,
+	INVALID_NUMBER_OF_BINS,
+	LIMITS_NOT_FOUND,
+	INVALID_LIMITS,
+	SIGMA_NOT_FOUND,
+	DATA_NOT_FOUND,
+	CORRUPTED_DATA,
+      };
+
+      std::array<unsigned long, dim> nBins;
+      unsigned long totalBins;
+      std::array<unsigned long, dim> binsPerIncrement;
+      std::array<double, dim> binWidths;
+      std::array<std::pair<double, double>, dim> limits;
+
+      std::vector<type> data;
+      std::vector<double> sigma;
+
+      static constexpr const unsigned nHeaders = dim + 2;
+      std::array<std::string, nHeaders> headers; 
+
+      std::string description;
+
+      const std::vector<type>& readData() const { return data; }
+      const std::vector<double>& readSigam() const { return sigma; }
+      const std::array<unsigned long, dim>& readDimBins() const { return nBins; }
+      const std::array<std::pair<double, double>, dim>& readLimits() const { return limits; }
+      
+
+      int read(std::istream& in) {
+
+	std::string line;
+
+	// ** Dimensions
+	unsigned long readDim;
+    
+	//Skip lines until "# Dimensions" is found
+	bool found = false;
+	bool textInDescription = false;
+	while(std::getline(in, line)){
+	  if(line.find("# Dimensions:") == 0){
+	    found = true;
+	    break;
+	  }
+	  line = trim(line);
+	  if(line.size() > 0){
+	    if(line[0] == '#'){
+	      line.erase(0,1);
+	      line = trim(line);
+	    }
+	  }
+
+	  if(line.empty() && !textInDescription){
+	    continue;
+	  }
+
+	  if(line.empty()){
+	    description += '\n';
+	  }
+	  else{
+	    if(textInDescription){
+	      description += '\n' + line;
+	    }
+	    else{
+	      description += line;
+	      textInDescription = true;
+	    }
+	  }
+	}
+
+	if(!found){
+	  return errors::DIMENSION_NOT_FOUND;
+	}
+
+	//Read dimension
+	std::getline(in, line);
+	if(sscanf(line.c_str(), " %*c %lu", &readDim) != 1){
+	  return errors::DIMENSION_NOT_FOUND;
+	}
+
+	
+	// ** Number of bins
+	found = false;
+	while(std::getline(in, line)){
+	  if(line.find("# Number of bins:") == 0){
+	    found = true;
+	    break;
+	  }
+	}
+
+	if(!found){
+	  return errors::NUMBER_OF_BINS_NOT_FOUND;
+	}
+
+	//Remove comment character
+	in.ignore(std::numeric_limits<std::streamsize>::max(), '#');
+	
+	//Read number of bins for each file dimension	
+	std::vector<unsigned long> readNBins(readDim);
+	for(size_t i = 0; i < readDim; ++i){
+	  in >> readNBins[i];
+	  if(!in){
+	    return errors::NUMBER_OF_BINS_NOT_FOUND;
+	  }
+	  if(readNBins[i] == 0){
+	    return errors::INVALID_NUMBER_OF_BINS;
+	  }
+	}
+
+	//Count effective dimensions
+	unsigned long readEffectiveDim = 0;
+	for(size_t i = 0; i < readDim; ++i){
+	  if(readNBins[i] > 1){
+	    ++readEffectiveDim;
+	  }
+	}
+
+	// * Check dimensions
+	bool readEffective = false;
+	if(readDim != dim){
+	  if(readEffectiveDim == dim)
+	    readEffective = true;
+	  else
+	    return errors::DIMENSION_MISMATCH;
+	}
+
+	//Set number of bins
+	if(readEffective){
+	  size_t j = 0;
+	  for(size_t i = 0; i < readDim; ++i){
+	    if(readNBins[i] > 1){
+	      nBins[j++] = readNBins[i];
+	    }
+	  }
+	}
+	else{
+	  for(size_t i = 0; i < readDim; ++i){
+	    nBins[i] = readNBins[i];
+	  }
+	}
+
+	//Calculate total number of bins
+	totalBins = std::accumulate(nBins.begin(),
+				    nBins.end(), 1,
+				    std::multiplies<unsigned long>());
+
+	if(totalBins == 0)
+	  return errors::INVALID_NUMBER_OF_BINS;    
+
+	//Calculate bins per increment in each dimension
+	binsPerIncrement[0] = 1;
+	for(size_t i = 1; i < dim; ++i){
+	  binsPerIncrement[i] = binsPerIncrement[i-1]*nBins[i-1];
+	}
+    
+	//Skip line
+	in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+	// ** Limits
+	found = false;
+	while(std::getline(in, line)){
+	  if(line.find("# Limits [low,top):") == 0){
+	    found = true;
+	    break;
+	  }
+	}
+
+	if(!found){
+	  return errors::LIMITS_NOT_FOUND;
+	}
+
+	//Read limits
+	size_t j = 0;
+	for(size_t i = 0; i < readDim; ++i){
+	  if(readEffective && readNBins[i] == 1){
+	    //Skip line
+	    in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+	  }
+	  else{
+	    //Read limits
+	    std::getline(in, line);
+
+	    //Create a buffer from this line
+	    std::stringstream ssline;
+	    ssline.str(line);
+
+	    //Skip comment character
+	    ssline.ignore(std::numeric_limits<std::streamsize>::max(), '#');
+
+	    //Read low limit
+	    ssline >> limits[j].first;
+	    if(!ssline){
+	      return errors::LIMITS_NOT_FOUND;
+	    }
+
+	    //Read top limit
+	    ssline >> limits[j].second;
+	    if(!ssline){
+	      return errors::LIMITS_NOT_FOUND;
+	    }
+
+	    //Read dimension header
+	    std::getline(ssline,headers[j]);
+
+	    if(headers[j].length() > 2){
+	      //Trim header right spaces
+	      headers[j] = trim(headers[j]);
+	    }
+	    
+	    if(limits[j].first >= limits[j].second){
+	      return errors::INVALID_LIMITS;
+	    }
+	    ++j;
+	  }
+	}
+
+	//Calculate bin widths
+	for(size_t i = 0; i < dim; ++i){
+	  binWidths[i] = (limits[i].second - limits[i].first)/static_cast<double>(nBins[i]);
+	}    
+
+	// ** Sigma
+	found = false;
+	while(std::getline(in, line)){
+	  if(line.find("# Printed sigmas:") == 0){
+	    found = true;
+	    break;
+	  }
+	}
+
+	if(!found){
+	  return errors::SIGMA_NOT_FOUND;
+	}
+
+	//Read printed sigmas
+	std::getline(in, line);
+	int nSigmasAux;
+	if(sscanf(line.c_str(), " %*c %d ", &nSigmasAux) != 1){
+	  return errors::SIGMA_NOT_FOUND;
+	}	
+
+	double nSigmas = static_cast<double>(std::abs(nSigmasAux));
+
+	// ** Headers
+
+	//Read header line
+	std::getline(in, line);
+
+	//Parse value and sigma headers
+	std::string::size_type lastBar = line.find_last_of('|');
+	if(lastBar != std::string::npos){
+	  std::string::size_type lastBar2 = line.find_last_of('|', lastBar-1);
+	  if(lastBar2 != std::string::npos){
+	    std::string::size_type lastBar3 = line.find_last_of('|', lastBar2-1);
+	    if(lastBar3 != std::string::npos){
+	      headers[dim] = line.substr(lastBar3+1, lastBar2-lastBar3-1);
+	      headers[dim+1] = line.substr(lastBar2+1, lastBar-lastBar2-1);
+
+	      //Trim header left spaces
+	      headers[dim] = trim(headers[dim]);
+	      headers[dim+1] = trim(headers[dim+1]);
+	    }
+	    else{
+	      headers[dim] = "Value";
+	      headers[dim+1] = "Sigma";
+	    }
+	  }
+	  else{
+	    headers[dim] = "Value";
+	    headers[dim+1] = "Sigma";
+	  }
+	}else{
+	  headers[dim] = "Value";
+	  headers[dim+1] = "Sigma";
+	}
+	
+	// ** Data
+	data.resize(totalBins);
+	sigma.resize(totalBins);
+
+	//Read the first non comment line (First data bin)
+	found = false;
+	while(std::getline(in, line)){
+	  if(!line.empty()){
+	    char firstChar;
+	    if(sscanf(line.c_str(), " %c ", &firstChar) == 1){
+	      if(firstChar != '#'){
+		//First non empty/comment line found
+		found = true;
+		break;
+	      }
+	    }
+	  }
+	}
+
+	if(!found){
+	  return errors::DATA_NOT_FOUND;
+	}
+
+	//Count the number of numbers in the line
+	std::stringstream ssline;
+	ssline.str(line);
+
+	size_t nNums = 0;
+	while(true){
+	  double aux;
+	  ssline >> aux;
+	  if(!ssline){
+	    break;
+	  }
+	  ++nNums;
+	}
+
+	if(nNums < 2){
+	  return errors::CORRUPTED_DATA;
+	}
+	
+	size_t toSkip = nNums-2;	
+	if(toSkip != 0 &&
+	   toSkip != 2*readEffectiveDim &&
+	   toSkip != readEffectiveDim){
+	  return errors::CORRUPTED_DATA;
+	}
+
+	//Save first bin results
+	ssline.str("");
+	ssline.clear();
+	ssline.str(line);
+	//Skip coordinate and bin numbers
+	for(size_t iskip = 0; iskip < toSkip; ++iskip){
+	  double dummy;
+	  ssline >> dummy;
+	}
+
+	//Read value and sigma
+	ssline >> data[0];
+	ssline >> sigma[0];
+	sigma[0] /= nSigmas;
+
+    
+	for(unsigned long i = 1; i < totalBins; ++i){
+
+	  //Skip coordinate and bin numbers
+	  for(size_t iskip = 0; iskip < toSkip; ++iskip){
+	    double dummy;
+	    in >> dummy;
+	  }
+
+	  //Read value information and error
+	  in >> data[i];
+	  if(!in){
+	    return errors::CORRUPTED_DATA;
+	  }
+	  in >> sigma[i];
+	  if(!in){
+	    return errors::CORRUPTED_DATA;
+	  }
+	  sigma[i] /= nSigmas;
+	}
+
+	return errors::SUCCESS;
+      }
+
+      void print(FILE* fout,
+		 const unsigned nSigma,
+		 const bool printCoordinates,
+		 const bool printBinNumber) const {
+
+
+	std::array<unsigned long, dim> indexes;
+	std::fill(indexes.begin(), indexes.end(), 0ul);
+
+	//Print description
+	if(!description.empty()){
+	  fprintf(fout, "#\n");
+
+	  //Get next endLine in description string
+	  std::string::size_type endLinePos = description.find('\n');
+	  fprintf(fout, "# %s\n", description.substr(0,endLinePos).c_str());
+	  while(endLinePos != std::string::npos){
+	    std::string::size_type initPos = endLinePos;
+	    endLinePos = description.find('\n',initPos+1);
+	    fprintf(fout, "# %s\n", description.substr(initPos+1,endLinePos).c_str());
+	  }
+	}
+	
+	
+	fprintf(fout, "# Dimensions:\n"
+		"# %lu\n"
+		"# Number of bins:\n"
+		"#",
+		static_cast<unsigned long>(dim));
+	for(size_t i = 0; i < dim; ++i){
+	  fprintf(fout, " %lu", nBins[i]);
+	}
+	fprintf(fout, "\n"
+		"# Limits [low,top): \n");
+	for(size_t i = 0; i < dim; ++i){
+	  fprintf(fout, "# %15.5E %15.5E  %s\n",
+		  limits[i].first,
+		  limits[i].second,
+		  headers[i].c_str());
+	}
+	fprintf(fout, "# Printed sigmas:\n");
+	fprintf(fout, "# %u\n", nSigma);
+
+	//Calculate spaces required to print each dimension information
+	constexpr unsigned long reqSpaceBins = 5;
+	constexpr unsigned long reqSpaceCoor = 16;
+	const unsigned long reqSpaceNums =
+	  (printBinNumber ? reqSpaceBins : 0) + (printCoordinates ? reqSpaceCoor : 0);
+	std::array<int, nHeaders> headersSpace;
+	if(printBinNumber || printCoordinates){
+	  for(size_t iHeader = 0; iHeader < dim; ++iHeader){
+	    if(reqSpaceNums < headers[iHeader].length()){
+	      headersSpace[iHeader] = headers[iHeader].length();
+	    }else{
+	      headersSpace[iHeader] = reqSpaceNums;
+	    }
+	  }
+	}
+
+	//Set header space for value and sigma
+	headersSpace[dim]   = std::max(15u, static_cast<unsigned>(headers[dim].length()));
+	headersSpace[dim+1] = std::max(13u, static_cast<unsigned>(headers[dim+1].length()));
+
+	//Print dimensions headers
+	fprintf(fout, "#");
+	if(printBinNumber || printCoordinates){
+	  for(unsigned long idim = 0; idim < dim; ++idim){
+	    if(nBins[idim] > 1){
+	      fprintf(fout, " %*s |",
+		      headersSpace[idim], headers[idim].c_str());
+	    }
+	  }
+	}
+	//Print value and sigma headers
+	for(unsigned long iHeader = dim; iHeader < nHeaders; ++iHeader){
+	  fprintf(fout, " %*s |",
+		  headersSpace[iHeader], headers[iHeader].c_str());	  
+	}
+	
+	fprintf(fout, "\n");
+
+	const double nSigmaD = static_cast<double>(nSigma);
+	for(unsigned long i = 0; i < totalBins; ++i){
+
+	  fprintf(fout, " ");
+	  //Print dimensions bin and coordinates information
+	  for(size_t idim = 0; idim < dim; ++idim){
+	    
+	    if(nBins[idim] == 1){
+	      //Skip dimensions with a single bin
+	      continue;
+	    }
+  
+	    //Print bin information
+	    if(printBinNumber){
+	      if(printCoordinates){
+		fprintf(fout, " %4lu", indexes[idim]);
+	      }
+	      else{
+		fprintf(fout, " %*lu  ", headersSpace[idim], indexes[idim]);
+	      }
+	    }
+
+	    //Print position information
+	    if(printCoordinates){
+	      if(printBinNumber){
+		fprintf(fout, " %*.5E  ",headersSpace[idim]-5,
+			limits[idim].first + indexes[idim]*binWidths[idim]);
+	      }
+	      else{
+		fprintf(fout, " %*.5E  ",headersSpace[idim],
+			limits[idim].first + indexes[idim]*binWidths[idim]);
+	      }
+	    }
+	  }
+	
+	  fprintf(fout, " %*.5E   %*.2E\n",
+		  headersSpace[dim], data[i],
+		  headersSpace[dim+1], sigma[i]*nSigmaD);
+
+	  //Increase first dimension index
+	  ++indexes[0];
+	  //Check for other dimensions index increment
+	  for(size_t idim = 0; idim < dim; ++idim){
+	    if(indexes[idim] >= nBins[idim]){
+	      
+	      if(nBins[idim] > 1){
+		//Print a blank line to separate coordinate blocks
+		fprintf(fout, "\n");
+	      }
+	      indexes[idim] = 0;
+	      if(idim < dim-1){
+		++indexes[idim+1];
+	      }
+	      else{
+		break;
+	      }
+	    }
+	  }
+	}
+      }
+    
+    };
+
+    template<class type, size_t dim = 1>
+    class measurement{
+    public:
+      enum errors{    
+	SUCCESS = 0,
+	INVALID_NUMBER_OF_BINS,
+	INVALID_LIMITS,
+      };
+  
+    private:
+  
+      std::array<unsigned long, dim> nBins;
+      unsigned long totalBins;
+      std::array<unsigned long, dim> binsPerIncrement;
+      std::array<double, dim> binWidths;
+      std::array<std::pair<double, double>, dim> limits;
+
+      std::vector<type> data;
+      std::vector<type> data2;      
+      std::vector<type> tmp;
+      std::vector<unsigned long long> lastHist;
+
+      static constexpr const unsigned nHeaders = dim + 2;
+      std::array<std::string, nHeaders> headers; 
+      
+    public:
+
+      std::string description;  
+      static constexpr size_t dimensions = dim;
+  
+      inline measurement(){
+
+	for(size_t i = 0; i < dim; ++i){
+	  headers[i] = std::string("Dimension ") + std::to_string(i);
+	}
+	
+	headers[dim] = "Value";
+	headers[dim+1] = "Sigma";
+      };
+
+      //Read functions
+      inline const std::vector<type>& readData() const { return data; }
+      inline const std::vector<type>& readData2() const { return data2; }
+      inline const std::array<unsigned long, dim>& readDimBins() const { return nBins; }
+      inline const std::array<std::pair<double, double>, dim>& readLimits() const {
+	return limits;
+      }
+      
+      inline std::vector<type>& getData() { return data; }
+      inline std::vector<type>& getData2() { return data2; }
+      inline unsigned long getNBins(const unsigned idim) const { return nBins[idim]; }
+      inline unsigned long getNBins() const { return totalBins; }
+      inline unsigned long effectiveDim() const {
+	//Calculate effective dimensions
+	unsigned long effectiveDims = dim;
+	for(size_t i = 0; i < dim; ++i){
+	  if(nBins[i] == 1){
+	    --effectiveDims;
+	  }
+	}
+	return effectiveDims;
+      }
+
+      inline void setDimHeader(const unsigned idim, const std::string& h){
+	headers[idim] = h;
+
+	//Replace all '|'
+	std::string::size_type pos = headers[idim].find('|');
+	while(pos != std::string::npos){
+	  headers[idim][pos] = '!';
+	  pos = headers[idim].find('|', pos);
+	}
+	headers[idim] = trim(headers[idim]);
+      }
+
+      inline void setValueHeader(const std::string& h){
+	headers[dim] = h;
+
+	//Replace all '|'
+	std::string::size_type pos = headers[dim].find('|');
+	while(pos != std::string::npos){
+	  headers[dim][pos] = '!';
+	  pos = headers[dim].find('|', pos);
+	}
+	headers[dim] = trim(headers[dim]);
+      }
+
+      inline void setSigmaHeader(const std::string& h){
+	headers[dim+1] = h;
+
+	//Replace all '|'
+	std::string::size_type pos = headers[dim+1].find('|');
+	while(pos != std::string::npos){
+	  headers[dim+1][pos] = '!';
+	  pos = headers[dim+1].find('|', pos);
+	}
+	headers[dim+1] = trim(headers[dim+1]);
+      }
+      
+      int init(const std::array<unsigned long, dim>& nBinsIn,
+	       const std::array<std::pair<double, double>, dim>& limitsIn){
+
+	//Calculate total number of bins
+	totalBins = std::accumulate(nBinsIn.begin(),
+				    nBinsIn.end(), 1,
+				    std::multiplies<unsigned long>());
+	if(totalBins == 0)
+	  return errors::INVALID_NUMBER_OF_BINS;
+    
+	//Check limits
+	for(size_t i = 0; i < dim; ++i){
+	  if(limitsIn[i].first >= limitsIn[i].second){
+	    return errors::INVALID_LIMITS;
+	  }
+	}
+
+	//Save bins
+	nBins = nBinsIn;
+
+	//Calculate bins per increment in each dimension
+	binsPerIncrement[0] = 1;
+	for(size_t i = 1; i < dim; ++i){
+	  binsPerIncrement[i] = binsPerIncrement[i-1]*nBins[i-1];
+	}
+
+	//Save limits
+	limits = limitsIn;
+
+	//Calculate bin widths
+	for(size_t i = 0; i < dim; ++i){
+	  binWidths[i] = (limits[i].second - limits[i].first)/static_cast<double>(nBins[i]);
+	}
+    
+	//Resize vectors
+	data.resize(totalBins);
+	std::fill(data.begin(), data.end(), static_cast<type>(0));
+
+	data2.resize(totalBins);
+	std::fill(data2.begin(), data2.end(), static_cast<type>(0));
+
+	tmp.resize(totalBins);
+	std::fill(tmp.begin(), tmp.end(), static_cast<type>(0));
+
+	lastHist.resize(totalBins);
+	std::fill(lastHist.begin(), lastHist.end(), 0ull);
+
+	return errors::SUCCESS;    
+      }
+
+      inline int init(const measurement<type, dim>& c){
+	return init(c.nBins, c.limits);
+      }
+
+      void add(const std::array<double, dim>& pos,
+	       const type& value,
+	       const unsigned long long hist){
+
+	//Check limits
+	for(size_t i = 0; i < dim; ++i){
+	  if(pos[i] < limits[i].first || pos[i] >= limits[i].second){
+	    return;
+	  }
+	}
+
+	//Get indexes
+	std::array<unsigned long, dim> index;
+	for(size_t i = 0; i < dim; ++i){
+	  index[i] = (pos[i] - limits[i].first)/binWidths[i];
+	}
+
+
+	//Get global index
+	unsigned long globIndex = index[0];
+	for(size_t i = 1; i < dim; ++i){
+	  globIndex += index[i]*binsPerIncrement[i];
+	}
+      
+	if(hist > lastHist[globIndex]){
+
+	  //Update counters
+	  data[globIndex] += tmp[globIndex];
+	  data2[globIndex] += tmp[globIndex]*tmp[globIndex];
+
+	  //Restart tmp counter
+	  tmp[globIndex] = value;
+
+	  //Update last hist
+	  lastHist[globIndex] = hist;
+	}else{
+	  tmp[globIndex] += value;
+	}
+      }
+
+      int add(measurement<type,dim> toAdd){
+
+	//Check number of bins
+	for(size_t i = 0; i < dim; ++i){
+	  if(nBins[i] != toAdd.nBins[i])
+	    return -1;
+	}
+	for(size_t i = 0; i < totalBins; ++i){
+	  data[i]  += toAdd.data[i];
+	  data2[i] += toAdd.data2[i];
+	}
+
+	return 0;
+      }
+  
+      void flush(){
+	for(unsigned long i = 0; i < totalBins; ++i){
+	  //Skip empty bins
+	  if(lastHist[i] == 0){continue;}
+
+	  //Update counters
+	  data[i] += tmp[i];
+	  data2[i] += tmp[i]*tmp[i];
+
+	  //Reset tmp counter
+	  tmp[i] = static_cast<type>(0);
+
+	  //Reset last history to avoid recounting
+	  lastHist[i] = 0;      
+	}
+      }
+
+      void results(const unsigned long long nhists, results<type, dim>& res) const {
+
+	res.nBins = nBins;
+	res.totalBins = totalBins;
+	res.binsPerIncrement = binsPerIncrement;
+	res.binWidths = binWidths;
+	res.limits = limits;
+
+	res.headers = headers;
+	res.description = description;
+
+	res.data.resize(totalBins);
+	res.sigma.resize(totalBins);
+
+	//Calculate normalization factor
+	const double factor = 1.0/static_cast<double>(nhists);
+    
+	for(unsigned long i = 0; i < totalBins; ++i){
+
+	  //Calculate resulting value and error
+	  const double q = data[i]*factor;
+	  double sigma = data2[i]*factor - q*q;
+	  if(sigma > 0.0){
+	    sigma = sqrt(sigma*factor);
+	  }
+	  else{
+	    sigma = 0.0;
+	  }
+
+	  res.data[i] = q;
+	  res.sigma[i] = sigma;
+	}
+      }
+
+      void print(FILE* fout,
+		 const unsigned long long nhists,
+		 const unsigned nSigma,
+		 const bool printCoordinates,
+		 const bool printBinNumber) const {
+
+
+	std::array<unsigned long, dim> indexes;
+	std::fill(indexes.begin(), indexes.end(), 0ul);
+
+	//Calculate normalization factor
+	const double factor = 1.0/static_cast<double>(nhists);
+
+	//Print description
+	if(!description.empty()){
+	  fprintf(fout, "#\n");
+
+	  //Get next endLine in description string
+	  std::string::size_type endLinePos = description.find('\n');
+	  fprintf(fout, "# %s\n", description.substr(0,endLinePos).c_str());
+	  while(endLinePos != std::string::npos){
+	    std::string::size_type initPos = endLinePos;
+	    endLinePos = description.find('\n',initPos+1);
+	    fprintf(fout, "# %s\n", description.substr(initPos+1,endLinePos).c_str());
+	  }
+	}
+	
+	
+	fprintf(fout, "# Dimensions:\n"
+		"# %lu\n"
+		"# Number of bins:\n"
+		"#",
+		static_cast<unsigned long>(dim));
+	for(size_t i = 0; i < dim; ++i){
+	  fprintf(fout, " %lu", nBins[i]);
+	}
+	fprintf(fout, "\n"
+		"# Limits [low,top): \n");
+	for(size_t i = 0; i < dim; ++i){
+	  fprintf(fout, "# %15.5E %15.5E  %s\n",
+		  limits[i].first,
+		  limits[i].second,
+		  headers[i].c_str());
+	}
+	fprintf(fout, "# Printed sigmas:\n");
+	fprintf(fout, "# %u\n", nSigma);
+
+	//Calculate spaces required to print each dimension information
+	constexpr unsigned long reqSpaceBins = 5;
+	constexpr unsigned long reqSpaceCoor = 16;
+	const unsigned long reqSpaceNums =
+	  (printBinNumber ? reqSpaceBins : 0) + (printCoordinates ? reqSpaceCoor : 0);
+	std::array<int, nHeaders> headersSpace;
+	if(printBinNumber || printCoordinates){
+	  for(size_t iHeader = 0; iHeader < dim; ++iHeader){
+	    if(reqSpaceNums < headers[iHeader].length()){
+	      headersSpace[iHeader] = headers[iHeader].length();
+	    }else{
+	      headersSpace[iHeader] = reqSpaceNums;
+	    }
+	  }
+	}
+
+	//Set header space for value and sigma
+	headersSpace[dim]   = std::max(15u, static_cast<unsigned>(headers[dim].length()));
+	headersSpace[dim+1] = std::max(13u, static_cast<unsigned>(headers[dim+1].length()));
+
+	//Print dimensions headers
+	fprintf(fout, "#");
+	if(printBinNumber || printCoordinates){
+	  for(unsigned long idim = 0; idim < dim; ++idim){
+	    if(nBins[idim] > 1){
+	      fprintf(fout, " %*s |",
+		      headersSpace[idim], headers[idim].c_str());
+	    }
+	  }
+	}
+	//Print value and sigma headers
+	for(unsigned long iHeader = dim; iHeader < nHeaders; ++iHeader){
+	  fprintf(fout, " %*s |",
+		  headersSpace[iHeader], headers[iHeader].c_str());	  
+	}	  
+	
+	fprintf(fout, "\n");
+	
+	for(unsigned long i = 0; i < totalBins; ++i){
+
+	  fprintf(fout, " ");
+	  //Print dimensions bin and coordinates information
+	  for(size_t idim = 0; idim < dim; ++idim){
+	    
+	    if(nBins[idim] == 1){
+	      //Skip dimensions with a single bin
+	      continue;
+	    }
+  
+	    //Print bin information
+	    if(printBinNumber){
+	      if(printCoordinates){
+		fprintf(fout, " %4lu", indexes[idim]);
+	      }
+	      else{
+		fprintf(fout, " %*lu  ", headersSpace[idim], indexes[idim]);
+	      }
+	    }
+
+	    //Print position information
+	    if(printCoordinates){
+	      if(printBinNumber){
+		fprintf(fout, " %*.5E  ",headersSpace[idim]-5,
+			limits[idim].first + indexes[idim]*binWidths[idim]);
+	      }
+	      else{
+		fprintf(fout, " %*.5E  ",headersSpace[idim],
+			limits[idim].first + indexes[idim]*binWidths[idim]);
+	      }
+	    }
+	  }
+
+	  //Print value information and error
+	  const double q = data[i]*factor;
+	  double sigma = data2[i]*factor - q*q;
+	  if(sigma > 0.0){
+	    sigma = sqrt(sigma*factor);
+	  }
+	  else{
+	    sigma = 0.0;
+	  }
+	
+	  fprintf(fout, " %*.5E   %*.2E\n",
+		  headersSpace[dim], q,
+		  headersSpace[dim+1], static_cast<double>(nSigma)*sigma);
+
+	  //Increase first dimension index
+	  ++indexes[0];
+	  //Check for other dimensions index increment
+	  for(size_t idim = 0; idim < dim; ++idim){
+	    if(indexes[idim] >= nBins[idim]){
+	      
+	      if(nBins[idim] > 1){
+		//Print a blank line to separate coordinate blocks
+		fprintf(fout, "\n");
+	      }
+	      indexes[idim] = 0;
+	      if(idim < dim-1){
+		++indexes[idim+1];
+	      }
+	      else{
+		break;
+	      }
+	    }
+	  }
+	}
+      }
+
+      std::string stringifyInfo() const {
+
+	std::stringstream buf;
+	
+	for(size_t i = 0; i < dim; ++i){
+	  buf << "\n" << headers[i] << ":\n"
+	      << "  + Number of bins:\n     "
+	      << nBins[i] << "\n"
+	      << "  + Limits:\n     [";
+	  if(limits[i].first < -1.0e20)
+	    buf << "-Inf, ";
+	  else
+	    buf << limits[i].first << ", ";
+
+	  if(limits[i].second > 1.0e20)
+	    buf << " Inf";
+	  else
+	    buf << limits[i].second;
+	    
+	  buf << ")" << std::endl;
+	  if(nBins[i] > 1){
+	    buf << "  + Bin width:\n     "
+		<< binWidths[i] << std::endl;
+	  }
+	}
+	return buf.str();
+      }
+    };
+    
+  }; //namespace measurements
+}; //namespace penred
 
 #endif

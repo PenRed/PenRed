@@ -57,3 +57,14 @@
     TARGETS createBaseCollimator
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/x-ray/createBaseCollimator
     )
+
+    # Create x-ray utility executable
+    add_executable(x-ray ${CMAKE_CURRENT_SOURCE_DIR}/x-ray.cpp)
+
+    target_link_libraries(x-ray pen_xray)
+
+    # Install anode simulation executable
+    install(
+    TARGETS x-ray
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/x-ray
+    )

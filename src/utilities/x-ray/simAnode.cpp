@@ -28,8 +28,8 @@
 
 int main(int argc, char** argv){
 
-  if(argc < 6){
-    printf("usage: mat-filename beamEnergy minE focalSpot anode-angle histories\n");
+  if(argc < 7){
+    printf("usage: %s mat-filename beamEnergy minE anode-angle bins histories\n", argv[0]);
     return 1;
   }
 
@@ -37,40 +37,47 @@ int main(int argc, char** argv){
   const char* matFilename = argv[1];
   const double beamE = std::atof(argv[2]);
   const double eMin = std::atof(argv[3]);
-  const double fs = std::atof(argv[4]); 
-  const double angle = std::atof(argv[5]);
+  const double angle = std::atof(argv[4]);
+  const double nBinsAux = std::atof(argv[5]);
   const double nHistAux = std::atof(argv[6]);
 
-  if(nHistAux <= 0.0){
-    printf("Number of histories must be greater than 0.\n");
+  if(nBinsAux <= 0.0){
+    printf("Number of bins must be greater than 0.\n");
     return -1;
   }
+  
+  if(nHistAux <= 0.0){
+    printf("Number of histories must be greater than 0.\n");
+    return -2;
+  }
 
+  const unsigned long nBins = static_cast<unsigned long>(nBinsAux);
   const unsigned long long nHist = static_cast<unsigned long long>(nHistAux);
 
+  //Create tallies
+  penred::measurements::measurement<double,1> spectrum;
+  penred::measurements::measurement<double,2> spatialDistrib;
+
+  spectrum.init({nBins}, {std::pair<double,double>(eMin,beamE)});
+  
   //Simulate the anode
-  std::vector<penred::xray::detectedPart> results;
   double dReg;
-  int err = penred::xray::simAnode(matFilename, beamE, eMin, fs, angle,
-				   nHist, 100000000, dReg, results, 180.0, true, 2);
+  int err = penred::xray::simAnodeDistrib(matFilename, beamE, eMin, angle,
+					  nHist, dReg, spectrum, spatialDistrib,
+					  5*angle, 2);
   if(err != 0){
     printf("Error on anode simulation.\n");
     return -2;
   }
 
-  //Construct a spectrum
-  constexpr double dx = 200.0;
-  std::vector<double> spec(10+static_cast<unsigned>(beamE/dx),0.0);
-  const double fact = 1.0/(dx*static_cast<double>(nHist));
-  for(const penred::xray::detectedPart& p : results){
-    spec[static_cast<unsigned>(p.state.E/dx)] += p.state.WGHT*fact;
-  }
-
   //Print the spectrum
-  FILE* fout = fopen("spectrum.spc", "w");
-  for(size_t i = 0; i < spec.size(); ++i){
-    fprintf(fout,"%15.5E %15.5E\n", dx*static_cast<double>(i), spec[i]);
-  }
+  FILE* fout = fopen("spectrum.dat", "w");
+  spectrum.print(fout, nHist, 2, true, false);
+  fclose(fout);
+
+  //Print the spatial distribution
+  fout = fopen("spatialDistrib.dat", "w");
+  spatialDistrib.print(fout, nHist, 2, true, true);
   fclose(fout);
   
   return 0;  

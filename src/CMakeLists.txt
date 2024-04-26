@@ -40,6 +40,7 @@ option(WITH_DICOM "Build PenRed DICOM " OFF)
 
 option(WITH_MULTI_THREADING "Build PenRed with multi-threading " ON)
 option(WITH_MPI "Build PenRed with MPI " OFF)
+option(WITH_TCP "Compile PenRed with TCP support for communications" OFF)
 
 option(WITH_NATIVE "Compile PenRed with native architecture optimizations" ON)
 
@@ -165,6 +166,10 @@ CMAKE_DEPENDENT_OPTION(WITH_EMBEDDED_DB "Build PenRed main programs with embedde
 if(WITH_EMBEDDED_DB)
   add_definitions(-D_PEN_EMBEDDED_DATA_BASE_=1) #enable embedded data bases
 endif(WITH_EMBEDDED_DB)
+
+if(WITH_TCP)
+  add_definitions(-D_PEN_USE_TCP_=1) #enable TCP library
+endif(WITH_TCP)
 
 # Check if DICOM option has been enabled
 if(WITH_DICOM)

@@ -264,3 +264,7 @@ if(WITH_DICOM)
 endif()
 
 add_subdirectory(geometry)
+
+add_subdirectory(measurements)
+
+add_subdirectory(sampler)

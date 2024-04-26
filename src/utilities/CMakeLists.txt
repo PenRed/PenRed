@@ -377,7 +377,7 @@ endif()
 #  LB server
 #############################
 
-if(LB_SERVER AND WITH_LB)
+if(LB_SERVER AND WITH_LB AND WITH_TCP)
     # Create LB server executable
     add_executable(LBserver ${PROJECT_SOURCE_DIR}/utilities/LB/LBserver.cpp)
 
@@ -399,7 +399,7 @@ if(LB_SERVER AND WITH_LB)
     TARGETS stdinServer
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/LB/server
     )    
-endif(LB_SERVER AND WITH_LB)
+endif(LB_SERVER AND WITH_LB AND WITH_TCP)
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------

@@ -65,9 +65,252 @@ namespace penred{
 			      const double emin,
 			      const unsigned nthreadsIn = 0,
 			      const unsigned verbose = 2,
-			      const std::string& geoFilename = "");
+			      const std::string& geoFilename = "");    
+
+    //Reader for material configuration
+    class readerBeamCT : public pen_configReader<readerBeamCT>{
+
+    public:
+
+      enum errors{
+	SUCCESS = 0,
+	UNHANDLED = 1,
+      };
+      
+      int family; // -1 root section
+
+      bool simAnode;
+      unsigned long long nhists;
+      double beamEnergy;
+      double minE;
+      double focalSpot;
+      double anodeAngle;
+      double sourcePositionZ;
+      double source2isocenter;
+      double source2det;
+      double source2filter;
+      double source2register;
+      double detectorDx;
+      double detectorDy;
+
+      double bowtieMinW;
+      double bowtieMaxW;
+      unsigned bowtieZ;
+      unsigned bowtieSegments;
+
+      unsigned anodeZ;
+      double anodeDensity;
+      std::string anodeMatFilename;
+      bool printGeometries;
+
+      std::vector<std::pair<unsigned, double>> filters;
+
+      unsigned nThreads;
+
+      readerBeamCT() : family(-1){ }
+
+      int beginSectionFamily(const std::string& pathInSection,
+			     const size_t size,
+			     const unsigned verbose);
+
+      int endSectionFamily(const unsigned verbose);
+      int beginSection(const std::string& name,
+		       const unsigned verbose);
+      int endSection(const unsigned verbose);
+  
+      int storeElement(const std::string& pathInSection,
+		       const pen_parserData& element,
+		       const unsigned verbose);
+      int storeString(const std::string& pathInSection,
+		      const std::string& element,
+		      const unsigned verbose);
+
+    };
+
+    int generateBeamCT(const pen_parserSection config,
+		       const std::vector<detectedPart>& particlesIn,
+		       const unsigned verbose);
     
   };
+};
+
+template<>
+struct pen_format<penred::xray::readerBeamCT>{
+  //By default, no format is defined
+  static constexpr const char* format = R"===(
+
+#Anode configuration
+
+## force anode simulation
+anode/simulation/enabled/reader-description "Enables/disables splicit anode simulation. If disabled, particles must be provided as argument."
+anode/simulation/enabled/reader-value false
+anode/simulation/enabled/reader-required/type "optional"
+
+## Anode simulation histories
+anode/simulation/nhists/reader-description "Number of histories to be simulated"
+anode/simulation/nhists/reader-value 1.0e6
+anode/simulation/nhists/reader-required/type "required_if"
+anode/simulation/nhists/reader-required/value "anode/simulation/enabled"
+anode/simulation/nhists/reader-conditions/1orMore/type "greater"
+anode/simulation/nhists/reader-conditions/1orMore/value 1
+
+## Anode initial electron energy
+anode/simulation/energy/reader-description "Energy, in eV, of the initial electron beam"
+anode/simulation/energy/reader-value 100.0e3
+anode/simulation/energy/reader-required/type "required_if"
+anode/simulation/energy/reader-required/value "anode/simulation/enabled"
+anode/simulation/energy/reader-conditions/not2low/type "greater"
+anode/simulation/energy/reader-conditions/not2low/value 1e3
+
+## Anode minimum tallied energy
+anode/simulation/focalSpot/reader-description "Beam focal spot, in cm"
+anode/simulation/focalSpot/reader-value 0.1
+anode/simulation/focalSpot/reader-required/type "required_if"
+anode/simulation/focalSpot/reader-required/value "anode/simulation/enabled"
+anode/simulation/focalSpot/reader-conditions/greaterThan0/type "greater"
+anode/simulation/focalSpot/reader-conditions/greaterThan0/value 0.0
+
+## Anode angle
+anode/simulation/angle/reader-description "Anode angle, in DEG"
+anode/simulation/angle/reader-value 5.0
+anode/simulation/angle/reader-required/type "required_if"
+anode/simulation/angle/reader-required/value "anode/simulation/enabled"
+anode/simulation/angle/reader-conditions/greaterThan0/type "greater"
+anode/simulation/angle/reader-conditions/greaterThan0/value 0.0
+anode/simulation/angle/reader-conditions/lesserThan90/type "lesser"
+anode/simulation/angle/reader-conditions/lesserThan90/value 90.0
+
+## Anode materials
+
+anode/material/z/reader-description "Anode material atomic number. Set it to 0 to disable its construction"
+anode/material/z/reader-value 0
+anode/material/z/reader-required/type "optional_if_exist"
+anode/material/z/reader-required/value "anode/material/filename"
+anode/material/z/reader-conditions/gt0/type "greater"
+anode/material/z/reader-conditions/gt0/value 0
+
+anode/material/density/reader-description "Anode material density. Only used if a file is not provided."
+anode/material/density/reader-value -1.0
+anode/material/density/reader-required/type "optional"
+anode/material/density/reader-required/value "anode/material/filename"
+anode/material/density/reader-conditions/gt0/type "greater"
+anode/material/density/reader-conditions/gt0/value 0.0
+
+anode/material/filename/reader-description "Anode material filename"
+anode/material/filename/reader-value "-"
+anode/material/filename/reader-required/type "optional_if_exist"
+anode/material/filename/reader-required/value "anode/material/z"
+
+## Filters
+
+filters/${subsection}/reader-description "Additional filters, before bowtie, to be used"
+filters/${subsection}/reader-required/type "optional"
+
+# width
+filters/${subsection}/width/reader-description "Filter width in cm"
+filters/${subsection}/width/reader-value 0.1
+filters/${subsection}/width/reader-conditions/gt0/type "greater"
+filters/${subsection}/width/reader-conditions/gt0/value 0.0
+
+# material
+filters/${subsection}/z/reader-description "Filter atomic number Z"
+filters/${subsection}/z/reader-value 13
+filters/${subsection}/z/reader-conditions/gt0/type "greater"
+filters/${subsection}/z/reader-conditions/gt0/value 0
+
+## Bowtie filter
+
+bowtie/minWidth/reader-description "Bowtie minimum width in cm"
+bowtie/minWidth/reader-value 0.1
+bowtie/minWidth/reader-required "optional"
+bowtie/minWidth/reader-conditions/gt0/type "greater"
+bowtie/minWidth/reader-conditions/gt0/value 0.0
+
+bowtie/maxWidth/reader-description "Bowtie maximum width in cm"
+bowtie/maxWidth/reader-value 2.0
+bowtie/maxWidth/reader-required "optional"
+bowtie/maxWidth/reader-conditions/gt0/type "greater"
+bowtie/maxWidth/reader-conditions/gt0/value "bowtie/minWidth"
+
+bowtie/z/reader-description "Bowtie material atomic number Z"
+bowtie/z/reader-value 13
+bowtie/z/reader-required "optional"
+bowtie/z/reader-conditions/gt0/type "greater"
+bowtie/z/reader-conditions/gt0/value 0
+
+bowtie/segments/reader-description "Number of subdivisions in Bowtie filter"
+bowtie/segments/reader-value 100
+bowtie/segments/reader-required "optional"
+bowtie/segments/reader-conditions/gt0/type "greater"
+bowtie/segments/reader-conditions/gt0/value 0
+
+# Source variables
+
+# Z position
+source/zpos/reader-description "Z position of the source. This value is ignored if the anode is simulated"
+source/zpos/reader-value 0.0
+source/zpos/reader-required/type "optional_if"
+source/zpos/reader-required/value "anode/simulation/enabled"
+
+# Distance variables
+
+## Distance source to isocenter
+distance/source-isocenter/reader-description "Distance source to isocenter, in cm"
+distance/source-isocenter/reader-value 1.0
+distance/source-isocenter/reader-conditions/closerThanDetector/type "lesser"
+distance/source-isocenter/reader-conditions/closerThanDetector/value "distance/source-detector"
+
+## Distance source to detector
+distance/source-detector/reader-description "Distance source to detector, in cm"
+distance/source-detector/reader-value 1.0
+distance/source-detector/reader-conditions/non0/type "greater"
+distance/source-detector/reader-conditions/non0/value 0.0
+
+## Distance from source to registered anode particles
+distance/source-register/reader-description "Distance from source to registered particles, in cm"
+distance/source-register/reader-value 1.0
+distance/source-register/reader-required/type "optional_if"
+distance/source-register/reader-required/value "anode/simulation/enabled"
+distance/source-register/reader-conditions/non0/type "greater"
+distance/source-register/reader-conditions/non0/value 0.0
+
+## Distance source to filter
+distance/source-filter/reader-description "Distance source to filter, in cm"
+distance/source-filter/reader-required/type "optional"
+distance/source-filter/reader-value 1.0
+distance/source-filter/reader-conditions/non0/type "greater"
+distance/source-filter/reader-conditions/non0/value 0.0
+
+# Detector variables
+detector/dx/reader-description "Detector size in X axis, in cm"
+detector/dx/reader-value 1.0
+detector/dx/reader-conditions/non0/type "greater"
+detector/dx/reader-conditions/non0/value 0.0
+
+detector/dy/reader-description "Detector size in Y axis, in cm"
+detector/dy/reader-value 1.0
+detector/dy/reader-conditions/non0/type "greater"
+detector/dy/reader-conditions/non0/value 0.0
+
+# Minimum tallied energy
+minE/reader-description "Minimum particle energy to be tallied"
+minE/reader-value 20.0e3
+minE/reader-required/type "optional"
+minE/reader-conditions/lesserThanE/type "lesser"
+minE/reader-conditions/lesserThanE/value "anode/simulation/energy"
+
+# Number of threads
+nThreads/reader-description "Number of threads to be used"
+nThreads/reader-value 0
+nThreads/reader-required/type "optional"
+nThreads/reader-conditions/positive/type "positive"
+
+# Print geometries
+print-geometries/reader-description "Enable/disable geometries print"
+print-geometries/reader-value false
+print-geometries/reader-required/type "optional"
+
+)===";
 };
 
 

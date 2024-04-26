@@ -59,4 +59,6 @@ if(WITH_HTTP)
 endif(WITH_HTTP)
 
 #Link tcp lib
-target_link_libraries(pen_LB pen_tcp)
+if(WITH_TCP)
+    target_link_libraries(pen_LB pen_tcp)
+endif(WITH_TCP)
