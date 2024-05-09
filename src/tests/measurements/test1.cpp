@@ -122,7 +122,7 @@ int main(){
   genData.results(nhists, genResults);
   
   //Compare both values  
-  for(size_t i = 0; i < readResults.totalBins; ++i){
+  for(size_t i = 0; i < readResults.getNBins(); ++i){
     if(std::fabs((genResults.data[i] - readResults.data[i])/genResults.data[i]) > 1.0e-4){
       printf("Results mismatch!\n"
 	     " read result     : %15.5E\n"
@@ -157,7 +157,7 @@ int main(){
   fin2.close();
   
   //Compare both values  
-  for(size_t i = 0; i < readResultsLess.totalBins; ++i){
+  for(size_t i = 0; i < readResultsLess.getNBins(); ++i){
     if(std::fabs((genResults.data[i] - readResultsLess.data[i])/genResults.data[i]) > 1.0e-4){
       printf("Results mismatch!\n"
 	     " read result     : %15.5E\n"

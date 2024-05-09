@@ -1,7 +1,7 @@
 //
 //
-//    Copyright (C) 2023 Universitat de València - UV
-//    Copyright (C) 2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024 Universitat de València - UV
+//    Copyright (C) 2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -24,9 +24,39 @@
 //    
 //
 
-#include "x-ray-common.hh"
-#include "anode.hh"
-#include "collimator.hh"
-#include "filter.hh"
-#include "utilities.hh"
-#include "device.hh"
+#include "x-ray.hh"
+
+
+int main(int argc, char** argv){
+
+  //Check arguments
+  if(argc < 9){
+    printf("usage: %s angle dx dy dz mat-index body-name "
+	   "parent-name to-be-included\n",
+	   argv[0]);
+    return 1;
+  }
+
+  //Get arguments
+  double angle = std::atof(argv[1]);
+  double dx = std::atof(argv[2]);
+  double dy = std::atof(argv[3]);
+  double dz = std::atof(argv[4]);
+  int imat = std::atoi(argv[5]);
+
+  int toBeIncluded = 0;
+  if(argc >= 5)
+    toBeIncluded = std::atoi(argv[8]);
+
+  std::ofstream out("anode.msh", std::ofstream::out);
+
+
+  penred::xray::createAnode(out, angle, imat,
+			    dx,dy,dz,
+			    argv[6], argv[7],
+			    toBeIncluded != 0);
+
+  out.close();
+  
+  return 0;
+}

@@ -28,8 +28,9 @@
 
 int main(int argc, char** argv){
 
-  if(argc < 7){
-    printf("usage: %s mat-filename beamEnergy minE anode-angle bins histories\n", argv[0]);
+  if(argc < 8){
+    printf("usage: %s mat-filename beamEnergy minE anode-angle "
+	   "bins pixel-size histories max-angle\n", argv[0]);
     return 1;
   }
 
@@ -39,7 +40,12 @@ int main(int argc, char** argv){
   const double eMin = std::atof(argv[3]);
   const double angle = std::atof(argv[4]);
   const double nBinsAux = std::atof(argv[5]);
-  const double nHistAux = std::atof(argv[6]);
+  const double pixelSize = std::atof(argv[6]);
+  const double nHistAux = std::atof(argv[7]);
+
+  double maxAngle = 0.0;
+  if(argc > 8)
+    maxAngle = std::atof(argv[8]);
 
   if(nBinsAux <= 0.0){
     printf("Number of bins must be greater than 0.\n");
@@ -50,6 +56,9 @@ int main(int argc, char** argv){
     printf("Number of histories must be greater than 0.\n");
     return -2;
   }
+
+  if(maxAngle <= 0.0)
+    maxAngle = 80.0;
 
   const unsigned long nBins = static_cast<unsigned long>(nBinsAux);
   const unsigned long long nHist = static_cast<unsigned long long>(nHistAux);
@@ -62,9 +71,9 @@ int main(int argc, char** argv){
   
   //Simulate the anode
   double dReg;
-  int err = penred::xray::simAnodeDistrib(matFilename, beamE, eMin, angle,
+  int err = penred::xray::simAnodeDistrib(matFilename, beamE, eMin, pixelSize, angle,
 					  nHist, dReg, spectrum, spatialDistrib,
-					  5*angle, 2);
+					  maxAngle, 2);
   if(err != 0){
     printf("Error on anode simulation.\n");
     return -2;
@@ -79,6 +88,8 @@ int main(int argc, char** argv){
   fout = fopen("spatialDistrib.dat", "w");
   spatialDistrib.print(fout, nHist, 2, true, true);
   fclose(fout);
+
+  printf("Data recorded at %f cm from the anode face center.\n", dReg);
   
   return 0;  
 }

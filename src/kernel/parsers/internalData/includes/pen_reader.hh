@@ -342,12 +342,9 @@ struct pen_readerElement{
 
   std::string stringify(const size_t nSpaces = 0) const;
   inline std::string stringifyExample() const{
-    if(defaultValue.readTag() == pen_parserElement::STRING)
-      return "\"" + defaultValue.stringify() + "\"";
-    else
-      return defaultValue.stringify();
+    return defaultValue.stringify();
   }
-
+  
   inline void clear(){
     description.clear();
     defaultValue.clear();
@@ -517,6 +514,7 @@ public:
     description.clear();
     elements.clear();
     subsections.clear();
+    required.clear();
   }
   
   // ** Static methods
@@ -585,6 +583,17 @@ public:
 
     //Return the reader section
     return rs;
+  }
+
+  template<class configurableObj>
+  static std::string stringifyObjectSection(){
+    static_assert(isConfigurable<configurableObj>(),
+		  "readReaderSection: Error: The provided"
+		  " type is not configurable i.e. 'pen_format'"
+		  " has not been defined.");
+
+    const pen_readerSection& section = readObjectSection<configurableObj>();
+    return section.stringify();
   }
   
   template<class configurableObj>

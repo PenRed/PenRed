@@ -33,7 +33,7 @@
     # Install anode simulation executable
     install(
     TARGETS anodeSim
-    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/x-ray/anodeSim
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/x-ray
     )
 
     # Create x-ray basic filter generator executable
@@ -44,7 +44,7 @@
     # Install anode simulation executable
     install(
     TARGETS createBaseFilter
-    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/x-ray/createBaseFilter
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/x-ray
     )
 
     # Create x-ray basic collimator generator executable
@@ -55,16 +55,49 @@
     # Install anode simulation executable
     install(
     TARGETS createBaseCollimator
-    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/x-ray/createBaseCollimator
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/x-ray
     )
 
-    # Create x-ray utility executable
-    add_executable(x-ray ${CMAKE_CURRENT_SOURCE_DIR}/x-ray.cpp)
+    # Create x-ray basic anode generator executable
+    add_executable(createAnode ${PROJECT_SOURCE_DIR}/utilities/x-ray/createAnode.cpp)
 
-    target_link_libraries(x-ray pen_xray)
+    target_link_libraries(createAnode pen_xray)
 
     # Install anode simulation executable
     install(
-    TARGETS x-ray
+    TARGETS createAnode
     DESTINATION ${PROJECT_SOURCE_DIR}/compiled/x-ray
     )
+
+    # Create x-ray device generator executable
+    add_executable(createDevice ${PROJECT_SOURCE_DIR}/utilities/x-ray/createDevice.cpp)
+
+    target_link_libraries(createDevice pen_xray)
+
+    # Install anode simulation executable
+    install(
+    TARGETS createDevice
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/x-ray
+    )
+
+    # Create x-ray device simulator executable
+    add_executable(simDevice ${PROJECT_SOURCE_DIR}/utilities/x-ray/simDevice.cpp)
+
+    target_link_libraries(simDevice pen_xray)
+
+    # Install anode simulation executable
+    install(
+    TARGETS simDevice
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/x-ray
+    )
+
+    # Create x-ray utility executable
+    #add_executable(x-ray ${CMAKE_CURRENT_SOURCE_DIR}/x-ray.cpp)
+
+    #target_link_libraries(x-ray pen_xray)
+
+    # Install anode simulation executable
+    #install(
+    #TARGETS x-ray
+    #DESTINATION ${PROJECT_SOURCE_DIR}/compiled/x-ray
+    #)

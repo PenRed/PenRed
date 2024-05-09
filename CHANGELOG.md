@@ -18,9 +18,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Configuration example for utilizing the new tallies and sampler. It is located in *examples/quadrics/9-measure-source*
 
+- x-ray based utilities to streamline simulations of this kind of devices
+
+- Profile functions and utility to create n-dimensional profiles from *measurement* and *results* classes.
+
 ### Changed
 
 - The compilation of the TCP library is now optional, allowing the code to be compiled without the ASIO library
+
+- Erroneous material ID assignation on automatic generated material section by *pen_context* configuration.
+
+### Fix
+
+- In some cases, *COMBO* geometry skips low priority geometries when a higher geometry contains void bodies.
 
 ## [1.10.0] - 2024-04-15
 

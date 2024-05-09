@@ -28,24 +28,47 @@
 
 
 int main(int argc, char** argv){
-
+  
   //Check arguments
-  if(argc < 5){
-    printf("usage: %s dx dy dz n-x-vergex-groups", argv[0]);
+  if(argc < 2){
+    printf("usage: %s configuration-file\n\n%s\n",
+	   argv[0],
+	   pen_readerSection::stringifyObjectSection<penred::xray::readerXRayDeviceCreate>().c_str());
     return 1;
   }
 
-  //Get arguments
-  double dx = std::atof(argv[1]);
-  double dy = std::atof(argv[2]);
-  double dz = std::atof(argv[3]);
-  unsigned nVG = std::atoi(argv[4]);
+  //Read the configuration file
+  pen_parserSection config;
+  std::string errorLine;
+  unsigned long errorLineNum;
+  int err = parseFile(argv[1], config, errorLine, errorLineNum);
 
-  std::ofstream out("filter.msh", std::ofstream::out);
-    
-  penred::xray::createBaseFilter(dx,dy,dz,nVG,out,1,"filter","void",true);
+  if(err != INTDATA_SUCCESS){
+    printf("Error parsing configuration.\n");
+    printf("Error code: %d\n",err);
+    printf("Error message: %s\n",pen_parserError(err));
+    printf("Error located at line %lu, at text: %s\n",
+	   errorLineNum,errorLine.c_str());
+    return -1;
+  }
 
+  //Read configuration
+  penred::xray::readerXRayDeviceCreate reader;
+  err = reader.read(config, 2);
+  if(err != penred::xray::readerXRayDeviceCreate::SUCCESS){
+    printf("Error: Bad configuration values\n");
+    return -2;
+  }
+
+  std::ofstream out("device.msh", std::ofstream::out);
+
+  penred::xray::constructDevice(out,config,2);
   out.close();
+
+  if(err != 0){
+    printf("Error: Unable to create device geometry\n");
+    return -3;
+  }
   
   return 0;
 }

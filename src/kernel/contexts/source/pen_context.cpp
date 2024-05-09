@@ -971,10 +971,11 @@ int pen_context::configure(const double EMAX,
   //Construct material information section
   matInfo.clear();
   for(unsigned imat = 0; imat < getNMats(); imat++){
-    std::string matPrefix = "materials/" + matReader.mats[imat].name;
-    matInfo.set((matPrefix + "/ID").c_str(),(int)imat+1);
+    std::string matPrefix = matReader.mats[imat].name;
+    matInfo.set((matPrefix + "/ID").c_str(),
+		static_cast<int>(matReader.mats[imat].index));
     matInfo.set((matPrefix + "/density").c_str(),
-		readBaseMaterial(imat).readDens());
+		readBaseMaterial(matReader.mats[imat].index-1).readDens());
   }
 
   return SUCCESS;

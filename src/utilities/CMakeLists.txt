@@ -462,3 +462,5 @@ if(VIEWERS)
 endif(VIEWERS)
 
 add_subdirectory(contexts)
+
+add_subdirectory(measurements)

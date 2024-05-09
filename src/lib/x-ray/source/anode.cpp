@@ -162,10 +162,7 @@ namespace penred{
 				   measurements::measurement<double,1>& spectrum,
 				   measurements::measurement<double,2>& spatialDistrib,
 				   int& seed1, int& seed2,
-				   const double colAngle){
-
-      //Constants
-      constexpr double pi = 3.141592653589793;
+				   const unsigned verbose){
       
       //Create random generator
       pen_rand random;
@@ -201,28 +198,23 @@ namespace penred{
 
       //Init history counter
       unsigned long long hist = 0;
-
-      //Calculate maximum deviation. Note that scoring particles
-      //come with -Z direction
-      const double colAngleRad = colAngle*pi/180.0;
-      const double minW = -cos(colAngleRad);
       
       //Define scoring function
-      simulation::tallyFuncType f = [&spectrum, &spatialDistrib, minW]
+      simulation::tallyFuncType f = [&spectrum, &spatialDistrib]
 	(const pen_particleState& state,
 	 const pen_KPAR kpar,
 	 const unsigned long long histSim,
 	 const int val){
 	if(val == 1){
-	  if(kpar == PEN_PHOTON){
-	    
-	    if(state.W < minW){ //Note that scoring particles have W < 0
-	      spectrum.add({state.E},state.WGHT,histSim);
-	      spatialDistrib.add({std::fabs(state.X), state.Y}, state.WGHT, histSim);
-	    }
+	  if(kpar == PEN_PHOTON){	    
+	    spectrum.add({state.E},state.WGHT,histSim);
+	    spatialDistrib.add({state.X, state.Y}, state.WGHT, histSim);
 	  }
 	}
       };
+
+      if(verbose > 1)
+	printf("Starting thread simulation (%llu histories) \n", nHists);
       
       //Simulation loop
       while(hist < nHists){
@@ -239,8 +231,14 @@ namespace penred{
 					    simulation::finishTypes::DETECTOR_REACHED,
 					    1,
 					    f,
-					    betaE, gamma, betaP);	
+					    betaE, gamma, betaP);
+
+	if(verbose > 1 && hist % 10000 == 0)
+	  printf("Simulated: %llu/%llu \n", hist, nHists);
       }
+
+      if(verbose > 1)
+	printf("Simulated: %llu/%llu \n", hist, nHists);
 
       //Update seeds
       random.getSeeds(seed1,seed2);      
@@ -575,6 +573,7 @@ namespace penred{
     int simAnodeDistrib(const char* matFilename,
 			const double eEnergy,
 			const double eMin,
+			const double pixelSize,
 			const double angle,
 			const unsigned long long nHists,
 			double& dReg,
@@ -592,13 +591,14 @@ namespace penred{
       // matFilename : Anode material filename
       // eEnergy     : Energy of the monoenergetic electron beam
       // eMin        : Minimum energy to register
+      // pixelSize   : Spatial pixel size in cm
       // angle       : Anode angle in deg
       // nHists      : Number of histories to simulate
       // colAngle    : Collimation angle in Deg. Particles with a direction angle (compared with -Z) greater than the specified value will be ignored
       //
       // Output:
       //
-      // dReg  : Distance from the beam center where the particles have been recorded
+      // dReg  : Distance from the beam center at the anode surface to the detector
       // spectrum: Tallied photons spectrum from anode simulation
       // spatialDistrib: Tallied XY spatial distribution of photons
       //
@@ -610,6 +610,13 @@ namespace penred{
       
       // ** Parameters check
       //***********************
+
+      if(pixelSize <= 0.0){
+	if(verbose > 0)
+	  printf("simAnodeDistrib: Error: Pixel size must be "
+		 "greater than 0 cm.\n");
+	return -1;
+      }
   
       //Check specified minimum energy
       if(eMin < 50.0){
@@ -678,11 +685,22 @@ namespace penred{
       dReg = 0.6;
 
       //Init spatial distribution
-      
+
+      // X
       double width = tan(std::min(colAngle,89.9)*deg2rad)*dReg;
+      unsigned nPixelsX = static_cast<unsigned>(2.0*(width+pixelSize)/pixelSize);
+      if(nPixelsX % 2 != 0)
+	nPixelsX += 1;
+      width = static_cast<double>(nPixelsX/2) * pixelSize;
+
+      // Y
       double heightLow = tan(angleRad)*dReg;
-      spatialDistrib.init({spectrum.getNBins(0), spectrum.getNBins(0)},
-			  {std::pair<double,double>(0.0, width),
+      unsigned nPixelsY = static_cast<unsigned>(2.0*heightLow/pixelSize);
+      heightLow = static_cast<double>(nPixelsY)*pixelSize/2.0;
+      nPixelsY += nPixelsX/2;
+      
+      spatialDistrib.init({nPixelsX, nPixelsY},
+			  {std::pair<double,double>(-width, width),
 			   std::pair<double,double>(-2.0*heightLow, width)});
 
       if(verbose > 1){
@@ -738,7 +756,7 @@ namespace penred{
       if(contextSim.configure(eEnergy,
 			      contextConf,
 			      matInfo,
-			      verbose) != pen_context::SUCCESS){
+			      verbose > 2 ? verbose : 1) != pen_context::SUCCESS){
 	printf("simAnodeDistrib: Error at simulation context initialization. "
 	       "See context report.\n");
 	return -3;
@@ -798,24 +816,30 @@ namespace penred{
       config.set("dsmax/anode", 2.0e-2);
 
       //Configure geometry
-      if(geometry->configure(config,verbose) != PEN_MESHBODY_GEO_SUCCESS){
-	if(verbose > 0){
+      if(geometry->configure(config,
+			     verbose > 2 ? verbose : 1) != PEN_MESHBODY_GEO_SUCCESS){
 	  printf("Unexpected Error: Unable to construct the geometry. "
-		 "Please, report this error\n");
-	}
+		 "Please, report this error.\n");
 	delete geometry;
 	return -4;
       }
 
       //Set the geometry to the simulation context
-      contextSim.setGeometry(geometry);
+      int err = contextSim.setGeometry(geometry);
+      if(err != 0){
+	printf("Unexpected Error: Unable to set geometry in the "
+	       "simulation context. Please, report this error.\n");
+	delete geometry;
+	return -4;
+      }
 
       //Run context configuration step with geometry
       if(contextSim.configureWithGeo(contextConf,
-				     verbose) != pen_context::SUCCESS){
+				     verbose > 2 ? verbose : 1) != pen_context::SUCCESS){
 	printf("simAnodeDistrib: Error at simulation context "
 	       "initialization with geometry. "
 	       "Report this error.\n");
+	delete geometry;
 	return -5;
       }
 
@@ -829,7 +853,7 @@ namespace penred{
 
       pen_VRCluster<pen_state_gPol> photonVR;
       photonVR.name.assign("Photon-VR");
-      photonVR.configure(configVRsplitting,*geometry,verbose);
+      photonVR.configure(configVRsplitting,*geometry,verbose > 2 ? verbose : 1);
       if(photonVR.configureStatus() != 0){
 	printf("Unexpected error: Unable to configure "
 	       "photon variance reduction. Please, report this.");
@@ -856,8 +880,15 @@ namespace penred{
       std::vector<measurements::measurement<double,2>> spatialDistribs(nThreads);
 
       //Init tallies
+      spectrum.setDimHeader(0, "Energy (eV)");
+      spectrum.setValueHeader("Value (prob)");
+
+      spatialDistrib.setDimHeader(0, "X (cm)");
+      spatialDistrib.setDimHeader(1, "Y (cm)");
+      spatialDistrib.setValueHeader("Value (prob)");
+      
       for(size_t i = 0; i < nThreads; ++i){
-	int err = spectrums[i].init(spectrum);
+	err = spectrums[i].init(spectrum);
 	if(err != 0){
 	  printf("Unexpected error: Unable to copy "
 		 "spectrum tally configuration. Please, report this.");
@@ -889,7 +920,7 @@ namespace penred{
 			     std::ref(spectrums[ith]),
 			     std::ref(spatialDistribs[ith]),
 			     std::ref(seeds1[ith]), std::ref(seeds2[ith]),
-			     colAngle);
+			     verbose);
       }
 
       //Wait until threads finish and join results
@@ -903,13 +934,184 @@ namespace penred{
       runAnodeDistribSimulation(nHists, eEnergy, context, photonVR,
 				spectrums[0], spatialDistribs[0],
 				seeds1[0], seeds2[0],
-				colAngle);
+				verbose);
 
       spectrum.add(spectrums[0]);
       spatialDistrib.add(spatialDistribs[0]);
 #endif
       delete geometry;
       return 0;
+    }
+
+    void createAnode(std::ostream& out,
+		     const double angle,
+		     const unsigned matIndex,
+		     double dx, double dy, double dz,
+		     const std::string& name,
+		     const std::string& parentName,
+		     const bool numObjects,
+		     const vector3D<double> center){
+      
+      //Creates a anode mesh with dimensions "dx" x "dy" x "dz" oriented
+      // to the "Y" positive axis. The "dy" dimension is measured from the
+      // center of the bevel to the back wall of the anode.
+      //
+      // Input:
+      //   + angle: Anode angle in Deg
+      //   + imat : Anode material index
+      //   + name: Body name for the anode
+      //   + parentName: Parent body name
+      //   + dx,dy,dz: Anode dimensions in the X, Y and Z axis
+      //   + center: Position of the center of the bevel wall
+      //   + numObjects: If true, removes the geometry header
+      //                 with the total number of objects
+      //
+      // Output:
+      //   + o: Output stream where the geometry is written
+      //   + transforms: Configuration with the required transforms to conform the anode
+      
+      //
+      //
+      //  Vertex are constructed as follows 
+      //
+      // 2*---------------------*0         n Z
+      //  |_________dy________ /___center  |
+      //  |                   /            |
+      // 3*------------------*1            |------> Y
+      //
+      //                             
+      // 4     0   n Y
+      // *-----*   | 
+      // |     |   |
+      // |     |   |-----> X
+      // |     |   
+      // |     |   
+      // *-----*   
+      // 6 dx  2
+      //
+      //
+
+      //Check dimensions
+      if(dx <= 0.0)
+	dx = 1.0;
+      if(dy <= 0.0)
+	dy = 1.0;
+      if(dz <= 0.0)
+	dz = 1.0;
+
+      //Number of vertex
+      constexpr unsigned nVertex = 8;
+
+      //Number of triangles
+      constexpr unsigned nFaces = 12;
+      
+      //Check if the number of objects must be printed
+      if(numObjects){
+	out << "# Number of objects:\n 1" << std::endl;
+      }
+
+      // ** Print object name and header
+      out << "# Object: " << name << std::endl;
+      out << "#MAT      #NFACES     #NVERTEX     #NAME"
+	"        #PARENT NAME    #N VERTEX GROUPS"
+	  << std::endl;;
+      
+      //Material index
+      out << " " << std::to_string(matIndex);
+
+      //Number of faces
+      out << "   " << std::to_string(nFaces);
+      
+      //Number of vertex
+      out << "   " << std::to_string(nVertex);
+
+      //Filter name
+      out << "   " << name;
+
+      //Parent name
+      out << "   " << parentName;
+
+      //Vertex groups
+      out << "   " << 5 << std::endl;
+
+      // ** Print vertex groups
+      out << "# VERTEX GROUPS\n"
+      "#NAME  #NVERTEX\n"
+	" back   0004\n"
+	" 0002\n"
+	" 0003\n"
+	" 0006\n"
+	" 0007\n"
+	"#NAME  #NVERTEX\n"
+	" front_down   0002\n"
+	" 0001\n"
+	" 0005\n"
+	"#NAME  #NVERTEX\n"
+	" front_up   0002\n"
+	" 0000\n"
+	" 0004\n"
+	"#NAME  #NVERTEX\n"
+	" top   0004\n"
+	" 0000\n"
+	" 0002\n"
+	" 0004\n"
+	" 0006\n"
+	"#NAME  #NVERTEX\n"
+	" bot   0004\n"
+	" 0001\n"
+	" 0003\n"
+	" 0005\n"
+	" 0007\n"
+	"# VERTEX LIST\n"
+	"# Index  (X Y Z)" << std::endl;
+
+      // ** Print vertex positions
+      out << "# VERTEX LIST" << std::endl;
+      out << "# Index (X Y Z)" << std::endl;
+
+      //Calculate anode transformation
+      // 
+      //   n  ------      --------
+      //   |  |    |      |     / 
+      // dz|  |    |  ->  |    /  
+      //   u  ------      -----<-->
+      //                        ds
+      // tan = ds/dz -> ds = tan*dz      
+      
+      constexpr double pi = 3.141592653589793;
+      constexpr double deg2rad = pi/180.0;
+      const double angleRad = deg2rad*angle;
+      const double ds05 = std::tan(angleRad)*dz/2.0;
+
+      //Create vertex
+      
+      // +X
+      out << " 0 " << center.x + dx/2.0 << " " << center.y + ds05 << " " << center.z + dz/2.0 << std::endl;
+      out << " 1 " << center.x + dx/2.0 << " " << center.y - ds05 << " " << center.z - dz/2.0 << std::endl;      
+      out << " 2 " << center.x + dx/2.0 << " " << center.y - dy   << " " << center.z + dz/2.0 << std::endl;      
+      out << " 3 " << center.x + dx/2.0 << " " << center.y - dy   << " " << center.z - dz/2.0 << std::endl;      
+
+      //-X
+      out << " 4 " << center.x - dx/2.0 << " " << center.y + ds05 << " " << center.z + dz/2.0 << std::endl;
+      out << " 5 " << center.x - dx/2.0 << " " << center.y - ds05 << " " << center.z - dz/2.0 << std::endl;      
+      out << " 6 " << center.x - dx/2.0 << " " << center.y - dy   << " " << center.z + dz/2.0 << std::endl;      
+      out << " 7 " << center.x - dx/2.0 << " " << center.y - dy   << " " << center.z - dz/2.0 << std::endl;      
+
+      // Create faces
+      out << "# FACES(triangles)" << std::endl;
+      out << " 000 004 006" << std::endl;
+      out << " 000 006 002" << std::endl;
+      out << " 003 002 006" << std::endl;
+      out << " 003 006 007" << std::endl;
+      out << " 007 006 004" << std::endl;
+      out << " 007 004 005" << std::endl;
+      out << " 005 001 003" << std::endl;
+      out << " 005 003 007" << std::endl;
+      out << " 001 000 002" << std::endl;
+      out << " 001 002 003" << std::endl;
+      out << " 005 004 000" << std::endl;
+      out << " 005 000 001" << std::endl;
+      out << "#" << std::endl;
     }
 
   };

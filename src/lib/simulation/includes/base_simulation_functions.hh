@@ -2131,7 +2131,7 @@ namespace penred{
       unsigned long long lastHist = simulated+nhists;
 
       //Read context
-      //const auto& context = readContext(particles...);
+      const auto& context = readContext(particles...);
       
       //Create random generator
       pen_rand random;
@@ -2173,6 +2173,10 @@ namespace penred{
 	config.finish();	
 	return simFlags::END_OF_SOURCE;
       }
+
+      //Locate particle in geometry
+      context.readGeometry()->locate(genState);
+      
       if(hist + dhist > lastHist){
 	//Simulation history limit reached
 
@@ -2240,6 +2244,8 @@ namespace penred{
 	  break;
 	}
 
+	//Locate particle in geometry
+	context.readGeometry()->locate(genState);
 
 	if(dhist > 0){
 

@@ -53,7 +53,7 @@ namespace penred{
 				   measurements::measurement<double,1>& spectrum,
 				   measurements::measurement<double,2>& spatialDistrib,
 				   int& seed1, int& seed2,
-				   const double colAngle);
+				   const unsigned verbose = 1);
 
     //Function to simulate a monoenergetic electron beam aiming an anode
     int simAnode(const char* matFilename,
@@ -74,6 +74,7 @@ namespace penred{
     int simAnodeDistrib(const char* matFilename,
 			const double eEnergy,
 			const double eMin,
+			const double pixelSize,
 			const double angle,
 			const unsigned long long nHists,
 			double& dReg,
@@ -82,6 +83,17 @@ namespace penred{
 			const double colAngle = 180,
 			const unsigned verbose = 1,
 			const unsigned threads2Use = 0);
+
+    void createAnode(std::ostream& out,
+		     const double angle,
+		     const unsigned matIndex,
+		     double dx, double dy, double dz,
+		     const std::string& name,
+		     const std::string& parentName,
+		     const bool numObjects,
+		     const vector3D<double> center = 
+		     vector3D<double>(0.0,0.0,0.0));
+    
   }; // namespace x-ray
 
 }; // namespace penred
