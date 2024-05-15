@@ -147,7 +147,7 @@ else()
 endif()
 
 # Embedded DB options
-CMAKE_DEPENDENT_OPTION(BUILD_EMBEDDED_DBS "Build PenRed embedded data bases " ON)
+OPTION(BUILD_EMBEDDED_DBS "Build PenRed embedded data bases " ON)
 CMAKE_DEPENDENT_OPTION(WITH_EMBEDDED_DB "Build PenRed main programs with embedded data bases " ON
                        "BUILD_EMBEDDED_DBS" OFF)
 
