@@ -116,6 +116,10 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
 
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   # using Visual Studio C++
+
+  #Define maximum data base string chunk size to 15KB
+  add_definitions(-DPEN_MAXDB_CHUNK_SIZE=15000)
+
   add_compile_options(/arch:AVX2)
   add_compile_options(/O2)
 
