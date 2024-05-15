@@ -26,6 +26,7 @@
 //
 
 #include "materialCreator.hh"
+#include <stdio.h>
 
 int main (){
 
