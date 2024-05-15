@@ -2304,7 +2304,7 @@ namespace penred{
       inline int profile1D(const unsigned long profDim,
 			   const std::array<std::pair<unsigned long, unsigned long>, dim>& binLimits,
 			   results<type, 1>& profile) const{
-	std::array<unsigned long, 1> aux;
+	std::array<size_t, 1> aux;
 	aux[0] = profDim;
 	return profileByBins(aux, binLimits, profile);
       }
@@ -2312,7 +2312,7 @@ namespace penred{
       inline int profile1D(const unsigned long profDim,
 			   const std::vector<std::array<unsigned long, 3>>& binLimits,
 			   results<type, 1>& profile) const{
-	std::array<unsigned long, 1> aux;
+	std::array<size_t, 1> aux;
 	aux[0] = profDim;
 	return profileByBins(aux, binLimits, profile);
       }
