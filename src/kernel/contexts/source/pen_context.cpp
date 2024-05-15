@@ -816,10 +816,12 @@ int pen_context::configure(const double EMAX,
       }
 
       //******************************************************
-      //Fix the minimum number of exponent digits in MVS to 2 
+      //Fix the minimum number of exponent digits in old MVS versions to 2 
 #ifdef _MSC_VER
+  #if _MSC_VER < 1900
       unsigned int prev_exponent_format =
 	_set_output_format(_TWO_DIGIT_EXPONENT);
+  #endif
 #endif
       //******************************************************
 
