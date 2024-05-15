@@ -2366,7 +2366,7 @@ namespace penred{
 	  pdfFile.append(".p08");
 
 	  //Ensure data base existence and get it
-	  const char* const pdata = penred::penMatDB::readDataBaseFile(pdfFile);
+	  const char* const pdata = penred::penMatDB::readDataBaseFile(pdfFile,0);
 	  if(pdata == nullptr){
 	    printf("Error: Data base file not found: '%s'\n",pdfFile.c_str());
 	    ErrorFunction(901);
@@ -2374,7 +2374,9 @@ namespace penred{
 	  }
 
 	  //Create a stream to read it
-	  std::istringstream iss(pdata);
+	  penred::dataBases::literalArrayStream iss([pdfFile](unsigned i){
+	    return penred::penMatDB::readDataBaseFile(pdfFile,i);
+	  });
 	  if(!iss){
 	    printf("Error: Unable to create stream from "
 		   "data base file: '%s'\n",pdfFile.c_str());
@@ -2383,7 +2385,7 @@ namespace penred{
 	  }
 
 	  std::string line;
-	  std::getline(iss,line);
+	  iss.getline(line);
 	  sscanf(line.c_str(), " %d", &IZZZ);
 
 	  if (IZZZ != IZZ)
@@ -2394,7 +2396,7 @@ namespace penred{
 	  for (int I = 0; I < NEGP; I++)
 	    {
 	      double XE0P, XE1P, XE2P, XP0P, XP1P, XP2P;
-	      std::getline(iss,line);
+	      iss.getline(line);
 	      sscanf(line.c_str(), " %lf %lf %lf %lf %lf %lf %lf",
 		     &EJT[I], &XE0P, &XE1P, &XE2P, &XP0P, &XP1P, &XP2P);
 	      if (iss.eof())
@@ -2460,7 +2462,7 @@ namespace penred{
 	  pdfFile.append(".p14");
 
 	  //Ensure data base existence and get it
-	  const char* const pdata = penred::penMatDB::readDataBaseFile(pdfFile);
+	  const char* const pdata = penred::penMatDB::readDataBaseFile(pdfFile,0);
 	  if(pdata == nullptr){
 	    printf("Error: Data base file not found: '%s'\n",pdfFile.c_str());
 	    ErrorFunction(901);
@@ -2468,7 +2470,9 @@ namespace penred{
 	  }
 
 	  //Create a stream to read it
-	  std::istringstream iss(pdata);
+	  penred::dataBases::literalArrayStream iss([pdfFile](unsigned i){
+	    return penred::penMatDB::readDataBaseFile(pdfFile,i);
+	  });
 	  if(!iss){
 	    printf("Error: Unable to create stream from "
 		   "data base file: '%s'\n",pdfFile.c_str());
@@ -2477,7 +2481,7 @@ namespace penred{
 	  }
 
 	  std::string line;
-	  std::getline(iss,line);
+	  iss.getline(line);
 	  sscanf(line.c_str(), "%*16c%2d%*6c%2d", &IZZZ, &NSHR);
 	  if (IZZZ != IZZ)
 	    {
@@ -2490,8 +2494,8 @@ namespace penred{
 	      return;
 	    }
 	  //Skip two lines
-	  iss.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
-	  iss.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+	  iss.ignoreLine();
+	  iss.ignoreLine();
 
 	  for (int IE = 0; IE < NES; IE++)
 	    {
@@ -2505,7 +2509,7 @@ namespace penred{
 		  iss >> XESIR[IE][IS];
 		}
 	      //Skip line
-	      iss.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+	      iss.ignoreLine();
 	  
 	      NPTAB = IE + 1;
 	      if (E[IE] > 0.999E9)
@@ -2570,7 +2574,7 @@ namespace penred{
 	  pdfFile.append(".p14");
 
 	  //Ensure data base existence and get it
-	  const char* const pdata = penred::penMatDB::readDataBaseFile(pdfFile);
+	  const char* const pdata = penred::penMatDB::readDataBaseFile(pdfFile,0);
 	  if(pdata == nullptr){
 	    printf("Error: Data base file not found: '%s'\n",pdfFile.c_str());
 	    ErrorFunction(901);
@@ -2578,7 +2582,9 @@ namespace penred{
 	  }
 
 	  //Create a stream to read it
-	  std::istringstream iss(pdata);
+	  penred::dataBases::literalArrayStream iss([pdfFile](unsigned i){
+	    return penred::penMatDB::readDataBaseFile(pdfFile,i);
+	  });
 	  if(!iss){
 	    printf("Error: Unable to create stream from "
 		   "data base file: '%s'\n",pdfFile.c_str());	    
@@ -2587,7 +2593,7 @@ namespace penred{
 	  }
 
 	  std::string line;
-	  std::getline(iss,line);
+	  iss.getline(line);
 	  sscanf(line.c_str(), "%*16c%2d%*6c%2d", &IZZZ, &NSHR);
 	  if (IZZZ != IZZ)
 	    {
@@ -2600,8 +2606,8 @@ namespace penred{
 	      return;
 	    }
 	  //Skip two lines
-	  iss.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
-	  iss.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+	  iss.ignoreLine();
+	  iss.ignoreLine();
 
 	  for (int IE = 0; IE < NES; IE++)
 	    {
@@ -2615,7 +2621,7 @@ namespace penred{
 		  iss >> XPSIR[IE][IS];
 		}
 	      //Skip the line
-	      iss.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+	      iss.ignoreLine();
 
 	      NPTAB = IE + 1;
 	      if (E[IE] > 0.999E9)
@@ -2717,7 +2723,7 @@ namespace penred{
 	  pdfFile.append(".p08");
 
 	  //Ensure data base existence and get it
-	  const char* const pdata = penred::penMatDB::readDataBaseFile(pdfFile);
+	  const char* const pdata = penred::penMatDB::readDataBaseFile(pdfFile,0);
 	  if(pdata == nullptr){
 	    printf("Error: Data base file not found: '%s'\n",pdfFile.c_str());
 	    ErrorFunction(901);
@@ -2725,7 +2731,9 @@ namespace penred{
 	  }
 
 	  //Create a stream to read it
-	  std::istringstream iss(pdata);
+	  penred::dataBases::literalArrayStream iss([pdfFile](unsigned i){
+	    return penred::penMatDB::readDataBaseFile(pdfFile,i);
+	  });
 	  if(!iss){
 	    printf("Error: Unable to create stream from "
 		   "data base file: '%s'\n",pdfFile.c_str());
@@ -2734,7 +2742,7 @@ namespace penred{
 	  }
 
 	  std::string line;
-	  std::getline(iss,line);      
+	  iss.getline(line);      
 	  sscanf(line.c_str(), "%d", &IZZZ);
 	  if (IZZZ != IZZ)
 	    {
@@ -2749,10 +2757,10 @@ namespace penred{
 		  iss >> PDF[IW];
 		  if ((IW + 1) % 5 == 0){
 		    //Skip line
-		    iss.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+		    iss.ignoreLine();
 		  }
 		}
-	      std::getline(iss,line);	  
+	      iss.getline(line);	  
 	      sscanf (line.c_str(), "%*36c %lf", &TXSP);
 	      TXS[IE] = TXS[IE] + WGHT * TXSP;
 	      for (int IW = 0; IW < NBW; IW++)
@@ -2925,7 +2933,7 @@ namespace penred{
       double ZR, ER, RKR, P1R, P2R, ERROR;
 
       //Ensure data base existence and get it
-      const char* const pdata = penred::penMatDB::readDataBaseFile("pdbrang.p18");
+      const char* const pdata = penred::penMatDB::readDataBaseFile("pdbrang.p18",0);
       if(pdata == nullptr){
 	printf("Error: Data base file not found: 'pdbrang.p18'\n");
 	ErrorFunction(901);
@@ -2933,7 +2941,9 @@ namespace penred{
       }
 
       //Create a stream to read it
-      std::istringstream iss(pdata);
+      penred::dataBases::literalArrayStream iss([](unsigned i){
+	return penred::penMatDB::readDataBaseFile("pdbrang.p18",i);
+      });
       if(!iss){
 	printf("Error: Unable to create stream from "
 	       "data base file: 'pdbrang.p18'\n");	
@@ -2943,7 +2953,7 @@ namespace penred{
 
       std::string line;
       //Skip a line
-      iss.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+      iss.ignoreLine();
 
       for (int IZ1 = 0; IZ1 < NZ; IZ1++)
 	{
@@ -2951,7 +2961,7 @@ namespace penred{
 	    {
 	      for (int IK1 = 0; IK1 < NK; IK1++)
 		{
-		  std::getline(iss,line);
+		  iss.getline(line);
 		  sscanf(line.c_str(), "%d %d %d %lf %lf %lf %lf %lf %lf",
 			 &IZ, &IE, &IK, &ZR, &ER, &RKR, &P1R, &P2R, &ERROR);
 	      
@@ -3092,7 +3102,7 @@ namespace penred{
 	  pdfFile.append(".p08");
 
 	  //Ensure data base existence and get it
-	  const char* const pdata = penred::penMatDB::readDataBaseFile(pdfFile);
+	  const char* const pdata = penred::penMatDB::readDataBaseFile(pdfFile,0);
 	  if(pdata == nullptr){
 	    printf("Error: Data base file not found: '%s'\n",pdfFile.c_str());
 	    ErrorFunction(901);
@@ -3100,7 +3110,9 @@ namespace penred{
 	  }
 
 	  //Create a stream to read it
-	  std::istringstream iss(pdata);
+	  penred::dataBases::literalArrayStream iss([pdfFile](unsigned i){
+	    return penred::penMatDB::readDataBaseFile(pdfFile,i);
+	  });
 	  if(!iss){
 	    printf("Error: Unable to create stream from "
 		   "data base file: '%s'\n",pdfFile.c_str());	    
@@ -3109,7 +3121,7 @@ namespace penred{
 	  }
 
 	  std::string line;
-	  std::getline(iss,line);            
+	  iss.getline(line);            
 	  sscanf(line.c_str(), "%d %d", &IZZZ, &NQI);
 
 	  if (IZZZ != IZZ)
@@ -3124,7 +3136,7 @@ namespace penred{
 	    }
 	  for (int I = 0; I < NQ; I++)
 	    {
-	      std::getline(iss,line);
+	      iss.getline(line);
 	      sscanf(line.c_str(), "%lf %lf", &Q[I], &FF[I]);
 	    }
 
@@ -3134,7 +3146,7 @@ namespace penred{
 	  pdfFile.append(1, LDIG[NLD1]);
 	  pdfFile.append(".p08");
 
-	  const char* const pdgra = penred::penMatDB::readDataBaseFile(pdfFile);
+	  const char* const pdgra = penred::penMatDB::readDataBaseFile(pdfFile,0);
 	  if(pdgra == nullptr){
 	    printf("Error: Data base file not found: '%s'\n",pdfFile.c_str());	    
 	    ErrorFunction(901);
@@ -3142,7 +3154,9 @@ namespace penred{
 	  }
 
 	  //Set stream string
-	  iss.str(pdgra);
+	  iss.str([pdfFile](unsigned i){
+	    return penred::penMatDB::readDataBaseFile(pdfFile,i);
+	  });
 	  if(!iss){
 	    printf("Error: Unable to create stream from "
 		   "data base file: '%s'\n",pdfFile.c_str());	    
@@ -3151,7 +3165,7 @@ namespace penred{
 	  }	  
 
 	  //Read data
-	  std::getline(iss,line);
+	  iss.getline(line);
 	  sscanf(line.c_str(), "%d %d", &IZZZ, &NEI);
 	  if (IZZZ != IZZ)
 	    {
@@ -3161,7 +3175,7 @@ namespace penred{
 	  for (int I = 0; I < NEI; I++)
 	    {
 	      double FA1, FA2;
-	      std::getline(iss,line);
+	      iss.getline(line);
 	      sscanf(line.c_str(), "%lf %lf %lf %lf",
 		     &EI[I], &FA1, &FA2, &XS[I]);
 	      EI[I] = log (EI[I]);
@@ -3231,7 +3245,7 @@ namespace penred{
 	  pdfFile.append(".p18");
 
 	  //Ensure data base existence and get it
-	  const char* const pdata = penred::penMatDB::readDataBaseFile(pdfFile);
+	  const char* const pdata = penred::penMatDB::readDataBaseFile(pdfFile,0);
 	  if(pdata == nullptr){
 	    printf("Error: Data base file not found: '%s'\n",pdfFile.c_str());	    
 	    ErrorFunction(901);
@@ -3239,7 +3253,9 @@ namespace penred{
 	  }
 
 	  //Create a stream to read it
-	  std::istringstream iss(pdata);
+	  penred::dataBases::literalArrayStream iss([pdfFile](unsigned i){
+	    return penred::penMatDB::readDataBaseFile(pdfFile,i);
+	  });
 	  if(!iss){
 	    printf("Error: Unable to create stream from "
 		   "data base file: '%s'\n",pdfFile.c_str());	    
@@ -3248,7 +3264,7 @@ namespace penred{
 	  }
 
 	  std::string line;
-	  std::getline(iss,line);
+	  iss.getline(line);
 	  sscanf(line.c_str(), "%*15c%2d %2d %4d", &IZZZ, &NSHR, &NGP);
 
 	  if (NGP > NPHM)
@@ -3275,16 +3291,16 @@ namespace penred{
 		  iss >> ISH[IS];
 		  iss.ignore(10);
 		}
-	      std::getline(iss,line);
+	      iss.getline(line);
 	      sscanf(line.c_str(), "%2d", &ISH[NSHR]);
 	    }
 	  else
 	    {
 	      //Skip line
-	      iss.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+	      iss.ignoreLine();
 	    }
 	  //Skip line
-	  iss.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+	  iss.ignoreLine();
 
 	  int NPTAB = 0;
 	  for (int IE = 0; IE < NGP; IE++)
@@ -3300,7 +3316,7 @@ namespace penred{
 		  iss >> XS[IS];
 		}
 	      //Skip remaining line
-	      iss.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+	      iss.ignoreLine();
 	      
 	      if (ER > 49.9 && ER < 1.01E9)
 		{
@@ -3379,7 +3395,7 @@ namespace penred{
 	  pdfFile.append(".p11");
 
 	  //Ensure data base existence and get it
-	  const char* const pdata = penred::penMatDB::readDataBaseFile(pdfFile);
+	  const char* const pdata = penred::penMatDB::readDataBaseFile(pdfFile,0);
 	  if(pdata == nullptr){
 	    printf("Error: Data base file not found: '%s'\n",pdfFile.c_str());	    
 	    ErrorFunction(901);
@@ -3387,7 +3403,9 @@ namespace penred{
 	  }
 
 	  //Create a stream to read it
-	  std::istringstream iss(pdata);
+	  penred::dataBases::literalArrayStream iss([pdfFile](unsigned i){
+	    return penred::penMatDB::readDataBaseFile(pdfFile,i);
+	  });
 	  if(!iss){
 	    printf("Error: Unable to create stream from "
 		   "data base file: '%s'\n",pdfFile.c_str());	    
@@ -3396,7 +3414,7 @@ namespace penred{
 	  }
 
 	  std::string line;
-	  std::getline(iss,line);      
+	  iss.getline(line);      
 	  sscanf(line.c_str(), "%d", &IZZZ);
 
 	  if (IZZZ != IZZ)
@@ -3407,7 +3425,7 @@ namespace penred{
 	  for (int I = 0; I < NEGPP; I++)
 	    {
 	      double XG0P, XG0T;
-	      std::getline(iss,line);
+	      iss.getline(line);
 	      sscanf (line.c_str(), "%lf %lf %lf", &EIT[I], &XG0P, &XG0T);
 	      XGP0[I] = XGP0[I] + WGHT * XG0P;
 	      XGT0[I] = XGT0[I] + WGHT * XG0T;
@@ -3463,7 +3481,7 @@ namespace penred{
       int IZR, IS0R;
   
       //Ensure data base existence and get it
-      const char* const pdata = penred::penMatDB::readDataBaseFile("pdrelax.p11");
+      const char* const pdata = penred::penMatDB::readDataBaseFile("pdrelax.p11",0);
       if(pdata == nullptr){
 	printf("Error: Data base file not found: 'pdrelax.p11'\n");	    
 	ErrorFunction (901);
@@ -3471,7 +3489,9 @@ namespace penred{
       }
 
       //Create a stream to read it
-      std::istringstream iss(pdata);
+      penred::dataBases::literalArrayStream iss([](unsigned i){
+	return penred::penMatDB::readDataBaseFile("pdrelax.p11",i);
+      });
       if(!iss){
 	printf("Error: Unable to create stream from "
 	       "data base file: 'pdrelax.p11'\n");	    	
@@ -3481,7 +3501,7 @@ namespace penred{
 
       //Get first line
       std::string line;
-      std::getline(iss,line);
+      iss.getline(line);
 
       int nRead = sscanf(line.c_str(), "%d %d", &IZR, &IS0R); // Ignores the data.
       if (nRead == 2)
@@ -3492,7 +3512,7 @@ namespace penred{
 	  for (int I = 0; I < 150000; I++)
 	    {
 	      //Get next line
-	      std::getline(iss,line);
+	      iss.getline(line);
 	      nRead =
 		sscanf(line.c_str(), "%d %d %d %d %lf %lf",
 		       &IZR, &IS0R, &IS1R, &IS2R, &PR, &EIN);
@@ -4157,7 +4177,7 @@ namespace penred{
 	    }
 
 	  //Ensure data base existence and get it
-	  const char* const pdata = penred::penMatDB::readDataBaseFile("pdcompos.pen");
+	  const char* const pdata = penred::penMatDB::readDataBaseFile("pdcompos.pen",0);
 	  if(pdata == nullptr){
 	    printf("Error: Data base file not found: 'pdcompos.pen'\n");	    
 	    ErrorFunction(901);
@@ -4165,7 +4185,9 @@ namespace penred{
 	  }
 
 	  //Create a stream to read it
-	  std::istringstream iss(pdata);
+	  penred::dataBases::literalArrayStream iss([](unsigned i){
+	    return penred::penMatDB::readDataBaseFile("pdcompos.pen",i);
+	  });
 	  if(!iss){
 	    printf("Error: Unable to create stream from "
 		   "data base file: 'pdcompos.pen'\n");	    
@@ -4175,16 +4197,16 @@ namespace penred{
 
 	  for (int I = 0; I < 15; I++)	//Skip 15 lines
 	    {
-	      iss.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+	      iss.ignoreLine();
 	    }
 	  for (int K1 = 0; K1 < 300; K1++)
 	    {
-	      std::getline(iss,line);
+	      iss.getline(line);
 	      sscanf(line.c_str(), "%3d %62c", &IORD, NAME);
 	      //Append end of string chars
 	      NAME[62] = '\0';
 	      double HOLLOW;
-	      std::getline(iss,line);
+	      iss.getline(line);
 	      sscanf(line.c_str(), "%d %lf %lf %lf",
 		     &NELEM, &HOLLOW, &EXPOT, &RHO);
 	      if (NELEM > 30)
@@ -4199,7 +4221,7 @@ namespace penred{
 		}
 	      for (int I = 0; I < NELEM; I++)
 		{
-		  std::getline(iss,line);
+		  iss.getline(line);
 		  sscanf(line.c_str(), "%d %lf %lf",
 			 &IZ[I], &HOLLOW, &STF[I]);
 		}
@@ -4285,7 +4307,7 @@ namespace penred{
 	    {
 
 	      //Ensure data base existence and get it
-	      const char* const pdata = penred::penMatDB::readDataBaseFile("pdatconf.p14");
+	      const char* const pdata = penred::penMatDB::readDataBaseFile("pdatconf.p14",0);
 	      if(pdata == nullptr){
 		printf("Error: Data base file not found: 'pdatconf.p14'\n");	    
 		ErrorFunction(901);
@@ -4293,7 +4315,9 @@ namespace penred{
 	      }
 
 	      //Set the new string to the stream
-	      std::istringstream iss(pdata);
+	      penred::dataBases::literalArrayStream iss([](unsigned i){
+		return penred::penMatDB::readDataBaseFile("pdatconf.p14",i);
+	      });
 	      if(!iss){
 		printf("Error: Unable to create stream from "
 		       "data base file: 'pdatconf.p14'\n");	    		
@@ -4303,7 +4327,7 @@ namespace penred{
 	  
 	      for (int J = 0; J < 22; J++) //Skip 22 lines
 		{
-		  iss.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+		  iss.ignoreLine();
 		}
 	      NS = 0;
 	      int IZZT = 0;
@@ -4314,7 +4338,7 @@ namespace penred{
 		  char CH5[6];
 		  double EIE, CCP, GA1, GA2;
 
-		  std::getline(iss,line);
+		  iss.getline(line);
 		  if(iss.eof()){
 		    break;
 		  }
@@ -5837,7 +5861,7 @@ namespace penred{
 	  pdfFile.append(".p08");
       
 	  //Ensure data base existence and get it
-	  const char* const pdata = penred::penMatDB::readDataBaseFile(pdfFile);
+	  const char* const pdata = penred::penMatDB::readDataBaseFile(pdfFile,0);
 	  if(pdata == nullptr){
 	    printf("Error: Data base file not found: '%s'\n",pdfFile.c_str());	    
 	    ErrorFunction (901);
@@ -5845,7 +5869,9 @@ namespace penred{
 	  }
 
 	  //Create a stream to read it
-	  std::istringstream iss(pdata);
+	  penred::dataBases::literalArrayStream iss([pdfFile](unsigned i){
+	    return penred::penMatDB::readDataBaseFile(pdfFile,i);
+	  });
 	  if(!iss){
 	    printf("Error: Unable to create stream from "
 		   "data base file: '%s'\n", pdfFile.c_str());	    
@@ -5859,12 +5885,23 @@ namespace penred{
 	  double ENR, CSE, TCS1E, TCS2E, CSP, TCS1P, TCS2P;
 	  for (IE = 0; IE < NE; IE++)
 	    {
-	      std::getline(iss,line);
+	      iss.getline(line);
 	      sscanf(line.c_str(), "%d %d %lf %lf %lf %lf",
 		     &IELEC, &IZR, &ENR, &CSE, &TCS1E, &TCS2E);
 
 	      if (IELEC != -1 || IZR != IZZ || fabs (ENR - ETS[IE]) > 1.0E-3)
 		{
+		  printf("Fatal Error in ELINIT. Corrupt data file '%s' part %u.\n"
+			 "line: %s\n"
+			 "    IELEC   : %d\n"
+			 "    IZR     : %d\n"
+			 "    ENR     : %15.5E\n"
+			 "    ETS[IE] : %15.5E\n"
+			 "    CSE     : %15.5E\n"
+			 "    TCS1E   : %15.5E\n"
+			 "    TCS2E   : %15.5E\n",
+			 pdfFile.c_str(), iss.partition(), line.c_str(),
+			 IELEC, IZR, ENR, ETS[IE], CSE, TCS1E, TCS2E);
 		  ErrorFunction (1355);
 		  return;
 		}
@@ -5873,7 +5910,8 @@ namespace penred{
 		  iss >> DCSI[IA];
 		}
 	      //Ignore remaining line
-	      iss.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+	      iss.ignoreLine();
+	      
 	      ECS[IE] = ECS[IE] + STFF * CSE;
 	      ETCS1[IE] = ETCS1[IE] + STFF * TCS1E;
 	      ETCS2[IE] = ETCS2[IE] + STFF * TCS2E;
@@ -5891,7 +5929,7 @@ namespace penred{
 	  pdfFile.append(".p08");
       
 	  //Ensure data base existence and get it
-	  const char* const peldx = penred::penMatDB::readDataBaseFile(pdfFile);
+	  const char* const peldx = penred::penMatDB::readDataBaseFile(pdfFile,0);
 	  if(peldx == nullptr){
 	    printf("Error: Data base file not found: '%s'\n",pdfFile.c_str());	    
 	    ErrorFunction(901);
@@ -5899,7 +5937,9 @@ namespace penred{
 	  }
 
 	  //Assign the new data to the stream
-	  iss.str(peldx);
+	  iss.str([pdfFile](unsigned i){
+	    return penred::penMatDB::readDataBaseFile(pdfFile,i);
+	  });
 	  if(!iss){
 	    printf("Error: Unable to create stream from "
 		   "data base file: '%s'\n",pdfFile.c_str());
@@ -5909,7 +5949,7 @@ namespace penred{
       
 	  for (IE = 0; IE < NE; IE++)
 	    {
-	      std::getline(iss,line);
+	      iss.getline(line);
 	      sscanf(line.c_str(), "%d %d %lf %lf %lf %lf",
 		     &IELEC, &IZR, &ENR, &CSP, &TCS1P, &TCS2P);
 	      if (IELEC != +1 || IZR != IZZ || fabs (ENR - ETS[IE]) > 1.0E-3)
@@ -5922,7 +5962,7 @@ namespace penred{
 		  iss >> DCSI[IA];
 		}
 	      //Ignore remaining line
-	      iss.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+	      iss.ignoreLine();
 	      PCS[IE] = PCS[IE] + STFF * CSP;
 	      PTCS1[IE] = PTCS1[IE] + STFF * TCS1P;
 	      PTCS2[IE] = PTCS2[IE] + STFF * TCS2P;

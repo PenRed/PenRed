@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Erroneous material ID assignation on automatic generated material section by *pen_context* configuration.
 
+- Integrated data bases uses now split string literals to allow to fit specific compiler limitations on string literals length.
+
 ### Fix
 
 - In some cases, *COMBO* geometry skips low priority geometries when a higher geometry contains void bodies.

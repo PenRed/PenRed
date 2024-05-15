@@ -87,9 +87,6 @@ endif(BUILD_STATIC)
 
 # Compilation options
 
-# Set if is possible to create embedded DB depending on compiler
-set(ALLOW_EMBEDDED_DB true)
-
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   # using GCC
 
@@ -144,17 +141,13 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   # See https://github.com/open62541/open62541/issues/1326
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
 
-  #Disable embedded DB creation
-  set(ALLOW_EMBEDDED_DB false)
-
 else()
   #Other compilers
   add_compile_options(-O2)
 endif()
 
 # Embedded DB options
-CMAKE_DEPENDENT_OPTION(BUILD_EMBEDDED_DBS "Build PenRed embedded data bases " ON
-                       "ALLOW_EMBEDDED_DB" OFF)
+CMAKE_DEPENDENT_OPTION(BUILD_EMBEDDED_DBS "Build PenRed embedded data bases " ON)
 CMAKE_DEPENDENT_OPTION(WITH_EMBEDDED_DB "Build PenRed main programs with embedded data bases " ON
                        "BUILD_EMBEDDED_DBS" OFF)
 
