@@ -355,6 +355,8 @@ namespace penred{
 
       //Output stream
       std::ostream out;
+
+      static constexpr bool noFinishSim(const unsigned long long){ return true; } 
       
     public:
 
@@ -367,6 +369,10 @@ namespace penred{
       //Maximum simulation time
       long long int maxSimTime;  //In ms
 
+      //Finish simulation function.
+      //Returns true if the simulation must continue and false to stop it
+      std::function<bool(const unsigned long long)> fSimFinish;
+      
       //Verbose level
       unsigned verbose;
 
@@ -1431,7 +1437,7 @@ namespace penred{
 	simulateStacksCond(hist, randoms, finishType, finishValue, f, p, secondary...);
       }
 
-  
+      
   
     }
 
@@ -2025,7 +2031,7 @@ namespace penred{
 	    
 	    //Finish the simulation
 	    status.setFlag(simFlags::MAX_TIME_REACHED);
-	    break;	
+	    break;
 	  }
 
 	  //Check if a report is needed in the configuration
@@ -2050,6 +2056,25 @@ namespace penred{
 	    reportWatch.start();
 	    lastHist = simulated+nhists;
 	  }
+
+	  //Check finish simulation function
+	  if(!config.fSimFinish(hist)){
+	    //End of simulation
+	    if(verbose > 1){
+	      unsigned long long currentHists =
+		hist-simulated+config.getInitiallySimulated();
+	      
+	      config << config.threadAndSourcePrefix()
+		     << "Simulation finish condition reached "
+		     << "at history number " << hist
+		     << " with " << currentHists << "/" << nhists
+		     << " simulated in actual source, with seeds "
+		     << lseed1 << " " << lseed2 << simConfig::endl;
+	    }
+	    
+	    status.setFlag(simFlags::SUCCESS);
+	    break;
+	  }	  
 	}
 
 	//Get detector ID
@@ -2091,7 +2116,7 @@ namespace penred{
     int sampleAndSimulateCond(simConfig& config,
 			      const unsigned long long nhists,
 			      const std::string& sourceName,
-			      sampleFuncType<stateType>& fsource,
+			      const sampleFuncType<stateType>& fsource,
 			      const finishTypes::finishTypes& finishType,
 			      const unsigned& finishValue,
 			      tallyFuncType& ftally,
@@ -2289,6 +2314,25 @@ namespace penred{
 	    status.setFlag(simFlags::SUCCESS);	      
 	    break;
 	  }
+
+	  //Check finish simulation function
+	  if(!config.fSimFinish(hist)){
+	    //End of simulation
+	    if(verbose > 1){
+	      unsigned long long currentHists =
+		hist-simulated+config.getInitiallySimulated();
+	      
+	      config << config.threadAndSourcePrefix()
+		     << "Simulation finish condition reached "
+		     << "at history number " << hist
+		     << " with " << currentHists << "/" << nhists
+		     << " simulated in actual source, with seeds "
+		     << lseed1 << " " << lseed2 << simConfig::endl;
+	    }
+	    
+	    status.setFlag(simFlags::SUCCESS);
+	    break;
+	  }
 	}
       }
 
@@ -2373,7 +2417,7 @@ namespace penred{
 					    const std::index_sequence<I...>&,
 					    const unsigned long long nhists,
 					    const std::string& sourceName,
-					    sampleFuncType<stateType>& fsource,
+					    const sampleFuncType<stateType>& fsource,
 					    const finishTypes::finishTypes& finishType,
 					    const unsigned& finishValue,
 					    tallyFuncType& ftally,
@@ -2396,7 +2440,7 @@ namespace penred{
 					    const contextType& context,					    
 					    const unsigned long long nhists,
 					    const std::string& sourceName,
-					    sampleFuncType<stateType>& fsource,
+					    const sampleFuncType<stateType>& fsource,
 					    const finishTypes::finishTypes& finishType,
 					    const unsigned& finishValue,
 					    tallyFuncType& ftally,

@@ -464,3 +464,5 @@ endif(VIEWERS)
 add_subdirectory(contexts)
 
 add_subdirectory(measurements)
+
+add_subdirectory(compositions)

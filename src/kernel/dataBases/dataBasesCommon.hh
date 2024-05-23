@@ -35,6 +35,7 @@
 #include <sstream>
 #include <string>
 #include <array>
+#include <vector>
 #include <functional>
 #include <limits>
 #include <fstream>
@@ -62,6 +63,21 @@ namespace penred{
 	UNABLE_TO_OPEN_FILE,
 	LINE_BIGER_THAN_CHUNK_SIZE,
       };
+    };
+
+    struct materials{
+
+      virtual std::vector<std::string> matList() const = 0;
+      virtual unsigned getIndex(const std::string&) const = 0;
+      virtual std::vector<massFraction> getElements(const unsigned) const = 0;
+      virtual double getDensity(const unsigned) const = 0; //in g/cm**3
+
+      inline std::vector<massFraction> getElements(const std::string& name) const{
+	return getElements(getIndex(name));
+      }
+      inline double getDensity(const std::string& name) const{
+	return getDensity(getIndex(name));
+      }
     };
 
     constexpr const char* errorMessage(unsigned ierr){

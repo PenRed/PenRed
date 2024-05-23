@@ -35,10 +35,12 @@ namespace penred{
 			const double focalSpot,
 			const double source2det,
 			const double source2filter,
+			const double source2bowtie,
 			const double detectorDx,
 			const double detectorDy,
 			const double inherentFilterSize,
-			const std::vector<double> filters,
+			const std::vector<double>& filters,
+			std::vector<double> bowtieDz,
 			const vector3D<double> sourcePos,
 			const bool constructAnode,
 			const double anodeAngle,
@@ -82,7 +84,13 @@ namespace penred{
 	filtersWidth += f;
       }
 
-      const double source2filtersEnd = source2filter + filtersWidth;
+      double source2filtersEnd = source2filter + filtersWidth;
+      if(source2bowtie > 0.0 && bowtieDz.size() > 0){
+	const double maxDz = *std::max_element(bowtieDz.cbegin(), bowtieDz.cend());
+	const double source2BowtieBot = source2bowtie + maxDz;
+	
+	source2filtersEnd = source2BowtieBot;
+      }
       const double source2detCollTop = source2filtersEnd + elementSpacing;
       const double source2detCollBot = source2detCollTop + collHeight;
 
@@ -112,6 +120,9 @@ namespace penred{
 
       if(filters.size() > 0)
 	nBodies += filters.size() + 1; //Filters and collimator
+
+      if(source2bowtie > 0.0)
+	nBodies += 1; //Bowtie
 
       out << "# Number of bodies" << std::endl;
       out << " " << nBodies << std::endl;
@@ -248,12 +259,13 @@ namespace penred{
       //
 
       //Calculate field size at filters bottom
+      const double filtersEnd = source2filter + filtersWidth;
       const std::pair<double, double> filterFieldSizes =
 	fieldSize(focalSpot,
 		  detectorDx,
 		  detectorDy,
 		  source2det,
-		  source2filter + filtersWidth);
+		  filtersEnd);
 
       if(filters.size() > 0){
       
@@ -316,7 +328,61 @@ namespace penred{
 			     "detector-collimator",
 			     "world",
 			     false,
-			     detCollCenter);      
+			     detCollCenter);
+
+      }
+
+      // ** Bowtie
+      //
+
+      if(source2bowtie > 0.0 && bowtieDz.size() > 0){
+
+	if(source2bowtie <= filtersEnd){
+	  if(verbose > 1){
+	    printf("constructDevice: Error: The distance between source"
+		   "and bowtie filter is lesser than the distance between the "
+		   "source and the collimator after flat filters\n"
+		   "    Distance source to bowtie         : %f cm\n"
+		   "    Distance source to last collimator: %f cm\n",
+		   source2bowtie,
+		   filtersEnd);
+	  }
+	  return errors::INVALID_DISTANCE;
+	}
+	
+	//Get the maximum bowtie height
+	const double maxDz = *std::max_element(bowtieDz.cbegin(), bowtieDz.cend());
+	const double source2BowtieBot = source2bowtie + maxDz;
+
+	//Check if the maximum dz is positive
+	if(maxDz <= 0.0){
+	  if(verbose > 1){
+	    printf("constructDevice: Error: The maximum bowtie height must be greater than 0.\n"
+		   "                        Bowtie maximum height: %f cm\n",
+		   maxDz);
+	  }
+	  return errors::INVALID_DISTANCE;
+	}
+
+	//Calculate field size at bowtie bot face
+	const std::pair<double, double> bowtieCollBotSizes =
+	  fieldSize(focalSpot,
+		    detectorDx,
+		    detectorDy,
+		    source2det,
+		    source2BowtieBot);
+
+	vector3D<double> bowtieCenter = sourcePos;
+	bowtieCenter.z -= source2bowtie + maxDz/2.0;
+	createTopFaceIrregularFilter(bowtieCollBotSizes.first,
+				     bowtieCollBotSizes.second,
+				     bowtieDz,
+				     out,
+				     nextMat++,
+				     "bowtie",
+				     "world",
+				     false,
+				     bowtieCenter);	
       }
 
       // ** Detector
@@ -355,10 +421,10 @@ namespace penred{
       
       return 0;
     }
-
+    
     int simDevice(const pen_parserSection& config,
 		  const unsigned verbose){
-
+      
       // ** Parse configuration
       
       //Read information from config section
@@ -367,6 +433,9 @@ namespace penred{
       if(err != readerXRayDeviceSimulate::SUCCESS){
 	return err;
       }
+
+      //Save added geometry configuration
+      config.readSubsection("geometry/config", reader.addedGeoConf);
 
       // ** Comon simulation configuration
       penred::simulation::simConfig baseSimConfig;
@@ -381,39 +450,8 @@ namespace penred{
       baseSimConfig.verbose = verbose;      
       if(verbose > 1){
 	printf("%s\n", baseSimConfig.stringifyConfig().c_str());
-      }
-      // ** Threads number
+      }      
 
-      //Get the number of threads to use
-      unsigned nThreads = reader.nThreads;
-#ifdef _PEN_USE_THREADS_
-      if(nThreads == 0){
-	nThreads = std::max(static_cast<unsigned int>(2),
-			    std::thread::hardware_concurrency());
-      }
-#else
-      if(nThreads != 0){
-	if(verbose > 1)
-	  printf("simDevice: Warning: Number of threads has been specified,"
-		 " but the code has been compiled with no multithreading support.\n"
-		 " Only one thread will be used.\n");
-      }
-      nThreads = 1;
-#endif
-
-      // ** Simulation configuration for each thread
-      std::vector<penred::simulation::simConfig> simConfigs(nThreads);
-
-      //Copy basic configuration
-      for(unsigned i = 0; i < nThreads; i++){
-	simConfigs[i].iThread = i;
-	simConfigs[i].copyCommonConfig(baseSimConfig);
-	//Set, by default, std::cout as output stream
-	simConfigs[i].setOutstream(std::cout);
-	//Set seed pair
-	simConfigs[i].setSeeds(reader.seedPair+i);
-      }
-      
       // ** Sampling function
       
       measurements::results<double, 2> spatialDistrib;
@@ -623,12 +661,200 @@ namespace penred{
 	
       }
 
+      auto itMinMax = std::minmax_element(reader.bowtieDz.cbegin(), reader.bowtieDz.cend());
+      const double bowtieMin = *itMinMax.first;
+      const double bowtieMax = *itMinMax.second;
+      const unsigned nSpatBins = reader.detBins;
+
+      if(reader.bowtieAutoDesign){
+	if(reader.bowtieDesignBins > reader.bowtieDz.size()){
+	  reader.bowtieDz.resize(reader.bowtieDesignBins);
+	  std::fill(reader.bowtieDz.begin(), reader.bowtieDz.end(), bowtieMin);
+	  reader.bowtieDz[0] = bowtieMax;
+	  reader.bowtieDz.back() = bowtieMax;
+	}
+	reader.detBins = reader.bowtieDz.size();
+      }
+      
+      for(size_t i = 0; i < 200; ++i){
+      
+	measurements::measurement<double, 2> detFluence;
+	measurements::measurement<double, 2> detEdep;
+	measurements::measurement<double, 1> detSpec;
+	unsigned long long simHists;
+	
+	err = simDevice(reader, maxE, fsample, baseSimConfig,
+			detFluence, detEdep, detSpec, simHists,
+			verbose);
+	if(err != errors::SUCCESS){
+	  return err;
+	}
+
+	std::string sufix;
+	if(reader.bowtieAutoDesign){
+	  sufix = std::to_string(i);
+	}
+
+
+	// ** Print results
+	FILE* fout = nullptr;
+	std::string filename = reader.outputPrefix + "detectedFluence.dat" + sufix;
+	fout = fopen(filename.c_str(), "w");
+	detFluence.print(fout, simHists, 2, true, false);
+	fclose(fout);
+
+	fout = nullptr;
+	filename = reader.outputPrefix + "detectedEdep.dat" + sufix;
+	fout = fopen(filename.c_str(), "w");
+	detEdep.print(fout, simHists, 2, true, false);
+	fclose(fout);
+
+	fout = nullptr;
+	filename = reader.outputPrefix + "detectedSpectrum.dat" + sufix;
+	fout = fopen(filename.c_str(), "w");
+	detSpec.print(fout, simHists, 2, true, false);
+	fclose(fout);
+	
+	if(reader.bowtieAutoDesign){
+
+	  //Generate results
+	  penred::measurements::results<double, 2> fluenceResults;
+	  detFluence.results(simHists, fluenceResults);
+	  
+	  //Generate fluence profile
+	  penred::measurements::results<double, 1> profile;
+
+	  err = fluenceResults.profile1D(0, profile);
+	  if(err != 0){
+	    printf("Unexpected error profiling data.\n"
+		   "  Error code: %d\n"
+		   "  Error message: %s\n",
+		   err,
+		   penred::measurements::errorToString(err));
+	    return err;
+	  }
+
+	  fout = nullptr;
+	  filename = reader.outputPrefix + "fluenceProfile.dat" + sufix;
+	  fout = fopen(filename.c_str(), "w");
+	  profile.print(fout, 2, true, false);
+	  fclose(fout);
+
+	  fout = nullptr;
+	  filename = reader.outputPrefix + "bowtie.dat" + sufix;
+	  fout = fopen(filename.c_str(), "w");
+	  for(size_t j = 0; j < reader.bowtieDz.size(); ++j){
+	    fprintf(fout, "%E\n", reader.bowtieDz[j]);
+	  }
+	  fclose(fout);
+	      
+	  //Get fluence relative differences
+	  std::vector<double> relDiff = profile.readData();
+
+	  //Get central value
+	  double midVal;
+	  if(relDiff.size() % 2 == 0){
+	    midVal = (relDiff[relDiff.size()/2] + relDiff[relDiff.size()/2+1])/2.0;
+	  }else{
+	    midVal = (relDiff[relDiff.size()/2] +
+		      relDiff[relDiff.size()/2+1] +
+		      relDiff[relDiff.size()/2-1])/3.0;	    
+	  }
+
+	  for(double& val : relDiff){
+	    val = (val-midVal)/midVal;
+	  }
+
+	  //Reshape bowtie
+	  for(size_t j = 0; j < relDiff.size(); ++j){
+	    reader.bowtieDz[j] += reader.bowtieDz[j]*relDiff[j]*0.5;
+	      
+	    if(reader.bowtieDz[j] > bowtieMax)
+	      reader.bowtieDz[j] = bowtieMax;
+	    if(reader.bowtieDz[j] < bowtieMin)
+	      reader.bowtieDz[j] = bowtieMin;
+	  }
+
+	  //Limit gaps between successive points
+	  for(size_t j = 1; j < 2*relDiff.size()/5; ++j){
+	    double diff = reader.bowtieDz[j]/reader.bowtieDz[j-1];
+	    if(diff > 1.5)
+	      reader.bowtieDz[j] = reader.bowtieDz[j-1]*1.5;
+	    else if(diff < 0.5)
+	      reader.bowtieDz[j] = reader.bowtieDz[j-1]*0.5;
+	  }
+
+	  for(size_t j = relDiff.size()-2; j > 3*relDiff.size()/5; --j){
+	    double diff = reader.bowtieDz[j]/reader.bowtieDz[j+1];
+	    if(diff > 1.5)
+	      reader.bowtieDz[j] = reader.bowtieDz[j+1]*1.5;
+	    else if(diff < 0.5)
+	      reader.bowtieDz[j] = reader.bowtieDz[j+1]*0.5;	      
+	  }
+
+	  //Smooth bowtie with a smooth filter
+	  std::vector<double> bowtieDz = reader.bowtieDz;
+	  for(size_t k = 0; k < 3; ++k){
+	    for(size_t j = 1; j < relDiff.size()-1; ++j){
+	      reader.bowtieDz[j] =
+		bowtieDz[j]*0.7 + bowtieDz[j-1]*0.15 + bowtieDz[j+1]*0.15;
+	    }
+	  }
+
+	  fout = nullptr;
+	  filename = reader.outputPrefix + "fluenceRelativeDiff.dat" + sufix;
+	  fout = fopen(filename.c_str(), "w");
+	  for(size_t j = 0; j < relDiff.size(); ++j){
+	    fprintf(fout, "%E\n", relDiff[j]);
+	  }
+	  fclose(fout);	  
+	  
+	}else{
+	  break;
+	}
+      }
+
+      return errors::SUCCESS;
+      
+    }
+
+    int simDevice(const readerXRayDeviceSimulate& reader,
+		  const double maxE,
+		  const simulation::sampleFuncType<pen_particleState>& fsample,
+		  const penred::simulation::simConfig& baseSimConfig,
+		  measurements::measurement<double, 2>& detFluence,
+		  measurements::measurement<double, 2>& detEdep,
+		  measurements::measurement<double, 1>& detSpec,
+		  unsigned long long& simHistsOut,
+		  const unsigned verbose){
+      
+      // ** Threads number
+
+      //Get the number of threads to use
+      unsigned nThreads = reader.nThreads;
+#ifdef _PEN_USE_THREADS_
+      if(nThreads == 0){
+	nThreads = std::max(static_cast<unsigned int>(2),
+			    std::thread::hardware_concurrency());
+      }
+#else
+      if(nThreads != 0){
+	if(verbose > 1)
+	  printf("simDevice: Warning: Number of threads has been specified,"
+		 " but the code has been compiled with no multithreading support.\n"
+		 " Only one thread will be used.\n");
+      }
+      nThreads = 1;
+#endif
+
       // ** Tally function
 
+      const vector3D<double> sourcePos = reader.sourcePosition;      
+      
       std::vector<measurements::measurement<double, 2>> detectedFluence(nThreads);
       for(size_t i = 0; i < nThreads; ++i){
 	detectedFluence[i].
-	  init({reader.nbins, reader.nbins},
+	  init({reader.detBins, reader.detBins},
 	       {std::pair<double,double>(sourcePos.x-reader.detectorDx/2.0,
 					 sourcePos.x+reader.detectorDx/2.0),
 		std::pair<double,double>(sourcePos.y-reader.detectorDy/2.0,
@@ -643,7 +869,7 @@ namespace penred{
       std::vector<measurements::measurement<double, 2>> detectedEdep(nThreads);
       for(size_t i = 0; i < nThreads; ++i){
 	detectedEdep[i].
-	  init({reader.nbins, reader.nbins},
+	  init({reader.detBins, reader.detBins},
 	       {std::pair<double,double>(sourcePos.x-reader.detectorDx/2.0,
 					 sourcePos.x+reader.detectorDx/2.0),
 		std::pair<double,double>(sourcePos.y-reader.detectorDy/2.0,
@@ -657,9 +883,8 @@ namespace penred{
       std::vector<measurements::measurement<double, 1>> detectedSpectrum(nThreads);
       for(size_t i = 0; i < nThreads; ++i){
 	detectedSpectrum[i].
-	  init({reader.nbins},
-	       {std::pair<double,double>(reader.minEnergy,
-					 energyDistrib.readLimits()[0].second+50)});
+	  init({reader.eBins},
+	       {std::pair<double,double>(reader.minEnergy,maxE+50)});
 	detectedSpectrum[i].setDimHeader(0, "Energy (eV)");
 	detectedSpectrum[i].setValueHeader("Value (prob)");
       }
@@ -682,22 +907,52 @@ namespace penred{
 	};
       
       }
+
+      // ** Simulation configuration for each thread
+      
+      std::vector<penred::simulation::simConfig> simConfigs(nThreads);
+
+      //Copy basic configuration
+      const double tolerance = reader.tolerance;
+      for(unsigned i = 0; i < nThreads; i++){
+	simConfigs[i].iThread = i;
+	simConfigs[i].copyCommonConfig(baseSimConfig);
+	//Set, by default, std::cout as output stream
+	simConfigs[i].setOutstream(std::cout);
+	//Set seed pair
+	simConfigs[i].setSeeds(reader.seedPair+i);
+	simConfigs[i].fSimFinish =
+	  [tolerance, i, &detectedFluence]
+	  (const unsigned long long ihist){
+	    
+	    if(ihist % 10000 == 0){
+	      //Get mean relative error
+	      const double erel = detectedFluence[i].errorRel(ihist);
+	      if(erel < tolerance)
+		return false;
+	    }
+	    return true;
+	  };
+      }
+      
       // ** Device Geometry
 
       //Create device geometry
       std::stringstream geoStream;
-      err = constructDevice(geoStream,
-			    reader.focalSpot,
-			    reader.source2det,
-			    reader.source2filter,
-			    reader.detectorDx,
-			    reader.detectorDy,
-			    reader.inherentFilterWidth,
-			    reader.filtersWidth,
-			    reader.sourcePosition,
-			    reader.simAnode,
-			    reader.anodeAngle,
-			    verbose);
+      int err = constructDevice(geoStream,
+				reader.focalSpot,
+				reader.source2det,
+				reader.source2filter,
+				reader.source2bowtie,
+				reader.detectorDx,
+				reader.detectorDy,
+				reader.inherentFilterWidth,
+				reader.filtersWidth,
+				reader.bowtieDz,
+				reader.sourcePosition,
+				reader.simAnode,
+				reader.anodeAngle,
+				verbose);
 
       if(err != 0){
 	if(verbose > 0)
@@ -781,8 +1036,7 @@ namespace penred{
 	// * Configure added geometry
 
 	//Read configuration section
-	pen_parserSection addedGeoConf;
-	if(config.readSubsection("geometry/config",addedGeoConf) != INTDATA_SUCCESS){
+	if(reader.addedGeoConf.size() == 0){
 	  if(verbose > 0){
 	    printf("simDevice: Error: Configuration for added "
 		   "geometry not provided.\n"
@@ -791,7 +1045,7 @@ namespace penred{
 	  return -2;
 	}
 
-	geoConfig.addSubsection("geometries/added/config", addedGeoConf);
+	geoConfig.addSubsection("geometries/added/config", reader.addedGeoConf);
 	geoConfig.set("geometries/added/priority", 1);
 	geoConfig.set("geometries/added/config/type", reader.addedGeoType);	
       }
@@ -914,16 +1168,20 @@ namespace penred{
 	
 	std::string filterMatFile = filterName + ".mat";
 	
-	err = penred::penMaterialCreator::createMat(reader.filtersZ[i],
-						    filterMatFile.c_str(),
-						    errorString);
-	if(err != 0){
-	  printf ("simDevice: Error: Unable to create "
-		  "filter %lu material: %s\n",
-		  static_cast<unsigned long>(i),
-		  errorString.c_str());
-	  printf ("IRETRN =%d\n", err);
-	  return -2;
+	if(reader.filtersMatFile[i].compare("-") == 0){
+	  err = penred::penMaterialCreator::createMat(reader.filtersZ[i],
+						      filterMatFile.c_str(),
+						      errorString);
+	  if(err != 0){
+	    printf ("simDevice: Error: Unable to create "
+		    "filter %lu material: %s\n",
+		    static_cast<unsigned long>(i),
+		    errorString.c_str());
+	    printf ("IRETRN =%d\n", err);
+	    return -2;
+	  }
+	}else{
+	  filterMatFile = reader.filtersMatFile[i];
 	}
 	
 	//Configure material
@@ -945,6 +1203,41 @@ namespace penred{
 	simConf.set((prefix + "filename").c_str(), filterMatFile);
 		
       }
+
+      // ** Bowtie filter
+
+      if(reader.source2bowtie > 0.0 && reader.bowtieDz.size() > 0){
+
+	//Create bowtie material
+	std::string matFilename;
+	if(reader.bowtieMatFile.compare("-") == 0){
+	  matFilename.assign("bowtie.mat");
+	  err = penred::penMaterialCreator::createMat(reader.bowtieZ,
+						      matFilename.c_str(),
+						      errorString);
+	  if(err != 0){
+	    printf ("simDevice: Error: Unable to create "
+		    "bowtie filter material: %s\n",
+		    errorString.c_str());
+	    printf ("IRETRN =%d\n", err);
+	    return -2;
+	  }
+	}else{
+	  matFilename = reader.bowtieMatFile;
+	}
+
+	//Configure inherent filter material
+	simConf.set("materials/bowtie/number", nextMat++);
+	for(unsigned j = 0; j < constants::nParTypes; ++j){
+	  std::string path = "materials/bowtie/eabs/";
+	  path += particleName(j);
+	  if(j == PEN_PHOTON)
+	    simConf.set(path, reader.minEnergy);
+	  else
+	    simConf.set(path, 1.0e35);
+	}
+	simConf.set("materials/bowtie/filename", matFilename);
+      }      
 
       // ** Detector
       simConf.set("materials/detector/number", nextMat++);
@@ -1049,12 +1342,12 @@ namespace penred{
 	out << "## Tallies " << std::endl;
 	out << "###############\n" << std::endl;
 	out << "tallies/FluenceDetectior/type \"DETECTION_SPATIAL_DISTRIB\" " << std::endl;
-	out << "tallies/SpatialDetectior/spatial/nx " << reader.nbins << std::endl;
+	out << "tallies/SpatialDetectior/spatial/nx " << reader.detBins << std::endl;
 	out << "tallies/SpatialDetectior/spatial/xmin " <<
 	  detectedFluence[0].readLimits()[0].first << std::endl;
 	out << "tallies/SpatialDetectior/spatial/xmax " <<
 	  detectedFluence[0].readLimits()[0].second << std::endl;
-	out << "tallies/SpatialDetectior/spatial/ny " << reader.nbins << std::endl;
+	out << "tallies/SpatialDetectior/spatial/ny " << reader.detBins << std::endl;
 	out << "tallies/SpatialDetectior/spatial/ymin " <<
 	  detectedFluence[0].readLimits()[1].first << std::endl;
 	out << "tallies/SpatialDetectior/spatial/ymax  " <<
@@ -1063,7 +1356,7 @@ namespace penred{
 	out << "tallies/SpatialDetectior/particle \"gamma\" " << std::endl;
 	out << "\n" << std::endl;
 	out << "tallies/SpectrumDetectior/type \"DETECTION_SPATIAL_DISTRIB\" " << std::endl;
-	out << "tallies/SpectrumDetectior/spatial/nbins " << reader.nbins << std::endl;
+	out << "tallies/SpectrumDetectior/spatial/nbins " << reader.eBins << std::endl;
 	out << "tallies/SpectrumDetectior/spatial/emin " <<
 	  detectedSpectrum[0].readLimits()[0].first << std::endl;
 	out << "tallies/SpectrumDetectior/spatial/emax " <<
@@ -1140,25 +1433,16 @@ namespace penred{
 	simHists += simConfigs[i].getTotalSimulated();
       }
 
-      // ** Print results
-      FILE* fout = nullptr;
-      fout = fopen("detectedFluence.dat", "w");
-      detectedFluence[0].print(fout, simHists, 2, true, false);
-      fclose(fout);
-
-      fout = nullptr;
-      fout = fopen("detectedEdep.dat", "w");
-      detectedEdep[0].print(fout, simHists, 2, true, false);
-      fclose(fout);
-
-      fout = nullptr;
-      fout = fopen("detectedSpectrum.dat", "w");
-      detectedSpectrum[0].print(fout, simHists, 2, true, false);
-      fclose(fout);
+      //Save results
+      detFluence = detectedFluence[0];
+      detEdep = detectedEdep[0];
+      detSpec = detectedSpectrum[0];
+      simHistsOut = simHists;
       
       return errors::SUCCESS;
       
     }
+    
 
     // ** Device creation. Reader functions
     int readerXRayDeviceCreate::beginSectionFamily(const std::string& pathInSection,
@@ -1221,6 +1505,9 @@ namespace penred{
 	else if(pathInSection.compare("source2det") == 0){
 	  source2det = element;
 	}
+	else if(pathInSection.compare("source2bowtie") == 0){
+	  source2bowtie = element;
+	}	
 	else if(pathInSection.compare("detector/dx") == 0){
 	  detectorDx = element;
 	}
@@ -1262,6 +1549,38 @@ namespace penred{
       return errors::SUCCESS;
   
 }
+
+    int readerXRayDeviceCreate::beginArray(const std::string& pathInSection,
+					   const size_t,
+					   const unsigned){
+      if(family == -1){
+	if(pathInSection.compare("bowtie/dz") == 0){
+	  return errors::SUCCESS;
+	}
+      }
+      return errors::UNHANDLED;
+    }
+      
+    int readerXRayDeviceCreate::endArray(const unsigned){
+
+      if(family == -1){
+	return errors::SUCCESS;
+      }
+      return errors::UNHANDLED;
+    }
+
+    int readerXRayDeviceCreate::storeArrayElement(const std::string& pathInSection,
+						  const pen_parserData& element,
+						  const size_t,
+						  const unsigned){
+      if(family == -1){
+	if(pathInSection.compare("bowtie/dz") == 0){
+	  bowtieDz.push_back(static_cast<float>(element));
+	  return errors::SUCCESS;
+	}
+      }
+      return errors::UNHANDLED;
+    }
 
 
     // ** Device simulation. Reader functions
@@ -1377,8 +1696,14 @@ namespace penred{
 	else if(pathInSection.compare("simulation/seedPair") == 0){
 	  seedPair = element;
 	}	
-	else if(pathInSection.compare("simulation/nbins") == 0){
-	  nbins = element;
+	else if(pathInSection.compare("simulation/detBins") == 0){
+	  detBins = element;
+	}
+	else if(pathInSection.compare("simulation/eBins") == 0){
+	  eBins = element;
+	}
+	else if(pathInSection.compare("simulation/tolerance") == 0){
+	  tolerance = element;
 	}
 	else if(pathInSection.compare("x-ray/focal-spot") == 0){
 	  focalSpot = element;
@@ -1401,6 +1726,18 @@ namespace penred{
 	else if(pathInSection.compare("x-ray/source2filter") == 0){
 	  source2filter = element;
 	}
+	else if(pathInSection.compare("x-ray/source2bowtie") == 0){
+	  source2bowtie = element;
+	}
+	else if(pathInSection.compare("x-ray/bowtie/z") == 0){
+	  bowtieZ = element;
+	}
+	else if(pathInSection.compare("x-ray/bowtie/auto-design") == 0){
+	  bowtieAutoDesign = element;
+	}
+	else if(pathInSection.compare("x-ray/bowtie/design-bins") == 0){
+	  bowtieDesignBins = element;
+	}	
 	else if(pathInSection.compare("anode/angle") == 0){
 	  anodeAngle = element;
 	}
@@ -1410,10 +1747,6 @@ namespace penred{
 	else if(pathInSection.compare("x-ray/kvp") == 0){
 	  kvp = element;
 	}
-	else if(pathInSection.find("geometry/config/") == 0){
-	  //Added geometry configuration. Skip
-	  return errors::SUCCESS;
-	}	
 	else{
 	  return errors::UNHANDLED;
 	}
@@ -1473,9 +1806,11 @@ namespace penred{
 	else if(pathInSection.compare("geometry/type") == 0){
 	  addedGeoType = element;
 	}
-	else if(pathInSection.find("geometry/config/") == 0){
-	  //Added geometry configuration. Skip
-	  return errors::SUCCESS;
+	else if(pathInSection.compare("x-ray/bowtie/mat-file") == 0){
+	  bowtieMatFile = element;
+	}
+	else if(pathInSection.compare("simulation/output-prefix") == 0){
+	  outputPrefix = element;
 	}
 	else{
 	  return errors::UNHANDLED;
@@ -1513,8 +1848,7 @@ namespace penred{
 	    return errors::BAD_DIMENSIONS;
 	  }
 	}
-	else if(pathInSection.find("geometry/config/") == 0){
-	  //Added geometry configuration. Skip
+	else if(pathInSection.find("x-ray/bowtie/dz") == 0){
 	  return errors::SUCCESS;
 	}	
 	else{
@@ -1550,10 +1884,9 @@ namespace penred{
 	    return errors::UNHANDLED;
 	  }
 	}
-	else if(pathInSection.find("geometry/config/") == 0){
-	  //Added geometry configuration. Skip
-	  return errors::SUCCESS;
-	}	
+	else if(pathInSection.compare("x-ray/bowtie/dz") == 0){
+	  bowtieDz.push_back(static_cast<float>(element));
+	}
 	else{
 	  return errors::UNHANDLED;
 	}	

@@ -150,6 +150,7 @@ C
 #include <vector>
 #include "database.hh"
 #include "dataBasesCommon.hh"
+#include "composDB.hh"
 
 namespace penred{
 
@@ -431,6 +432,32 @@ namespace penred{
       composition.emplace_back(Z,1.0);
 
       return createMat(name, density, composition, errorString, filenameIn);      
+    }
+
+    inline int createMat(const std::string& name,
+			 const std::string& dataBase,
+			 const std::string& dataBaseMat,
+			 std::string& errorString,
+			 const std::string& filenameIn = ""){
+
+      //Get composition DB pointer
+      auto db = penred::dataBases::compositions::getDB(dataBase);
+      if(db == nullptr){
+	printf("Error: Unknown composition DB '%s'\n",
+	       dataBase.c_str());
+	return -1;
+      }
+
+      //Get material composition and density from DB
+      const std::vector<penred::massFraction> mfs = db->getElements(dataBaseMat);
+      const double dens = db->getDensity(dataBaseMat);
+
+      if(mfs.size() == 0 || dens <= 0.0){
+	printf("Error: Unknown material '%s' in composition DB '%s'.\n",
+	       dataBaseMat.c_str(), dataBase.c_str());
+	return -2;
+      }
+      return createMat(name, dens, mfs, errorString, filenameIn);
     }
 
     int createMat(const unsigned matID,		  

@@ -2316,6 +2316,20 @@ namespace penred{
 	aux[0] = profDim;
 	return profileByBins(aux, binLimits, profile);
       }
+
+      inline int profile1D(const unsigned long profDim,
+			   results<type, 1>& profile) const{
+	std::array<size_t, 1> aux;
+	aux[0] = profDim;
+
+	std::array<std::pair<unsigned long, unsigned long>, dim> binLimits;
+	for(size_t i = 0; i < dim; ++i){
+	  binLimits[i].first = 0;
+	  binLimits[i].second = this->getNBins(i);
+	}
+	
+	return profileByBins(aux, binLimits, profile);
+      }
       
       //Print functions
       inline void print(FILE* fout,
@@ -2548,6 +2562,39 @@ namespace penred{
 	  res.sigma[i] = sigma;
 	}
       }
+
+      double errorRel(const unsigned long long nhists) const {
+	
+	//Calculate normalization factor
+	const double factor = 1.0/static_cast<double>(nhists);
+
+	unsigned long nonZero = 0;
+	double meanErel = 0.0;
+	for(unsigned long i = 0; i < this->totalBins; ++i){
+
+	  //Calculate resulting value and error
+	  if(data[i] != 0.0){
+
+	    //Increase non zero bins counter
+	    ++nonZero;
+	    
+	    const double q = data[i]*factor;
+	    double sigma = data2[i]*factor - q*q;
+	    if(sigma > 0.0){
+	      sigma = sqrt(sigma*factor);
+	      meanErel += sigma/q;
+	    }
+	  }
+	}
+
+	if(nonZero > 0)
+	  meanErel /= static_cast<double>(nonZero);
+	else
+	  meanErel = 1.0e35;
+	
+	return meanErel;
+      }
+      
 
       //Print functions
       inline void print(FILE* fout,

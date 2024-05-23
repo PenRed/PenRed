@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Profile functions and utility to create n-dimensional profiles from *measurement* and *results* classes.
 
+- Databases of compositions, along with utilities to list them
+
+- Methods to create materials from compositions databases
+
+- Finish simulation function to stop simulations in the *simulation* library functions
+
 ### Changed
 
 - The compilation of the TCP library is now optional, allowing the code to be compiled without the ASIO library

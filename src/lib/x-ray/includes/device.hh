@@ -45,14 +45,18 @@ namespace penred{
 
   namespace xray{
 
+    class readerXRayDeviceSimulate;
+
     int constructDevice(std::ostream& out,
 			const double focalSpot,
 			const double source2det,
 			const double source2filter,
+			const double source2bowtie,
 			const double detectorDx,
 			const double detectorDy,
 			const double inherentFilterSize,
-			const std::vector<double> filters,
+			const std::vector<double>& filters,
+			std::vector<double> bowtieDz,
 			const vector3D<double> center =
 			vector3D<double>(0.0,0.0,0.0),
 			const bool constructAnode = false,
@@ -63,6 +67,16 @@ namespace penred{
     int simDevice(const pen_parserSection& config,
 		  const unsigned verbose);
 
+    int simDevice(const readerXRayDeviceSimulate& reader,
+		  const double maxE,
+		  const simulation::sampleFuncType<pen_particleState>& fsample,
+		  const penred::simulation::simConfig& baseSimConfig,
+		  measurements::measurement<double, 2>& detFluence,
+		  measurements::measurement<double, 2>& detEdep,
+		  measurements::measurement<double, 1>& detSpec,
+		  unsigned long long& simHistsOut,
+		  const unsigned verbose);
+    
     //Reader for device construction configuration
     class readerXRayDeviceCreate : public pen_configReader<readerXRayDeviceCreate>{
 
@@ -88,6 +102,10 @@ namespace penred{
   
       std::vector<double> filters;
 
+      double source2bowtie;
+      std::vector<double> bowtieDz;
+      
+
       readerXRayDeviceCreate() : family(-1){ }
 
       int beginSectionFamily(const std::string& pathInSection,
@@ -102,6 +120,17 @@ namespace penred{
       int storeElement(const std::string& pathInSection,
 		       const pen_parserData& element,
 		       const unsigned verbose);
+
+      int beginArray(const std::string& pathInSection,
+		     const size_t size,
+		     const unsigned verbose);
+      
+      int endArray(const unsigned verbose);
+
+      int storeArrayElement(const std::string& pathInSection,
+			    const pen_parserData& element,
+			    const size_t pos,
+			    const unsigned verbose);
     };
 
     //Reader for device construction configuration
@@ -144,6 +173,13 @@ namespace penred{
       std::vector<unsigned> filtersZ;
       std::vector<std::string> filtersMatFile;
       double source2filter;
+
+      double source2bowtie;
+      std::vector<double> bowtieDz;
+      unsigned bowtieZ;
+      std::string bowtieMatFile;
+      bool bowtieAutoDesign;
+      unsigned bowtieDesignBins;
       
       double anodeAngle;
       unsigned anodeZ;
@@ -153,7 +189,12 @@ namespace penred{
 
       bool printGeo;
 
-      unsigned nbins;
+      unsigned detBins;
+      unsigned eBins;
+
+      double tolerance;
+
+      std::string outputPrefix;
 
       struct materialData{
 	std::string name;
@@ -168,7 +209,7 @@ namespace penred{
 
       std::vector<materialData> addedGeoMats;
       std::string addedGeoType;
-      
+      pen_parserSection addedGeoConf;
       
       readerXRayDeviceSimulate() : family(-1){ }
 
@@ -198,7 +239,7 @@ namespace penred{
       int storeArrayElement(const std::string& pathInSection,
 			    const pen_parserData& element,
 			    const size_t pos,
-			    const unsigned verbose);            
+			    const unsigned verbose);
     };
     
 
@@ -218,10 +259,12 @@ namespace penred{
 			     reader.focalSpot,
 			     reader.source2det,
 			     reader.source2filter,
+			     reader.source2bowtie,
 			     reader.detectorDx,
 			     reader.detectorDy,
 			     reader.inherentFilterWidth,
 			     reader.filters,
+			     reader.bowtieDz,
 			     reader.sourcePosition,
 			     reader.createAnode,
 			     reader.anodeAngle,
@@ -251,6 +294,10 @@ namespace penred{
 
       //Add filters materials
       nMats += reader.filtersZ.size();
+
+      //Add bowtie material
+      if(reader.source2bowtie > 0.0 && reader.bowtieDz.size() > 0)
+	nMats += 1;
 
       return err;
     }
@@ -323,6 +370,21 @@ filters/${subsection}/width/reader-value 0.1
 filters/${subsection}/width/reader-conditions/gt0/type "greater"
 filters/${subsection}/width/reader-conditions/gt0/value 0.0
 
+## Bowtie
+
+# Distance source to bowtie
+source2bowtie/reader-description "Distance, in cm, from source to bowtie"
+source2bowtie/reader-value -1.0
+source2bowtie/reader-conditions/greaterThanFilters/type "greater"
+source2bowtie/reader-conditions/greaterThanFilters/value "source2filter"
+source2bowtie/reader-required/type "required_if_exist"
+source2bowtie/reader-required/value "bowtie/dz"
+
+bowtie/dz/reader-description "Bowtie heights"
+bowtie/dz/reader-value [0.5,0.5,0.4,0.3,0.2,0.3,0.4,0.5,0.5]
+bowtie/dz/reader-required/type "required_if_exist"
+bowtie/dz/reader-required/value "source2bowtie"
+
 # Source position
 source/pos/x/reader-description "Source position in X axis (cm)"
 source/pos/x/reader-value 0.0
@@ -371,6 +433,11 @@ simulation/min-energy/reader-conditions/gt/type "greater"
 simulation/min-energy/reader-conditions/gt/value 50.0
 simulation/min-energy/reader-required/type "optional"
 
+simulation/tolerance/reader-description "Tolerance to finish the simulation"
+simulation/tolerance/reader-value 0.0
+simulation/tolerance/reader-conditions/positive/type "positive"
+simulation/tolerance/reader-required/type "optional"
+
 simulation/print-geometry/reader-description "Enable/disable geometry print"
 simulation/print-geometry/reader-value false
 simulation/print-geometry/reader-required/type "optional"
@@ -387,9 +454,21 @@ simulation/seedPair/reader-conditions/lesser/type "lesser"
 simulation/seedPair/reader-conditions/lesser/value 1001
 simulation/seedPair/reader-required/type "optional"
 
-simulation/nbins/reader-description "Number of used bins to tally results"
-simulation/nbins/reader-value 100
-simulation/nbins/reader-required/type "optional"
+simulation/detBins/reader-description "Number of spatial detector bins"
+simulation/detBins/reader-value 100
+simulation/detBins/reader-conditions/enought/type "greater"
+simulation/detBins/reader-conditions/enought/value 3
+simulation/detBins/reader-required/type "optional"
+
+simulation/eBins/reader-description "Number of energetic bins to tally spectrums"
+simulation/eBins/reader-value 100
+simulation/eBins/reader-conditions/enought/type "greater"
+simulation/eBins/reader-conditions/enought/value 3
+simulation/eBins/reader-required/type "optional"
+
+simulation/output-prefix/reader-description "Output prefix path"
+simulation/output-prefix/reader-value ""
+simulation/output-prefix/reader-required/type "optional"
 
 #X-ray device common characteristics
 x-ray/focal-spot/reader-description "X-ray focal spot in cm"
@@ -469,6 +548,45 @@ x-ray/filters/${subsection}/mat-file/reader-description "Filter material file pa
 x-ray/filters/${subsection}/mat-file/reader-value "-"
 x-ray/filters/${subsection}/mat-file/reader-required/type "optional_if_exist"
 x-ray/filters/${subsection}/mat-file/reader-required/value "z"
+
+## Bowtie
+
+# Distance source to bowtie
+x-ray/source2bowtie/reader-description "Distance, in cm, from source to bowtie"
+x-ray/source2bowtie/reader-value -1.0
+x-ray/source2bowtie/reader-conditions/greaterThanFilters/type "greater"
+x-ray/source2bowtie/reader-conditions/greaterThanFilters/value "x-ray/source2filter"
+x-ray/source2bowtie/reader-conditions/lesserThanDet/type "lesser"
+x-ray/source2bowtie/reader-conditions/lesserThanDet/value "x-ray/source2det"
+x-ray/source2bowtie/reader-required/type "required_if_exist"
+x-ray/source2bowtie/reader-required/value "x-ray/bowtie/dz"
+
+x-ray/bowtie/dz/reader-description "Bowtie top face displacements"
+x-ray/bowtie/dz/reader-value [0.5,0.5,0.4,0.3,0.2,0.3,0.4,0.5,0.5]
+x-ray/bowtie/dz/reader-required/type "required_if_exist"
+x-ray/bowtie/dz/reader-required/value "x-ray/source2bowtie"
+
+x-ray/bowtie/z/reader-description "Bowtie material atomic number Z"
+x-ray/bowtie/z/reader-value 13
+x-ray/bowtie/z/reader-conditions/gt0/type "greater"
+x-ray/bowtie/z/reader-conditions/gt0/value 0
+x-ray/bowtie/z/reader-required/type "optional_if_exist"
+x-ray/bowtie/z/reader-required/value "x-ray/bowtie/mat-file"
+
+x-ray/bowtie/mat-file/reader-description "Bowtie filter material file path"
+x-ray/bowtie/mat-file/reader-value "-"
+x-ray/bowtie/mat-file/reader-required/type "optional_if_exist"
+x-ray/bowtie/mat-file/reader-required/value "x-ray/bowtie/z"
+
+x-ray/bowtie/auto-design/reader-description "Eanble/disable bowtie automatic design"
+x-ray/bowtie/auto-design/reader-value false
+x-ray/bowtie/auto-design/reader-required/type "optional"
+
+x-ray/bowtie/design-bins/reader-description "Number of bins to design bowtie"
+x-ray/bowtie/design-bins/reader-value 0
+x-ray/bowtie/design-bins/reader-conditions/gt0/type "greater"
+x-ray/bowtie/design-bins/reader-conditions/gt0/value 0
+x-ray/bowtie/design-bins/reader-required/type "optional"
 
 #Anode configuration
 

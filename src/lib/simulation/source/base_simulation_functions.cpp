@@ -49,6 +49,7 @@ namespace penred{
       dumpFilename("dump"),
       writePartial(false),
       maxSimTime(1000000000000000),
+      fSimFinish(simConfig::noFinishSim),
       verbose(2){}
 
     simConfig::simConfig(const unsigned& iThreadIn,
@@ -69,6 +70,7 @@ namespace penred{
       dumpFilename(dumpFilenameIn),
       writePartial(writePartialIn),
       maxSimTime(maxSimTimeIn),
+      fSimFinish(simConfig::noFinishSim),
       verbose(verboseIn){}
 
 

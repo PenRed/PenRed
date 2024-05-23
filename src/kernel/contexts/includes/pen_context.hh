@@ -110,6 +110,8 @@ public:
     bool forceCreation;
     double density;
     double C1, C2, WCC, WCR;
+    std::string DB;
+    std::string matDB;
 
     std::array<double,constants::nParTypes> maxRanges;
     std::array<double,constants::nParTypes> eabs;
@@ -408,6 +410,15 @@ materials/${subsection}/filename/reader-required/value "elements"
 materials/${subsection}/force-creation/reader-description "If this value is true, and the elements section is provided,\n the material will be created although the material file exists.\nOtherwise, the material is not created unless the provided file does not exist."
 materials/${subsection}/force-creation/reader-value false
 materials/${subsection}/force-creation/reader-required/type "optional"
+
+materials/${subsection}/DB/reader-description "Compositions database used to create the material"
+materials/${subsection}/DB/reader-value "-"
+materials/${subsection}/DB/reader-required/type "optional"
+
+materials/${subsection}/DB-material/reader-description "Material name inside the composition database"
+materials/${subsection}/DB-material/reader-value "-"
+materials/${subsection}/DB-material/reader-required/type "required_if_exist"
+materials/${subsection}/DB-material/reader-required/value "DB"
 
 materials/${subsection}/elements/${subsection}/reader-description "The element ${subsection} must be the element atomic number (Z), and the corresponding value its fraction by weight in the created material"
 materials/${subsection}/elements/${subsection}/reader-value 0.1

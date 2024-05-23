@@ -26,18 +26,11 @@
 #    
 #
 
-# Create common DB lib
-add_library(commonDB STATIC ${CMAKE_CURRENT_SOURCE_DIR}/dataBasesCommon.cpp)
+set(SOURCE
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/ICRP_AF.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/ICRP_AM.cpp)
 
-target_include_directories(commonDB PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+add_library(pen_compositionsDB STATIC ${SOURCE})
+target_include_directories(pen_compositionsDB PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/includes)
 
-#############################
-#  ADD SUB-FOLDERS
-#############################
-
-# PENELOPE materials
-if(BUILD_EMBEDDED_DBS)
-    add_subdirectory(penMaterials)
-endif(BUILD_EMBEDDED_DBS)
-
-add_subdirectory(compositions)
+target_link_libraries(pen_compositionsDB commonDB)

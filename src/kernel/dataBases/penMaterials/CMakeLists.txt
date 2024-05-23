@@ -53,5 +53,6 @@ add_custom_command(
 add_library(penelope_material_db STATIC ${CMAKE_CURRENT_SOURCE_DIR}/source/materialCreator.cpp ${CMAKE_CURRENT_BINARY_DIR}/database/database.hh)
 
 target_link_libraries(penelope_material_db commonDB)
+target_link_libraries(penelope_material_db pen_compositionsDB)
 target_include_directories(penelope_material_db PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/includes)
 target_include_directories(penelope_material_db PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/database)
