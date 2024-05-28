@@ -1764,8 +1764,8 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& geometry,
 
 	  unsigned nMuenBins = 100;
 	  double de = (emax-emin)/static_cast<double>(nMuenBins);
-	  double minCalc = emin-de;
-	  double maxCalc = emax+de;
+	  double minCalc = std::max(emin-de, 50.0);
+	  double maxCalc = std::min(emax+de, 1.0e6);
 	  nMuenBins += 10;
 	  err = pen_muen::calculate(minCalc, maxCalc, nMuenBins,
 				    0.1, 30, materials[imat-1]->readDataPath().c_str(),
@@ -1789,6 +1789,7 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& geometry,
 	      muenData[ibin] = log(muenData[ibin]);	      
 	    }
 	  }
+	  fclose(fout);
 	  
 	}else{
 	  //Read muen data from file

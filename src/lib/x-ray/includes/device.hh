@@ -180,6 +180,7 @@ namespace penred{
       std::string bowtieMatFile;
       bool bowtieAutoDesign;
       unsigned bowtieDesignBins;
+      unsigned bowtieDesignIterations;
       
       double anodeAngle;
       unsigned anodeZ;
@@ -189,7 +190,7 @@ namespace penred{
 
       bool printGeo;
 
-      unsigned detBins;
+      unsigned detBinsX, detBinsY;
       unsigned eBins;
 
       double tolerance;
@@ -454,11 +455,17 @@ simulation/seedPair/reader-conditions/lesser/type "lesser"
 simulation/seedPair/reader-conditions/lesser/value 1001
 simulation/seedPair/reader-required/type "optional"
 
-simulation/detBins/reader-description "Number of spatial detector bins"
-simulation/detBins/reader-value 100
-simulation/detBins/reader-conditions/enought/type "greater"
-simulation/detBins/reader-conditions/enought/value 3
-simulation/detBins/reader-required/type "optional"
+simulation/detBins/nx/reader-description "Number of spatial detector bins in X axis"
+simulation/detBins/nx/reader-value 100
+simulation/detBins/nx/reader-conditions/enought/type "greater"
+simulation/detBins/nx/reader-conditions/enought/value 0
+simulation/detBins/nx/reader-required/type "optional"
+
+simulation/detBins/ny/reader-description "Number of spatial detector bins in Y axis"
+simulation/detBins/ny/reader-value 100
+simulation/detBins/ny/reader-conditions/enought/type "greater"
+simulation/detBins/ny/reader-conditions/enought/value 0
+simulation/detBins/ny/reader-required/type "optional"
 
 simulation/eBins/reader-description "Number of energetic bins to tally spectrums"
 simulation/eBins/reader-value 100
@@ -587,6 +594,12 @@ x-ray/bowtie/design-bins/reader-value 0
 x-ray/bowtie/design-bins/reader-conditions/gt0/type "greater"
 x-ray/bowtie/design-bins/reader-conditions/gt0/value 0
 x-ray/bowtie/design-bins/reader-required/type "optional"
+
+x-ray/bowtie/design-iterations/reader-description "Maximum iterations to design bowtie"
+x-ray/bowtie/design-iterations/reader-value 20
+x-ray/bowtie/design-iterations/reader-conditions/gt0/type "greater"
+x-ray/bowtie/design-iterations/reader-conditions/gt0/value 0
+x-ray/bowtie/design-iterations/reader-required/type "optional"
 
 #Anode configuration
 

@@ -428,7 +428,7 @@ void pen_comboGeo::step(pen_particleState& state,
     //Locate the state in the geometry
     geometries[i]->locate(auxState);
 
-    //Check if it is insde a non void region
+    //Check if it is inside a non void region
     if(auxState.MAT != 0){
       //The particle reach a region, update particle state
       auxState.IBODY += firstIBody[i];

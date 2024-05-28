@@ -450,7 +450,7 @@ namespace penred{
       baseSimConfig.verbose = verbose;      
       if(verbose > 1){
 	printf("%s\n", baseSimConfig.stringifyConfig().c_str());
-      }      
+      }
 
       // ** Sampling function
       
@@ -597,7 +597,7 @@ namespace penred{
 
 	if(verbose > 1){
 	  printf("Samplers configured!\n");
-	}	
+	}
 	
 	const double distrib2source = reader.distrib2source;
 	maxE = energyDistrib.readLimits()[0].second+50;
@@ -664,7 +664,9 @@ namespace penred{
       auto itMinMax = std::minmax_element(reader.bowtieDz.cbegin(), reader.bowtieDz.cend());
       const double bowtieMin = *itMinMax.first;
       const double bowtieMax = *itMinMax.second;
-      const unsigned nSpatBins = reader.detBins;
+      const unsigned nSpatBinsX = reader.detBinsX;
+      const unsigned nSpatBinsY = reader.detBinsY;
+      const double tolerance = reader.tolerance;
 
       if(reader.bowtieAutoDesign){
 	if(reader.bowtieDesignBins > reader.bowtieDz.size()){
@@ -673,50 +675,50 @@ namespace penred{
 	  reader.bowtieDz[0] = bowtieMax;
 	  reader.bowtieDz.back() = bowtieMax;
 	}
-	reader.detBins = reader.bowtieDz.size();
+	reader.detBinsX = reader.bowtieDz.size();
+	reader.detBinsY = 1;
+
+	//Set initial tolerance to 10%
+	reader.tolerance = 0.1;
+
+	//Set verbose to 1
+	baseSimConfig.verbose = 1;
       }
+
       
-      for(size_t i = 0; i < 200; ++i){
-      
-	measurements::measurement<double, 2> detFluence;
-	measurements::measurement<double, 2> detEdep;
-	measurements::measurement<double, 1> detSpec;
-	unsigned long long simHists;
+      if(reader.bowtieAutoDesign){	
+	double midVal;
+	const double maxChangeFactor = 1.0;
+	const double minChangeFactor = 0.2;
+	double changeFactor = minChangeFactor;
+
+	const double maxTolerance = 0.1;
+	const double minTolerance = tolerance/10.0;
+
+	bool reached = false;
+	for(unsigned i = 0; i < reader.bowtieDesignIterations; ++i){
+
+	  if(verbose > 1){
+	    printf("\n+ Bowtie design iteration %u:\n"
+		   "   - Tolerance: %.2f %%\n",
+		   i, reader.tolerance*100.0);
+	  }
+	  
+	  measurements::measurement<double, 2> detFluence;
+	  measurements::measurement<double, 2> detEdep;
+	  measurements::measurement<double, 1> detSpec;
+	  unsigned long long simHists;
 	
-	err = simDevice(reader, maxE, fsample, baseSimConfig,
-			detFluence, detEdep, detSpec, simHists,
-			verbose);
-	if(err != errors::SUCCESS){
-	  return err;
-	}
+	  err = simDevice(reader, maxE, fsample, baseSimConfig,
+			  detFluence, detEdep, detSpec, simHists,
+			  1);
+	  if(err != errors::SUCCESS){
+	    return err;
+	  }
 
-	std::string sufix;
-	if(reader.bowtieAutoDesign){
-	  sufix = std::to_string(i);
-	}
-
-
-	// ** Print results
-	FILE* fout = nullptr;
-	std::string filename = reader.outputPrefix + "detectedFluence.dat" + sufix;
-	fout = fopen(filename.c_str(), "w");
-	detFluence.print(fout, simHists, 2, true, false);
-	fclose(fout);
-
-	fout = nullptr;
-	filename = reader.outputPrefix + "detectedEdep.dat" + sufix;
-	fout = fopen(filename.c_str(), "w");
-	detEdep.print(fout, simHists, 2, true, false);
-	fclose(fout);
-
-	fout = nullptr;
-	filename = reader.outputPrefix + "detectedSpectrum.dat" + sufix;
-	fout = fopen(filename.c_str(), "w");
-	detSpec.print(fout, simHists, 2, true, false);
-	fclose(fout);
+	  std::string sufix("_");
+	  sufix += std::to_string(i);
 	
-	if(reader.bowtieAutoDesign){
-
 	  //Generate results
 	  penred::measurements::results<double, 2> fluenceResults;
 	  detFluence.results(simHists, fluenceResults);
@@ -734,8 +736,8 @@ namespace penred{
 	    return err;
 	  }
 
-	  fout = nullptr;
-	  filename = reader.outputPrefix + "fluenceProfile.dat" + sufix;
+	  FILE* fout = nullptr;
+	  std::string filename = reader.outputPrefix + "fluenceProfile.dat" + sufix;
 	  fout = fopen(filename.c_str(), "w");
 	  profile.print(fout, 2, true, false);
 	  fclose(fout);
@@ -751,55 +753,43 @@ namespace penred{
 	  //Get fluence relative differences
 	  std::vector<double> relDiff = profile.readData();
 
-	  //Get central value
-	  double midVal;
-	  if(relDiff.size() % 2 == 0){
-	    midVal = (relDiff[relDiff.size()/2] + relDiff[relDiff.size()/2+1])/2.0;
-	  }else{
-	    midVal = (relDiff[relDiff.size()/2] +
-		      relDiff[relDiff.size()/2+1] +
-		      relDiff[relDiff.size()/2-1])/3.0;	    
+	  //At the first iteration, calculate the medium value at the detector center
+	  if(i == 0){
+	    //Get central value
+	    if(relDiff.size() % 2 == 0){
+	      midVal = (relDiff[relDiff.size()/2] + relDiff[relDiff.size()/2+1])/2.0;
+	    }else{
+	      midVal = (relDiff[relDiff.size()/2] +
+			relDiff[relDiff.size()/2+1] +
+			relDiff[relDiff.size()/2-1])/3.0;	    
+	    }	  
 	  }
 
+	  double maxRelDiff = 0.0;
 	  for(double& val : relDiff){
 	    val = (val-midVal)/midVal;
+	    if(val > maxRelDiff)
+	      maxRelDiff = val;
 	  }
 
-	  //Reshape bowtie
-	  for(size_t j = 0; j < relDiff.size(); ++j){
-	    reader.bowtieDz[j] += reader.bowtieDz[j]*relDiff[j]*0.5;
-	      
-	    if(reader.bowtieDz[j] > bowtieMax)
-	      reader.bowtieDz[j] = bowtieMax;
-	    if(reader.bowtieDz[j] < bowtieMin)
-	      reader.bowtieDz[j] = bowtieMin;
+	  if(verbose > 1){
+	    printf("   - Maximum relative difference: %.3f %%\n",
+		   maxRelDiff*100.0);
 	  }
 
-	  //Limit gaps between successive points
-	  for(size_t j = 1; j < 2*relDiff.size()/5; ++j){
-	    double diff = reader.bowtieDz[j]/reader.bowtieDz[j-1];
-	    if(diff > 1.5)
-	      reader.bowtieDz[j] = reader.bowtieDz[j-1]*1.5;
-	    else if(diff < 0.5)
-	      reader.bowtieDz[j] = reader.bowtieDz[j-1]*0.5;
-	  }
+	  //Update change bowtie reshape factor
+	  changeFactor = maxRelDiff/2.0;
+	  if(changeFactor > maxChangeFactor)
+	    changeFactor = maxChangeFactor;
+	  if(changeFactor < minChangeFactor)
+	    changeFactor = minChangeFactor;
 
-	  for(size_t j = relDiff.size()-2; j > 3*relDiff.size()/5; --j){
-	    double diff = reader.bowtieDz[j]/reader.bowtieDz[j+1];
-	    if(diff > 1.5)
-	      reader.bowtieDz[j] = reader.bowtieDz[j+1]*1.5;
-	    else if(diff < 0.5)
-	      reader.bowtieDz[j] = reader.bowtieDz[j+1]*0.5;	      
-	  }
-
-	  //Smooth bowtie with a smooth filter
-	  std::vector<double> bowtieDz = reader.bowtieDz;
-	  for(size_t k = 0; k < 3; ++k){
-	    for(size_t j = 1; j < relDiff.size()-1; ++j){
-	      reader.bowtieDz[j] =
-		bowtieDz[j]*0.7 + bowtieDz[j-1]*0.15 + bowtieDz[j+1]*0.15;
-	    }
-	  }
+	  //Update tolerance
+	  reader.tolerance = maxRelDiff/10.0;
+	  if(reader.tolerance > maxTolerance)
+	    reader.tolerance = maxTolerance;
+	  if(reader.tolerance < minTolerance)
+	    reader.tolerance = minTolerance;
 
 	  fout = nullptr;
 	  filename = reader.outputPrefix + "fluenceRelativeDiff.dat" + sufix;
@@ -807,12 +797,106 @@ namespace penred{
 	  for(size_t j = 0; j < relDiff.size(); ++j){
 	    fprintf(fout, "%E\n", relDiff[j]);
 	  }
-	  fclose(fout);	  
-	  
-	}else{
-	  break;
+	  fclose(fout);
+
+	  if(maxRelDiff < tolerance){
+	    //Required tolerance reached
+
+	    if(reached){
+	      //Smooth already done
+	      break;
+	    }
+	    
+	    if(verbose > 1){
+	      printf("   - Tolerance reached, smooth the bowtie and simulate again\n");
+	    }
+
+	    //Flag tolerance as reached and smooth the bowtie
+	    reached = true;
+	    //Smooth the bowtie
+	    for(size_t k = 0; k < 10; ++k){
+	      std::vector<double> bowtieDz = reader.bowtieDz;
+	      for(size_t j = 1; j < relDiff.size()-1; ++j){
+		reader.bowtieDz[j] =
+		  bowtieDz[j]*0.7 + bowtieDz[j-1]*0.15 + bowtieDz[j+1]*0.15;
+	      }
+	    }
+	    continue;
+	  }
+	  reached = false;
+
+	  if(verbose > 1){
+	    printf("   - Maximum bowtie change factor: %.3f %%\n",
+		   changeFactor*100.0);
+	  }
+
+	  //Reshape bowtie
+	  for(size_t j = 0; j < relDiff.size(); ++j){
+	    double factor = relDiff[j];
+	    if(std::fabs(factor) > changeFactor){
+	      if(std::signbit(factor))
+		reader.bowtieDz[j] -= reader.bowtieDz[j]*changeFactor;
+	      else
+		reader.bowtieDz[j] += reader.bowtieDz[j]*changeFactor;
+	    }
+	    else{
+	      reader.bowtieDz[j] += reader.bowtieDz[j]*factor;
+	    }
+	      
+	      
+	    if(reader.bowtieDz[j] > bowtieMax)
+	      reader.bowtieDz[j] = bowtieMax;
+	    if(reader.bowtieDz[j] < bowtieMin)
+	      reader.bowtieDz[j] = bowtieMin;
+	  }
+
+	  //Smooth bowtie with a smooth filter
+	  for(size_t k = 0; k < 5; ++k){
+	    std::vector<double> bowtieDz = reader.bowtieDz;
+	    for(size_t j = 1; j < relDiff.size()-1; ++j){
+	      reader.bowtieDz[j] =
+		bowtieDz[j]*0.7 + bowtieDz[j-1]*0.15 + bowtieDz[j+1]*0.15;
+	    }
+	  }
 	}
       }
+
+      //Perform the final simulation
+      reader.detBinsX = nSpatBinsX;
+      reader.detBinsY = nSpatBinsY;
+      reader.tolerance = tolerance;
+      baseSimConfig.verbose = verbose;
+      
+      measurements::measurement<double, 2> detFluence;
+      measurements::measurement<double, 2> detEdep;
+      measurements::measurement<double, 1> detSpec;
+      unsigned long long simHists;
+	
+      err = simDevice(reader, maxE, fsample, baseSimConfig,
+		      detFluence, detEdep, detSpec, simHists,
+		      verbose);
+      if(err != errors::SUCCESS){
+	return err;
+      }
+
+      // ** Print results
+      FILE* fout = nullptr;
+      std::string filename = reader.outputPrefix + "detectedFluence.dat";
+      fout = fopen(filename.c_str(), "w");
+      detFluence.print(fout, simHists, 2, true, false);
+      fclose(fout);
+
+      fout = nullptr;
+      filename = reader.outputPrefix + "detectedEdep.dat";
+      fout = fopen(filename.c_str(), "w");
+      detEdep.print(fout, simHists, 2, true, false);
+      fclose(fout);
+
+      fout = nullptr;
+      filename = reader.outputPrefix + "detectedSpectrum.dat";
+      fout = fopen(filename.c_str(), "w");
+      detSpec.print(fout, simHists, 2, true, false);
+      fclose(fout);      
 
       return errors::SUCCESS;
       
@@ -854,7 +938,7 @@ namespace penred{
       std::vector<measurements::measurement<double, 2>> detectedFluence(nThreads);
       for(size_t i = 0; i < nThreads; ++i){
 	detectedFluence[i].
-	  init({reader.detBins, reader.detBins},
+	  init({reader.detBinsX, reader.detBinsY},
 	       {std::pair<double,double>(sourcePos.x-reader.detectorDx/2.0,
 					 sourcePos.x+reader.detectorDx/2.0),
 		std::pair<double,double>(sourcePos.y-reader.detectorDy/2.0,
@@ -869,7 +953,7 @@ namespace penred{
       std::vector<measurements::measurement<double, 2>> detectedEdep(nThreads);
       for(size_t i = 0; i < nThreads; ++i){
 	detectedEdep[i].
-	  init({reader.detBins, reader.detBins},
+	  init({reader.detBinsX, reader.detBinsY},
 	       {std::pair<double,double>(sourcePos.x-reader.detectorDx/2.0,
 					 sourcePos.x+reader.detectorDx/2.0),
 		std::pair<double,double>(sourcePos.y-reader.detectorDy/2.0,
@@ -913,7 +997,7 @@ namespace penred{
       std::vector<penred::simulation::simConfig> simConfigs(nThreads);
 
       //Copy basic configuration
-      const double tolerance = reader.tolerance;
+      const double tolerance = reader.tolerance*sqrt(static_cast<double>(nThreads))*0.8;
       for(unsigned i = 0; i < nThreads; i++){
 	simConfigs[i].iThread = i;
 	simConfigs[i].copyCommonConfig(baseSimConfig);
@@ -1342,12 +1426,12 @@ namespace penred{
 	out << "## Tallies " << std::endl;
 	out << "###############\n" << std::endl;
 	out << "tallies/FluenceDetectior/type \"DETECTION_SPATIAL_DISTRIB\" " << std::endl;
-	out << "tallies/SpatialDetectior/spatial/nx " << reader.detBins << std::endl;
+	out << "tallies/SpatialDetectior/spatial/nx " << reader.detBinsX << std::endl;
 	out << "tallies/SpatialDetectior/spatial/xmin " <<
 	  detectedFluence[0].readLimits()[0].first << std::endl;
 	out << "tallies/SpatialDetectior/spatial/xmax " <<
 	  detectedFluence[0].readLimits()[0].second << std::endl;
-	out << "tallies/SpatialDetectior/spatial/ny " << reader.detBins << std::endl;
+	out << "tallies/SpatialDetectior/spatial/ny " << reader.detBinsY << std::endl;
 	out << "tallies/SpatialDetectior/spatial/ymin " <<
 	  detectedFluence[0].readLimits()[1].first << std::endl;
 	out << "tallies/SpatialDetectior/spatial/ymax  " <<
@@ -1696,14 +1780,18 @@ namespace penred{
 	else if(pathInSection.compare("simulation/seedPair") == 0){
 	  seedPair = element;
 	}	
-	else if(pathInSection.compare("simulation/detBins") == 0){
-	  detBins = element;
+	else if(pathInSection.compare("simulation/detBins/nx") == 0){
+	  detBinsX = element;
 	}
+	else if(pathInSection.compare("simulation/detBins/ny") == 0){
+	  detBinsY = element;
+	}	
 	else if(pathInSection.compare("simulation/eBins") == 0){
 	  eBins = element;
 	}
 	else if(pathInSection.compare("simulation/tolerance") == 0){
 	  tolerance = element;
+	  tolerance /= 100.0;
 	}
 	else if(pathInSection.compare("x-ray/focal-spot") == 0){
 	  focalSpot = element;
@@ -1737,6 +1825,9 @@ namespace penred{
 	}
 	else if(pathInSection.compare("x-ray/bowtie/design-bins") == 0){
 	  bowtieDesignBins = element;
+	}
+	else if(pathInSection.compare("x-ray/bowtie/design-iterations") == 0){
+	  bowtieDesignIterations = element;
 	}	
 	else if(pathInSection.compare("anode/angle") == 0){
 	  anodeAngle = element;

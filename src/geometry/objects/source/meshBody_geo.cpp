@@ -852,7 +852,7 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
     }
 
   
-    if(verbose > 0){
+    if(verbose > 1){
       printf(" input filename : %s\n",infilename.c_str());
     }  
   

@@ -30,7 +30,7 @@
 
 int main (int argc, const char** argv){
 
-  if(argc < 4){
+  if(argc < 3){
     printf("usage: %s material-list-id filename\n", argv[0]);
     printf("usage: %s composDB material filename\n", argv[0]);
     return 1;

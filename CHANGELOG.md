@@ -40,6 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - In some cases, *COMBO* geometry skips low priority geometries when a higher geometry contains void bodies.
 
+- Erroneous verbose levels in geometry prints.
+
+- Kerma track length tally does not write the automatically generated absortption coefficients until the end of the simulation.
+
 ## [1.10.0] - 2024-04-15
 
 ### Added
