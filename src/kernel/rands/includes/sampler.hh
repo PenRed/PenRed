@@ -32,6 +32,7 @@
 #include <numeric>
 #include <array>
 #include <vector>
+#include <functional>
 
 namespace penred{
 

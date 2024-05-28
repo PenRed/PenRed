@@ -687,7 +687,7 @@ namespace penred{
 
       
       if(reader.bowtieAutoDesign){	
-	double midVal;
+	double midVal = 1.0;
 	const double maxChangeFactor = 1.0;
 	const double minChangeFactor = 0.2;
 	double changeFactor = minChangeFactor;

@@ -121,7 +121,7 @@ namespace penred{
     private:
       std::stringstream stream;
       size_t nextString;
-      std::function<const char* const (unsigned)> getData;
+      std::function<const char* (unsigned)> getData;
 
       inline bool handleEof(){
 	//If eof is reached, change to the next data chunk.
@@ -139,7 +139,7 @@ namespace penred{
       }
     public:
       
-      inline literalArrayStream(const std::function<const char* const (unsigned)>& getDataIn) :
+      inline literalArrayStream(const std::function<const char* (unsigned)>& getDataIn) :
 	nextString(1),
 	getData(getDataIn){
 	const char* const firstData = getData(0);
@@ -189,7 +189,7 @@ namespace penred{
 	return *this;
       }
 
-      inline void str(const std::function<const char* const (unsigned)>& getDataIn){
+      inline void str(const std::function<const char* (unsigned)>& getDataIn){
 	getData = getDataIn;
 	nextString = 1;
 	stream.clear();
