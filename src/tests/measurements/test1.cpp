@@ -32,7 +32,7 @@ int main(){
 
   //Create a 2D measurement
   penred::measurements::measurement<double, 3> genData;
-  genData.initFromLists({220,150,1},
+  genData.initFromLists({220ul,150ul,1ul},
 			{std::pair<double,double>(-1.0,20.2),
 			 std::pair<double,double>(-20.0,35.6),
 			 std::pair<double,double>(-1000.0,1000.0)});

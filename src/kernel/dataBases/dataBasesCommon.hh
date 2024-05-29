@@ -63,7 +63,7 @@ namespace penred{
 	UNABLE_TO_OPEN_FILE,
 	LINE_BIGER_THAN_CHUNK_SIZE,
       };
-    };
+    }
 
     struct materials{
 

@@ -85,10 +85,10 @@ public:
   double ymin, ymax;
   double zmin, zmax;
 
-  unsigned nx, ny, nz;
+  unsigned long nx, ny, nz;
 
   double emin, emax;
-  unsigned nEBins;
+  unsigned long nEBins;
 
   unsigned kdet;
 

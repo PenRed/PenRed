@@ -96,8 +96,8 @@ int main(int argc, char** argv){
 
   fheader << "            return nullptr;\n       }" << std::endl;
 
-  fheader << "   };\n";
-  fheader << "};\n";
+  fheader << "   }\n";
+  fheader << "}\n";
   fheader << "#endif" << std::endl;
   fheader.close();
 

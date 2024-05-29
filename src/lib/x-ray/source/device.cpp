@@ -664,8 +664,8 @@ namespace penred{
       auto itMinMax = std::minmax_element(reader.bowtieDz.cbegin(), reader.bowtieDz.cend());
       const double bowtieMin = *itMinMax.first;
       const double bowtieMax = *itMinMax.second;
-      const unsigned nSpatBinsX = reader.detBinsX;
-      const unsigned nSpatBinsY = reader.detBinsY;
+      const unsigned long nSpatBinsX = reader.detBinsX;
+      const unsigned long nSpatBinsY = reader.detBinsY;
       const double tolerance = reader.tolerance;
 
       if(reader.bowtieAutoDesign){

@@ -190,8 +190,8 @@ namespace penred{
 
       bool printGeo;
 
-      unsigned detBinsX, detBinsY;
-      unsigned eBins;
+      unsigned long detBinsX, detBinsY;
+      unsigned long eBins;
 
       double tolerance;
 

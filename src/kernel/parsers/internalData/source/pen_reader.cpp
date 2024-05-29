@@ -737,7 +737,7 @@ bool pen_readerSection::checkSection(const pen_parserSection& in,
       }
       
       //check conditions
-      int failedCond;
+      int failedCond = 0;
       if(!e.second.checkConditions(in,eIn,actualSectionPath,&failedCond)){
 	//The conditions have not been fulfilled
 	errorElement = prefix + e.first + " " + eIn.stringify();

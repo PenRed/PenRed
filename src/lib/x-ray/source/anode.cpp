@@ -688,14 +688,14 @@ namespace penred{
 
       // X
       double width = tan(std::min(colAngle,89.9)*deg2rad)*dReg;
-      unsigned nPixelsX = static_cast<unsigned>(2.0*(width+pixelSize)/pixelSize);
+      unsigned long nPixelsX = static_cast<unsigned long>(2.0*(width+pixelSize)/pixelSize);
       if(nPixelsX % 2 != 0)
 	nPixelsX += 1;
       width = static_cast<double>(nPixelsX/2) * pixelSize;
 
       // Y
       double heightLow = tan(angleRad)*dReg;
-      unsigned nPixelsY = static_cast<unsigned>(2.0*heightLow/pixelSize);
+      unsigned long nPixelsY = static_cast<unsigned long>(2.0*heightLow/pixelSize);
       heightLow = static_cast<double>(nPixelsY)*pixelSize/2.0;
       nPixelsY += nPixelsX/2;
       
