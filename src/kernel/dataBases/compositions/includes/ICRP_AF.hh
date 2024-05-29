@@ -2456,11 +2456,11 @@ namespace penred{
 	  
 	};
 
-      };//namespace tissues
+      } //namespace tissues
 
-    }; //namespace compositions
+    } //namespace compositions
     
-  }; //namespace dataBases
+  } //namespace dataBases
 
-}; //namespace penred
+} //namespace penred
 #endif

@@ -463,7 +463,7 @@ namespace penred{
     int createMat(const unsigned matID,		  
 		  const std::string& filename,
 		  std::string& errorString);    
-  };
-};
+  } // namespace penMaterialCreator
+} //namespace penred
 
 #endif

@@ -50,7 +50,7 @@ namespace pen_psfMemort{
     size_t nPart;
   };
   
-};
+} // namespace pen_psfMemort
 
 class psfMemory_specificSampler : public abc_specificSampler<pen_particleState>{
   DECLARE_SPECIFIC_SAMPLER(psfMemory_specificSampler, pen_particleState)

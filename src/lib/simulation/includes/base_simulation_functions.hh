@@ -2457,6 +2457,6 @@ namespace penred{
 					  vr...);
     }
     
-  };
-};
+  } // namespace simulation
+} // namespace penred
 #endif

@@ -699,9 +699,10 @@ namespace penred{
       heightLow = static_cast<double>(nPixelsY)*pixelSize/2.0;
       nPixelsY += nPixelsX/2;
       
-      spatialDistrib.init({nPixelsX, nPixelsY},
-			  {std::pair<double,double>(-width, width),
-			   std::pair<double,double>(-2.0*heightLow, width)});
+      spatialDistrib.initFromLists({nPixelsX, nPixelsY},
+				   {std::pair<double,double>(-width, width),
+				    std::pair<double,double>(-2.0*heightLow,
+							     width)});
 
       if(verbose > 1){
 	printf("          x-ray kvp    : %.2f\n"
@@ -1114,5 +1115,5 @@ namespace penred{
       out << "#" << std::endl;
     }
 
-  };
-};
+  } // namespace xray
+} // namespace penred

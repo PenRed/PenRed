@@ -160,11 +160,11 @@ int pen_DetectionSpatialDistrib::configure(const wrapper_geometry& /*geometry*/,
   results.setValueHeader("Prob(1/hist)");
     
   //Check if energy must be tallierd
-  results.init({reader.nEBins, reader.nx, reader.ny, reader.nz},
-	       {penred::measurements::limitsType(reader.emin, reader.emax),
-		penred::measurements::limitsType(reader.xmin, reader.xmax),
-		penred::measurements::limitsType(reader.ymin, reader.ymax),
-		penred::measurements::limitsType(reader.zmin, reader.zmax)});
+  results.initFromLists({reader.nEBins, reader.nx, reader.ny, reader.nz},
+			{penred::measurements::limitsType(reader.emin, reader.emax),
+			 penred::measurements::limitsType(reader.xmin, reader.xmax),
+			 penred::measurements::limitsType(reader.ymin, reader.ymax),
+			 penred::measurements::limitsType(reader.zmin, reader.zmax)});
 
   //Set results to dump
   toDump(results);

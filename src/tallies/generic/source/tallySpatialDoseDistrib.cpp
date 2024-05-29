@@ -699,7 +699,7 @@ void pen_SpatialDoseDistrib::tally_endSim(const unsigned long long /*nhist*/){
 void pen_SpatialDoseDistrib::saveData(const unsigned long long nhist) const{
   
   char buffer[81];
-  FILE*out;
+  FILE* out = nullptr;
   double q, sigma, fact, x, y, z;
   double xmiddle, ymiddle, zmiddle;
 
@@ -712,13 +712,12 @@ void pen_SpatialDoseDistrib::saveData(const unsigned long long nhist) const{
   strcpy(buffer,"spatialDoseDistrib.dat");
      
   out = fopen(buffer,"w");
-  if (out == NULL)
+  if (out == nullptr)
     {
       printf("*********************************************\n");
       printf("pen_SpatialDoseDistrib: Error: Cannot open output data file\n");
       printf("*********************************************\n");
-      fclose(out);                            
-      return;                      
+      return;
     }
     
     
@@ -800,13 +799,12 @@ void pen_SpatialDoseDistrib::saveData(const unsigned long long nhist) const{
   if(printDepthDose){
   
     out = fopen("depth-dose.dat","w");
-    if (out == NULL)
+    if (out == nullptr)
       {
 	printf("*********************************************\n");
 	printf("pen_SpatialDoseDistrib: Error: Cannot open output data file\n");
 	printf("*********************************************\n");
-	fclose(out);                            
-	return;                      
+	return;
       }
   
     fprintf(out,"#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");

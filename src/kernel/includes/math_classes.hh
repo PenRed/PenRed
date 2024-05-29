@@ -2425,8 +2425,8 @@ namespace penred{
       }
 
       template<size_t binDims, size_t limitsDims>
-      inline int init(const unsigned long(&nBinsIn)[binDims],
-		      const std::pair<double, double>(&limitsIn)[limitsDims]){
+      inline int initFromLists(const unsigned long(&nBinsIn)[binDims],
+			       const std::pair<double, double>(&limitsIn)[limitsDims]){
 
 	static_assert(binDims == limitsDims,
 		      "Bins and limits dimensions mismatch.");
@@ -2635,7 +2635,7 @@ namespace penred{
 
     };
     
-  }; //namespace measurements
-}; //namespace penred
+  } //namespace measurements
+} //namespace penred
 
 #endif

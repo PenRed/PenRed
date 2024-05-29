@@ -688,7 +688,7 @@ namespace penred{
       
       if(reader.bowtieAutoDesign){	
 	double midVal = 1.0;
-	const double maxChangeFactor = 1.0;
+	const double maxChangeFactor = 0.5*bowtieMax/bowtieMin;
 	const double minChangeFactor = 0.2;
 	double changeFactor = minChangeFactor;
 
@@ -938,11 +938,11 @@ namespace penred{
       std::vector<measurements::measurement<double, 2>> detectedFluence(nThreads);
       for(size_t i = 0; i < nThreads; ++i){
 	detectedFluence[i].
-	  init({reader.detBinsX, reader.detBinsY},
-	       {std::pair<double,double>(sourcePos.x-reader.detectorDx/2.0,
-					 sourcePos.x+reader.detectorDx/2.0),
-		std::pair<double,double>(sourcePos.y-reader.detectorDy/2.0,
-					 sourcePos.y+reader.detectorDy/2.0)});
+	  initFromLists({reader.detBinsX, reader.detBinsY},
+			{std::pair<double,double>(sourcePos.x-reader.detectorDx/2.0,
+						  sourcePos.x+reader.detectorDx/2.0),
+			 std::pair<double,double>(sourcePos.y-reader.detectorDy/2.0,
+						  sourcePos.y+reader.detectorDy/2.0)});
 	
 	detectedFluence[i].setDimHeader(0, "X (cm)");
 	detectedFluence[i].setDimHeader(1, "Y (cm)");
@@ -953,11 +953,11 @@ namespace penred{
       std::vector<measurements::measurement<double, 2>> detectedEdep(nThreads);
       for(size_t i = 0; i < nThreads; ++i){
 	detectedEdep[i].
-	  init({reader.detBinsX, reader.detBinsY},
-	       {std::pair<double,double>(sourcePos.x-reader.detectorDx/2.0,
-					 sourcePos.x+reader.detectorDx/2.0),
-		std::pair<double,double>(sourcePos.y-reader.detectorDy/2.0,
-					 sourcePos.y+reader.detectorDy/2.0)});
+	  initFromLists({reader.detBinsX, reader.detBinsY},
+			{std::pair<double,double>(sourcePos.x-reader.detectorDx/2.0,
+						  sourcePos.x+reader.detectorDx/2.0),
+			 std::pair<double,double>(sourcePos.y-reader.detectorDy/2.0,
+						  sourcePos.y+reader.detectorDy/2.0)});
 
 	detectedEdep[i].setDimHeader(0, "X (cm)");
 	detectedEdep[i].setDimHeader(1, "Y (cm)");
@@ -967,8 +967,8 @@ namespace penred{
       std::vector<measurements::measurement<double, 1>> detectedSpectrum(nThreads);
       for(size_t i = 0; i < nThreads; ++i){
 	detectedSpectrum[i].
-	  init({reader.eBins},
-	       {std::pair<double,double>(reader.minEnergy,maxE+50)});
+	  initFromLists({reader.eBins},
+			{std::pair<double,double>(reader.minEnergy,maxE+50)});
 	detectedSpectrum[i].setDimHeader(0, "Energy (eV)");
 	detectedSpectrum[i].setValueHeader("Value (prob)");
       }
@@ -1989,5 +1989,5 @@ namespace penred{
     }
     
     
-  };
-};
+  } // namespace xray
+} // namespace penred

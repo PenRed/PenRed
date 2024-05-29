@@ -117,7 +117,7 @@ namespace penred{
       return result;
     }
     
-  };
-};
+  } // namespace xray
+} // namespace penred
 
 #endif

@@ -94,8 +94,8 @@ namespace penred{
 		     const vector3D<double> center = 
 		     vector3D<double>(0.0,0.0,0.0));
     
-  }; // namespace x-ray
+  } // namespace x-ray
 
-}; // namespace penred
+} // namespace penred
 
 #endif

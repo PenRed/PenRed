@@ -452,6 +452,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
   char LKEYW[9];
 
   unsigned int KB;
+  
+  //Check if input file is open
+  if(IRD == nullptr){
+    if(verbose > 0){
+      printf("pen_quadricGeo:configure:Error: The input file is "
+	     "a null pointer. Does the file exist?.\n");
+    }
+    configStatus = PEN_QUAD_GEO_INPUT; return configStatus;    
+  }
 
   //  ************  Initialise parameters.
 
@@ -531,13 +540,14 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
   FILE* IRI = 0;
   int NINCL = 0;
   C1 = CA[NINCL+1-1];
+  
   if(IW == IR)
     {
       if(verbose > 0){
 	fprintf(IW, "SUBROUTINE GEOMIN. Input arguments.\n");
 	fprintf(IW, "IRD =%p,  IWR =%p\n", (void*)IRD, (void*)IWR);
 	fprintf(IW, "*** The input and output units must be different.\n");
-	if(verbose > 1){
+	if(verbose > 0){
 	  printf("pen_quadricGeo:configure:Error: The input and output units must be different.\n");
 	}
       }
@@ -3570,6 +3580,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		    }
 		  fclose(IR);
 		  IR = fopen(GFILE, "r");
+		  if(IR == nullptr){
+		    if(verbose > 0){
+		      fprintf(IW, "C Unable to open file %s. "
+			      "Does the file exist?.\n", GFILE);
+		      printf("pen_quadricGeo:configure:Error: Unable to open file %s. "
+			     "Does the file exist?.\n", GFILE);
+		    }
+		    configStatus = PEN_QUAD_GEO_INPUT; return configStatus;    		    
+		  }
 		}
 	      Eixir0 = false;
 	      break;

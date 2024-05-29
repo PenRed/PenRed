@@ -612,10 +612,10 @@ namespace penred{
 	  return -1.0;
 	}
 
-      };//namespace ICRP
+      } //namespace ICRP
 
-    }; //namespace compositions      
+    } //namespace compositions      
 
-  }; //namespace dataBases
+  } //namespace dataBases
 
-}; //namespace penred
+} //namespace penred

@@ -445,7 +445,7 @@ void pen_DICOMDoseDistrib::tally_endSim(const unsigned long long /*nhist*/){
 void pen_DICOMDoseDistrib::saveData(const unsigned long long nhist) const{
   
   char buffer[81];
-  FILE* out;
+  FILE* out = nullptr;
   double invn = 1.0/static_cast<double>(nhist);
 
   //const double ev2Gy = 1.0/1.60217662E-16;
@@ -454,13 +454,12 @@ void pen_DICOMDoseDistrib::saveData(const unsigned long long nhist) const{
   strcpy(buffer,"dicomDoseDistrib.dat");
      
   out = fopen(buffer,"w");
-  if (out == NULL)
+  if (out == nullptr)
     {
       printf("*********************************************\n");
       printf("pen_DICOMDoseDistrib: Error: Cannot open output data file\n");
       printf("*********************************************\n");
-      fclose(out);                            
-      return;                      
+      return;
     }
     
     

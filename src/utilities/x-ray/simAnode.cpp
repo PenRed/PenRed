@@ -67,7 +67,7 @@ int main(int argc, char** argv){
   penred::measurements::measurement<double,1> spectrum;
   penred::measurements::measurement<double,2> spatialDistrib;
 
-  spectrum.init({nBins}, {std::pair<double,double>(eMin,beamE)});
+  spectrum.initFromLists({nBins}, {std::pair<double,double>(eMin,beamE)});
   
   //Simulate the anode
   double dReg;

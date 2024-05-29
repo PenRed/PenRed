@@ -32,10 +32,10 @@ int main(){
 
   //Create a 2D measurement
   penred::measurements::measurement<double, 3> genData;
-  genData.init({220,150,1},
-	       {std::pair<double,double>(-1.0,20.2),
-		std::pair<double,double>(-20.0,35.6),
-		std::pair<double,double>(-1000.0,1000.0)});
+  genData.initFromLists({220,150,1},
+			{std::pair<double,double>(-1.0,20.2),
+			 std::pair<double,double>(-20.0,35.6),
+			 std::pair<double,double>(-1000.0,1000.0)});
 
   genData.description = "Test measurement generated data\nfrom C++ random number generation.";
   genData.setDimHeader(0, "Position x(cm) with long| text ");

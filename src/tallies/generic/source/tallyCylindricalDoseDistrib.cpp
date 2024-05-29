@@ -455,7 +455,7 @@ void pen_CylindricalDoseDistrib::tally_endSim(const unsigned long long /*nhist*/
 void pen_CylindricalDoseDistrib::saveData(const unsigned long long nhist) const{
    
   char buffer[81];
-  FILE*out = 0;
+  FILE* out = nullptr;
   int nzef;
   const double twothird=2.0/3.0;
 
@@ -473,11 +473,10 @@ void pen_CylindricalDoseDistrib::saveData(const unsigned long long nhist) const{
      
   //Prepare output file:
   out = fopen(buffer, "w");
-  if (out == NULL){
+  if (out == nullptr){
     printf("\n*********************************************\n");
     printf("CylindricalDoseDistrib:saveData:ERROR: cannot open output data file");
     printf("\n*********************************************\n");
-    fclose(out); //Just in case
     return;
   }
   

@@ -61,8 +61,8 @@ namespace penred{
 				      const bool numObjects,
 				      const vector3D<double> center =
 				      vector3D<double>(0.0,0.0,0.0));
-  };
-};
+  } // namespace xray
+} // namespace penred
 
 
 #endif

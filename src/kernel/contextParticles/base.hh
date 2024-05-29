@@ -359,8 +359,8 @@ namespace penred{
       
     };
     
-  };
+  } //namespace context
 
-};
+} //namespace penred
 
 #endif

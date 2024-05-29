@@ -302,8 +302,8 @@ namespace penred{
 
       return err;
     }
-  };
-};
+  } // namespace xray
+} // namespace penred
 
 template<>
 struct pen_format<penred::xray::readerXRayDeviceCreate>{

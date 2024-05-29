@@ -160,6 +160,6 @@ namespace penred{
       return errors::SUCCESS;
     }
     
-  };
+  } // namespace simulation
   
-};
+} // namespace penred

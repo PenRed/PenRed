@@ -206,9 +206,9 @@ namespace penred{
       
     };
     
-  }; // namespace sampling
+  } // namespace sampling
   
-}; // namespace penred
+} // namespace penred
 
 
 #endif

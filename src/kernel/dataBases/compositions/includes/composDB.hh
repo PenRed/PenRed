@@ -67,10 +67,10 @@ namespace penred{
       return getDB(indexDB(name));
     }
 
-    }; //namespace compositions
+    } //namespace compositions
     
-  }; //namespace dataBases
+  } //namespace dataBases
   
-}; //namespace penred
+} //namespace penred
 
 #endif
