@@ -25,12 +25,12 @@
 #        vicent.gimenez.alventosa@gmail.com
 #
 
-find_package(Python 3.10 COMPONENTS Interpreter Development)
+find_package(Python3 COMPONENTS Interpreter Development)
 find_package(pybind11 CONFIG)
 
 # Get python version
 execute_process(
-    COMMAND ${Python_EXECUTABLE}-config --extension-suffix
+    COMMAND ${Python3_EXECUTABLE}-config --extension-suffix
     OUTPUT_VARIABLE PYTHON_EXTENSION_SUFFIX
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
