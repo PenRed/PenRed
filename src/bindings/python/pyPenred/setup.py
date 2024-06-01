@@ -19,7 +19,7 @@ setup(
         'Programming Language :: C++',
     ],
     package_data={
-        'pyPenred': ['simulator.cpython-311-x86_64-linux-gnu.so', 'simulator.cpython-310-x86_64-linux-gnu.so']
+        'pyPenred': ['*.so']
     },
     zip_safe=False,
 )
