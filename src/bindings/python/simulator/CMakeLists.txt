@@ -28,6 +28,23 @@
 find_package(Python3 COMPONENTS Interpreter Development)
 find_package(pybind11 CONFIG)
 
+# If pybind11 is not installed, download it from github
+if(NOT pybind11_FOUND)
+
+        include(FetchContent)
+
+        # Download pybind11
+        FetchContent_Declare(
+                pybind11
+                GIT_REPOSITORY https://github.com/pybind/pybind11.git
+        )
+
+        # Add pybind11 to the project
+        FetchContent_MakeAvailable(pybind11)
+
+endif(NOT pybind11_FOUND)
+
+
 # Get python version
 execute_process(
     COMMAND ${Python3_EXECUTABLE}-config --extension-suffix
