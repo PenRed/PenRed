@@ -954,7 +954,9 @@ public:
   }
   int ls(std::string&, std::vector<std::string>&) const;
 
-  inline size_t size() const { return elements.size(); } 
+  inline size_t size() const { return elements.size(); }
+
+  inline bool empty() const { return size() == 0; }
 
   inline const elementMap& readMap() const {return elements;}
   

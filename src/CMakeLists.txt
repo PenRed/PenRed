@@ -59,6 +59,8 @@ option(BUILD_STATIC "Enable static compilation" OFF)
 mark_as_advanced(FORCE BUILD_STATIC)
 option(BUILD_C_BINDS "Compile C binds" OFF)
 mark_as_advanced(FORCE BUILD_C_BINDS)
+option(BUILD_PYTHON_MODULES "Compile Python modules" OFF)
+mark_as_advanced(FORCE BUILD_PYTHON_MODULES)
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
@@ -84,6 +86,10 @@ if(BUILD_STATIC)
     add_definitions(-D_PEN_BUILD_STATIC_=1) #Set Static build
 else(BUILD_STATIC)
 endif(BUILD_STATIC)
+
+if(BUILD_PYTHON_MODULES)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif(BUILD_PYTHON_MODULES)
 
 # Compilation options
 
@@ -245,4 +251,9 @@ endif(BUILD_TESTS)
 if(BUILD_C_BINDS)
     add_subdirectory(bindings/C)
 endif(BUILD_C_BINDS)
+
+if(BUILD_PYTHON_MODULES)
+    add_subdirectory(bindings/python/simulator)
+endif(BUILD_PYTHON_MODULES)
+
 #-----------------------------------------------------------------------------

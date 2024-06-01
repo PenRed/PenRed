@@ -245,9 +245,9 @@ int main(int argc, char** argv){
   }
 
   printf("***************************************************************\n");
-  printf(" PenRed version: 1.10.0 (03-April-2024) \n");
-  printf(" Copyright (c) 2019-2023 Universitat Politecnica de Valencia\n");
-  printf(" Copyright (c) 2019-2023 Universitat de Valencia\n");
+  printf(" PenRed version: 1.11.0 (30-May-2024) \n");
+  printf(" Copyright (c) 2019-2024 Universitat Politecnica de Valencia\n");
+  printf(" Copyright (c) 2019-2024 Universitat de Valencia\n");
   printf(" Reference: Computer Physics Communications, 267 (2021) 108065\n"
          "            https://doi.org/10.1016/j.cpc.2021.108065\n");
   printf(" This is free software; see the source for copying conditions.\n"
@@ -786,7 +786,7 @@ int main(int argc, char** argv){
     }
     return -3;
   }
-  if(verbose > 0)
+  if(verbose > 1)
     printf("\n");
 
   //Set interval between checks

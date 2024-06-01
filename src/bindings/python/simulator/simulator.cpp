@@ -20,51 +20,35 @@
 //
 //    contact emails:
 //
-//        vicent.gimenez.alventosa@gmail.com
+//        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
+//        sanolgi@upvnet.upv.es (Sandra Oliver Gil)
 //    
 //
 
-#ifndef __PEN_X_RAY_COMMON__
-#define __PEN_X_RAY_COMMON__
+#include <pybind11/pybind11.h>
 
 #include "pen_simulation.hh"
 
-namespace penred{
+namespace py = pybind11;
 
-  namespace xray{
+PYBIND11_MODULE(simulator,m){
 
-    namespace errors{
-      enum errors{
-	SUCCESS = 0,
-	NEGATIVE_DISTANCE,
-	INVALID_Z,
-	INVALID_SIZE,
-	INVALID_DISTANCE,
-	NO_FILTER_PROVIDED,
-	UNABLE_TO_CREATE_MATERIAL,
-	UNABLE_TO_GENERATE_SPECTRUM,
-	ERROR_ON_CONTEXT_INITIALIZATION,
-	ERROR_ON_GEOMETRY_INITIALIZATION,
-	ERROR_UNABLE_TO_OPEN_FILE,
-      };
-    }
-    
-    using detectedPart = simulation::detectedPart;
+  m.doc() = "penred simulation module";
 
-    struct preloadGeos{
-      //Get anode geometry file at compile time
-      static constexpr const char* anodeGeoFile = {
-        #include "baseAnode.geo"
-      };
-
-      static constexpr const char* phantomCylGeoFile = {
-        #include "baseCylPhantom.geo"
-      };
-      
-    };
-
-  } // namespace xray
-} // namespace penred
-
-
-#endif
+  py::class_<penred::simulation::simulator<pen_context>>(m, "simulator")
+    .def(py::init<>())
+    .def("configFromFile",
+	 [](penred::simulation::simulator<pen_context>& obj,
+	    const std::string& filename){
+	   return obj.configFromFile(filename);
+	 })
+    .def("simulate",
+	 [](penred::simulation::simulator<pen_context>& obj){
+	   return obj.simulate();
+	 })
+    .def("__repr__",
+	 [](const penred::simulation::simulator<pen_context>& /*obj*/){
+	   return std::string("<penred.simulator>");
+	 });
+  
+}

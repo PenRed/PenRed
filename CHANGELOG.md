@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Finish simulation function to stop simulations in the *simulation* library functions
 
+- *simulator* class to wrapp the main program functioanlities. For now, MPI and load balance support is not implemented in this class.
+
+- First version of a Python wrapper using the *simulator* class and pybind11.
+
 ### Changed
 
 - The compilation of the TCP library is now optional, allowing the code to be compiled without the ASIO library

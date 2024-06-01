@@ -47,7 +47,7 @@ target_link_libraries(pen_sim pen_geos)
 target_link_libraries(pen_sim samplers)
 target_link_libraries(pen_sim tallies)
 target_link_libraries(pen_sim pen_VR)
-
+target_link_libraries(pen_sim pen_timer)
 
 #Link thread libs
 if(WITH_MULTI_THREADING)
