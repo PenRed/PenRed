@@ -59,7 +59,7 @@ class pen_VRsplitting : public pen_genericVR<pen_particleState>{
 			      const pen_KPAR /*kpar*/,
 			      const unsigned /*kdet*/,
 			      pen_particleState& state,
-			      std::array<pen_particleState,constants::NMS>& stack,
+			      std::vector<pen_particleState>& stack,
 			      unsigned& created,
 			      const unsigned available,
 			      pen_rand& /*random*/) const;

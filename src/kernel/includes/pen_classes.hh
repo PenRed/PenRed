@@ -187,7 +187,7 @@ public:
 				 const pen_KPAR kpar,
 				 const unsigned kdet,
 				 stateType& state,
-				 std::array<stateType,constants::NMS>& stack,
+				 std::vector<stateType>& stack,
 				 unsigned& created,
 				 const unsigned available,
 				 pen_rand& random) const = 0;
@@ -196,7 +196,7 @@ public:
 			     const pen_KPAR kpar,
 			     const unsigned prevMat,			    
 			     stateType& state,
-			     std::array<stateType,constants::NMS>& stack,
+			     std::vector<stateType>& stack,
 			     unsigned& created,
 			     const unsigned available,
 			     pen_rand& random) const = 0;
@@ -205,7 +205,7 @@ public:
 			       const pen_KPAR kpar,
 			       const unsigned kdet,
 			       stateType& state,
-			       std::array<stateType,constants::NMS>& stack,
+			       std::vector<stateType>& stack,
 			       unsigned& created,
 			       const unsigned available,
 			       pen_rand& random) const = 0;
@@ -243,8 +243,8 @@ template<class stateType, class contextType, class materialType>
 class abc_particle{
 
 private:
-  std::array<pen_particleState,constants::NMS> genericStates;
-  std::array<stateType,constants::NMS> specificStates;
+  std::vector<pen_particleState> genericStates;
+  std::vector<stateType> specificStates;
 protected:
 
   //Particle energy at previous JUMP
@@ -354,6 +354,10 @@ public:
       sprintf(error,"Incompatible material type at particle instantation (kpar = %d).",KPAR);
       throw std::invalid_argument(error);
     }
+
+    //Reserve space in the auxiliary stacks
+    genericStates.resize(constants::NMS);
+    specificStates.resize(constants::NMS);
   }
 
   virtual void START() = 0;
@@ -610,13 +614,15 @@ class abc_particleStack{
 template<class stateType> class pen_particleStack : public abc_particleStack{
 
  protected:
-  stateType states[constants::NMS];
+  std::vector<stateType> states;
  public:
   
-  constexpr pen_particleStack() : abc_particleStack() {}
+  constexpr pen_particleStack() : abc_particleStack() {
+    states.resize(constants::NMS);
+  }
 
   void store(const stateType& state)
-  {
+  {    
     if(NSEC < constants::NMS)
       {
 	states[NSEC] = state;

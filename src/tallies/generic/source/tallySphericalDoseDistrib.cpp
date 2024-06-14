@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2022 Universitat de València - UV
-//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2024 Universitat de València - UV
+//    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -108,10 +108,10 @@ void pen_SphericalDoseDistrib::tally_localEdep(const unsigned long long nhist,
 					       const pen_particleState& state,
 					       const double dE){
     
-   if(dE == 0.0){return;}  
-   //Nothing to deposit.
-   //Energy deposited at material
-   updateEdepCounters(dE, nhist, state.X, state.Y, state.Z, state.WGHT);
+  if(dE == 0.0){return;}  
+  //Nothing to deposit.
+  //Energy deposited at material
+  updateEdepCounters(dE, nhist, state.X, state.Y, state.Z, state.WGHT);
 }
 
 void pen_SphericalDoseDistrib::tally_beginPart(const unsigned long long nhist,
@@ -119,8 +119,8 @@ void pen_SphericalDoseDistrib::tally_beginPart(const unsigned long long nhist,
 					       const pen_KPAR /*kpar*/,
 					       const pen_particleState& state){
  
-    //Extract energy from material to create new particle
-    updateEdepCounters(-state.E, nhist, state.X, state.Y, state.Z, state.WGHT);
+  //Extract energy from material to create new particle
+  updateEdepCounters(-state.E, nhist, state.X, state.Y, state.Z, state.WGHT);
 }
 
 void pen_SphericalDoseDistrib::tally_sampledPart(const unsigned long long nhist,
@@ -141,11 +141,11 @@ void pen_SphericalDoseDistrib::tally_step(const unsigned long long nhist,
 					  const pen_particleState& state,
 					  const tally_StepData& stepData){
 
-   if(stepData.softDE == 0.0){return;}  //Nothing to deposit.
-   //Energy deposited
-   updateEdepCounters(stepData.softDE, nhist,
-		      stepData.softX, stepData.softY, stepData.softZ,
-		      state.WGHT);  
+  if(stepData.softDE == 0.0){return;}  //Nothing to deposit.
+  //Energy deposited
+  updateEdepCounters(stepData.softDE, nhist,
+		     stepData.softX, stepData.softY, stepData.softZ,
+		     state.WGHT);  
 }
 
 
@@ -156,13 +156,13 @@ void pen_SphericalDoseDistrib::tally_move2geo(const unsigned long long nhist,
 					      const double /*dsef*/,
 					      const double /*dstot*/){
 
-    //Primary particle has been created at void volume. Check if
-    //after step call particle reached non void volume.
-    if(state.MAT > 0){
-        //Non void volume reached. Add particle energy to compensate
-        //substracted one when beginPart will be called.
-        updateEdepCounters(state.E, nhist, state.X, state.Y, state.Z, state.WGHT);
-    }
+  //Primary particle has been created at void volume. Check if
+  //after step call particle reached non void volume.
+  if(state.MAT > 0){
+    //Non void volume reached. Add particle energy to compensate
+    //substracted one when beginPart will be called.
+    updateEdepCounters(state.E, nhist, state.X, state.Y, state.Z, state.WGHT);
+  }
 }
 
 
@@ -170,209 +170,204 @@ void pen_SphericalDoseDistrib::tally_move2geo(const unsigned long long nhist,
 int pen_SphericalDoseDistrib::configure(const wrapper_geometry& geometry,
 					const abc_material* const materials[constants::MAXMAT],
 					const pen_parserSection& config,
-                    const unsigned verbose
-){
+					const unsigned verbose){
 
-    double rmax;
-    // A bit more than one
-    const double oneplus = 1.0+1.0E-12;  
-    // A bit less than one
-    const double oneminus= 1.0-1.0E-12;  
-    int err; 
+  double rmax;
+  // A bit more than one
+  const double oneplus = 1.0+1.0E-12;  
+  // A bit less than one
+  const double oneminus= 1.0-1.0E-12;  
+  int err; 
     
-    err = config.read("rmin", rmin);
-    if(err != INTDATA_SUCCESS){
-        if(verbose > 0){
-            printf("pen_SphericalDoseDistrib:configure:unable to read 'rmin' in configuration. Double expected\n");
-        }
-        return -1;
+  err = config.read("rmin", rmin);
+  if(err != INTDATA_SUCCESS){
+    if(verbose > 0){
+      printf("pen_SphericalDoseDistrib:configure:unable to read 'rmin' in configuration. Double expected\n");
     }
+    return -1;
+  }
     
-    err = config.read("rmax", rmax);
-    if(err != INTDATA_SUCCESS){
-        if(verbose > 0){
-            printf("pen_SphericalDoseDistrib:configure:unable to read 'rmax' in configuration. Double expected\n");
-        }
-        return -2;
+  err = config.read("rmax", rmax);
+  if(err != INTDATA_SUCCESS){
+    if(verbose > 0){
+      printf("pen_SphericalDoseDistrib:configure:unable to read 'rmax' in configuration. Double expected\n");
     }
-    int auxInt;
-    err = config.read("nr", auxInt);
-    if(err != INTDATA_SUCCESS){
-        if(verbose > 0){
-            printf("pen_SphericalDoseDistrib:configure:unable to read 'nr' in configuration. Integrer expected\n");
-        }
-        return -3;
+    return -2;
+  }
+  int auxInt;
+  err = config.read("nr", auxInt);
+  if(err != INTDATA_SUCCESS){
+    if(verbose > 0){
+      printf("pen_SphericalDoseDistrib:configure:unable to read 'nr' in configuration. Integrer expected\n");
     }
-    nr = auxInt;
+    return -3;
+  }
+  nr = auxInt;
 
-    err = config.read("ntheta", auxInt);
-    if(err != INTDATA_SUCCESS){
-      auxInt = 1;
+  err = config.read("ntheta", auxInt);
+  if(err != INTDATA_SUCCESS){
+    auxInt = 1;
+  }
+  if(auxInt <= 0){
+    if(verbose > 0){
+      printf("pen_SphericalDoseDistrib:configure: Error: "
+	     "number of theta bins must be, as least 1\n"
+	     "    Specified ntheta: %d\n",auxInt);
     }
-    if(auxInt <= 0){
-        if(verbose > 0){
-            printf("pen_SphericalDoseDistrib:configure: Error: "
-		   "number of theta bins must be, as least 1\n"
-		   "    Specified ntheta: %d\n",auxInt);
-        }
-        return -3;      
-    }
-    ntheta = auxInt;
+    return -3;      
+  }
+  ntheta = auxInt;
 
-    err = config.read("nphi", auxInt);
-    if(err != INTDATA_SUCCESS){
-      auxInt = 1;
+  err = config.read("nphi", auxInt);
+  if(err != INTDATA_SUCCESS){
+    auxInt = 1;
+  }
+  if(auxInt <= 0){
+    if(verbose > 0){
+      printf("pen_SphericalDoseDistrib:configure: Error: "
+	     "number of phi bins must be, as least 1\n"
+	     "    Specified nphi: %d\n",auxInt);
     }
-    if(auxInt <= 0){
-        if(verbose > 0){
-            printf("pen_SphericalDoseDistrib:configure: Error: "
-		   "number of phi bins must be, as least 1\n"
-		   "    Specified nphi: %d\n",auxInt);
-        }
-        return -3;      
-    }
-    nphi = auxInt;
+    return -3;      
+  }
+  nphi = auxInt;
     
     
-    if(rmin < 0){
-        if(verbose > 0){
-            printf("pen_SphericalDoseDistrib:configure:Invalid entry, rmin must be greater than 0.\n");
-        }
-        return -4;
+  if(rmin < 0){
+    if(verbose > 0){
+      printf("pen_SphericalDoseDistrib:configure:Invalid entry, rmin must be greater than 0.\n");
     }
+    return -4;
+  }
     
-     if(rmin >= rmax){
-        if(verbose > 0){
-            printf("pen_SphericalDoseDistrib:configure:Invalid entry, rmin must be lower than rmax.\n");
-        }
-        return -5;
+  if(rmin >= rmax){
+    if(verbose > 0){
+      printf("pen_SphericalDoseDistrib:configure:Invalid entry, rmin must be lower than rmax.\n");
     }
+    return -5;
+  }
 
-     if(nr < 1){
-        if(verbose > 0){
-            printf("pen_SphericalDoseDistrib:configure:Invalid entry, nr must be at least 1.\n");
-        }
-        return -6;
+  if(nr < 1){
+    if(verbose > 0){
+      printf("pen_SphericalDoseDistrib:configure:Invalid entry, nr must be at least 1.\n");
     }
+    return -6;
+  }
 
-     //Obtain the total number of bins
-     nbins = nr*ntheta*nphi;
+  //Obtain the total number of bins
+  nbins = nr*ntheta*nphi;
 
-     if(verbose > 1)
-       printf("Number of bins:\n"
-	      "   radial: %ld\n"
-	      "    theta: %ld\n"
-	      "      phi: %ld\n"
-	      ,nr,ntheta,nphi);
-     
-     if(nbins > nbinmax){
-       if(verbose > 0){
-	 printf("pen_SphericalDoseDistrib:configure:Too many bins. Max no.bins is %lu\n", nbinmax);
-       }
-       return -7;
-     }
+  if(verbose > 1)
+    printf("Number of bins:\n"
+	   "   radial: %ld\n"
+	   "    theta: %ld\n"
+	   "      phi: %ld\n"
+	   ,nr,ntheta,nphi);
 
     
-    err = config.read("print-xyz", prtxyz);
-    if(err != INTDATA_SUCCESS){
-        if(verbose > 0){
-            printf("pen_SphericalDoseDistrib:configure:unable to read 'print-xyz' in configuration. Bool expected\n");
-        }
-        return -8;
+  err = config.read("print-xyz", prtxyz);
+  if(err != INTDATA_SUCCESS){
+    if(verbose > 0){
+      printf("pen_SphericalDoseDistrib:configure:unable to read 'print-xyz' in configuration. Bool expected\n");
     }
+    return -8;
+  }
     
     
-    if(verbose > 1){
-        if(prtxyz)
-        {
-            printf("pen_SphericalDoseDistrib:configure: print-xyz =  true. Output file print rBinIndex,  rLow(cm) and  rAve(cm)\n");
-        }
-        else{
-            printf("pen_SphericalDoseDistrib:configure: print-xyz = false. Output file doesn't print rBinIndex,  rLow(cm) and  rAve(cm). It occurs if print-xyz = true  \n");
-        }
+  if(verbose > 1){
+    if(prtxyz)
+      {
+	printf("pen_SphericalDoseDistrib:configure: print-xyz =  true. Output file print rBinIndex,  rLow(cm) and  rAve(cm)\n");
+      }
+    else{
+      printf("pen_SphericalDoseDistrib:configure: print-xyz = false. Output file doesn't print rBinIndex,  rLow(cm) and  rAve(cm). It occurs if print-xyz = true  \n");
     }
+  }
     
-    dr = (rmax - rmin)/static_cast<double>(nr);
-    idr = 1.0/dr;
-    // (1+-eps) tolerances avoid out of range bin indexes in tally routine
-    r2min = rmin*rmin*oneplus;  
-    r2max = rmax*rmax*oneminus;
+  dr = (rmax - rmin)/static_cast<double>(nr);
+  idr = 1.0/dr;
+  // (1+-eps) tolerances avoid out of range bin indexes in tally routine
+  r2min = rmin*rmin*oneplus;  
+  r2max = rmax*rmax*oneminus;
 
-    dtheta  = M_PI/static_cast<double>(ntheta);
-    dphi    = 2.0*M_PI/static_cast<double>(nphi);
-    idtheta = 1.0/dtheta;
-    idphi   = 1.0/dphi;
+  dtheta  = M_PI/static_cast<double>(ntheta);
+  dphi    = 2.0*M_PI/static_cast<double>(nphi);
+  idtheta = 1.0/dtheta;
+  idphi   = 1.0/dphi;
     
-     // Init arrays:
-    for(long unsigned i = 0; i < nbins; i++)
-    {
-      edptmp[i] = 0.0;
-      edep[i]   = 0.0;
-      edep2[i]  = 0.0;
-      nlast[i]  = 0;
-      imass[i]  = 0.0;
-    }
+  // Init arrays:
+  nlast.resize(nbins);
+  edptmp.resize(nbins);
+  edep.resize(nbins);
+  edep2.resize(nbins);
+  imass.resize(nbins);
+
+  std::fill(nlast.begin() , nlast.end() , 0.0);
+  std::fill(edptmp.begin(), edptmp.end(), 0.0);
+  std::fill(edep.begin()  , edep.end()  , 0.0);
+  std::fill(edep2.begin() , edep2.end() , 0.0);
+  std::fill(imass.begin() , imass.end() , 0.0);
     
-    pen_particleState state;
+  pen_particleState state;
     
-    // For locate() to operate properly
-    state.U = 0.0;  
-    state.V = 0.0;
-    state.W = 1.0;
-    state.X = 0.0;
-    state.Y = 0.0;
+  // For locate() to operate properly
+  state.U = 0.0;  
+  state.V = 0.0;
+  state.W = 1.0;
+  state.X = 0.0;
+  state.Y = 0.0;
     
 
-    for(long int k = 0; k < nphi; ++k){
-      double phi = (static_cast<double>(k)+0.5)*dphi;
-      double sphi = sin(phi);
-      double cphi = cos(phi);
-      for(long int j = 0; j < ntheta; ++j){
-	double theta1 = static_cast<double>(j)*dtheta; 
-	double theta  = theta1+0.5*dtheta;
-	double theta2 = theta1+dtheta;
+  for(long int k = 0; k < nphi; ++k){
+    double phi = (static_cast<double>(k)+0.5)*dphi;
+    double sphi = sin(phi);
+    double cphi = cos(phi);
+    for(long int j = 0; j < ntheta; ++j){
+      double theta1 = static_cast<double>(j)*dtheta; 
+      double theta  = theta1+0.5*dtheta;
+      double theta2 = theta1+dtheta;
 
-	double stheta = sin(theta);
-	double ctheta = cos(theta);
+      double stheta = sin(theta);
+      double ctheta = cos(theta);
 	
-	double ctheta1 = cos(theta1);
-	double ctheta2 = cos(theta2);
-	for(long int i = 0; i < nr; ++i){
-	  //This is to locate a point and find its material
-	  double r1 = rmin + dr*static_cast<double>(i);
-	  double r = r1 + dr*0.5;
-	  double rstheta = r*stheta;
-	  state.X = rstheta*cphi;
-	  state.Y = rstheta*sphi;
-	  state.Z = r*ctheta;
-	  geometry.locate(state);
-	  if(state.MAT > 0)
-	    {
-	      //Local mass density
-	      double localdens = materials[state.MAT-1]->readDens(); 
-	      if (localdens > 0.0){
-		double volume =
-		  dphi*(ctheta1-ctheta2)*(pow(r1+dr,3)-pow(r1,3))/3.0;
-		long unsigned ibin = nr*(k*ntheta + j) + i;
-		imass[ibin] = 1.0/(volume*localdens);
-	      }
+      double ctheta1 = cos(theta1);
+      double ctheta2 = cos(theta2);
+      for(long int i = 0; i < nr; ++i){
+	//This is to locate a point and find its material
+	double r1 = rmin + dr*static_cast<double>(i);
+	double r = r1 + dr*0.5;
+	double rstheta = r*stheta;
+	state.X = rstheta*cphi;
+	state.Y = rstheta*sphi;
+	state.Z = r*ctheta;
+	geometry.locate(state);
+	if(state.MAT > 0)
+	  {
+	    //Local mass density
+	    double localdens = materials[state.MAT-1]->readDens(); 
+	    if (localdens > 0.0){
+	      double volume =
+		dphi*(ctheta1-ctheta2)*(pow(r1+dr,3)-pow(r1,3))/3.0;
+	      long unsigned ibin = nr*(k*ntheta + j) + i;
+	      imass[ibin] = 1.0/(volume*localdens);
 	    }
-	}
+	  }
       }
     }
+  }
 
-   if(verbose > 1){
+  if(verbose > 1){
     printf("Number of radial bins: %ld\n",nr);
     printf("Minimum r value (cm): %12.5E\n",rmin);
     printf("Bin width (cm): %12.5E\n",dr);
   }  
     
   //Register data to dump
-  dump.toDump(nlast,nbins);
-  dump.toDump(imass,nbins);
-  dump.toDump(edep,nbins);
-  dump.toDump(edep2,nbins);
-  dump.toDump(&nbins,1);  
+  dump.toDump(nlast.data(),nbins);
+  dump.toDump(imass.data(),nbins);
+  dump.toDump(edep.data(),nbins);
+  dump.toDump(edep2.data(),nbins);
+  dump.toDump(&nbins,1);
     
     
   //Register data to create images
@@ -502,15 +497,15 @@ void pen_SphericalDoseDistrib::saveData(const unsigned long long nhist) const{
 
 int pen_SphericalDoseDistrib::sumTally(const pen_SphericalDoseDistrib& tally){
     
-    if(nbins != tally.nbins)
-        return -1;
+  if(nbins != tally.nbins)
+    return -1;
     
-    for(long unsigned i = 0; i < nbins; ++i){
-        edep[i] += tally.edep[i];
-    }
-    for(long unsigned i = 0; i < nbins; ++i){
-        edep2[i] += tally.edep2[i];
-    }
+  for(long unsigned i = 0; i < nbins; ++i){
+    edep[i] += tally.edep[i];
+  }
+  for(long unsigned i = 0; i < nbins; ++i){
+    edep2[i] += tally.edep2[i];
+  }
 
   return 0;
     

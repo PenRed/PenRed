@@ -32,7 +32,6 @@
 #include <cstdio>
 #include <string>
 #include <vector>
-#include <array>
 #include <stdexcept>
 #include <algorithm>
 
@@ -110,7 +109,7 @@ public:
 				const pen_KPAR /*kpar*/,
 				const unsigned /*kdet*/,
 				stateType& /*state*/,
-				std::array<stateType,constants::NMS>& /*stack*/,
+				std::vector<stateType>& /*stack*/,
 				unsigned& /*created*/,
 				const unsigned /*available*/,
 				pen_rand& /*random*/) const{
@@ -125,7 +124,7 @@ public:
 			    const pen_KPAR /*kpar*/,
 			    const unsigned /*prevMat*/,			    
 			    stateType& /*state*/,
-			    std::array<stateType,constants::NMS>& /*stack*/,
+			    std::vector<stateType>& /*stack*/,
 			    unsigned& /*created*/,
 			    const unsigned /*available*/,
 			    pen_rand& /*random*/) const{
@@ -140,7 +139,7 @@ public:
 			      const pen_KPAR /*kpar*/,
 			      const unsigned /*kdet*/,
 			      stateType& /*state*/,
-			      std::array<stateType,constants::NMS>& /*stack*/,
+			      std::vector<stateType>& /*stack*/,
 			      unsigned& /*created*/,
 			      const unsigned /*available*/,
 			      pen_rand& /*random*/) const{
@@ -227,7 +226,7 @@ public:
 				const pen_KPAR kpar,
 				const unsigned kdet,
 				stateType& state,
-				std::array<stateType,constants::NMS>& stack,
+				std::vector<stateType>& stack,
 				unsigned& created,
 				const unsigned available,
 				pen_rand& random) const{
@@ -241,7 +240,7 @@ public:
 			    const pen_KPAR kpar,
 			    const unsigned prevMat,			    
 			    stateType& state,
-			    std::array<stateType,constants::NMS>& stack,
+			    std::vector<stateType>& stack,
 			    unsigned& created,
 			    const unsigned available,
 			    pen_rand& random) const{
@@ -255,7 +254,7 @@ public:
 			      const pen_KPAR kpar,
 			      const unsigned kdet,
 			      stateType& state,
-			      std::array<stateType,constants::NMS>& stack,
+			      std::vector<stateType>& stack,
 			      unsigned& created,
 			      const unsigned available,
 			      pen_rand& random) const{

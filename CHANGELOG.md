@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Integrated data bases uses now split string literals to allow to fit specific compiler limitations on string literals length.
 
+- Particle stacks are now allocated dynamically to avoid stackoverflows in some systems.
+
 ### Fix
 
 - In some cases, *COMBO* geometry skips low priority geometries when a higher geometry contains void bodies.
