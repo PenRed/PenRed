@@ -42,12 +42,11 @@ private:
   bool prtxyz;
   long int nr,nphi,nz;
   long int nbins;
-  static const long int nbinmax=100000;
-  double edptmp[nbinmax];
-  double edep[nbinmax];
-  double edep2[nbinmax];
-  double imass[nbinmax];
-  double nlast[nbinmax];
+  std::vector<double> edptmp;
+  std::vector<double> edep;
+  std::vector<double> edep2;
+  std::vector<double> imass;
+  std::vector<double> nlast;
   double dr,dphi,dz,idr,idphi,idz;
   double rmin,zmin,r2min,r2max; 
 

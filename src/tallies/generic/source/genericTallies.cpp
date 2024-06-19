@@ -45,3 +45,4 @@
 #include "tallyDICOMkerma.cpp"
 #include "tallyPSS.cpp"
 #include "tallyDetectionSpatialDistrib.cpp"
+#include "tallyEmergingSphericalDistribution.cpp"

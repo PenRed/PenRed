@@ -30,7 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - *simulator* class to wrapp the main program functioanlities. For now, MPI and load balance support is not implemented in this class.
 
-- First version of a Python wrapper using the *simulator* class and pybind11.
+- New tally to register energy spectrums of emerging particles in spherical bins
+
+- First version of a Python wrapper using the *simulator* class and pybind11
 
 ### Changed
 
@@ -41,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integrated data bases uses now split string literals to allow to fit specific compiler limitations on string literals length.
 
 - Particle stacks are now allocated dynamically to avoid stackoverflows in some systems.
+
+- Removed number of bins limit in cylindrical and spherical dose distribution tallies
 
 ### Fix
 

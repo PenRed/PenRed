@@ -48,5 +48,6 @@
 #include "tallyDICOMkerma.hh"
 #include "tallyPSS.hh"
 #include "tallyDetectionSpatialDistrib.hh"
+#include "tallyEmergingSphericalDistribution.hh"
 
 #endif
