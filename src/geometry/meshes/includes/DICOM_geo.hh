@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2023 Universitat de València - UV
-//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2024 Universitat de València - UV
+//    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -33,6 +33,10 @@
 #ifdef _PEN_USE_DICOM_
 
 #include <limits>
+#include <algorithm>
+#include <set>
+#include <unordered_set>
+#include <iterator>
 #include "pen_dicom.hh"
 #include "voxel_geo.hh"
 #include "pen_image.hh"
@@ -82,6 +86,50 @@ struct contourAssign{
   
 };
 
+struct voxelInfo{
+  unsigned long index;
+  unsigned mat;
+  double dens;
+
+  constexpr voxelInfo(const unsigned long i,
+		      const unsigned matIn,
+		      const double densIn) : index(i),
+					     mat(matIn),
+					     dens(densIn){}
+};
+
+struct segmentConstraints{
+
+  unsigned mat;
+  double minVolume; //cm**3
+  double maxVolume; //cm**3
+  unsigned maxClusters;
+
+  constexpr segmentConstraints(const unsigned matIn,
+			       const double minV,
+			       const double maxV,
+			       const unsigned maxC) : mat(matIn),
+						      minVolume(minV),
+						      maxVolume(maxV),
+						      maxClusters(maxC){}
+  inline std::string stringify() const {
+    std::string out;
+    out = "Material: " + std::to_string(mat);
+    double auxMin = std::max(minVolume,0.0);
+    out += ", Volume: [" + std::to_string(auxMin);
+    if(maxVolume <= 0.0){
+      out += ", Inf]";
+    }
+    else{
+      out += ", " + std::to_string(maxVolume) + "]";
+    }
+    if(maxClusters > 0)
+      out += ", Clusters: " + std::to_string(maxClusters);
+
+    return out;
+  }
+};
+
 class pen_dicomGeo : public pen_voxelGeo{
   DECLARE_GEOMETRY(pen_dicomGeo)
   
@@ -119,6 +167,11 @@ int readIntensityRanges(const pen_parserSection& config,
 int readDensityRanges(const pen_parserSection& config,
 		      std::vector<densityRange>& data,
 		      const unsigned verbose);
+
+int readSegmentConstraints(const pen_parserSection& config,
+			   std::vector<segmentConstraints>& data,
+			   const unsigned verbose);
+
 
 #endif
 #endif

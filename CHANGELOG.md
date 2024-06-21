@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New tally to register energy spectrums of emerging particles in spherical bins
 
+- Additional constraints for DICOM segmentation
+
 - First version of a Python wrapper using the *simulator* class and pybind11
 
 ### Changed
