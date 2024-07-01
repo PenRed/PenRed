@@ -38,14 +38,19 @@ private:
 
   //Results bined by energy, theta and phi
   std::array<penred::measurements::measurement<double, 3>, constants::nParTypes> results;
-
+  //Depth distribution of scapped particles
+  std::array<penred::measurements::measurement<double, 3>, constants::nParTypes> lastInter;
+  
   std::array<bool, constants::nParTypes> enabled;
 
   bool printBins, printCoord, reduceDimensions;    
-    
+
+  vector3D<double> lastPos;
+  
 public:
     
   pen_EmergingSphericalDistrib() : pen_genericTally( USE_MOVE2GEO |
+						     USE_JUMP |
 						     USE_MATCHANGE |
 						     USE_ENDSIM){
     std::fill(enabled.begin(), enabled.end(), false);    
@@ -57,6 +62,11 @@ public:
 		      const pen_particleState& state,
 		      const double /*dsef*/,
 		      const double /*dstot*/);
+
+  void tally_jump(const unsigned long long /*nhist*/,
+		  const pen_KPAR kpar,
+		  const pen_particleState& state,
+		  const double /*ds*/);  
   
   void tally_matChange(const unsigned long long nhist,
 		       const pen_KPAR kpar,
@@ -93,6 +103,12 @@ public:
 
   unsigned long ne, nt, np;
 
+  double xmin, xmax;
+  double ymin, ymax;
+  double zmin, zmax;
+
+  unsigned long nx, ny, nz;
+  
   unsigned actualPartID;
   std::array<bool, constants::nParTypes> enabledPart;
 
@@ -187,6 +203,54 @@ phi/max/reader-conditions/gt/type "greater"
 phi/max/reader-conditions/gt/value "phi/min"
 phi/max/reader-conditions/lt/type "lesser_equal"
 phi/max/reader-conditions/lt/value 360.0
+
+## Spatial
+
+### X
+spatial/nx/reader-description "Number of spatial bins, in X axis, to tally last interaction point"
+spatial/nx/reader-value 1
+spatial/nx/reader-required/type "optional"
+
+spatial/xmin/reader-description "Minimum X value, in cm"
+spatial/xmin/reader-value -1.0
+spatial/xmin/reader-required/type "required"
+
+spatial/xmax/reader-description "Maximum X value, in cm"
+spatial/xmax/reader-value  1.0
+spatial/xmax/reader-required/type "required"
+spatial/xmax/reader-conditions/gt/type "greater"
+spatial/xmax/reader-conditions/gt/value "spatial/xmin"
+
+### Y
+spatial/ny/reader-description "Number of spatial bins, in Y axis, to tally last interaction point"
+spatial/ny/reader-value 1
+spatial/ny/reader-required/type "optional"
+
+spatial/ymin/reader-description "Minimum Y value, in cm"
+spatial/ymin/reader-value -1.0
+spatial/ymin/reader-required/type "required"
+
+spatial/ymax/reader-description "Maximum Y value, in cm"
+spatial/ymax/reader-value  1.0
+spatial/ymax/reader-required/type "required"
+spatial/ymax/reader-conditions/gt/type "greater"
+spatial/ymax/reader-conditions/gt/value "spatial/ymin"
+
+### Z
+spatial/nz/reader-description "Number of spatial bins, in Z axis, to tally last interaction point"
+spatial/nz/reader-value 1
+spatial/nz/reader-required/type "optional"
+
+spatial/zmin/reader-description "Minimum Z value, in cm"
+spatial/zmin/reader-value -1.0
+spatial/zmin/reader-required/type "required"
+
+spatial/zmax/reader-description "Maximum Z value, in cm"
+spatial/zmax/reader-value  1.0
+spatial/zmax/reader-required/type "required"
+spatial/zmax/reader-conditions/gt/type "greater"
+spatial/zmax/reader-conditions/gt/value "spatial/zmin"
+
 
 ## Particle to register
 particle/${subsection}/reader-description "Particle to enable/disable register"

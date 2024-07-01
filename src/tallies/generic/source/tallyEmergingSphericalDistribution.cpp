@@ -124,6 +124,33 @@ int tallyReader_EmergingSphericalDistrib::storeElement(const std::string& pathIn
     else if(pathInSection.compare("printBins") == 0){
       printBins = element;
     }
+    else if(pathInSection.compare("spatial/nx") == 0){
+      nx = element;
+    }
+    else if(pathInSection.compare("spatial/xmin") == 0){
+      xmin = element;
+    }
+    else if(pathInSection.compare("spatial/xmax") == 0){
+      xmax = element;
+    }
+    else if(pathInSection.compare("spatial/ny") == 0){
+      ny = element;
+    }
+    else if(pathInSection.compare("spatial/ymin") == 0){
+      ymin = element;
+    }
+    else if(pathInSection.compare("spatial/ymax") == 0){
+      ymax = element;
+    }
+    else if(pathInSection.compare("spatial/nz") == 0){
+      nz = element;
+    }
+    else if(pathInSection.compare("spatial/zmin") == 0){
+      zmin = element;
+    }
+    else if(pathInSection.compare("spatial/zmax") == 0){
+      zmax = element;
+    }    
     else if(pathInSection.compare("printCoord") == 0){
       printCoord = element;
     }  
@@ -171,14 +198,25 @@ void pen_EmergingSphericalDistrib::tally_move2geo(const unsigned long long nhist
     
     if(phi < 0.0){
       phi = twopi + phi;
-    }    
-    
+    }
     results[kpar].add({state.E, theta, phi}, state.WGHT, nhist);
   }
     
 }
- 
- 
+
+void pen_EmergingSphericalDistrib::tally_jump(const unsigned long long /*nhist*/,
+					      const pen_KPAR kpar,
+					      const pen_particleState& state,
+					      const double /*ds*/){
+  //Check kpar
+  if(enabled[kpar]){
+    //Save last position
+    lastPos.x = state.X;
+    lastPos.y = state.Y;
+    lastPos.z = state.Z;    
+  }
+}
+
 void pen_EmergingSphericalDistrib::tally_matChange(const unsigned long long nhist,
 						   const pen_KPAR kpar,
 						   const pen_particleState& state,
@@ -205,7 +243,8 @@ void pen_EmergingSphericalDistrib::tally_matChange(const unsigned long long nhis
       phi = twopi + phi;
     }
     
-    results[kpar].add({state.E, theta, phi}, state.WGHT, nhist);    
+    results[kpar].add({state.E, theta, phi}, state.WGHT, nhist);
+    lastInter[kpar].add({lastPos.x, lastPos.y, lastPos.z}, state.WGHT, nhist);
   }
 }
 
@@ -214,6 +253,7 @@ void pen_EmergingSphericalDistrib::flush(){
   for(size_t ip = 0; ip < constants::nParTypes; ++ip){
     if(enabled[ip]){
       results[ip].flush();
+      lastInter[ip].flush();
     }
   }
 }
@@ -262,9 +302,21 @@ int pen_EmergingSphericalDistrib::configure(const wrapper_geometry& /*geometry*/
 		       penred::measurements::limitsType(reader.tmin, reader.tmax),
 		       penred::measurements::limitsType(reader.pmin, reader.pmax)});
 
+      lastInter[ip].setDimHeader(0, "X (cm)");
+      lastInter[ip].setDimHeader(1, "Y (cm)");
+      lastInter[ip].setDimHeader(2, "Z (cm)");
+      lastInter[ip].setValueHeader("Prob(1/hist)");      
+
+      lastInter[ip].
+	initFromLists({reader.nx, reader.ny, reader.nz},
+		      {penred::measurements::limitsType(reader.xmin, reader.xmax),
+		       penred::measurements::limitsType(reader.ymin, reader.ymax),
+		       penred::measurements::limitsType(reader.zmin, reader.zmax)});
+
       if(verbose > 1 && !printedInfo){
 	//Print summary
 	printf("\n%s\n", results[ip].stringifyInfo().c_str());
+	printf("\n%s\n", lastInter[ip].stringifyInfo().c_str());
 	printedInfo = true;
       }
     }
@@ -272,8 +324,9 @@ int pen_EmergingSphericalDistrib::configure(const wrapper_geometry& /*geometry*/
   
   //Register dumps
   for(size_t ip = 0; ip < constants::nParTypes; ++ip){
-    if(enabled[ip]){  
+    if(enabled[ip]){
       toDump(results[ip]);
+      toDump(lastInter[ip]);
     }
   }
   
@@ -292,9 +345,16 @@ void pen_EmergingSphericalDistrib::saveData(const unsigned long long nhist) cons
       FILE* out = nullptr;
       out = fopen(filename.c_str(), "w");
       
-      results[ip].print(out, nhist, 2, printCoord, printBins);
-
+      results[ip].print(out, nhist, 2, printCoord, printBins);      
       fclose(out);
+      out = nullptr;
+
+      filename.assign("last-interaction-distribution-");
+      filename += particleName(ip);
+      filename += ".dat";
+      out = fopen(filename.c_str(), "w");
+      
+      lastInter[ip].print(out, nhist, 2, printCoord, printBins);      
     }
   }
 }
@@ -314,6 +374,9 @@ int pen_EmergingSphericalDistrib::sumTally(const pen_EmergingSphericalDistrib& t
       err = results[ip].add(tally.results[ip]);
       if(err != 0)
 	return err;
+      err = lastInter[ip].add(tally.lastInter[ip]);
+      if(err != 0)
+	return err;
     }
   }
   return err;
@@ -321,28 +384,3 @@ int pen_EmergingSphericalDistrib::sumTally(const pen_EmergingSphericalDistrib& t
 
 
 REGISTER_COMMON_TALLY(pen_EmergingSphericalDistrib, EMERGING_SPHERICAL_DISTRIB)
- 
-        
-    
-    
-    
-    
-    
-    
-    
-    
-    
-      
-
-
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
