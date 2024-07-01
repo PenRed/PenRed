@@ -499,7 +499,8 @@ public:
   }
 #endif
 // **********************   HTTP END   **********************
-  
+
+#ifdef _PEN_USE_TCP_
   inline int setLBserver(const unsigned extern_iw,
 			 const char* host,
 			 const char* port,
@@ -513,6 +514,19 @@ public:
 			    certFilename,keyFilename,password,
 			    hostname,verbose);
   }
+#else
+  inline int setLBserver(const unsigned,
+			 const char*,
+			 const char*,
+			 const char*,
+			 const char*,
+			 const char*,
+			 const char*,
+			 const char*,
+			 const unsigned){
+    throw std::runtime_error("setLBserver: penRed compiled with no TCP support");    
+  }
+#endif
   
   // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_

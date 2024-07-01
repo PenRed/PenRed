@@ -32,16 +32,27 @@ int main (int argc, const char** argv){
 
   if(argc < 3){
     printf("usage: %s material-list-id filename\n", argv[0]);
+    printf("usage: %s composDB material filename\n", argv[0]);
     return 1;
   }
 
-  unsigned id = std::stoul(argv[1]);
-  std::string errorString;
-  int err = penred::penMaterialCreator::createMat(id, argv[2], errorString);
-  if(err != 0){
-    printf ("%s\n", errorString.c_str());
-    printf ("IRETRN =%d\n", err);
-    return -1;
+  if(argc == 3){
+    unsigned id = std::stoul(argv[1]);
+    std::string errorString;
+    int err = penred::penMaterialCreator::createMat(id, argv[2], errorString);
+    if(err != 0){
+      printf ("%s\n", errorString.c_str());
+      printf ("IRETRN =%d\n", err);
+      return -1;
+    }
+  }else{
+    std::string errorString;
+    int err = penred::penMaterialCreator::createMat(argv[2], argv[1], argv[2], errorString, argv[3]);
+    if(err != 0){
+      printf ("%s\n", errorString.c_str());
+      printf ("IRETRN =%d\n", err);
+      return -1;
+    }    
   }
 
   return 0;

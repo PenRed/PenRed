@@ -66,19 +66,9 @@ int pen_muen::calculate(const double Emin,
 	   " greater than zero: %E\n",tolerance);
     return -2;
   }
-  
-  //Create a dummy geometry
-  pen_dummyGeo geometry;
 
-  //Configure dummy geometry
-  pen_parserSection dummySection;
-  geometry.configure(dummySection,2);
-    
   //Create a context
   pen_context context;
-
-  //Set context geometry
-  context.setGeometry(&geometry);
   
   //Set the number of materials to context (1 per thread)
   unsigned int nCalcThreads = 1;
@@ -93,6 +83,16 @@ int pen_muen::calculate(const double Emin,
     printf("pen_muen:calculate:Error: Unable to create material context: %d.\n",errmat);
     return -3;
   }
+
+  //Create a dummy geometry
+  pen_dummyGeo geometry;
+
+  //Configure dummy geometry
+  pen_parserSection dummySection;
+  geometry.configure(dummySection,2);
+    
+  //Set context geometry
+  context.setGeometry(&geometry);
 
   //Init materials parameters
   std::string PMFILEstr[constants::MAXMAT];
@@ -273,18 +273,8 @@ int pen_muen::calculate(const char** energySpectrums,
     return -2;
   }
   
-  //Create a dummy geometry
-  pen_dummyGeo geometry;
-
-  //Configure dummy geometry
-  pen_parserSection dummySection;
-  geometry.configure(dummySection,2);
-    
   //Create a context
   pen_context context;
-
-  //Set context geometry
-  context.setGeometry(&geometry);
   
   //Set the number of materials to context (1 per thread)
   unsigned int nCalcThreads = 1;
@@ -299,6 +289,16 @@ int pen_muen::calculate(const char** energySpectrums,
     printf("pen_muen:calculate:Error: Unable to create material context: %d.\n",errmat);
     return -3;
   }
+
+  //Create a dummy geometry
+  pen_dummyGeo geometry;
+
+  //Configure dummy geometry
+  pen_parserSection dummySection;
+  geometry.configure(dummySection,2);
+    
+  //Set context geometry
+  context.setGeometry(&geometry);  
 
   //Init materials parameters
   std::string PMFILEstr[constants::MAXMAT];

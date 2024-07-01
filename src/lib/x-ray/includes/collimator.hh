@@ -49,14 +49,16 @@ namespace penred{
     void createBaseCollimator(double dx, double dxInTop, double dxInBot,
 			      double dy, double dyInTop, double dyInBot,
 			      double dz,
-			      std::ofstream& out,
+			      std::ostream& out,
 			      const unsigned matIndex,
 			      const std::string& collimatorName,
 			      const std::string& parentName,
-			      const bool numObjects);    
+			      const bool numObjects,
+			      const vector3D<double> center =
+			      vector3D<double>(0.0,0.0,0.0));
     
-  };
-};
+  } // namespace xray
+} // namespace penred
 
 
 #endif

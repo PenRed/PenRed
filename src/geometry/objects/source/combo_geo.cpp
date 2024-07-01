@@ -384,7 +384,7 @@ void pen_comboGeo::step(pen_particleState& state,
   //Get actual body
   const pen_comboBody& actualBody = bodies[state.IBODY];
   //Get the first global body index for this geometry
-  unsigned currentGeo = actualBody.geoIndex;
+  const unsigned currentGeo = actualBody.geoIndex;
   unsigned firstCurrentBodyIndex = firstIBody[currentGeo];
 
 
@@ -403,6 +403,7 @@ void pen_comboGeo::step(pen_particleState& state,
   }else{
     currentGeoState.IBODY += firstCurrentBodyIndex;
   }
+  
 
   // ** Transport in geometries with higher priority
   //************************************************
@@ -416,16 +417,29 @@ void pen_comboGeo::step(pen_particleState& state,
 
   //Notice that the particle must be in the void for all
   //geometries with a higher priority
-  pen_particleState origStateHighPriority = state;
-  origStateHighPriority.MAT = 0;
+  const pen_particleState origStateHighPriority = state;
     
   //Iterate over higher priority geometries
   for(size_t i = 0; i < actualBody.geoIndex; ++i){
 
     //Create an auxiliary state and set the local body index
     pen_particleState auxState(origStateHighPriority);
-    auxState.IBODY = geometries[i]->getBodies();
 
+    //Locate the state in the geometry
+    geometries[i]->locate(auxState);
+
+    //Check if it is inside a non void region
+    if(auxState.MAT != 0){
+      //The particle reach a region, update particle state
+      auxState.IBODY += firstIBody[i];
+      state = auxState;
+
+      DSEF = 0.0;
+      DSTOT = 0.0;
+      NCROSS = 1;
+      return;
+    }
+    
     //Try to reach a non void region
     double dsef, dstot;
     int ncross;
@@ -442,7 +456,6 @@ void pen_comboGeo::step(pen_particleState& state,
       }
     }
   }
-  
 
   // ** Transport in geometry with lower priority
   //************************************************
@@ -547,7 +560,8 @@ void pen_comboGeo::step(pen_particleState& state,
       
       DSEF = maxToTravel < dsefCurrent ? maxToTravel : dsefCurrent;
       DSTOT = maxToTravel;
-      NCROSS = 1;      
+      NCROSS = 1;
+	
       return;    
   }
 

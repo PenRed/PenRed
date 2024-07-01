@@ -315,11 +315,11 @@ int pen_CylindricalDoseDistrib::configure(const wrapper_geometry& geometry,
       nphi = 1;
     }
     else{
-      if(auxInt <= 0 || auxInt >= nbinmax){
+      if(auxInt <= 0){
         if(verbose > 0){
 	  printf("pen_CylindricalDoseDistrib:configure: Number of phi bins "
-		 "must be greater than zero and lesser than %ld\n"
-		 "    Specified phi bins: %d\n", nbinmax,auxInt);
+		 "must be greater than zero \n"
+		 "    Specified phi bins: %d\n", auxInt);
         }
         return -14;
       }
@@ -328,28 +328,21 @@ int pen_CylindricalDoseDistrib::configure(const wrapper_geometry& geometry,
     dphi = 2.0*M_PI/static_cast<double>(nphi);
     idphi = 1.0/dphi;
     
-    nbins = nr*nphi*nz; 
-   
-    if(nbins > nbinmax)
-    {
-        if(verbose > 0){
-        printf("pen_CylindricalDoseDistrib:configure:Too many bins. "
-	       "Max no.bins is %ld\n", nbinmax);
-        }
-        return -14;
-    }
-    
+    nbins = nr*nphi*nz;     
  
     
-     // Init arrays:
-    for(unsigned long j = 0; j < nbinmax; j++)
-    {
-      edptmp[j] = 0.0;
-      edep[j]   = 0.0;
-      edep2[j]  = 0.0;
-      nlast[j]  = 0;
-      imass[j]  = 0.0;
-    }
+    // Init arrays:
+    edptmp.resize(nbins);
+    edep.resize(nbins);
+    edep2.resize(nbins);
+    imass.resize(nbins);
+    nlast.resize(nbins);
+
+    std::fill(edptmp.begin(), edptmp.end(), 0.0);
+    std::fill(edep.begin()  , edep.end()  , 0.0);
+    std::fill(edep2.begin() , edep2.end() , 0.0);
+    std::fill(imass.begin() , imass.end() , 0.0);
+    std::fill(nlast.begin() , nlast.end() , 0.0);
     
     pen_particleState state;
     
@@ -406,9 +399,9 @@ int pen_CylindricalDoseDistrib::configure(const wrapper_geometry& geometry,
   }  
     
   //Register data to dump
-  dump.toDump(imass,nbins);
-  dump.toDump(edep,nbins);
-  dump.toDump(edep2,nbins);
+  dump.toDump(imass.data(),nbins);
+  dump.toDump(edep.data(),nbins);
+  dump.toDump(edep2.data(),nbins);
   dump.toDump(&nbins,1);
 
   //Register data to create images
@@ -455,7 +448,7 @@ void pen_CylindricalDoseDistrib::tally_endSim(const unsigned long long /*nhist*/
 void pen_CylindricalDoseDistrib::saveData(const unsigned long long nhist) const{
    
   char buffer[81];
-  FILE*out = 0;
+  FILE* out = nullptr;
   int nzef;
   const double twothird=2.0/3.0;
 
@@ -473,11 +466,10 @@ void pen_CylindricalDoseDistrib::saveData(const unsigned long long nhist) const{
      
   //Prepare output file:
   out = fopen(buffer, "w");
-  if (out == NULL){
+  if (out == nullptr){
     printf("\n*********************************************\n");
     printf("CylindricalDoseDistrib:saveData:ERROR: cannot open output data file");
     printf("\n*********************************************\n");
-    fclose(out); //Just in case
     return;
   }
   

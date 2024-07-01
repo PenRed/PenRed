@@ -101,6 +101,6 @@ namespace pen_muen{
 		  pen_muen::muenSimTally &tally,
 		  const unsigned long long minHists = 100000);
   
-};
+} // namespace pen_muen
 
 #endif

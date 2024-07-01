@@ -35,5 +35,6 @@
 #include "point_spatialSampling.hh"
 #include "image_spatialSampling.hh"
 #include "cylinder_spatialSampling.hh"
+#include "measure_spatialSampling.hh"
 
 #endif

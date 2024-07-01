@@ -77,7 +77,7 @@ int pen_quadricGeo::configure(const pen_parserSection& config, const unsigned ve
   std::string IRDfilename;
   std::string IWRfilename("null");
   if(config.read("input-file",IRDfilename) != INTDATA_SUCCESS){
-    if(verbose > 1){
+    if(verbose > 0){
       printf("quadricGeo:configure:Error: 'input-file' field missing at configuration section.\n");
     }
     configStatus = PEN_QUAD_GEO_INPUT_SECTION;
@@ -87,7 +87,9 @@ int pen_quadricGeo::configure(const pen_parserSection& config, const unsigned ve
   //Generate output processed file if verbose is greather than zero
   if(verbose > 0){
     if(config.read("processed-geo-file",IWRfilename) != INTDATA_SUCCESS){
-      printf("quadricGeo:configure:Error: 'processed-geo-file' field missing at configuration section\n");
+      if(verbose > 0){
+	printf("quadricGeo:configure:Error: 'processed-geo-file' field missing at configuration section\n");
+      }
       configStatus = PEN_QUAD_GEO_OUTPUT_SECTION;
       return configStatus;
     }
@@ -118,7 +120,7 @@ int pen_quadricGeo::configure(const pen_parserSection& config, const unsigned ve
     }
   }
 
-  if(verbose > 0){
+  if(verbose > 1){
     printf("pen_quadricGeo:configure: Input and output files:\n");
     printf("                 input  : %s\n",IRDfilename.c_str());
     printf("                 output : %s\n\n",IWRfilename.c_str());
@@ -149,7 +151,9 @@ int pen_quadricGeo::configure(const pen_parserSection& config, const unsigned ve
     }
   }
   else{
-    printf("dsmax specified for %lu bodies:\n\n",bodiesAlias.size());    
+    if(verbose > 1){
+      printf("dsmax specified for %lu bodies:\n\n",bodiesAlias.size());
+    }
     for(unsigned i = 0; i < bodiesAlias.size(); i++){
       bool found = false;
       std::string key("dsmax/");      
@@ -212,7 +216,9 @@ int pen_quadricGeo::configure(const pen_parserSection& config, const unsigned ve
     }
   }
   else{
-    printf("Detector specified for %lu bodies:\n\n",bodiesAlias.size());    
+    if(verbose > 1){
+      printf("Detector specified for %lu bodies:\n\n",bodiesAlias.size());
+    }
     for(unsigned i = 0; i < bodiesAlias.size(); i++){
       std::string key("kdet/");      
       key += bodiesAlias[i];
@@ -265,8 +271,10 @@ int pen_quadricGeo::configure(const pen_parserSection& config, const unsigned ve
     }
   }
   else{
-    printf("Absorption energies specified for %lu bodies:\n\n",
-	   bodiesAlias.size());
+    if(verbose > 1){    
+      printf("Absorption energies specified for %lu bodies:\n\n",
+	     bodiesAlias.size());
+    }
     for(unsigned i = 0; i < bodiesAlias.size(); i++){
       std::string key("eabs/");      
       key += bodiesAlias[i];
@@ -444,6 +452,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
   char LKEYW[9];
 
   unsigned int KB;
+  
+  //Check if input file is open
+  if(IRD == nullptr){
+    if(verbose > 0){
+      printf("pen_quadricGeo:configure:Error: The input file is "
+	     "a null pointer. Does the file exist?.\n");
+    }
+    configStatus = PEN_QUAD_GEO_INPUT; return configStatus;    
+  }
 
   //  ************  Initialise parameters.
 
@@ -523,13 +540,14 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
   FILE* IRI = 0;
   int NINCL = 0;
   C1 = CA[NINCL+1-1];
+  
   if(IW == IR)
     {
       if(verbose > 0){
 	fprintf(IW, "SUBROUTINE GEOMIN. Input arguments.\n");
 	fprintf(IW, "IRD =%p,  IWR =%p\n", (void*)IRD, (void*)IWR);
 	fprintf(IW, "*** The input and output units must be different.\n");
-	if(verbose > 1){
+	if(verbose > 0){
 	  printf("pen_quadricGeo:configure:Error: The input and output units must be different.\n");
 	}
       }
@@ -3562,6 +3580,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		    }
 		  fclose(IR);
 		  IR = fopen(GFILE, "r");
+		  if(IR == nullptr){
+		    if(verbose > 0){
+		      fprintf(IW, "C Unable to open file %s. "
+			      "Does the file exist?.\n", GFILE);
+		      printf("pen_quadricGeo:configure:Error: Unable to open file %s. "
+			     "Does the file exist?.\n", GFILE);
+		    }
+		    configStatus = PEN_QUAD_GEO_INPUT; return configStatus;    		    
+		  }
 		}
 	      Eixir0 = false;
 	      break;

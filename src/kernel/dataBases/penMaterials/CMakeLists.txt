@@ -35,6 +35,7 @@
 
 # Create the program to create the data base
 add_executable(penelope_material_db_creator ${CMAKE_CURRENT_SOURCE_DIR}/source/createDB.cpp)
+target_link_libraries(penelope_material_db_creator commonDB)
 
 # Create a directory to store the generated database
 add_custom_target(makeDirDB ALL COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/database)
@@ -52,5 +53,6 @@ add_custom_command(
 add_library(penelope_material_db STATIC ${CMAKE_CURRENT_SOURCE_DIR}/source/materialCreator.cpp ${CMAKE_CURRENT_BINARY_DIR}/database/database.hh)
 
 target_link_libraries(penelope_material_db commonDB)
+target_link_libraries(penelope_material_db pen_compositionsDB)
 target_include_directories(penelope_material_db PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/includes)
 target_include_directories(penelope_material_db PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/database)

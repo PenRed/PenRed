@@ -241,6 +241,14 @@ int pen_contextReaderMat::storeString(const std::string& pathInSection,
 	mats.back().filename = element;
       return SUCCESS;
     }
+    else if(pathInSection.compare("DB") == 0){
+      mats.back().DB = element;
+      return SUCCESS;
+    }
+    else if(pathInSection.compare("DB-material") == 0){
+      mats.back().matDB = element;
+      return SUCCESS;
+    }
   }else if(family == -1){
     if(pathInSection.compare("context-log") == 0){
       contextlogfile = element;
@@ -806,30 +814,44 @@ int pen_context::configure(const double EMAX,
     if(!fileAccessible || matData.forceCreation){
 
       //Create the material
-      if(matData.composition.size() == 0){
+      if(matData.composition.size() == 0 &&
+	 matData.DB.compare("-") == 0){
 	if(verbose > 0){
 	  printf("Error: Unable to create material %s."
-		 " No composition provided.\n",
+		 " No composition nor DB provided.\n",
 		 matData.name.c_str());
 	}
 	return MISSING_MATERIAL_COMPOSITION;
       }
 
       //******************************************************
-      //Fix the minimum number of exponent digits in MVS to 2 
+      //Fix the minimum number of exponent digits in old MVS versions to 2 
 #ifdef _MSC_VER
+  #if _MSC_VER < 1900
       unsigned int prev_exponent_format =
 	_set_output_format(_TWO_DIGIT_EXPONENT);
+  #endif
 #endif
       //******************************************************
 
       //Create the material
       std::string errorString;
-      err = penred::penMaterialCreator::createMat(matData.name,
-						  matData.density,
-						  matData.composition,
-						  errorString,
-						  matData.filename);
+
+      if(matData.composition.size() > 0){
+	err = penred::penMaterialCreator::createMat(matData.name,
+						    matData.density,
+						    matData.composition,
+						    errorString,
+						    matData.filename);
+      }
+      else{
+	err = penred::penMaterialCreator::createMat(matData.name,
+						    matData.DB,
+						    matData.matDB,
+						    errorString,
+						    matData.filename);
+      }
+      
       if(err != 0){
 	if(verbose > 0){
 	  printf("Unable to create material %s.\n"
@@ -840,7 +862,7 @@ int pen_context::configure(const double EMAX,
 		 err);
 	}
 	return MATERIAL_CREATION_FAILED;
-      }
+      }      
     }
 #else
     if(!fileAccessible){
@@ -971,10 +993,11 @@ int pen_context::configure(const double EMAX,
   //Construct material information section
   matInfo.clear();
   for(unsigned imat = 0; imat < getNMats(); imat++){
-    std::string matPrefix = "materials/" + matReader.mats[imat].name;
-    matInfo.set((matPrefix + "/ID").c_str(),(int)imat+1);
+    std::string matPrefix = matReader.mats[imat].name;
+    matInfo.set((matPrefix + "/ID").c_str(),
+		static_cast<int>(matReader.mats[imat].index));
     matInfo.set((matPrefix + "/density").c_str(),
-		readBaseMaterial(imat).readDens());
+		readBaseMaterial(matReader.mats[imat].index-1).readDens());
   }
 
   return SUCCESS;

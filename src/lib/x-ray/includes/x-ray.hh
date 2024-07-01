@@ -29,3 +29,4 @@
 #include "collimator.hh"
 #include "filter.hh"
 #include "utilities.hh"
+#include "device.hh"

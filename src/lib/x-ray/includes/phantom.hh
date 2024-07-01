@@ -47,8 +47,8 @@ namespace penred{
 		      const unsigned threads2Use = 0,
 		      const std::string geoFilename = "");
     
-  };
-};
+  } // namespace xray
+} // namespace penred
 
 
 #endif

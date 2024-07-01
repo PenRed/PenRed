@@ -62,10 +62,12 @@ class pen_PSS: public pen_genericTally<pen_particleState> {
   };
   
   struct particleBKP{
-    std::array<bkpInfo,constants::NMS> bkp;
+    std::vector<bkpInfo> bkp;
     unsigned int n;
 
-    particleBKP() : n(0){}
+    particleBKP() : n(0){
+      bkp.resize(constants::NMS);
+    }
 
     inline bkpInfo get(){ return bkp[--n]; }
     inline unsigned int stored() const { return n; }

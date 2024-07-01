@@ -33,7 +33,12 @@
 #include <stdexcept>
 #include <thread>
 #include <cmath>
+
+// ******************************* TCP ************************************ //
+#ifdef _PEN_USE_TCP_
 #include "tcp_cs.hh"
+#endif
+// ***************************** TCP END ********************************** //
 
 // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_
@@ -655,8 +660,12 @@ namespace LB{
     //External balance variables
     bool ext_balance;
     long int ext_iworker;
-    pen_tcp::client client;
 
+    // ********************** TCP SUPPORT **********************
+#ifdef _PEN_USE_TCP_    
+    pen_tcp::client client;
+#endif
+    
     bool ext_http;
     std::string baseURL;
     std::string startURL;
@@ -678,6 +687,12 @@ namespace LB{
 
     int setIterationsTrusted(const unsigned long long nIter); 
 
+    int parseAssigned(const std::string& response,
+		      unsigned long long& newAssign,
+		      int& errCode);
+    
+    // ********************** TCP SUPPORT **********************
+#ifdef _PEN_USE_TCP_    
     int extConnect(FILE* flog,
 		   bool blockWrite,
 		   const unsigned verbose);
@@ -687,9 +702,6 @@ namespace LB{
 		       FILE* flog,
 		       bool blockWrite,
 		       const unsigned verbose);
-    int parseAssigned(const std::string& response,
-		      unsigned long long& newAssign,
-		      int& errCode);
     
     int extStart(int& TCPerr,
 		 int& serverErr,
@@ -712,7 +724,26 @@ namespace LB{
 		  const unsigned verbose = 1,
 		  bool trusted = true);
 
-// ********************** HTTP SUPPORT **********************
+    void extStartHandler(const unsigned retries = 5,
+			 std::chrono::seconds sleeptime = std::chrono::seconds(10),
+			 const unsigned verbose = 1,
+			 const bool trusted = true);
+    
+    void extReportHandler(const unsigned long long nIterDone,
+			  const std::chrono::steady_clock::time_point& rep_time,
+			  const std::chrono::seconds sleeptime = std::chrono::seconds(10),
+			  const unsigned verbose = 1,
+			  const bool trusted = true);
+
+    void extFinishHandler(const unsigned long long nIterDone,
+			  const std::chrono::steady_clock::time_point& rep_time,
+			  const std::chrono::seconds sleeptime = std::chrono::seconds(10),
+			  const unsigned verbose = 1);
+    
+#endif
+    // ********************** TCP END **********************
+
+    // ********************** HTTP SUPPORT **********************
 #ifdef _PEN_USE_LB_HTTP_
 
     int httpGet(const std::string& url,
@@ -733,23 +764,7 @@ namespace LB{
 		      const std::chrono::steady_clock::time_point& rep_time,
 		      const unsigned verbose);
 #endif
-// **********************   HTTP END   **********************
-    
-    void extStartHandler(const unsigned retries = 5,
-			 std::chrono::seconds sleeptime = std::chrono::seconds(10),
-			 const unsigned verbose = 1,
-			 const bool trusted = true);
-    
-    void extReportHandler(const unsigned long long nIterDone,
-			  const std::chrono::steady_clock::time_point& rep_time,
-			  const std::chrono::seconds sleeptime = std::chrono::seconds(10),
-			  const unsigned verbose = 1,
-			  const bool trusted = true);
-
-    void extFinishHandler(const unsigned long long nIterDone,
-			  const std::chrono::steady_clock::time_point& rep_time,
-			  const std::chrono::seconds sleeptime = std::chrono::seconds(10),
-			  const unsigned verbose = 1);
+    // **********************   HTTP END   **********************
 
     unsigned long doneTrusted(){
       //Return the registered done iterations
@@ -797,7 +812,9 @@ namespace LB{
 		      const unsigned verbose);
 #endif
     // **********************   HTTP END   **********************
-    
+
+    // ********************** TCP SUPPORT **********************
+#ifdef _PEN_USE_TCP_        
     int extLBserver(const unsigned extern_iw,
 		    const char* host,
 		    const char* port,
@@ -806,7 +823,9 @@ namespace LB{
 		    const char* keyFilename,
 		    const char* password,
 		    const char* hostname,
-		    const unsigned verbose);    
+		    const unsigned verbose);
+#endif
+    // **********************   TCP END   **********************
     
     inline void setCheckTime(const std::chrono::seconds::rep t){
       lockWorkers();
@@ -1084,6 +1103,10 @@ namespace LB{
     }
   };
 
+
+  // ********************** TCP SUPPORT **********************
+#ifdef _PEN_USE_TCP_
+  
   class taskServer{
 
   private:
@@ -1112,15 +1135,23 @@ namespace LB{
     bool started;
     //Task finished flag
     bool finished;
+
+    // ********************** TCP SUPPORT **********************
+#ifdef _PEN_USE_TCP_        
+    static const size_t messageLen = pen_tcp::messageLen;
     
     void createError(const int prefix, const int errcode,
 		     const char* errmessage,
-		     char err[pen_tcp::messageLen],
+		     char err[messageLen],
 		     const unsigned verbose);
+#else
+    static const size_t messageLen = 512;
+#endif
+    // ********************** TCP END **********************
     
   public:
 
-    char ID[pen_tcp::messageLen];
+    char ID[messageLen];
     
     taskServer() : iterations(0), remaining(0),
 		   remainingTime(100000000000),
@@ -1150,7 +1181,7 @@ namespace LB{
     }
     
     inline void setID(const char* newID){
-      snprintf(ID,pen_tcp::messageLen,"%s",newID);
+      snprintf(ID,messageLen,"%s",newID);
     }
 
     inline std::chrono::seconds::rep timeStamp(const std::chrono::steady_clock::time_point& time) const{
@@ -1306,6 +1337,8 @@ namespace LB{
     ~taskServer();
   };
 
+#endif
+  
   std::string trim(const std::string& str,
 		   const std::string& whitespace = " \t\n");  
 }

@@ -31,5 +31,6 @@
 #define __PENRED_RANDOMS__ 
 
 #include "pen_random.hh"
+#include "sampler.hh"
 
 #endif

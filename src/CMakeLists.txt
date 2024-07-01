@@ -40,6 +40,7 @@ option(WITH_DICOM "Build PenRed DICOM " OFF)
 
 option(WITH_MULTI_THREADING "Build PenRed with multi-threading " ON)
 option(WITH_MPI "Build PenRed with MPI " OFF)
+option(WITH_TCP "Compile PenRed with TCP support for communications" OFF)
 
 option(WITH_NATIVE "Compile PenRed with native architecture optimizations" ON)
 
@@ -58,6 +59,8 @@ option(BUILD_STATIC "Enable static compilation" OFF)
 mark_as_advanced(FORCE BUILD_STATIC)
 option(BUILD_C_BINDS "Compile C binds" OFF)
 mark_as_advanced(FORCE BUILD_C_BINDS)
+option(BUILD_PYTHON_MODULES "Compile Python modules" OFF)
+mark_as_advanced(FORCE BUILD_PYTHON_MODULES)
 #-----------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------
@@ -84,10 +87,11 @@ if(BUILD_STATIC)
 else(BUILD_STATIC)
 endif(BUILD_STATIC)
 
-# Compilation options
+if(BUILD_PYTHON_MODULES)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif(BUILD_PYTHON_MODULES)
 
-# Set if is possible to create embedded DB depending on compiler
-set(ALLOW_EMBEDDED_DB true)
+# Compilation options
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   # using GCC
@@ -118,6 +122,10 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
 
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   # using Visual Studio C++
+
+  #Define maximum data base string chunk size to 15KB
+  add_definitions(-DPEN_MAXDB_CHUNK_SIZE=15000)
+
   add_compile_options(/arch:AVX2)
   add_compile_options(/O2)
 
@@ -143,17 +151,13 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   # See https://github.com/open62541/open62541/issues/1326
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
 
-  #Disable embedded DB creation
-  set(ALLOW_EMBEDDED_DB false)
-
 else()
   #Other compilers
   add_compile_options(-O2)
 endif()
 
 # Embedded DB options
-CMAKE_DEPENDENT_OPTION(BUILD_EMBEDDED_DBS "Build PenRed embedded data bases " ON
-                       "ALLOW_EMBEDDED_DB" OFF)
+OPTION(BUILD_EMBEDDED_DBS "Build PenRed embedded data bases " ON)
 CMAKE_DEPENDENT_OPTION(WITH_EMBEDDED_DB "Build PenRed main programs with embedded data bases " ON
                        "BUILD_EMBEDDED_DBS" OFF)
 
@@ -165,6 +169,10 @@ CMAKE_DEPENDENT_OPTION(WITH_EMBEDDED_DB "Build PenRed main programs with embedde
 if(WITH_EMBEDDED_DB)
   add_definitions(-D_PEN_EMBEDDED_DATA_BASE_=1) #enable embedded data bases
 endif(WITH_EMBEDDED_DB)
+
+if(WITH_TCP)
+  add_definitions(-D_PEN_USE_TCP_=1) #enable TCP library
+endif(WITH_TCP)
 
 # Check if DICOM option has been enabled
 if(WITH_DICOM)
@@ -243,4 +251,9 @@ endif(BUILD_TESTS)
 if(BUILD_C_BINDS)
     add_subdirectory(bindings/C)
 endif(BUILD_C_BINDS)
+
+if(BUILD_PYTHON_MODULES)
+    add_subdirectory(bindings/python/simulator)
+endif(BUILD_PYTHON_MODULES)
+
 #-----------------------------------------------------------------------------

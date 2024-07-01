@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019-2023 Universitat de València - UV
-#    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2024 Universitat de València - UV
+#    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -70,5 +70,17 @@ target_link_libraries(pen_main pen_timer)
 install(
   TARGETS pen_main
   DESTINATION ${PROJECT_SOURCE_DIR}/compiled/mains/penmain
+  )
+#-----------------------------------------------------------------------------
+
+
+add_executable(penred ${PROJECT_SOURCE_DIR}/mains/source/penred.cpp)
+target_link_libraries(penred pen_sim)
+
+#-----------------------------------------------------------------------------
+# Install penred executable
+install(
+  TARGETS penred
+  DESTINATION ${PROJECT_SOURCE_DIR}/compiled/mains/penred
   )
 #-----------------------------------------------------------------------------

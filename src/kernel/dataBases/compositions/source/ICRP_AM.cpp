@@ -1,0 +1,622 @@
+ 
+//
+//
+//    Copyright (C) 2024 Universitat de València - UV
+//    Copyright (C) 2024 Universitat Politècnica de València - UPV
+//
+//    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
+//
+//    PenRed is free software: you can redistribute it and/or modify
+//    it under the terms of the GNU Affero General Public License as published by
+//    the Free Software Foundation, either version 3 of the License, or
+//    (at your option) any later version.
+//
+//    PenRed is distributed in the hope that it will be useful,
+//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//    GNU Affero General Public License for more details.
+//
+//    You should have received a copy of the GNU Affero General Public License
+//    along with PenRed.  If not, see <https://www.gnu.org/licenses/>. 
+//
+//    contact emails:
+//
+//        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
+//
+//
+
+#include "ICRP_AM.hh"
+
+namespace penred{
+
+  namespace dataBases{
+
+    namespace compositions{
+    
+      namespace ICRP{
+
+        constexpr const std::array<massFraction, 9> AM::Adrenal_left;
+        constexpr const std::array<massFraction, 9> AM::Adrenal_right;
+        constexpr const std::array<massFraction, 9> AM::ET1_0_8_;
+        constexpr const std::array<massFraction, 9> AM::ET1_8_40_;
+        constexpr const std::array<massFraction, 9> AM::ET1_40_50_;
+        constexpr const std::array<massFraction, 9> AM::ET1_50_Surface_;
+        constexpr const std::array<massFraction, 2> AM::ET2_15_0_;
+        constexpr const std::array<massFraction, 9> AM::ET2_0_40_;
+        constexpr const std::array<massFraction, 9> AM::ET2_40_50_;
+        constexpr const std::array<massFraction, 9> AM::ET2_50_55_;
+        constexpr const std::array<massFraction, 9> AM::ET2_55_65_;
+        constexpr const std::array<massFraction, 9> AM::ET2_65_Surface_;
+        constexpr const std::array<massFraction, 9> AM::Oral_mucosa_tongue;
+        constexpr const std::array<massFraction, 9> AM::Oral_mucosa_mouth_floor;
+        constexpr const std::array<massFraction, 9> AM::Oral_mucosa_lips_and_cheeks;
+        constexpr const std::array<massFraction, 9> AM::Trachea;
+        constexpr const std::array<massFraction, 2> AM::BB_11_6_;
+        constexpr const std::array<massFraction, 9> AM::BB_6_0_;
+        constexpr const std::array<massFraction, 9> AM::BB_0_10_;
+        constexpr const std::array<massFraction, 9> AM::BB_10_35_;
+        constexpr const std::array<massFraction, 9> AM::BB_35_40_;
+        constexpr const std::array<massFraction, 9> AM::BB_40_50_;
+        constexpr const std::array<massFraction, 9> AM::BB_50_60_;
+        constexpr const std::array<massFraction, 9> AM::BB_60_70_;
+        constexpr const std::array<massFraction, 9> AM::BB_70_surface_;
+        constexpr const std::array<massFraction, 10> AM::Blood_in_large_arteries_head;
+        constexpr const std::array<massFraction, 10> AM::Blood_in_large_veins_head;
+        constexpr const std::array<massFraction, 10> AM::Blood_in_large_arteries_trunk;
+        constexpr const std::array<massFraction, 10> AM::Blood_in_large_veins_trunk;
+        constexpr const std::array<massFraction, 10> AM::Blood_in_large_arteries_arms;
+        constexpr const std::array<massFraction, 10> AM::Blood_in_large_veins_arms;
+        constexpr const std::array<massFraction, 10> AM::Blood_in_large_arteries_legs;
+        constexpr const std::array<massFraction, 10> AM::Blood_in_large_veins_legs;
+        constexpr const std::array<massFraction, 9> AM::Humeri_upper_cortical;
+        constexpr const std::array<massFraction, 11> AM::Humeri_upper_spogiosa;
+        constexpr const std::array<massFraction, 7> AM::Humeri_upper_medullary_cavity;
+        constexpr const std::array<massFraction, 9> AM::Humeri_lower_cortical;
+        constexpr const std::array<massFraction, 9> AM::Humeri_lower_spongiosa;
+        constexpr const std::array<massFraction, 7> AM::Humeri_lower_medullary_cavity;
+        constexpr const std::array<massFraction, 9> AM::Ulnae_and_radii_cotical;
+        constexpr const std::array<massFraction, 9> AM::Ulnae_and_radii_spongiosa;
+        constexpr const std::array<massFraction, 7> AM::Ulnae_and_radii_medullary_cavity;
+        constexpr const std::array<massFraction, 9> AM::Wrists_and_hand_bones_cortical;
+        constexpr const std::array<massFraction, 9> AM::Wrists_and_hand_bones_spongiosa;
+        constexpr const std::array<massFraction, 9> AM::Clavicles_cortical;
+        constexpr const std::array<massFraction, 10> AM::Clavicles_spongiosa;
+        constexpr const std::array<massFraction, 9> AM::Cranium_cortical;
+        constexpr const std::array<massFraction, 11> AM::Cranium_spongiosa;
+        constexpr const std::array<massFraction, 9> AM::Femora_upper_cortical;
+        constexpr const std::array<massFraction, 11> AM::Femora_upper_spongiosa;
+        constexpr const std::array<massFraction, 7> AM::Femora_upper_medullary_cavity;
+        constexpr const std::array<massFraction, 9> AM::Femora_lower_cortical;
+        constexpr const std::array<massFraction, 9> AM::Femora_lower_spongiosa;
+        constexpr const std::array<massFraction, 7> AM::Femora_lower_medullary_cavity;
+        constexpr const std::array<massFraction, 9> AM::Tibiae_fibulae_and_patellae_cortical;
+        constexpr const std::array<massFraction, 9> AM::Tibiae_fibulae_and_patellae_spongiosa;
+        constexpr const std::array<massFraction, 7> AM::Tibiae_fibulae_and_patellae_medullary_cavity;
+        constexpr const std::array<massFraction, 9> AM::Ankles_and_foot_cortical;
+        constexpr const std::array<massFraction, 9> AM::Ankles_and_foot_spongiosa;
+        constexpr const std::array<massFraction, 9> AM::Mandible_cortical;
+        constexpr const std::array<massFraction, 11> AM::Mandible_spongiosa;
+        constexpr const std::array<massFraction, 9> AM::Pelvis_cortical;
+        constexpr const std::array<massFraction, 11> AM::Pelvis_spongiosa;
+        constexpr const std::array<massFraction, 9> AM::Ribs_cortical;
+        constexpr const std::array<massFraction, 12> AM::Ribs_spongiosa;
+        constexpr const std::array<massFraction, 9> AM::Scapulae_cortical;
+        constexpr const std::array<massFraction, 11> AM::Scapulae_spongiosa;
+        constexpr const std::array<massFraction, 9> AM::Cervical_spine_cortical;
+        constexpr const std::array<massFraction, 11> AM::Cervical_spine_spongiosa;
+        constexpr const std::array<massFraction, 9> AM::Thoracic_spine_cortical;
+        constexpr const std::array<massFraction, 11> AM::Thoracic_spine_spongiosa;
+        constexpr const std::array<massFraction, 9> AM::Lumbar_spine_cortical;
+        constexpr const std::array<massFraction, 11> AM::Lumbar_spine_spongiosa;
+        constexpr const std::array<massFraction, 9> AM::Sacrum_cortical;
+        constexpr const std::array<massFraction, 11> AM::Sacrum_spongiosa;
+        constexpr const std::array<massFraction, 9> AM::Sternum_cortical;
+        constexpr const std::array<massFraction, 10> AM::Sternum_spongiosa;
+        constexpr const std::array<massFraction, 8> AM::Cartilage_costal;
+        constexpr const std::array<massFraction, 8> AM::Cartilage_discs;
+        constexpr const std::array<massFraction, 9> AM::Brain;
+        constexpr const std::array<massFraction, 7> AM::Breast_left_adipose_tissue;
+        constexpr const std::array<massFraction, 8> AM::Breast_left_glandular_tissue;
+        constexpr const std::array<massFraction, 7> AM::Breast_right_adipose_tissue;
+        constexpr const std::array<massFraction, 8> AM::Breast_right_glandular_tissue;
+        constexpr const std::array<massFraction, 8> AM::Eye_lens_sensitive_left;
+        constexpr const std::array<massFraction, 8> AM::Eye_lens_insensitive_left;
+        constexpr const std::array<massFraction, 8> AM::Cornea_left;
+        constexpr const std::array<massFraction, 4> AM::Aqueous_left;
+        constexpr const std::array<massFraction, 4> AM::Vitreous_left;
+        constexpr const std::array<massFraction, 8> AM::Eye_lens_sensitive_right;
+        constexpr const std::array<massFraction, 8> AM::Eye_lens_insensitive_right;
+        constexpr const std::array<massFraction, 8> AM::Cornea_right;
+        constexpr const std::array<massFraction, 4> AM::Aqueous_right;
+        constexpr const std::array<massFraction, 4> AM::Vitreous_right;
+        constexpr const std::array<massFraction, 9> AM::Gall_bladder_wall;
+        constexpr const std::array<massFraction, 9> AM::Gall_bladder_contents;
+        constexpr const std::array<massFraction, 9> AM::Stomach_wall_0_60_;
+        constexpr const std::array<massFraction, 9> AM::Stomach_wall_60_100_;
+        constexpr const std::array<massFraction, 9> AM::Stomach_wall_100_300_;
+        constexpr const std::array<massFraction, 9> AM::Stomach_wall_300_surface_;
+        constexpr const std::array<massFraction, 10> AM::Stomach_contents;
+        constexpr const std::array<massFraction, 9> AM::Small_intestine_wall_0_130_;
+        constexpr const std::array<massFraction, 9> AM::Small_intestine_wall_130_150_;
+        constexpr const std::array<massFraction, 9> AM::Small_intestine_wall_150_200_;
+        constexpr const std::array<massFraction, 9> AM::Small_intestine_wall_200_surface_;
+        constexpr const std::array<massFraction, 10> AM::Small_intestine_contents_500_0_;
+        constexpr const std::array<massFraction, 10> AM::Small_intestine_contents_centre_500_;
+        constexpr const std::array<massFraction, 9> AM::Ascending_colon_wall_0_280_;
+        constexpr const std::array<massFraction, 9> AM::Ascending_colon_wall_280_300_;
+        constexpr const std::array<massFraction, 9> AM::Ascending_colon_wall_300_surface_;
+        constexpr const std::array<massFraction, 10> AM::Ascending_colon_content;
+        constexpr const std::array<massFraction, 9> AM::Transverse_colon_wall_right_0_280_;
+        constexpr const std::array<massFraction, 9> AM::Transverse_colon_wall_right_280_300_;
+        constexpr const std::array<massFraction, 9> AM::Transverse_colon_wall_right_300_surface_;
+        constexpr const std::array<massFraction, 10> AM::Transverse_colon_contents_right;
+        constexpr const std::array<massFraction, 9> AM::Transverse_colon_wall_left_0_280_;
+        constexpr const std::array<massFraction, 9> AM::Transverse_colon_wall_left_280_300_;
+        constexpr const std::array<massFraction, 9> AM::Transverse_colon_wall_left_300_surface_;
+        constexpr const std::array<massFraction, 10> AM::Transverse_colon_content_left;
+        constexpr const std::array<massFraction, 9> AM::Descending_colon_wall_0_280_;
+        constexpr const std::array<massFraction, 9> AM::Descending_colon_wall_280_300_;
+        constexpr const std::array<massFraction, 9> AM::Descending_colon_wall_300_surface_;
+        constexpr const std::array<massFraction, 10> AM::Descending_colon_content;
+        constexpr const std::array<massFraction, 9> AM::Sigmoid_colon_wall_0_280_;
+        constexpr const std::array<massFraction, 9> AM::Sigmoid_colon_wall_280_300_;
+        constexpr const std::array<massFraction, 9> AM::Sigmoid_colon_wall_300_surface_;
+        constexpr const std::array<massFraction, 10> AM::Sigmoid_colon_contents;
+        constexpr const std::array<massFraction, 9> AM::Rectum_wall;
+        constexpr const std::array<massFraction, 9> AM::Heart_wall;
+        constexpr const std::array<massFraction, 10> AM::Blood_in_heart_chamber;
+        constexpr const std::array<massFraction, 10> AM::Kidney_left_cortex;
+        constexpr const std::array<massFraction, 10> AM::Kidney_left_medulla;
+        constexpr const std::array<massFraction, 10> AM::Kidney_left_pelvis;
+        constexpr const std::array<massFraction, 10> AM::Kidney_right_cortex;
+        constexpr const std::array<massFraction, 10> AM::Kidney_right_medulla;
+        constexpr const std::array<massFraction, 10> AM::Kidney_right_pelvis;
+        constexpr const std::array<massFraction, 9> AM::Liver;
+        constexpr const std::array<massFraction, 10> AM::Lung_AI__left;
+        constexpr const std::array<massFraction, 10> AM::Lung_AI__right;
+        constexpr const std::array<massFraction, 7> AM::Lymphatic_nodes_ET;
+        constexpr const std::array<massFraction, 7> AM::Lymphatic_nodes_thoracic;
+        constexpr const std::array<massFraction, 7> AM::Lymphatic_nodes_head;
+        constexpr const std::array<massFraction, 7> AM::Lymphatic_nodes_trunk;
+        constexpr const std::array<massFraction, 7> AM::Lymphatic_nodes_arms;
+        constexpr const std::array<massFraction, 7> AM::Lymphatic_nodes_legs;
+        constexpr const std::array<massFraction, 9> AM::Muscle_head;
+        constexpr const std::array<massFraction, 9> AM::Muscle_trunk;
+        constexpr const std::array<massFraction, 9> AM::Muscle_arms;
+        constexpr const std::array<massFraction, 9> AM::Muscle_legs;
+        constexpr const std::array<massFraction, 9> AM::Oesophagus_wall_0_190_;
+        constexpr const std::array<massFraction, 9> AM::Oesophagus_wall_190_200_;
+        constexpr const std::array<massFraction, 9> AM::Oesophagus_wall_200_surface_;
+        constexpr const std::array<massFraction, 10> AM::Oesophagus_contents;
+        constexpr const std::array<massFraction, 9> AM::Pancreas;
+        constexpr const std::array<massFraction, 9> AM::Pituitary_gland;
+        constexpr const std::array<massFraction, 9> AM::Prostate;
+        constexpr const std::array<massFraction, 8> AM::RST_head;
+        constexpr const std::array<massFraction, 8> AM::RST_trunk;
+        constexpr const std::array<massFraction, 8> AM::RST_arms;
+        constexpr const std::array<massFraction, 8> AM::RST_legs;
+        constexpr const std::array<massFraction, 9> AM::Salivary_glands_left;
+        constexpr const std::array<massFraction, 9> AM::Salivary_glandss_right;
+        constexpr const std::array<massFraction, 9> AM::Skin_head_insensitive;
+        constexpr const std::array<massFraction, 9> AM::Skin_head_sensitive_50_100_;
+        constexpr const std::array<massFraction, 9> AM::Skin_trunk_insensitive;
+        constexpr const std::array<massFraction, 9> AM::Skin_trunk_sensitive_50_100_;
+        constexpr const std::array<massFraction, 9> AM::Skin_arms_insensitive;
+        constexpr const std::array<massFraction, 9> AM::Skin_arms_sensitive_50_100_;
+        constexpr const std::array<massFraction, 9> AM::Skin_legs_insensitive;
+        constexpr const std::array<massFraction, 9> AM::Skin_legs_sensitive_50_100_;
+        constexpr const std::array<massFraction, 9> AM::Spinal_cord;
+        constexpr const std::array<massFraction, 9> AM::Spleen;
+        constexpr const std::array<massFraction, 7> AM::Teeth;
+        constexpr const std::array<massFraction, 10> AM::Teeth_retention_region;
+        constexpr const std::array<massFraction, 9> AM::Testis_left;
+        constexpr const std::array<massFraction, 9> AM::Testis_right;
+        constexpr const std::array<massFraction, 9> AM::Thymus;
+        constexpr const std::array<massFraction, 10> AM::Thyroid;
+        constexpr const std::array<massFraction, 9> AM::Tongue_upper_food_;
+        constexpr const std::array<massFraction, 9> AM::Tongue_lower;
+        constexpr const std::array<massFraction, 9> AM::Tonsils;
+        constexpr const std::array<massFraction, 9> AM::Ureter_left;
+        constexpr const std::array<massFraction, 9> AM::Ureter_right;
+        constexpr const std::array<massFraction, 9> AM::Urinary_bladder_wall_insensitive;
+        constexpr const std::array<massFraction, 9> AM::Urinary_bladder_wall_sensitive_75_118_;
+        constexpr const std::array<massFraction, 7> AM::Urinary_bladder_content;
+        constexpr const std::array<massFraction, 2> AM::Air_inside_body;
+
+	constexpr const std::array<const char*, 187> AM::names;
+
+	std::vector<massFraction> AM::getElements(const unsigned index) const {
+
+	  switch(index){
+	  case 0: return std::vector<massFraction>(Adrenal_left.cbegin(), Adrenal_left.cend());
+	  case 1: return std::vector<massFraction>(Adrenal_right.cbegin(), Adrenal_right.cend());
+	  case 2: return std::vector<massFraction>(ET1_0_8_.cbegin(), ET1_0_8_.cend());
+	  case 3: return std::vector<massFraction>(ET1_8_40_.cbegin(), ET1_8_40_.cend());
+	  case 4: return std::vector<massFraction>(ET1_40_50_.cbegin(), ET1_40_50_.cend());
+	  case 5: return std::vector<massFraction>(ET1_50_Surface_.cbegin(), ET1_50_Surface_.cend());
+	  case 6: return std::vector<massFraction>(ET2_15_0_.cbegin(), ET2_15_0_.cend());
+	  case 7: return std::vector<massFraction>(ET2_0_40_.cbegin(), ET2_0_40_.cend());
+	  case 8: return std::vector<massFraction>(ET2_40_50_.cbegin(), ET2_40_50_.cend());
+	  case 9: return std::vector<massFraction>(ET2_50_55_.cbegin(), ET2_50_55_.cend());
+	  case 10: return std::vector<massFraction>(ET2_55_65_.cbegin(), ET2_55_65_.cend());
+	  case 11: return std::vector<massFraction>(ET2_65_Surface_.cbegin(), ET2_65_Surface_.cend());
+	  case 12: return std::vector<massFraction>(Oral_mucosa_tongue.cbegin(), Oral_mucosa_tongue.cend());
+	  case 13: return std::vector<massFraction>(Oral_mucosa_mouth_floor.cbegin(), Oral_mucosa_mouth_floor.cend());
+	  case 14: return std::vector<massFraction>(Oral_mucosa_lips_and_cheeks.cbegin(), Oral_mucosa_lips_and_cheeks.cend());
+	  case 15: return std::vector<massFraction>(Trachea.cbegin(), Trachea.cend());
+	  case 16: return std::vector<massFraction>(BB_11_6_.cbegin(), BB_11_6_.cend());
+	  case 17: return std::vector<massFraction>(BB_6_0_.cbegin(), BB_6_0_.cend());
+	  case 18: return std::vector<massFraction>(BB_0_10_.cbegin(), BB_0_10_.cend());
+	  case 19: return std::vector<massFraction>(BB_10_35_.cbegin(), BB_10_35_.cend());
+	  case 20: return std::vector<massFraction>(BB_35_40_.cbegin(), BB_35_40_.cend());
+	  case 21: return std::vector<massFraction>(BB_40_50_.cbegin(), BB_40_50_.cend());
+	  case 22: return std::vector<massFraction>(BB_50_60_.cbegin(), BB_50_60_.cend());
+	  case 23: return std::vector<massFraction>(BB_60_70_.cbegin(), BB_60_70_.cend());
+	  case 24: return std::vector<massFraction>(BB_70_surface_.cbegin(), BB_70_surface_.cend());
+	  case 25: return std::vector<massFraction>(Blood_in_large_arteries_head.cbegin(), Blood_in_large_arteries_head.cend());
+	  case 26: return std::vector<massFraction>(Blood_in_large_veins_head.cbegin(), Blood_in_large_veins_head.cend());
+	  case 27: return std::vector<massFraction>(Blood_in_large_arteries_trunk.cbegin(), Blood_in_large_arteries_trunk.cend());
+	  case 28: return std::vector<massFraction>(Blood_in_large_veins_trunk.cbegin(), Blood_in_large_veins_trunk.cend());
+	  case 29: return std::vector<massFraction>(Blood_in_large_arteries_arms.cbegin(), Blood_in_large_arteries_arms.cend());
+	  case 30: return std::vector<massFraction>(Blood_in_large_veins_arms.cbegin(), Blood_in_large_veins_arms.cend());
+	  case 31: return std::vector<massFraction>(Blood_in_large_arteries_legs.cbegin(), Blood_in_large_arteries_legs.cend());
+	  case 32: return std::vector<massFraction>(Blood_in_large_veins_legs.cbegin(), Blood_in_large_veins_legs.cend());
+	  case 33: return std::vector<massFraction>(Humeri_upper_cortical.cbegin(), Humeri_upper_cortical.cend());
+	  case 34: return std::vector<massFraction>(Humeri_upper_spogiosa.cbegin(), Humeri_upper_spogiosa.cend());
+	  case 35: return std::vector<massFraction>(Humeri_upper_medullary_cavity.cbegin(), Humeri_upper_medullary_cavity.cend());
+	  case 36: return std::vector<massFraction>(Humeri_lower_cortical.cbegin(), Humeri_lower_cortical.cend());
+	  case 37: return std::vector<massFraction>(Humeri_lower_spongiosa.cbegin(), Humeri_lower_spongiosa.cend());
+	  case 38: return std::vector<massFraction>(Humeri_lower_medullary_cavity.cbegin(), Humeri_lower_medullary_cavity.cend());
+	  case 39: return std::vector<massFraction>(Ulnae_and_radii_cotical.cbegin(), Ulnae_and_radii_cotical.cend());
+	  case 40: return std::vector<massFraction>(Ulnae_and_radii_spongiosa.cbegin(), Ulnae_and_radii_spongiosa.cend());
+	  case 41: return std::vector<massFraction>(Ulnae_and_radii_medullary_cavity.cbegin(), Ulnae_and_radii_medullary_cavity.cend());
+	  case 42: return std::vector<massFraction>(Wrists_and_hand_bones_cortical.cbegin(), Wrists_and_hand_bones_cortical.cend());
+	  case 43: return std::vector<massFraction>(Wrists_and_hand_bones_spongiosa.cbegin(), Wrists_and_hand_bones_spongiosa.cend());
+	  case 44: return std::vector<massFraction>(Clavicles_cortical.cbegin(), Clavicles_cortical.cend());
+	  case 45: return std::vector<massFraction>(Clavicles_spongiosa.cbegin(), Clavicles_spongiosa.cend());
+	  case 46: return std::vector<massFraction>(Cranium_cortical.cbegin(), Cranium_cortical.cend());
+	  case 47: return std::vector<massFraction>(Cranium_spongiosa.cbegin(), Cranium_spongiosa.cend());
+	  case 48: return std::vector<massFraction>(Femora_upper_cortical.cbegin(), Femora_upper_cortical.cend());
+	  case 49: return std::vector<massFraction>(Femora_upper_spongiosa.cbegin(), Femora_upper_spongiosa.cend());
+	  case 50: return std::vector<massFraction>(Femora_upper_medullary_cavity.cbegin(), Femora_upper_medullary_cavity.cend());
+	  case 51: return std::vector<massFraction>(Femora_lower_cortical.cbegin(), Femora_lower_cortical.cend());
+	  case 52: return std::vector<massFraction>(Femora_lower_spongiosa.cbegin(), Femora_lower_spongiosa.cend());
+	  case 53: return std::vector<massFraction>(Femora_lower_medullary_cavity.cbegin(), Femora_lower_medullary_cavity.cend());
+	  case 54: return std::vector<massFraction>(Tibiae_fibulae_and_patellae_cortical.cbegin(), Tibiae_fibulae_and_patellae_cortical.cend());
+	  case 55: return std::vector<massFraction>(Tibiae_fibulae_and_patellae_spongiosa.cbegin(), Tibiae_fibulae_and_patellae_spongiosa.cend());
+	  case 56: return std::vector<massFraction>(Tibiae_fibulae_and_patellae_medullary_cavity.cbegin(), Tibiae_fibulae_and_patellae_medullary_cavity.cend());
+	  case 57: return std::vector<massFraction>(Ankles_and_foot_cortical.cbegin(), Ankles_and_foot_cortical.cend());
+	  case 58: return std::vector<massFraction>(Ankles_and_foot_spongiosa.cbegin(), Ankles_and_foot_spongiosa.cend());
+	  case 59: return std::vector<massFraction>(Mandible_cortical.cbegin(), Mandible_cortical.cend());
+	  case 60: return std::vector<massFraction>(Mandible_spongiosa.cbegin(), Mandible_spongiosa.cend());
+	  case 61: return std::vector<massFraction>(Pelvis_cortical.cbegin(), Pelvis_cortical.cend());
+	  case 62: return std::vector<massFraction>(Pelvis_spongiosa.cbegin(), Pelvis_spongiosa.cend());
+	  case 63: return std::vector<massFraction>(Ribs_cortical.cbegin(), Ribs_cortical.cend());
+	  case 64: return std::vector<massFraction>(Ribs_spongiosa.cbegin(), Ribs_spongiosa.cend());
+	  case 65: return std::vector<massFraction>(Scapulae_cortical.cbegin(), Scapulae_cortical.cend());
+	  case 66: return std::vector<massFraction>(Scapulae_spongiosa.cbegin(), Scapulae_spongiosa.cend());
+	  case 67: return std::vector<massFraction>(Cervical_spine_cortical.cbegin(), Cervical_spine_cortical.cend());
+	  case 68: return std::vector<massFraction>(Cervical_spine_spongiosa.cbegin(), Cervical_spine_spongiosa.cend());
+	  case 69: return std::vector<massFraction>(Thoracic_spine_cortical.cbegin(), Thoracic_spine_cortical.cend());
+	  case 70: return std::vector<massFraction>(Thoracic_spine_spongiosa.cbegin(), Thoracic_spine_spongiosa.cend());
+	  case 71: return std::vector<massFraction>(Lumbar_spine_cortical.cbegin(), Lumbar_spine_cortical.cend());
+	  case 72: return std::vector<massFraction>(Lumbar_spine_spongiosa.cbegin(), Lumbar_spine_spongiosa.cend());
+	  case 73: return std::vector<massFraction>(Sacrum_cortical.cbegin(), Sacrum_cortical.cend());
+	  case 74: return std::vector<massFraction>(Sacrum_spongiosa.cbegin(), Sacrum_spongiosa.cend());
+	  case 75: return std::vector<massFraction>(Sternum_cortical.cbegin(), Sternum_cortical.cend());
+	  case 76: return std::vector<massFraction>(Sternum_spongiosa.cbegin(), Sternum_spongiosa.cend());
+	  case 77: return std::vector<massFraction>(Cartilage_costal.cbegin(), Cartilage_costal.cend());
+	  case 78: return std::vector<massFraction>(Cartilage_discs.cbegin(), Cartilage_discs.cend());
+	  case 79: return std::vector<massFraction>(Brain.cbegin(), Brain.cend());
+	  case 80: return std::vector<massFraction>(Breast_left_adipose_tissue.cbegin(), Breast_left_adipose_tissue.cend());
+	  case 81: return std::vector<massFraction>(Breast_left_glandular_tissue.cbegin(), Breast_left_glandular_tissue.cend());
+	  case 82: return std::vector<massFraction>(Breast_right_adipose_tissue.cbegin(), Breast_right_adipose_tissue.cend());
+	  case 83: return std::vector<massFraction>(Breast_right_glandular_tissue.cbegin(), Breast_right_glandular_tissue.cend());
+	  case 84: return std::vector<massFraction>(Eye_lens_sensitive_left.cbegin(), Eye_lens_sensitive_left.cend());
+	  case 85: return std::vector<massFraction>(Eye_lens_insensitive_left.cbegin(), Eye_lens_insensitive_left.cend());
+	  case 86: return std::vector<massFraction>(Cornea_left.cbegin(), Cornea_left.cend());
+	  case 87: return std::vector<massFraction>(Aqueous_left.cbegin(), Aqueous_left.cend());
+	  case 88: return std::vector<massFraction>(Vitreous_left.cbegin(), Vitreous_left.cend());
+	  case 89: return std::vector<massFraction>(Eye_lens_sensitive_right.cbegin(), Eye_lens_sensitive_right.cend());
+	  case 90: return std::vector<massFraction>(Eye_lens_insensitive_right.cbegin(), Eye_lens_insensitive_right.cend());
+	  case 91: return std::vector<massFraction>(Cornea_right.cbegin(), Cornea_right.cend());
+	  case 92: return std::vector<massFraction>(Aqueous_right.cbegin(), Aqueous_right.cend());
+	  case 93: return std::vector<massFraction>(Vitreous_right.cbegin(), Vitreous_right.cend());
+	  case 94: return std::vector<massFraction>(Gall_bladder_wall.cbegin(), Gall_bladder_wall.cend());
+	  case 95: return std::vector<massFraction>(Gall_bladder_contents.cbegin(), Gall_bladder_contents.cend());
+	  case 96: return std::vector<massFraction>(Stomach_wall_0_60_.cbegin(), Stomach_wall_0_60_.cend());
+	  case 97: return std::vector<massFraction>(Stomach_wall_60_100_.cbegin(), Stomach_wall_60_100_.cend());
+	  case 98: return std::vector<massFraction>(Stomach_wall_100_300_.cbegin(), Stomach_wall_100_300_.cend());
+	  case 99: return std::vector<massFraction>(Stomach_wall_300_surface_.cbegin(), Stomach_wall_300_surface_.cend());
+	  case 100: return std::vector<massFraction>(Stomach_contents.cbegin(), Stomach_contents.cend());
+	  case 101: return std::vector<massFraction>(Small_intestine_wall_0_130_.cbegin(), Small_intestine_wall_0_130_.cend());
+	  case 102: return std::vector<massFraction>(Small_intestine_wall_130_150_.cbegin(), Small_intestine_wall_130_150_.cend());
+	  case 103: return std::vector<massFraction>(Small_intestine_wall_150_200_.cbegin(), Small_intestine_wall_150_200_.cend());
+	  case 104: return std::vector<massFraction>(Small_intestine_wall_200_surface_.cbegin(), Small_intestine_wall_200_surface_.cend());
+	  case 105: return std::vector<massFraction>(Small_intestine_contents_500_0_.cbegin(), Small_intestine_contents_500_0_.cend());
+	  case 106: return std::vector<massFraction>(Small_intestine_contents_centre_500_.cbegin(), Small_intestine_contents_centre_500_.cend());
+	  case 107: return std::vector<massFraction>(Ascending_colon_wall_0_280_.cbegin(), Ascending_colon_wall_0_280_.cend());
+	  case 108: return std::vector<massFraction>(Ascending_colon_wall_280_300_.cbegin(), Ascending_colon_wall_280_300_.cend());
+	  case 109: return std::vector<massFraction>(Ascending_colon_wall_300_surface_.cbegin(), Ascending_colon_wall_300_surface_.cend());
+	  case 110: return std::vector<massFraction>(Ascending_colon_content.cbegin(), Ascending_colon_content.cend());
+	  case 111: return std::vector<massFraction>(Transverse_colon_wall_right_0_280_.cbegin(), Transverse_colon_wall_right_0_280_.cend());
+	  case 112: return std::vector<massFraction>(Transverse_colon_wall_right_280_300_.cbegin(), Transverse_colon_wall_right_280_300_.cend());
+	  case 113: return std::vector<massFraction>(Transverse_colon_wall_right_300_surface_.cbegin(), Transverse_colon_wall_right_300_surface_.cend());
+	  case 114: return std::vector<massFraction>(Transverse_colon_contents_right.cbegin(), Transverse_colon_contents_right.cend());
+	  case 115: return std::vector<massFraction>(Transverse_colon_wall_left_0_280_.cbegin(), Transverse_colon_wall_left_0_280_.cend());
+	  case 116: return std::vector<massFraction>(Transverse_colon_wall_left_280_300_.cbegin(), Transverse_colon_wall_left_280_300_.cend());
+	  case 117: return std::vector<massFraction>(Transverse_colon_wall_left_300_surface_.cbegin(), Transverse_colon_wall_left_300_surface_.cend());
+	  case 118: return std::vector<massFraction>(Transverse_colon_content_left.cbegin(), Transverse_colon_content_left.cend());
+	  case 119: return std::vector<massFraction>(Descending_colon_wall_0_280_.cbegin(), Descending_colon_wall_0_280_.cend());
+	  case 120: return std::vector<massFraction>(Descending_colon_wall_280_300_.cbegin(), Descending_colon_wall_280_300_.cend());
+	  case 121: return std::vector<massFraction>(Descending_colon_wall_300_surface_.cbegin(), Descending_colon_wall_300_surface_.cend());
+	  case 122: return std::vector<massFraction>(Descending_colon_content.cbegin(), Descending_colon_content.cend());
+	  case 123: return std::vector<massFraction>(Sigmoid_colon_wall_0_280_.cbegin(), Sigmoid_colon_wall_0_280_.cend());
+	  case 124: return std::vector<massFraction>(Sigmoid_colon_wall_280_300_.cbegin(), Sigmoid_colon_wall_280_300_.cend());
+	  case 125: return std::vector<massFraction>(Sigmoid_colon_wall_300_surface_.cbegin(), Sigmoid_colon_wall_300_surface_.cend());
+	  case 126: return std::vector<massFraction>(Sigmoid_colon_contents.cbegin(), Sigmoid_colon_contents.cend());
+	  case 127: return std::vector<massFraction>(Rectum_wall.cbegin(), Rectum_wall.cend());
+	  case 128: return std::vector<massFraction>(Heart_wall.cbegin(), Heart_wall.cend());
+	  case 129: return std::vector<massFraction>(Blood_in_heart_chamber.cbegin(), Blood_in_heart_chamber.cend());
+	  case 130: return std::vector<massFraction>(Kidney_left_cortex.cbegin(), Kidney_left_cortex.cend());
+	  case 131: return std::vector<massFraction>(Kidney_left_medulla.cbegin(), Kidney_left_medulla.cend());
+	  case 132: return std::vector<massFraction>(Kidney_left_pelvis.cbegin(), Kidney_left_pelvis.cend());
+	  case 133: return std::vector<massFraction>(Kidney_right_cortex.cbegin(), Kidney_right_cortex.cend());
+	  case 134: return std::vector<massFraction>(Kidney_right_medulla.cbegin(), Kidney_right_medulla.cend());
+	  case 135: return std::vector<massFraction>(Kidney_right_pelvis.cbegin(), Kidney_right_pelvis.cend());
+	  case 136: return std::vector<massFraction>(Liver.cbegin(), Liver.cend());
+	  case 137: return std::vector<massFraction>(Lung_AI__left.cbegin(), Lung_AI__left.cend());
+	  case 138: return std::vector<massFraction>(Lung_AI__right.cbegin(), Lung_AI__right.cend());
+	  case 139: return std::vector<massFraction>(Lymphatic_nodes_ET.cbegin(), Lymphatic_nodes_ET.cend());
+	  case 140: return std::vector<massFraction>(Lymphatic_nodes_thoracic.cbegin(), Lymphatic_nodes_thoracic.cend());
+	  case 141: return std::vector<massFraction>(Lymphatic_nodes_head.cbegin(), Lymphatic_nodes_head.cend());
+	  case 142: return std::vector<massFraction>(Lymphatic_nodes_trunk.cbegin(), Lymphatic_nodes_trunk.cend());
+	  case 143: return std::vector<massFraction>(Lymphatic_nodes_arms.cbegin(), Lymphatic_nodes_arms.cend());
+	  case 144: return std::vector<massFraction>(Lymphatic_nodes_legs.cbegin(), Lymphatic_nodes_legs.cend());
+	  case 145: return std::vector<massFraction>(Muscle_head.cbegin(), Muscle_head.cend());
+	  case 146: return std::vector<massFraction>(Muscle_trunk.cbegin(), Muscle_trunk.cend());
+	  case 147: return std::vector<massFraction>(Muscle_arms.cbegin(), Muscle_arms.cend());
+	  case 148: return std::vector<massFraction>(Muscle_legs.cbegin(), Muscle_legs.cend());
+	  case 149: return std::vector<massFraction>(Oesophagus_wall_0_190_.cbegin(), Oesophagus_wall_0_190_.cend());
+	  case 150: return std::vector<massFraction>(Oesophagus_wall_190_200_.cbegin(), Oesophagus_wall_190_200_.cend());
+	  case 151: return std::vector<massFraction>(Oesophagus_wall_200_surface_.cbegin(), Oesophagus_wall_200_surface_.cend());
+	  case 152: return std::vector<massFraction>(Oesophagus_contents.cbegin(), Oesophagus_contents.cend());
+	  case 153: return std::vector<massFraction>(Pancreas.cbegin(), Pancreas.cend());
+	  case 154: return std::vector<massFraction>(Pituitary_gland.cbegin(), Pituitary_gland.cend());
+	  case 155: return std::vector<massFraction>(Prostate.cbegin(), Prostate.cend());
+	  case 156: return std::vector<massFraction>(RST_head.cbegin(), RST_head.cend());
+	  case 157: return std::vector<massFraction>(RST_trunk.cbegin(), RST_trunk.cend());
+	  case 158: return std::vector<massFraction>(RST_arms.cbegin(), RST_arms.cend());
+	  case 159: return std::vector<massFraction>(RST_legs.cbegin(), RST_legs.cend());
+	  case 160: return std::vector<massFraction>(Salivary_glands_left.cbegin(), Salivary_glands_left.cend());
+	  case 161: return std::vector<massFraction>(Salivary_glandss_right.cbegin(), Salivary_glandss_right.cend());
+	  case 162: return std::vector<massFraction>(Skin_head_insensitive.cbegin(), Skin_head_insensitive.cend());
+	  case 163: return std::vector<massFraction>(Skin_head_sensitive_50_100_.cbegin(), Skin_head_sensitive_50_100_.cend());
+	  case 164: return std::vector<massFraction>(Skin_trunk_insensitive.cbegin(), Skin_trunk_insensitive.cend());
+	  case 165: return std::vector<massFraction>(Skin_trunk_sensitive_50_100_.cbegin(), Skin_trunk_sensitive_50_100_.cend());
+	  case 166: return std::vector<massFraction>(Skin_arms_insensitive.cbegin(), Skin_arms_insensitive.cend());
+	  case 167: return std::vector<massFraction>(Skin_arms_sensitive_50_100_.cbegin(), Skin_arms_sensitive_50_100_.cend());
+	  case 168: return std::vector<massFraction>(Skin_legs_insensitive.cbegin(), Skin_legs_insensitive.cend());
+	  case 169: return std::vector<massFraction>(Skin_legs_sensitive_50_100_.cbegin(), Skin_legs_sensitive_50_100_.cend());
+	  case 170: return std::vector<massFraction>(Spinal_cord.cbegin(), Spinal_cord.cend());
+	  case 171: return std::vector<massFraction>(Spleen.cbegin(), Spleen.cend());
+	  case 172: return std::vector<massFraction>(Teeth.cbegin(), Teeth.cend());
+	  case 173: return std::vector<massFraction>(Teeth_retention_region.cbegin(), Teeth_retention_region.cend());
+	  case 174: return std::vector<massFraction>(Testis_left.cbegin(), Testis_left.cend());
+	  case 175: return std::vector<massFraction>(Testis_right.cbegin(), Testis_right.cend());
+	  case 176: return std::vector<massFraction>(Thymus.cbegin(), Thymus.cend());
+	  case 177: return std::vector<massFraction>(Thyroid.cbegin(), Thyroid.cend());
+	  case 178: return std::vector<massFraction>(Tongue_upper_food_.cbegin(), Tongue_upper_food_.cend());
+	  case 179: return std::vector<massFraction>(Tongue_lower.cbegin(), Tongue_lower.cend());
+	  case 180: return std::vector<massFraction>(Tonsils.cbegin(), Tonsils.cend());
+	  case 181: return std::vector<massFraction>(Ureter_left.cbegin(), Ureter_left.cend());
+	  case 182: return std::vector<massFraction>(Ureter_right.cbegin(), Ureter_right.cend());
+	  case 183: return std::vector<massFraction>(Urinary_bladder_wall_insensitive.cbegin(), Urinary_bladder_wall_insensitive.cend());
+	  case 184: return std::vector<massFraction>(Urinary_bladder_wall_sensitive_75_118_.cbegin(), Urinary_bladder_wall_sensitive_75_118_.cend());
+	  case 185: return std::vector<massFraction>(Urinary_bladder_content.cbegin(), Urinary_bladder_content.cend());
+	  case 186: return std::vector<massFraction>(Air_inside_body.cbegin(), Air_inside_body.cend());
+	  };
+	  return std::vector<massFraction>();
+	}
+	
+	double AM::getDensity(const unsigned index) const {
+
+	  switch(index){
+	  case 0: return 1.036; //Adrenal_left
+	  case 1: return 1.036; //Adrenal_right
+	  case 2: return 1.031; //ET1(0-8)
+	  case 3: return 1.031; //ET1(8-40)
+	  case 4: return 1.031; //ET1(40-50)
+	  case 5: return 1.031; //ET1(50-Surface)
+	  case 6: return 1; //ET2(-15-0)
+	  case 7: return 1.031; //ET2(0-40)
+	  case 8: return 1.031; //ET2(40-50)
+	  case 9: return 1.031; //ET2(50-55)
+	  case 10: return 1.031; //ET2(55-65)
+	  case 11: return 1.031; //ET2(65-Surface)
+	  case 12: return 1.05; //Oral_mucosa_tongue
+	  case 13: return 1.05; //Oral_mucosa_mouth_floor
+	  case 14: return 1.05; //Oral_mucosa_lips_and_cheeks
+	  case 15: return 1.031; //Trachea
+	  case 16: return 1; //BB(-11--6)
+	  case 17: return 1.031; //BB(-6-0)
+	  case 18: return 1.031; //BB(0-10)
+	  case 19: return 1.031; //BB(10-35)
+	  case 20: return 1.031; //BB(35-40)
+	  case 21: return 1.031; //BB(40-50)
+	  case 22: return 1.031; //BB(50-60)
+	  case 23: return 1.031; //BB(60-70)
+	  case 24: return 1.031; //BB(70-surface)
+	  case 25: return 1.06; //Blood_in_large_arteries_head
+	  case 26: return 1.06; //Blood_in_large_veins_head
+	  case 27: return 1.06; //Blood_in_large_arteries_trunk
+	  case 28: return 1.06; //Blood_in_large_veins_trunk
+	  case 29: return 1.06; //Blood_in_large_arteries_arms
+	  case 30: return 1.06; //Blood_in_large_veins_arms
+	  case 31: return 1.06; //Blood_in_large_arteries_legs
+	  case 32: return 1.06; //Blood_in_large_veins_legs
+	  case 33: return 1.904; //Humeri_upper_cortical
+	  case 34: return 1.233; //Humeri_upper_spogiosa
+	  case 35: return 0.981; //Humeri_upper_medullary_cavity
+	  case 36: return 1.904; //Humeri_lower_cortical
+	  case 37: return 1.109; //Humeri_lower_spongiosa
+	  case 38: return 0.981; //Humeri_lower_medullary_cavity
+	  case 39: return 1.904; //Ulnae_and_radii_cotical
+	  case 40: return 1.109; //Ulnae_and_radii_spongiosa
+	  case 41: return 0.981; //Ulnae_and_radii_medullary_cavity
+	  case 42: return 1.904; //Wrists_and_hand_bones_cortical
+	  case 43: return 1.109; //Wrists_and_hand_bones_spongiosa
+	  case 44: return 1.904; //Clavicles_cortical
+	  case 45: return 1.157; //Clavicles_spongiosa
+	  case 46: return 1.904; //Cranium_cortical
+	  case 47: return 1.165; //Cranium_spongiosa
+	  case 48: return 1.904; //Femora_upper_cortical
+	  case 49: return 1.125; //Femora_upper_spongiosa
+	  case 50: return 0.981; //Femora_upper_medullary_cavity
+	  case 51: return 1.904; //Femora_lower_cortical
+	  case 52: return 1.109; //Femora_lower_spongiosa
+	  case 53: return 0.981; //Femora_lower_medullary_cavity
+	  case 54: return 1.904; //Tibiae_fibulae_and_patellae_cortical
+	  case 55: return 1.109; //Tibiae_fibulae_and_patellae_spongiosa
+	  case 56: return 0.981; //Tibiae_fibulae_and_patellae_medullary_cavity
+	  case 57: return 1.904; //Ankles_and_foot_cortical
+	  case 58: return 1.109; //Ankles_and_foot_spongiosa
+	  case 59: return 1.904; //Mandible_cortical
+	  case 60: return 1.271; //Mandible_spongiosa
+	  case 61: return 1.904; //Pelvis_cortical
+	  case 62: return 1.121; //Pelvis_spongiosa
+	  case 63: return 1.904; //Ribs_cortical
+	  case 64: return 1.17; //Ribs_spongiosa
+	  case 65: return 1.904; //Scapulae_cortical
+	  case 66: return 1.201; //Scapulae_spongiosa
+	  case 67: return 1.904; //Cervical_spine_cortical
+	  case 68: return 1.049; //Cervical_spine_spongiosa
+	  case 69: return 1.904; //Thoracic_spine_cortical
+	  case 70: return 1.07; //Thoracic_spine_spongiosa
+	  case 71: return 1.904; //Lumbar_spine_cortical
+	  case 72: return 1.108; //Lumbar_spine_spongiosa
+	  case 73: return 1.904; //Sacrum_cortical
+	  case 74: return 1.033; //Sacrum_spongiosa
+	  case 75: return 1.904; //Sternum_cortical
+	  case 76: return 1.041; //Sternum_spongiosa
+	  case 77: return 1.099; //Cartilage_costal
+	  case 78: return 1.099; //Cartilage_discs
+	  case 79: return 1.041; //Brain
+	  case 80: return 0.953; //Breast_left_adipose_tissue
+	  case 81: return 1.021; //Breast_left_glandular_tissue
+	  case 82: return 0.953; //Breast_right_adipose_tissue
+	  case 83: return 1.021; //Breast_right_glandular_tissue
+	  case 84: return 1.06; //Eye_lens_sensitive_left
+	  case 85: return 1.06; //Eye_lens_insensitive_left
+	  case 86: return 1.1; //Cornea_left
+	  case 87: return 1.025; //Aqueous_left
+	  case 88: return 1.031; //Vitreous_left
+	  case 89: return 1.06; //Eye_lens_sensitive_right
+	  case 90: return 1.06; //Eye_lens_insensitive_right
+	  case 91: return 1.1; //Cornea_right
+	  case 92: return 1.025; //Aqueous_right
+	  case 93: return 1.031; //Vitreous_right
+	  case 94: return 1.031; //Gall_bladder_wall
+	  case 95: return 1.03; //Gall_bladder_contents
+	  case 96: return 1.037; //Stomach_wall(0-60)
+	  case 97: return 1.037; //Stomach_wall(60-100)
+	  case 98: return 1.037; //Stomach_wall(100-300)
+	  case 99: return 1.037; //Stomach_wall(300-surface)
+	  case 100: return 1.04; //Stomach_contents
+	  case 101: return 1.037; //Small_intestine_wall(0-130)
+	  case 102: return 1.037; //Small_intestine_wall(130-150)
+	  case 103: return 1.037; //Small_intestine_wall(150-200)
+	  case 104: return 1.037; //Small_intestine_wall(200-surface)
+	  case 105: return 1.04; //Small_intestine_contents(-500-0)
+	  case 106: return 1.04; //Small_intestine_contents(centre--500)
+	  case 107: return 1.037; //Ascending_colon_wall(0-280)
+	  case 108: return 1.037; //Ascending_colon_wall(280-300)
+	  case 109: return 1.037; //Ascending_colon_wall(300-surface)
+	  case 110: return 1.04; //Ascending_colon_content
+	  case 111: return 1.037; //Transverse_colon_wall_right(0-280)
+	  case 112: return 1.037; //Transverse_colon_wall_right(280-300)
+	  case 113: return 1.037; //Transverse_colon_wall_right(300-surface)
+	  case 114: return 1.04; //Transverse_colon_contents_right
+	  case 115: return 1.037; //Transverse_colon_wall_left(0-280)
+	  case 116: return 1.037; //Transverse_colon_wall_left(280-300)
+	  case 117: return 1.037; //Transverse_colon_wall_left(300-surface)
+	  case 118: return 1.04; //Transverse_colon_content_left
+	  case 119: return 1.037; //Descending_colon_wall(0-280)
+	  case 120: return 1.037; //Descending_colon_wall(280-300)
+	  case 121: return 1.037; //Descending_colon_wall(300-surface)
+	  case 122: return 1.04; //Descending_colon_content
+	  case 123: return 1.037; //Sigmoid_colon_wall(0-280)
+	  case 124: return 1.037; //Sigmoid_colon_wall(280-300)
+	  case 125: return 1.037; //Sigmoid_colon_wall(300-surface)
+	  case 126: return 1.04; //Sigmoid_colon_contents
+	  case 127: return 1.037; //Rectum_wall
+	  case 128: return 1.051; //Heart_wall
+	  case 129: return 1.06; //Blood_in_heart_chamber
+	  case 130: return 1.053; //Kidney_left_cortex
+	  case 131: return 1.053; //Kidney_left_medulla
+	  case 132: return 1.053; //Kidney_left_pelvis
+	  case 133: return 1.053; //Kidney_right_cortex
+	  case 134: return 1.053; //Kidney_right_medulla
+	  case 135: return 1.053; //Kidney_right_pelvis
+	  case 136: return 1.06; //Liver
+	  case 137: return 0.415; //Lung(AI)_left
+	  case 138: return 0.415; //Lung(AI)_right
+	  case 139: return 1.032; //Lymphatic_nodes_ET
+	  case 140: return 1.032; //Lymphatic_nodes_thoracic
+	  case 141: return 1.032; //Lymphatic_nodes_head
+	  case 142: return 1.032; //Lymphatic_nodes_trunk
+	  case 143: return 1.032; //Lymphatic_nodes_arms
+	  case 144: return 1.032; //Lymphatic_nodes_legs
+	  case 145: return 1.05; //Muscle_head
+	  case 146: return 1.05; //Muscle_trunk
+	  case 147: return 1.05; //Muscle_arms
+	  case 148: return 1.05; //Muscle_legs
+	  case 149: return 1.037; //Oesophagus_wall(0-190)
+	  case 150: return 1.037; //Oesophagus_wall(190-200)
+	  case 151: return 1.037; //Oesophagus_wall(200-surface)
+	  case 152: return 1.04; //Oesophagus_contents
+	  case 153: return 1.044; //Pancreas
+	  case 154: return 1.031; //Pituitary_gland
+	  case 155: return 1.031; //Prostate
+	  case 156: return 0.939; //RST_head
+	  case 157: return 0.939; //RST_trunk
+	  case 158: return 0.939; //RST_arms
+	  case 159: return 0.939; //RST_legs
+	  case 160: return 1.031; //Salivary_glands_left
+	  case 161: return 1.031; //Salivary_glandss_right
+	  case 162: return 1.089; //Skin_head_insensitive
+	  case 163: return 1.089; //Skin_head_sensitive(50-100)
+	  case 164: return 1.089; //Skin_trunk_insensitive
+	  case 165: return 1.089; //Skin_trunk_sensitive(50-100)
+	  case 166: return 1.089; //Skin_arms_insensitive
+	  case 167: return 1.089; //Skin_arms_sensitive(50-100)
+	  case 168: return 1.089; //Skin_legs_insensitive
+	  case 169: return 1.089; //Skin_legs_sensitive(50-100)
+	  case 170: return 1.031; //Spinal_cord
+	  case 171: return 1.06; //Spleen
+	  case 172: return 2.688; //Teeth
+	  case 173: return 1.04; //Teeth_retention_region
+	  case 174: return 1.041; //Testis_left
+	  case 175: return 1.041; //Testis_right
+	  case 176: return 1.031; //Thymus
+	  case 177: return 1.051; //Thyroid
+	  case 178: return 1.05; //Tongue_upper(food)
+	  case 179: return 1.05; //Tongue_lower
+	  case 180: return 1.031; //Tonsils
+	  case 181: return 1.031; //Ureter_left
+	  case 182: return 1.031; //Ureter_right
+	  case 183: return 1.04; //Urinary_bladder_wall_insensitive
+	  case 184: return 1.04; //Urinary_bladder_wall_sensitive(75-118)
+	  case 185: return 1.04; //Urinary_bladder_content
+	  case 186: return 0.001; //Air_inside_body
+	  };
+	  return -1.0;
+	}
+
+      } //namespace ICRP
+
+    } //namespace compositions      
+
+  } //namespace dataBases
+
+} //namespace penred

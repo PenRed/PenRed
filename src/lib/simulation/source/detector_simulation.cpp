@@ -386,6 +386,6 @@ namespace penred{
       return 0;
     }
     
-  };
+  } // namespace simulation
   
-};
+} // namespace penred

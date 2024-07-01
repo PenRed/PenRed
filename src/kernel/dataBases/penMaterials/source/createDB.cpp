@@ -2,6 +2,8 @@
 #include <fstream>
 #include <string>
 
+#include "dataBasesCommon.hh"
+
 int main(int argc, char** argv){
 
   if(argc < 4){
@@ -25,6 +27,8 @@ int main(int argc, char** argv){
   fheader << "#ifndef __PEN_MAT_DATABASE__" << std::endl;
   fheader << "#define __PEN_MAT_DATABASE__" << std::endl;
 
+  fheader << "\n#include <array>" << std::endl;
+
   fheader << "\nnamespace penred{\n";
   fheader << "   namespace penMatDB{" << std::endl;
     
@@ -37,69 +41,63 @@ int main(int argc, char** argv){
     std::ifstream fin(pathToFile);
     if(!fin.is_open()){
       printf("Unable to open input file '%s'\n", pathToFile.c_str());
+      return -2;
     }
 
-    //Open the output file
+    //Create string literal files
+    unsigned nSubFiles;
     std::string pathToOut(argv[3]);
     pathToOut.append("/").append(line);
-    std::ofstream fout(pathToOut);
-    if(!fout.is_open()){
-      printf("Unable to open output file '%s'\n", pathToOut.c_str());
+    int err = penred::dataBases::createStringLiteralFiles(fin, pathToOut, nSubFiles);
+    if(err != penred::dataBases::errors::SUCCESS){
+      printf("Unable to create string literal files for '%s'\n"
+	     "%s\n",
+	     pathToFile.c_str(), penred::dataBases::errorMessage(err));
+      return -3;
     }
 
-    //Both files opened, process it
-    fout << "R\"***(";
-
-    std::string line2;
-    while(std::getline(fin,line2)){
-      fout << line2 << std::endl;
-    }
-    
-    fout << ")***\"" << std::endl;
-
+    //Close database input file
     fin.close();
-    fout.close();
 
     //Create the variable name with no points
-    std::string varName = line;
-    std::string::size_type pointPos;
-    pointPos = varName.find(".") ;
-    while(pointPos != std::string::npos){
-      varName.replace(pointPos,1,"_");
-      pointPos = varName.find(".") ;
-    }
+    std::string varName = penred::dataBases::toVariableName(line);
     
-    //Add the line to the header file
-    fheader << "      const char* const " << varName << " = {\n";
-    fheader << "                  #include \"" << line << "\"\n";
-    fheader << "      };" << std::endl;
+    //Add a line per subfile to the header file
+    for(unsigned i = 0; i < nSubFiles; ++i){
+      fheader << "      constexpr const char* const " << varName << "_" << i << " = {\n";
+      fheader << "                  #include \"" << line << "_" << i << "\"\n";
+      fheader << "      };" << std::endl;
+    }
+    fheader << std::endl;
+    
+    //Create an array with all subfiles
+    fheader << "      constexpr std::array<const char* const, " << nSubFiles << "> " << varName << " = {\n"
+	    << "                                                 " << varName << "_0";
+    for(unsigned i = 1; i < nSubFiles; ++i){
+      fheader << ",\n"
+	      << "                                                 " << varName << "_" << i;      
+    }
+    fheader << "\n                                                 };\n" << std::endl;
   }
 
   //Write function to convert filename to data pointer
   fList.close();
   fList.open(argv[1]);
 
-  fheader << "// To covert to 'constexpr' when updating standard version" << std::endl;
-  fheader << "\n      inline const char* readDataBaseFile(const std::string& filename){\n";
+  fheader << "\n      inline const char* readDataBaseFile(const std::string& filename, size_t subFile){\n";
   while(std::getline(fList, line)){
     //Create the variable name with no points
-    std::string varName = line;
-    std::string::size_type pointPos;
-    pointPos = varName.find(".") ;
-    while(pointPos != std::string::npos){
-      varName.replace(pointPos,1,"_");
-      pointPos = varName.find(".") ;
-    }
+    std::string varName = penred::dataBases::toVariableName(line);
     
     fheader << "            if(filename.compare(\"" << line << "\") == 0){\n";
-    fheader << "              return " << varName << ";\n";
+    fheader << "              return " << varName << ".size() > subFile ? " << varName << "[subFile] : nullptr;\n";
     fheader << "            }" << std::endl;    
   }
 
   fheader << "            return nullptr;\n       }" << std::endl;
 
-  fheader << "   };\n";
-  fheader << "};\n";
+  fheader << "   }\n";
+  fheader << "}\n";
   fheader << "#endif" << std::endl;
   fheader.close();
 

@@ -251,7 +251,7 @@ void pen_VRxraysplitting::vr_particleStack(const unsigned long long /*nhist*/,
 					   const pen_KPAR /*kpar*/,
 					   const unsigned /*kdet*/,
 					   pen_state_gPol& state,
-					   std::array<pen_state_gPol,constants::NMS>& stack,
+					   std::vector<pen_state_gPol>& stack,
 					   unsigned& created,
 					   const unsigned available,
 					   pen_rand& random) const{

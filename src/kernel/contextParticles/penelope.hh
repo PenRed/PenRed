@@ -44,7 +44,7 @@ namespace penred{
       particleTuple({c, getStack<1>(), getStack<2>(), getStack<0>()},
 		    {c, getStack<1>(), getStack<0>()               },
 		    {c, getStack<1>(), getStack<0>(), getStack<2>()}) {}
-  };
-};
+  } // namespace context
+} // namespace penred
 
 #endif

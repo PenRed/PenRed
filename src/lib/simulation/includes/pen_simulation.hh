@@ -32,5 +32,6 @@
 
 #include "base_simulation_functions.hh"
 #include "detector_simulation.hh"
+#include "object_simulation.hh"
 
 #endif

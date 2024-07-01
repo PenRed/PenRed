@@ -298,16 +298,15 @@ int image_spatialSampling::configure(const pen_parserSection& config,
       //Init walker algorithm
       printf("Reading initialization Walker algorithm ... ");fflush(stdout);
       char buffer[81];
-      FILE* in;
+      FILE* in = nullptr;
       char BLINE[100];  
   
       strcpy(buffer,walkersfilename.c_str());
       in = fopen(buffer,"r");
-      if(in == NULL){
+      if(in == nullptr){
 	printf("\n*************************************************************************\n");
 	printf("image_spatialSampling: Error: Cannot open Walker initialization data file\n");
 	printf("*************************************************************************\n");
-	fclose(in);                            
 	return 5;                      
       }
 
@@ -338,18 +337,17 @@ int image_spatialSampling::configure(const pen_parserSection& config,
 	printf("image_spatialSampling:configure: the ActivityDistribution data will be saved to %s ... ",walkersoutfilename.c_str());
       }    
       char buffer[81];
-      FILE* out;
+      FILE* out = nullptr;
   
       strcpy(buffer,walkersoutfilename.c_str());
      
       out = fopen(buffer,"w");
-      if (out == NULL)
+      if (out == nullptr)
 	{
 	  printf("\n********************************************************************************\n");
 	  printf("image_spatialSampling: Error: Cannot open Walker initialization output data file\n");
 	  printf("********************************************************************************\n");
-	  fclose(out);                            
-	  return 6;                      
+	  return 6;
 	}
     
     

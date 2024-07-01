@@ -47,7 +47,7 @@ namespace penred{
 	ERROR_ON_GEOMETRY_INITIALIZATION,
 	ERROR_UNABLE_TO_OPEN_FILE,
       };
-    };
+    }
     
     using detectedPart = simulation::detectedPart;
 
@@ -63,8 +63,8 @@ namespace penred{
       
     };
 
-  };
-};
+  } // namespace xray
+} // namespace penred
 
 
 #endif

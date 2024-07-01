@@ -175,11 +175,12 @@ namespace penred{
     void createBaseCollimator(double dx, double dxInTop, double dxInBot,
 			      double dy, double dyInTop, double dyInBot,
 			      double dz,
-			      std::ofstream& out,
+			      std::ostream& out,
 			      const unsigned matIndex,
 			      const std::string& collimatorName,
 			      const std::string& parentName,
-			      const bool numObjects){
+			      const bool numObjects,
+			      const vector3D<double> center){
       
       //Create a rectangular shaped collimator as a deformable mesh with initial
       //dimensions "dx" x "dy" x "dz". The collimator is constructed using 4 external
@@ -337,96 +338,96 @@ namespace penred{
       out << "# VERTEX LIST" << std::endl;
       out << "# Index (X Y Z)" << std::endl;
 
-      const double originX = -dx/2.0;
-      const double originY = -dy/2.0;
+      const double originX = center.x-dx/2.0;
+      const double originY = center.y-dy/2.0;
 
-      const double originInXTop = -dxInTop/2.0;
-      const double originInYTop = -dyInTop/2.0;
+      const double originInXTop = center.x-dxInTop/2.0;
+      const double originInYTop = center.y-dyInTop/2.0;
 
-      const double originInXBot = -dxInBot/2.0;
-      const double originInYBot = -dyInBot/2.0;
+      const double originInXBot = center.x-dxInBot/2.0;
+      const double originInYBot = center.y-dyInBot/2.0;
       
-      const double limitX = dx/2.0;
-      const double limitY = dy/2.0;
+      const double limitX = center.x+dx/2.0;
+      const double limitY = center.y+dy/2.0;
 
-      const double limitInXTop = dxInTop/2.0;
-      const double limitInYTop = dyInTop/2.0;
+      const double limitInXTop = center.x+dxInTop/2.0;
+      const double limitInYTop = center.y+dyInTop/2.0;
 
-      const double limitInXBot = dxInBot/2.0;
-      const double limitInYBot = dyInBot/2.0;
+      const double limitInXBot = center.x+dxInBot/2.0;
+      const double limitInYBot = center.y+dyInBot/2.0;
       
-      const double originZ = -dz/2.0;
-      const double limitZ  = dz/2.0;
+      const double originZ = center.z-dz/2.0;
+      const double limitZ  = center.z+dz/2.0;
 
       // Bot outer
       // 0
       out << " 0"
-	  << " " << originX << " " << originY << "" << originZ << std::endl;
+	  << " " << originX << " " << originY << " " << originZ << std::endl;
 
       // 1
       out << " 1"
-	  << " " << limitX << " " << originY << "" << originZ << std::endl;
+	  << " " << limitX << " " << originY << " " << originZ << std::endl;
 
       // 2
       out << " 2"
-	  << " " << limitX << " " << limitY << "" << originZ << std::endl;
+	  << " " << limitX << " " << limitY << " " << originZ << std::endl;
 
       // 3
       out << " 3"
-	  << " " << originX << " " << limitY << "" << originZ << std::endl;
+	  << " " << originX << " " << limitY << " " << originZ << std::endl;
 
       
       // Bot inner
       // 4
       out << " 4"
-	  << " " << originInXBot << " " << originInYBot << "" << originZ << std::endl;
+	  << " " << originInXBot << " " << originInYBot << " " << originZ << std::endl;
 
       // 5
       out << " 5"
-	  << " " << limitInXBot << " " << originInYBot << "" << originZ << std::endl;
+	  << " " << limitInXBot << " " << originInYBot << " " << originZ << std::endl;
 
       // 6
       out << " 6"
-	  << " " << limitInXBot << " " << limitInYBot << "" << originZ << std::endl;
+	  << " " << limitInXBot << " " << limitInYBot << " " << originZ << std::endl;
 
       // 7
       out << " 7"
-	  << " " << originInXBot << " " << limitInYBot << "" << originZ << std::endl;
+	  << " " << originInXBot << " " << limitInYBot << " " << originZ << std::endl;
 
       // Top outer
       // 8
       out << " 8"
-	  << " " << originX << " " << originY << "" << limitZ << std::endl;
+	  << " " << originX << " " << originY << " " << limitZ << std::endl;
 
       // 9
       out << " 9"
-	  << " " << limitX << " " << originY << "" << limitZ << std::endl;
+	  << " " << limitX << " " << originY << " " << limitZ << std::endl;
 
       // 10
       out << " 10"
-	  << " " << limitX << " " << limitY << "" << limitZ << std::endl;
+	  << " " << limitX << " " << limitY << " " << limitZ << std::endl;
 
       // 11
       out << " 11"
-	  << " " << originX << " " << limitY << "" << limitZ << std::endl;
+	  << " " << originX << " " << limitY << " " << limitZ << std::endl;
 
       
       // Top inner
       // 12
       out << " 12"
-	  << " " << originInXTop << " " << originInYTop << "" << limitZ << std::endl;
+	  << " " << originInXTop << " " << originInYTop << " " << limitZ << std::endl;
 
       // 13
       out << " 13"
-	  << " " << limitInXTop << " " << originInYTop << "" << limitZ << std::endl;
+	  << " " << limitInXTop << " " << originInYTop << " " << limitZ << std::endl;
 
       // 14
       out << " 14"
-	  << " " << limitInXTop << " " << limitInYTop << "" << limitZ << std::endl;
+	  << " " << limitInXTop << " " << limitInYTop << " " << limitZ << std::endl;
 
       // 15
       out << " 15"
-	  << " " << originInXTop << " " << limitInYTop << "" << limitZ << std::endl;
+	  << " " << originInXTop << " " << limitInYTop << " " << limitZ << std::endl;
 
 
       // ** Construct triangles
@@ -574,5 +575,5 @@ namespace penred{
       
     }
 
-  };
-};
+  } // namespace xray
+} // namespace penred

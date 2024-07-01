@@ -55,7 +55,7 @@ class pen_VRxraysplitting : public pen_genericVR<pen_state_gPol>{
 			const pen_KPAR /*kpar*/,
 			const unsigned /*kdet*/,
 			pen_state_gPol& state,
-			std::array<pen_state_gPol,constants::NMS>& stack,
+			std::vector<pen_state_gPol>& stack,
 			unsigned& created,
 			const unsigned available,
 			pen_rand& random) const;

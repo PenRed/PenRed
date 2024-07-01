@@ -27,8 +27,6 @@
 #    
 #
 
-
-
 #############################
 #  LIBS
 #############################
@@ -57,7 +55,9 @@ add_subdirectory(sharedFile)
 add_subdirectory(auxiliar)
 
 # TCP folder
-add_subdirectory(tcp)
+if(WITH_TCP)
+    add_subdirectory(tcp)
+endif(WITH_TCP)
 
 # image folder
 add_subdirectory(image)

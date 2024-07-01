@@ -66,9 +66,58 @@ namespace penred{
 			      const unsigned nthreadsIn = 0,
 			      const unsigned verbose = 2,
 			      const std::string& geoFilename = "");
-    
-  };
-};
 
+    inline std::pair<double,double> fieldSize(const double focalSpot,
+					      const double detectorDx,
+					      const double detectorDy,
+					      const double source2det,
+					      const double source2field){
+
+      // ** Beam aperture
+
+      //Calculate the beam maximum aperture
+      //
+      //          fs
+      //         |--|        n
+      //        /|  |\       |
+      //       /_|  | \      |
+      //      / a|  |  \     | source to detector
+      //     /   |  |   \    |
+      //    /    |  |    \   |   b/h = tan -> b = tan*h
+      //   |--------------|  u
+      //     | detector
+      //     u
+      // (detector-fs)/2
+      //
+      //
+      
+      //Calculate beam aperture in X and Y axis
+      double tanBeamApertureX;
+      double tanBeamApertureY;
+
+      //X axis
+      if(focalSpot < detectorDx)
+	tanBeamApertureX = (detectorDx/2.0 - focalSpot/2.0)/source2det;
+      else
+	tanBeamApertureX = 0.0;
+
+      //Y Axis
+      if(focalSpot < detectorDy)
+	tanBeamApertureY = (detectorDy/2.0 - focalSpot/2.0)/source2det;
+      else
+	tanBeamApertureY = 0.0;
+
+      // ** Field size at source2field distance
+
+      //Calculate the field size
+      std::pair<double,double> result;
+      result.first = focalSpot + 2.0*source2field*tanBeamApertureX;
+      result.second = focalSpot + 2.0*source2field*tanBeamApertureY;
+
+      return result;
+    }
+    
+  } // namespace xray
+} // namespace penred
 
 #endif

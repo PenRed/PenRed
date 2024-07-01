@@ -4,6 +4,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2024-07-01
+
+### Added
+
+- Auxiliary *measurement* and *results* classes to the penred::measurements namespace to automate the tallying of magnitudes with arbitrary dimensions, as well as the generation and reading of formatted files
+
+- Auxiliary *aliasing* class to the penred::sampling namespace to automate the sampling of distributions of arbitrary dimension using Walker's aliasing. Distributions can be obtained from the *measurement* and *results* classes
+
+- *DETECTION_SPATIAL_DISTRIB* tally to generate 1D, 2D, 3D, or 4D spatial and energy distributions of impinging particles in a specific detector
+
+- *1D_MEASURE*, *2D_MEASURE*, and *3D_MEASURE* spatial samplers to sample particle positions according to 1D, 2D, and 3D distributions, respectively. These distributions can be generated with the *DETECTION_SPATIAL_DISTRIB*
+
+- Configuration example for utilizing the new tallies and sampler. It is located in *examples/quadrics/9-measure-source*
+
+- x-ray based utilities to streamline simulations of this kind of devices
+
+- Profile functions and utility to create n-dimensional profiles from *measurement* and *results* classes.
+
+- Databases of compositions, along with utilities to list them
+
+- Methods to create materials from compositions databases
+
+- Finish simulation function to stop simulations in the *simulation* library functions
+
+- *simulator* class to wrapp the main program functioanlities. For now, MPI and load balance support is not implemented in this class.
+
+- New tally to register energy spectrums of emerging particles in spherical bins
+
+- Additional constraints for DICOM segmentation
+
+- First version of a Python wrapper using the *simulator* class and pybind11
+
+### Changed
+
+- The compilation of the TCP library is now optional, allowing the code to be compiled without the ASIO library
+
+- Erroneous material ID assignation on automatic generated material section by *pen_context* configuration.
+
+- Integrated data bases uses now split string literals to allow to fit specific compiler limitations on string literals length.
+
+- Particle stacks are now allocated dynamically to avoid stackoverflows in some systems.
+
+- Removed number of bins limit in cylindrical and spherical dose distribution tallies
+
+### Fix
+
+- In some cases, *COMBO* geometry skips low priority geometries when a higher geometry contains void bodies.
+
+- Erroneous verbose levels in geometry prints.
+
+- Kerma track length tally does not write the automatically generated absortption coefficients until the end of the simulation.
+
 ## [1.10.0] - 2024-04-15
 
 ### Added

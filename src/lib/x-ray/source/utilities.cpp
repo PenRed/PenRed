@@ -681,5 +681,5 @@ namespace penred{
       return errors::SUCCESS;
     }
     
-  };
-};
+  } // namespace xray
+} // namespace penred

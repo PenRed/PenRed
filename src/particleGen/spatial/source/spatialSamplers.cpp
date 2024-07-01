@@ -32,3 +32,4 @@
 #include "point_spatialSampling.cpp"
 #include "image_spatialSampling.cpp"
 #include "cylinder_spatialSampling.cpp"
+#include "measure_spatialSampling.cpp"

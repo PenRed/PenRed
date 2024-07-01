@@ -672,7 +672,7 @@ public:
   template <class signedT>
 
   // Enable only overloads with signed types using return type
-  typename std::enable_if<std::is_signed<signedT>::value,int>::type //(int)  
+  typename std::enable_if<std::is_integral<signedT>::value && std::is_signed<signedT>::value,int>::type //(int)  
   toDump(signedT*       p, const size_t n){
 
     if(p == nullptr)
@@ -721,7 +721,7 @@ public:
   // toDump for unsigned integrals:
   template <class unsignedT>
   // Enable only overloads with unsigned types using return type
-  typename std::enable_if<std::is_unsigned<unsignedT>::value,int>::type //(int)
+  typename std::enable_if<std::is_integral<unsignedT>::value && std::is_unsigned<unsignedT>::value,int>::type //(int)
   toDump(unsignedT*     p, const size_t n){
 
     if(p == nullptr)
@@ -785,7 +785,7 @@ public:
 
   template <class signedT>
   // Enable only overloads with signed types using return type
-  typename std::enable_if<std::is_signed<signedT>::value,int>::type //(int)  
+  typename std::enable_if<std::is_integral<signedT>::value && std::is_signed<signedT>::value,int>::type //(int)  
   remove(const signedT* p){
 
     if(p == nullptr)
@@ -810,7 +810,7 @@ public:
   
   template <class unsignedT>
   // Enable only overloads with unsigned types using return type
-  typename std::enable_if<!(std::is_signed<unsignedT>::value),int>::type //(int)
+  typename std::enable_if<std::is_integral<unsignedT>::value && !(std::is_signed<unsignedT>::value),int>::type //(int)
   remove(const unsignedT* p){
 
     if(p == nullptr)

@@ -38,7 +38,8 @@ ${CMAKE_CURRENT_SOURCE_DIR}/source/collimator.cpp
 ${CMAKE_CURRENT_SOURCE_DIR}/source/filter.cpp
 ${CMAKE_CURRENT_SOURCE_DIR}/source/anode.cpp
 ${CMAKE_CURRENT_SOURCE_DIR}/source/phantom.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/source/utilities.cpp)
+${CMAKE_CURRENT_SOURCE_DIR}/source/utilities.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/source/device.cpp)
 
 # Create lib
 add_library(pen_xray STATIC ${SOURCE})

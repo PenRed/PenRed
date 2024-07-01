@@ -176,8 +176,12 @@ int pen_readerCondition::parse(const pen_parserSection& s,
     condType = NEGATIVE;
   }else if(condTypeString.compare("lesser") == 0){
     condType = LESSER;
+  }else if(condTypeString.compare("lesser_equal") == 0){
+    condType = LESSER_EQUAL;
   }else if(condTypeString.compare("greater") == 0){
     condType = GREATER;
+  }else if(condTypeString.compare("greater_equal") == 0){
+    condType = GREATER_EQUAL;
   }else if(condTypeString.compare("not_equal") == 0){
     condType = NOT_EQUAL;
   }else if(condTypeString.compare("equal") == 0){
@@ -737,7 +741,7 @@ bool pen_readerSection::checkSection(const pen_parserSection& in,
       }
       
       //check conditions
-      int failedCond;
+      int failedCond = 0;
       if(!e.second.checkConditions(in,eIn,actualSectionPath,&failedCond)){
 	//The conditions have not been fulfilled
 	errorElement = prefix + e.first + " " + eIn.stringify();

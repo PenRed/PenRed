@@ -161,6 +161,17 @@ public:
     }
     
   }
+
+  inline operator long int() const{
+    switch(tag){
+    case pen_parserData::INT: return static_cast<long int>(i);
+    case pen_parserData::DOUBLE: return static_cast<long int>(d);
+    case pen_parserData::BOOL: return static_cast<long int>(b);
+    case pen_parserData::CHAR: return static_cast<long int>(c);
+    default: return i;
+    }
+    
+  }
   
   inline operator long long int() const{
     switch(tag){
@@ -212,6 +223,16 @@ public:
     default: return static_cast<unsigned>(i);
     }
   }
+
+  inline operator unsigned long() const{
+    switch(tag){
+    case pen_parserData::INT: return static_cast<unsigned long>(i);
+    case pen_parserData::DOUBLE: return static_cast<unsigned long>(d);
+    case pen_parserData::BOOL: return static_cast<unsigned long>(b);
+    case pen_parserData::CHAR: return static_cast<unsigned long>(c);
+    default: return static_cast<unsigned long>(i);
+    }
+  }  
 
   inline operator unsigned long long() const{
     switch(tag){
@@ -933,7 +954,9 @@ public:
   }
   int ls(std::string&, std::vector<std::string>&) const;
 
-  inline size_t size() const { return elements.size(); } 
+  inline size_t size() const { return elements.size(); }
+
+  inline bool empty() const { return size() == 0; }
 
   inline const elementMap& readMap() const {return elements;}
   
@@ -977,7 +1000,7 @@ inline int parseString(const std::string& sIn,
 
   //Parse it
   return parseStream(iss, section, errorString, errorLine);
-};
+}
 
 inline int parseString(const char* sIn,
 		       pen_parserSection& section,
@@ -989,7 +1012,7 @@ inline int parseString(const char* sIn,
 
   //Parse it
   return parseStream(iss, section, errorString, errorLine);
-};
+}
   
 int pen_getLine(FILE* fin,
 		const unsigned size,

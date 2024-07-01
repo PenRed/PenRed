@@ -28,12 +28,16 @@
 #define __PEN_X_RAY_FILTER__
 
 #include "x-ray-common.hh"
+
 #include <iostream>
+#include <algorithm>
 
 namespace penred{
 
   namespace xray{
 
+    struct filterTopIrregularFace;
+    
     void createBaseFilter(double dx,
 			  double dy,
 			  double dz,
@@ -45,9 +49,20 @@ namespace penred{
 			  const bool numObjects,
 			  const vector3D<double> center =
 			  vector3D<double>(0.0,0.0,0.0));
+
     
-  };
-};
+    void createTopFaceIrregularFilter(double dx,
+				      double dy,
+				      std::vector<double>& dz,
+				      std::ostream& out,
+				      const unsigned matIndex,
+				      const std::string& filterName,
+				      const std::string& parentName,
+				      const bool numObjects,
+				      const vector3D<double> center =
+				      vector3D<double>(0.0,0.0,0.0));
+  } // namespace xray
+} // namespace penred
 
 
 #endif

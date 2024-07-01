@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2023 Universitat de València - UV
-//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2024 Universitat de València - UV
+//    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -382,7 +382,16 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
       printf("geometry print-ASCII outputdir: '%s'\n\n",OutputDirPath.c_str());
   }    
    
-
+  //Check for segmentation constrains
+  //****************************************
+  std::vector<segmentConstraints> constraints;
+  
+  if(readSegmentConstraints(config, constraints, verbose) != 0){
+    if(verbose > 0)
+      printf("pen_dicomGeo:configure: Error reading segmentation constraints.\n");
+    return 4;    
+  }
+  
   //*******************
   // Try to load DICOM
   //*******************
@@ -549,6 +558,214 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
     printf("No calibration found.\n");
   }
 
+  // Segmentation constraints
+  //***************************
+
+  if(constraints.size() > 1 && verbose > 1)
+    printf(" + Apply constraints:\n");
+    
+  
+  bool empty = false;
+  double voxVol = dvox[0]*dvox[1]*dvox[2];
+  unsigned long nvoxZ = nvox[0]*nvox[1];
+  for(const segmentConstraints& c : constraints){
+
+    if(verbose > 1)
+      printf("    - %s\n", c.stringify().c_str());
+
+    //Check min volume and number of clusters
+    if(c.minVolume > 0.0 ||
+       c.maxVolume > 0.0 ||
+       c.maxClusters > 0){
+
+      //Store voxel clusters
+      std::vector<std::pair<double, std::set<unsigned long>>> clusters;
+      
+      //Test constraints
+      for(unsigned long ivox = 0; ivox < tnvox; ivox++){
+	if(mats[ivox] == c.mat){
+	  //Constraint material found
+
+	  //Check if has already been processed
+	  bool found = false;
+	  for(const auto& cluster : clusters){
+	    if(cluster.second.find(ivox) != cluster.second.cend()){
+	      found = true;
+	      break;
+	    }
+	  }
+	  if(found)
+	    continue;
+
+	  //Create a new cluster
+	  clusters.emplace_back();
+	  std::set<unsigned long>& includedVoxels = clusters.back().second;
+
+	  //Create a set with non processed voxels
+	  std::unordered_set<unsigned long> nonProcessed;
+	  nonProcessed.insert(ivox);
+
+	  //Process all voxels in the cluster
+	  while(nonProcessed.size() > 0){
+
+	    //Get first element
+	    unsigned long testVox = *nonProcessed.cbegin();
+
+	    //Remove the element in the to be processed list
+	    nonProcessed.erase(nonProcessed.cbegin());
+
+	    //Add it to the processed list
+	    includedVoxels.insert(testVox);
+	    
+	    unsigned ix = testVox % nvox[0];
+	    unsigned iy = (testVox % nvoxZ) / nvox[0];
+	    unsigned iz = testVox / nvoxZ;
+
+	    unsigned xlow = ix > 0 ? ix - 1 : ix;
+	    unsigned xtop = std::min(nvox[0]-1, ix+1);
+
+	    unsigned ylow = iy > 0 ? iy - 1 : iy;
+	    unsigned ytop = std::min(nvox[1]-1, iy+1);
+
+	    unsigned zlow = iz > 0 ? iz - 1 : iz;
+	    unsigned ztop = std::min(nvox[2]-1, iz+1);
+
+	    for(size_t kk = zlow; kk <= ztop; ++kk){
+	      for(size_t jj = ylow; jj <= ytop; ++jj){
+		for(size_t ii = xlow; ii <= xtop; ++ii){
+		  const unsigned long toAdd = kk*nvoxZ + jj*nvox[0] + ii;
+		  if(toAdd != testVox &&
+		     mats[toAdd] == c.mat &&
+		     includedVoxels.count(toAdd) == 0)
+		    nonProcessed.insert(toAdd);
+		}
+	      }
+	    }
+	    
+	  }
+
+	  const double clusterVol = static_cast<double>(includedVoxels.size())*voxVol;
+	  clusters.back().first = clusterVol;
+
+	  if(verbose > 1)
+	    printf("      * Cluster found with material %u at voxel index %lu "
+		   "with volume %E cm**3.\n",
+		   c.mat,
+		   static_cast<unsigned long>(ivox),
+		   clusterVol);
+  
+	  //Check if the cluster volume is in the limit
+	  if(c.minVolume > clusterVol ||
+	     (c.maxVolume > 0.0 && c.maxVolume < clusterVol)){
+
+	    if(verbose > 1)
+	      printf("         Volume constraints not fulfilled, remove it.\n");
+	    
+	    //Remove this cluster
+	    for(const unsigned long& index : includedVoxels){
+	      mats[index] = 0;
+	    }
+	    empty = true;
+	    clusters.pop_back();
+	    continue;
+	  }
+
+	  //Sort clusters
+	  std::sort(clusters.begin(), clusters.end(),
+		    std::greater<std::pair<double, std::set<unsigned long>>>());
+
+	  //Check maximum number of clusters
+	  if(c.maxClusters > 0 &&
+	     clusters.size() > c.maxClusters){
+	    //Remove smallest cluster
+
+	    if(verbose > 1)
+	      printf("         Maximum number of clusters reached, "
+		     "remove the smallest one with volume %E cm**3.\n",
+		     clusters.back().first);
+	    
+	    for(const unsigned long& index : clusters.back().second){
+	      mats[index] = 0;
+	    }
+	    clusters.pop_back();
+	    empty = true;
+	  }
+	}
+      }
+    }
+    
+  }
+
+  // Fill empty voxels due constraints
+  while(empty){
+    empty = false;
+    std::vector<voxelInfo> toSet;
+    for(unsigned long ivox = 0; ivox < tnvox; ivox++){
+
+      if(mats[ivox] == 0){
+	//Set material according to neighbour voxels
+	unsigned ix = ivox % nvox[0];
+	unsigned iy = (ivox % nvoxZ) / nvox[0];
+	unsigned iz = ivox / nvoxZ;
+	
+	unsigned xlow = ix > 1 ? ix - 2 : ( ix > 0 ? ix - 1 : ix );
+	unsigned xtop = std::min(nvox[0]-1, ix+2);
+
+	unsigned ylow = iy > 1 ? iy - 2 : ( iy > 0 ? iy - 1 : iy );
+	unsigned ytop = std::min(nvox[1]-1, iy+2);
+
+	unsigned zlow = iz > 1 ? iz - 2 : ( iz > 0 ? iz - 1 : iz );
+	unsigned ztop = std::min(nvox[2]-1, iz+2);
+
+	std::array<unsigned, constants::MAXMAT> matWeights;
+	std::fill(matWeights.begin(), matWeights.end(), 0);
+	double meanDens = 0.0;
+	unsigned nonVoid = 0;
+	for(size_t kk = zlow; kk <= ztop; ++kk){
+	  for(size_t jj = ylow; jj <= ytop; ++jj){
+	    for(size_t ii = xlow; ii <= xtop; ++ii){
+	      const unsigned long index = kk*nvoxZ + jj*nvox[0] + ii;
+	      const unsigned mat = mats[index];
+
+	      if(mat > 0){
+		matWeights[mat] += 1;
+		meanDens += dens[index];
+		nonVoid += 1;
+	      }
+	    }
+	  }
+	}
+
+	//Get material with maximum weight
+	if(nonVoid == 0){
+	  empty = true;
+	}
+	else{
+	  meanDens /= static_cast<double>(nonVoid);
+	  toSet.emplace_back(ivox,
+			     std::distance(matWeights.cbegin(),
+					   std::max_element(matWeights.cbegin(),
+							    matWeights.cend())),
+			     meanDens);
+	}
+      }
+      
+    }
+
+    //Apply changes for this iteration
+    if(calibration.size() == 0){
+      for(const voxelInfo& v : toSet){
+	mats[v.index] = v.mat;
+	dens[v.index] = v.dens;
+      }
+    }
+    else{
+      for(const voxelInfo& v : toSet){
+	mats[v.index] = v.mat;
+      }
+    }
+  }
+    
   // Contours assign
   //******************
   
@@ -1179,6 +1396,117 @@ int readDensityRanges(const pen_parserSection& config,
   }
   else if(verbose > 1){
     printf("\nNo density ranges specified to assign materials.\n");
+  }
+
+  return 0;
+}
+
+int readSegmentConstraints(const pen_parserSection& config,
+			   std::vector<segmentConstraints>& data,
+			   const unsigned verbose){
+
+
+  pen_parserSection constraints;
+  std::vector<std::string> constraintsNames;
+
+  if(config.readSubsection("constraints",constraints) != INTDATA_SUCCESS){
+    if(verbose > 2){
+      printf("pen_dicomGeo:readSegmentConstraints: No constraints "
+	     "field ('constraints') provided to apply on segmentation\n");
+    }
+    return 0;
+  }else{
+    //Extract constraints names
+    constraints.ls(constraintsNames);  
+  }
+  
+  if(constraintsNames.size() > 0){
+
+    if(verbose > 1)
+      printf("\nConstraint name  | MAT ID | min volume (cm^3)"
+	     " | max volume (cm^3) | max clusters\n");
+    for(unsigned i = 0; i < constraintsNames.size(); i++){
+      //Read material assigned to this range
+      int auxMat;
+      double auxMinVol;
+      double auxMaxVol;
+      int auxMaxClusters;
+      //Create field strings
+      std::string matField = constraintsNames[i] + std::string("/material");
+      std::string minVolField = constraintsNames[i] + std::string("/min-volume");
+      std::string maxVolField = constraintsNames[i] + std::string("/max-volume");
+      std::string maxClustersField = constraintsNames[i] + std::string("/max-clusters");
+
+      // Material
+      //**********
+	
+      //Read material ID
+      if(constraints.read(matField.c_str(),auxMat) != INTDATA_SUCCESS){
+	if(verbose > 0){
+	  printf("pen_dicomGeo:readSegmentConstraints: Error: Unable "
+		 "to read material ID for constraint '%s'. Integer expected.\n",
+		 constraintsNames[i].c_str());
+	}
+	return -1;
+      }
+      //Check material ID
+      if(auxMat < 1 || auxMat > (int)constants::MAXMAT){
+	if(verbose > 0){
+	  printf("pen_dicomGeo:readSegmentConstraints: Error: "
+		 "Invalid material ID for density range '%s'.\n",
+		 constraintsNames[i].c_str());
+	  printf("                         ID: %d\n",auxMat);
+	  printf("Maximum number of materials: %d\n",constants::MAXMAT);
+	}
+	return -2;
+      }
+
+      // Volume constraints
+      //*********************
+	
+      //Read min volume
+      if(constraints.read(minVolField.c_str(),auxMinVol) != INTDATA_SUCCESS){
+	auxMinVol = -2.0;
+      }
+      if(constraints.read(maxVolField.c_str(),auxMaxVol) != INTDATA_SUCCESS){
+	auxMaxVol = -1.0;
+      }
+
+      if(auxMinVol > 0.0 &&
+	 auxMaxVol > 0.0 &&
+	 auxMinVol >= auxMaxVol){
+	if(verbose > 0){
+	  printf("pen_dicomGeo:readSegmentConstraints: Error in constraint '%s': "
+		 "Minimum volume (%E) greater or equal to maximum volume (%E).\n",
+		 constraintsNames[i].c_str(), auxMinVol, auxMaxVol);
+	}
+	return -2;
+      }
+
+      // Cluster constraints
+      //*********************
+      if(constraints.read(maxClustersField.c_str(),auxMaxClusters) != INTDATA_SUCCESS){
+	auxMaxClusters = 0;
+      }
+
+      if(verbose > 1){
+	printf("%10.10s -> %4d   %12.4E - %12.4E  %d\n",
+	       constraintsNames[i].c_str(),
+	       auxMat,
+	       auxMinVol <= 0.0 ? 0.0 : auxMinVol,
+	       auxMaxVol <= 0.0 ? 1.0e35 : auxMaxVol,
+	       auxMaxClusters <= 0 ? 100000 : auxMaxClusters);
+      }
+
+      //Store values
+      data.emplace_back(static_cast<unsigned>(auxMat),
+			auxMinVol,
+			auxMaxVol,
+			auxMaxClusters <= 0 ? 0 : static_cast<unsigned>(auxMaxClusters));
+    }
+  }
+  else if(verbose > 1){
+    printf("\nNo constraints specified for segmentation.\n");
   }
 
   return 0;
