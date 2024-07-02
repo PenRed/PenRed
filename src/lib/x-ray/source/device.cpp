@@ -495,7 +495,7 @@ namespace penred{
 	//Flag it as primary particle
 	baseState.ILB[0] = 1;
 	
-	fsample = [beamRad, baseState]
+	fsample = [beamRad, baseState, pi2]
 	  (pen_particleState& state,    //Generated state
 	   pen_KPAR& kpar,          //Generated kpar
 	   unsigned long long& dh,  //History increment
