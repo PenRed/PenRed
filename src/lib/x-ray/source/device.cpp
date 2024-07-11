@@ -1052,6 +1052,10 @@ namespace penred{
       if(reader.addedGeoType.compare("-") == 0){
 	//Use Mesh geometry
 
+	if(verbose > 1){
+	  printf("No added geometry provided\n");
+	}
+
 	//Create a mesh geometry instance
 	std::shared_ptr<pen_meshBodyGeo> geometryMesh =
 	  std::make_shared<pen_meshBodyGeo>();
@@ -1087,6 +1091,10 @@ namespace penred{
       }
       else{
 
+	if(verbose > 1){
+	  printf("Added geometry provided\n");
+	}
+	
 	//Create combo geometry
 	std::shared_ptr<pen_comboGeo> geometryCombo =
 	  std::make_shared<pen_comboGeo>();
@@ -1425,7 +1433,7 @@ namespace penred{
 	out << "\n" << std::endl;
 	out << "## Tallies " << std::endl;
 	out << "###############\n" << std::endl;
-	out << "tallies/FluenceDetectior/type \"DETECTION_SPATIAL_DISTRIB\" " << std::endl;
+	out << "tallies/SpatialDetectior/type \"DETECTION_SPATIAL_DISTRIB\" " << std::endl;
 	out << "tallies/SpatialDetectior/spatial/nx " << reader.detBinsX << std::endl;
 	out << "tallies/SpatialDetectior/spatial/xmin " <<
 	  detectedFluence[0].readLimits()[0].first << std::endl;

@@ -57,14 +57,73 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
     err++;
   }
 
-  int err2 = loadFile(filename.c_str(),verbose);  
-  if(err2 != 0){
-    if(verbose > 0){
-      printf("pen_voxelGeo:configure: Error reading and loading file '%s': %d\n", filename.c_str(),err2);
+  //Check file type, ASCII or binary
+  bool ASCII = false;
+  if(config.read("ascii",ASCII) != INTDATA_SUCCESS){
+    ASCII = false;
+  }
+  if(verbose > 1){
+    printf("Expected voxelized file in %s format\n\n", ASCII ? "ASCII" : "binary" );
+  }
+
+  if(ASCII){    
+    int err2 = loadASCII(filename.c_str(),verbose);  
+    if(err2 != 0){
+      if(verbose > 0){
+	printf("pen_voxelGeo:configure: Error reading and "
+	       "loading ASCII voxel geometry file '%s': Corrupted file\n",
+	       filename.c_str());
+	
+	switch(err2){
+	case -1:
+	  printf("Unexpected error: No filename provided. "
+		 "Please, report this error.\n");
+	  break;
+	case -2:
+	  printf("Unable to open geometry file.\n");
+	  break;
+	case -3:
+	  printf("Number of voxels must be positive.\n");	  
+	  break;
+	case -4:
+	  printf("Voxels sizes must be positive.\n");
+	  break;
+	case -5:
+	  printf("Unexpected end of file reached.\n");
+	  break;
+	case -6:
+	  printf("Invalid material index. Material index "
+		 "must be greater than 0.\n");
+	  break;
+	}
+      }
+      err++;
+      configStatus = err;
+      return err;
     }
-    err++;
-    configStatus = err;
-    return err;
+  }
+  else{
+    int err2 = loadFile(filename.c_str(),verbose);  
+    if(err2 != 0){
+      if(verbose > 0){
+	printf("pen_voxelGeo:configure: Error reading and "
+	       "loading binary voxel geometry file '%s': %d\n",
+	       filename.c_str(),err2);
+      }
+      switch(err2){
+      case -1:
+	printf("Unexpected error: No filename provided. "
+	       "Please, report this error.\n");
+	break;
+      case -2:
+	printf("Unable to open geometry file.\n");
+	break;
+      }
+      
+      err++;
+      configStatus = err;
+      return err;
+    }
   }
   
   // Read number of voxels
@@ -951,6 +1010,72 @@ int pen_voxelGeo::loadFile(const char* filename,
   
 }
 
+int pen_voxelGeo::loadASCII(const char* filename,
+			    const unsigned verbose) {
+
+  if(filename == nullptr)
+    return -1;
+  
+  FILE* input = nullptr;
+  input = fopen(filename, "r");
+  if(input == nullptr){
+    return -2;
+  }
+  
+  //Read number of voxels
+  int nvoxAux[3];
+  fscanf(input, " %d %d %d", &nvoxAux[0], &nvoxAux[1], &nvoxAux[2]);
+
+  if(nvoxAux[0] < 1 ||
+     nvoxAux[1] < 1 ||
+     nvoxAux[2] < 1){
+    fclose(input);
+    return -3;
+  }
+  
+  unsigned nvox[3] = {
+    static_cast<unsigned>(nvoxAux[0]),
+    static_cast<unsigned>(nvoxAux[1]),
+    static_cast<unsigned>(nvoxAux[2])
+  };
+
+  //Read voxel sizes
+  double size[3];
+  fscanf(input, " %lE %lE %lE", &size[0], &size[1], &size[2]);  
+
+  if(size[0] <= 0.0 ||
+     size[1] <= 0.0 ||
+     size[2] <= 0.0){
+    fclose(input);
+    return -4;
+  }
+  
+  //Create vectors to store materials and density factors
+  size_t nbins = nvox[0]*nvox[1]*nvox[2];
+  std::vector<unsigned> materials(nbins);
+  std::vector<double> densityFacts(nbins);
+  
+  for(size_t i = 0; i < nbins; ++i){
+    int auxMat;
+    int nread = fscanf(input, " %d %lE ", &auxMat, &densityFacts[i]);
+    if(nread != 2){
+      fclose(input);
+      return -5;
+    }
+
+    if(auxMat <= 0){
+      fclose(input);
+      return -6;
+    }
+    materials[i] = static_cast<unsigned>(auxMat);
+  }
+
+  fclose(input);
+  
+  int err = setVoxels(nvox,size,materials.data(),densityFacts.data(),verbose);
+
+  return err;
+}
 
 int pen_voxelGeo::printImage(const char* filename) const{
 
@@ -963,37 +1088,26 @@ int pen_voxelGeo::printImage(const char* filename) const{
   if(OutVox == nullptr){
     return -2;
   }
-
-  fprintf(OutVox,"# \n");
-  fprintf(OutVox,"# Voxel geometry file\n");
-  fprintf(OutVox,"# Nº of voxels (nx,ny,nz):\n");  
-  fprintf(OutVox,"# %5u %5u %5u\n",nx,ny,nz);
-  fprintf(OutVox,"# Voxel sizes (dx,dy,dz):\n");  
-  fprintf(OutVox,"# %8.5E %8.5E %8.5E\n",dx,dy,dz);
-  fprintf(OutVox,"# Voxel data:\n");
-  fprintf(OutVox,"#    X(cm)   |    Y(cm)   | MAT | density(vox)/density(mat)\n");
-
+  
+  fprintf(OutVox," %5u %5u %5u\n",nx,ny,nz);
+  fprintf(OutVox,"%8.5E %8.5E %8.5E\n",dx,dy,dz);
+  
   //Iterate over Z planes
   for(unsigned k = 0; k < nz; k++){
     size_t indexZ = nxy*k;
-    fprintf(OutVox,"# Index Z = %4d\n",k);
 
     //Iterate over rows
     for(unsigned j = 0; j < ny; j++){
       size_t indexYZ = indexZ + j*nx;
-      fprintf(OutVox,"# Index Y = %4d\n",j);
 
       //Iterate over columns
       for(unsigned i = 0; i < nx; i++){
 	size_t ivoxel = indexYZ + i;
 
 	//Save voxel X Y and intensity
-	fprintf(OutVox," %12.5E %12.5E %4u   %12.5E\n", i*dx, j*dy, mesh[ivoxel].MATER, mesh[ivoxel].densityFact);
-      }
-      
+	fprintf(OutVox,"%4u   %12.5E\n", mesh[ivoxel].MATER, mesh[ivoxel].densityFact);
+      }      
     }
-    //Set a space between planes
-    fprintf(OutVox,"\n\n\n");    
   }
 
   return 0;

@@ -838,6 +838,22 @@ int pen_context::configure(const double EMAX,
       std::string errorString;
 
       if(matData.composition.size() > 0){
+
+	if(verbose > 1){
+	  printf("Creating material '%s':\n"
+		 "  filename: %s\n"
+		 "  density: %E\n"
+		 "  composition (Z, mass weight):\n",
+		 matData.name.c_str(), matData.filename.c_str(),
+		 matData.density);
+	  for(size_t ic = 0; ic < matData.composition.size(); ++ic){
+	    printf("    %u: %E\n",
+		   matData.composition[i].Z,
+		   matData.composition[i].fraction);
+	  }
+	  printf("\n");
+	}
+	
 	err = penred::penMaterialCreator::createMat(matData.name,
 						    matData.density,
 						    matData.composition,

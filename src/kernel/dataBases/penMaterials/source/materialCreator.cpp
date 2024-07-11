@@ -8153,11 +8153,18 @@ namespace penred{
       matStream << 1 << std::endl;
       matStream << name << std::endl;
       matStream << composition.size() << std::endl;
-      matStream << 2 << std::endl;
-      for(const auto& element : composition){
-	matStream << element.Z << " "
-		  << element.fraction << std::endl;
+      
+      if(composition.size() > 1){
+	matStream << 2 << std::endl;
+	for(const auto& element : composition){
+	  matStream << element.Z << " "
+		    << element.fraction << std::endl;
+	}
       }
+      else{
+	matStream << composition[0].Z << std::endl;
+      }
+      
       matStream << 2 << std::endl;
       matStream << density << std::endl;
       matStream << 2 << std::endl;
