@@ -31,7 +31,9 @@
 #include <cstdio>
 #include "pen_geometries.hh"
 
-bool diff(const double val1, const double val2){
+bool diff(const double val1,
+	  const double val2,
+	  const double tol = 1.0e-14){
   
   if(val1 == 0.0 || val2 == 0.0){
     if(val1 != val2){
@@ -39,7 +41,7 @@ bool diff(const double val1, const double val2){
     }
   }
   else{
-    if(fabs(1.0-val1/val2) > 1.0e-14){
+    if(fabs(1.0-val1/val2) > tol){
       return true;
     }
   }
@@ -47,7 +49,9 @@ bool diff(const double val1, const double val2){
   return false;
 }
 
-int voxGeocmp(const pen_voxelGeo& geo1, const pen_voxelGeo& geo2){
+int voxGeocmp(const pen_voxelGeo& geo1,
+	      const pen_voxelGeo& geo2,
+	      const double tol = 1.0e-14){
 
   printf("  nx = %u\n",geo2.xVox());
   printf("  ny = %u\n",geo2.yVox());
@@ -87,12 +91,12 @@ int voxGeocmp(const pen_voxelGeo& geo1, const pen_voxelGeo& geo2){
     const pen_voxel voxel1 = geo1.readElement(i);
     const pen_voxel voxel2 = geo2.readElement(i);
     if(voxel1.MATER != voxel2.MATER ||
-       diff(voxel1.densityFact,voxel2.densityFact)){
+       diff(voxel1.densityFact,voxel2.densityFact, tol)){
       printf("Error: voxel %u mismatch material or density factor:\n",i);
       printf("     voxel mat = %u\n",voxel2.MATER);
       printf("  expected mat = %u\n",voxel1.MATER);
-      printf("    voxel dens = %12.4E\n",voxel2.densityFact);
-      printf(" expected dens = %12.4E\n",voxel1.densityFact);
+      printf("    voxel dens = %15.6E\n",voxel2.densityFact);
+      printf(" expected dens = %15.6E\n",voxel1.densityFact);
       err2++;
     }
   }
@@ -111,6 +115,7 @@ int main(){
   pen_voxelGeo voxelgeo1;
   pen_voxelGeo voxelgeo2;
   pen_voxelGeo voxelgeo3;
+  pen_voxelGeo voxelgeo4;
 
   pen_rand random;
   random.rand0(2); //Set initial random seeds
@@ -201,8 +206,8 @@ int main(){
       printf("Error: voxel %u mismatch material or density factor:\n",i);
       printf("     voxel mat = %u\n",voxel.MATER);
       printf("  expected mat = %u\n",voxMats[i]);
-      printf("    voxel dens = %12.4E\n",voxel.densityFact);
-      printf(" expected dens = %12.4E\n",voxDens[i]);
+      printf("    voxel dens = %15.6E\n",voxel.densityFact);
+      printf(" expected dens = %15.6E\n",voxDens[i]);
       err2++;
     }
   }
@@ -210,6 +215,17 @@ int main(){
   if(err2 > 0){
     return -5;
   }
+
+  //Write voxel data in ASCII format
+  printf("Write voxel data in ASCII format\n");
+  FILE* fascii = fopen("asciiVox.geo", "w");  
+  fprintf(fascii, "%u %u %u\n", nvox[0], nvox[1], nvox[2]);
+  fprintf(fascii, "%E %E %E\n", sizes[0], sizes[1], sizes[2]);
+  for(size_t i = 0; i < tvox; ++i){
+    fprintf(fascii, "%u %15.6E\n", voxMats[i], voxDens[i]);
+  }
+  fclose(fascii);
+  printf("Voxel ASCII file completed, load it.\n");  
 
   free(voxMats);
   free(voxDens);
@@ -292,6 +308,23 @@ int main(){
   }
 
   printf("Voxel data in Geometry 1 and 3 matches.\n");
+
+
+  printf("Load voxel data in ASCII format in geometry 4.\n");
+
+  err = voxelgeo4.loadASCII("asciiVox.geo", 3);
+  if(err != 0){
+    printf("Error loading voxel geometry from file: %d\n",err);
+    return -14;
+  }
+
+  printf("Compare loaded data in geometry 4 with data contained in geometry 1:\n");
+  if(voxGeocmp(voxelgeo1,voxelgeo4, 1.0e-4) != 0){
+    printf("Loaded voxel data at geometry 1 and 4 misatch.\n");
+    return -15;
+  }
+  
+  printf("Voxel data in Geometry 1 and 4 matches.\n");
   
   printf("\n\nTest pased!\n\n");
   

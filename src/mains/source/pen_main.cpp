@@ -245,7 +245,7 @@ int main(int argc, char** argv){
   }
 
   printf("***************************************************************\n");
-  printf(" PenRed version: 1.11.0 (01-July-2024) \n");
+  printf(" PenRed version: 1.11.0b (11-July-2024) \n");
   printf(" Copyright (c) 2019-2024 Universitat Politecnica de Valencia\n");
   printf(" Copyright (c) 2019-2024 Universitat de Valencia\n");
   printf(" Reference: Computer Physics Communications, 267 (2021) 108065\n"
