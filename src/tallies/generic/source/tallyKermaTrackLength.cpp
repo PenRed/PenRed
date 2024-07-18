@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2020-2022 Universitat de València - UV
-//    Copyright (C) 2020-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2020-2024 Universitat de València - UV
+//    Copyright (C) 2020-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -1765,7 +1765,7 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& geometry,
 	  unsigned nMuenBins = 100;
 	  double de = (emax-emin)/static_cast<double>(nMuenBins);
 	  double minCalc = std::max(emin-de, 50.0);
-	  double maxCalc = std::min(emax+de, 1.0e6);
+	  double maxCalc = std::min(emax+de, 1.0e9);
 	  nMuenBins += 10;
 	  err = pen_muen::calculate(minCalc, maxCalc, nMuenBins,
 				    0.1, 30, materials[imat-1]->readDataPath().c_str(),
