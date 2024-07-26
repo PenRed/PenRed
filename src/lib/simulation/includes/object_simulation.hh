@@ -478,7 +478,7 @@ namespace penred{
   
 	//Share configuration from thread 0 cluster to other threads
 	failedClusters = 0;
-	for(unsigned j = 0; j < nThreads; j++){
+	for(unsigned j = 1; j < nThreads; j++){
 
 	  int err = tallyGroups[j].shareConfig(tallyGroups[0], verbose);
 	  if(err != 0){
