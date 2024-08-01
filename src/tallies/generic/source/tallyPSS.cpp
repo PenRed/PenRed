@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2023 Universitat de València - UV
-//    Copyright (C) 2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2023-2024 Universitat de València - UV
+//    Copyright (C) 2023-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -583,6 +583,14 @@ int pen_PSS::configure(const wrapper_geometry& geometry,
   scatter->setOutputDirPath(readOutputDirPath());  
   multiScatter->setOutputDirPath(readOutputDirPath());  
 
+  //Set stacks
+  for(unsigned is = 0; is < constants::nParTypes; ++is){
+    const pen_KPAR iskpar = static_cast<pen_KPAR>(is);
+    primary->setStack(iskpar, readStack(iskpar));
+    scatter->setStack(iskpar, readStack(iskpar));
+    multiScatter->setStack(iskpar, readStack(iskpar));
+  }
+  
   //Configure tallies
   int errConfig = primary->configure(geometry,materials,config,verbose);
   if(errConfig != 0){
@@ -621,11 +629,25 @@ int pen_PSS::configure(const wrapper_geometry& geometry,
 }
 
 int pen_PSS::sharedConfig(const pen_PSS& tally){
-  primary->sharedConfig(*tally.primary);
-  scatter->sharedConfig(*tally.scatter);
-  multiScatter->sharedConfig(*tally.multiScatter);
+  
+  int err1 = primary->shareConfig(*tally.primary);
+  int err2 = scatter->shareConfig(*tally.scatter);
+  int err3 = multiScatter->shareConfig(*tally.multiScatter);
 
-  return 0;
+  if(err1 != 0){
+    printf("pen_PSS::sharedConfig: Error adding primary radiation tallies:\n"
+	   "                       Error code: %d\n", err1);
+  }
+  if(err2 != 0){
+    printf("pen_PSS::sharedConfig: Error adding scatter radiation tallies:\n"
+	   "                       Error code: %d\n", err2);
+  }
+  if(err3 != 0){
+    printf("pen_PSS::sharedConfig: Error adding multi-scatter radiation tallies:\n"
+	   "                       Error code: %d\n", err3);
+  }
+  
+  return err1 + err2 + err3;
 }
 
 

@@ -1929,7 +1929,7 @@ int createTallies(std::vector<pen_commonTallyCluster>& tallyGroups,
   
   //Share configuration from thread 0 cluster to other threads
   failedClusters = 0;
-  for(unsigned j = 0; j < nthreads; j++){
+  for(unsigned j = 1; j < nthreads; j++){
 
     err = tallyGroups[j].shareConfig(tallyGroups[0], verbose);
     if(err != 0){
