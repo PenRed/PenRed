@@ -38,12 +38,12 @@ namespace penred{
     constexpr simConfig::Endl simConfig::endl;
 
     simConfig::simConfig() :
+      logger(penred::logs::SIMULATION),
       iSeed1(1), iSeed2(1),
       lSeed1(1), lSeed2(1),
       firstSourceIndex(0),
       simulatedHistsInFirstSource(0),
       actualSource(""),
-      out(nullptr),
       iThread(0),
       dumpTime(1000000000000000),
       dumpFilename("dump"),
@@ -59,12 +59,12 @@ namespace penred{
 			 const long long int& maxSimTimeIn,
 			 const int& iSeed1In, const int& iSeed2In,
 			 const unsigned& verboseIn) :
+      logger(penred::logs::SIMULATION),
       iSeed1(iSeed1In), iSeed2(iSeed2In),
       lSeed1(iSeed1In), lSeed2(iSeed2In),
       firstSourceIndex(0),
       simulatedHistsInFirstSource(0),
       actualSource(""),
-      out(nullptr),
       iThread(iThreadIn),
       dumpTime(dumpTimeIn),
       dumpFilename(dumpFilenameIn),

@@ -186,7 +186,7 @@ struct pen_samplerTask{
 };
 
 template<class particleState>
-class abc_specificSampler{
+class abc_specificSampler : public penred::logs::logger{
 
 private:
   
@@ -286,7 +286,7 @@ public:
   virtual ~abc_specificSampler(){}
 };
 
-class abc_spatialSampler{
+class abc_spatialSampler : public penred::logs::logger{
 
 private:
   
@@ -314,7 +314,7 @@ public:
   virtual ~abc_spatialSampler(){}
 };
 
-class abc_directionSampler{
+class abc_directionSampler : public penred::logs::logger{
 
 private:
   
@@ -337,7 +337,7 @@ public:
   virtual ~abc_directionSampler(){}
 };
 
-class abc_energySampler{
+class abc_energySampler : public penred::logs::logger{
 
 private:
   
@@ -363,7 +363,7 @@ public:
   virtual ~abc_energySampler(){}
 };
 
-class abc_timeSampler{
+class abc_timeSampler : public penred::logs::logger{
 
 private:
   
@@ -386,7 +386,7 @@ public:
   virtual ~abc_timeSampler(){}
 };
 
-class pen_genericStateGen{
+class pen_genericStateGen : public penred::logs::logger{
 
   template<class stateType> friend class pen_specificStateGen; 
   
@@ -627,7 +627,7 @@ public:
 };
 
 template <class particleState>
-class pen_specificStateGen{
+class pen_specificStateGen : public penred::logs::logger{
   
 private:
 

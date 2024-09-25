@@ -253,7 +253,7 @@ if(BUILD_C_BINDS)
 endif(BUILD_C_BINDS)
 
 if(BUILD_PYTHON_MODULES)
-    add_subdirectory(bindings/python/simulator)
+    add_subdirectory(bindings/python/modules)
 endif(BUILD_PYTHON_MODULES)
 
 #-----------------------------------------------------------------------------

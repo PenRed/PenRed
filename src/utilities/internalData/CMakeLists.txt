@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019-2024 Universitat de València - UV
-#    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+#    Copyright (C) 2024 Universitat de València - UV
+#    Copyright (C) 2024 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -22,18 +22,17 @@
 #
 #    contact emails:
 #
-#        vicent.gimenez.alventosa@gmail.com
-#        vicente.gimenez@uv.es
+#        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
 #    
 #
 
+# Create mutren executable
+add_executable(internalData2YAML ${CMAKE_CURRENT_SOURCE_DIR}/internalData2YAML.cpp)
 
+target_link_libraries(internalData2YAML pen_internalData)
 
-#####################################
-#  INTERNAL DATA FORMAT AND PARSERS 
-#####################################
-
-# Create geo lib
-add_library(pen_internalData STATIC ${CMAKE_CURRENT_SOURCE_DIR}/source/pen_parser.cpp ${CMAKE_CURRENT_SOURCE_DIR}/source/pen_reader.cpp ${CMAKE_CURRENT_SOURCE_DIR}/source/pen_data.cpp)
-
-target_include_directories(pen_internalData PUBLIC ${PROJECT_SOURCE_DIR}/kernel/parsers/internalData/includes)
+# Install mutren executable
+install(
+TARGETS internalData2YAML
+DESTINATION ${PROJECT_SOURCE_DIR}/compiled/internalData/
+)

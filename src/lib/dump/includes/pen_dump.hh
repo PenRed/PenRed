@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2023 Universitat de València - UV
-//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2024 Universitat de València - UV
+//    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -38,6 +38,8 @@
 #include <cmath>
 #include <algorithm>
 #include <climits>
+#include <memory>
+#include <string>
 
 template<class T>
 inline size_t sizeofBits(){
@@ -81,6 +83,7 @@ enum dumpState{
   PEN_DUMP_ERROR_INT_DUMP,  
   PEN_DUMP_ERROR_UNSIGNED_DUMP,  
   PEN_DUMP_ERROR_CHAR_DUMP,
+  PEN_DUMP_ERROR_FILE_DUMP,
   PEN_DUMP_INCORRECT_DATA_SIZE,
   PEN_DUMP_NARRAY_NOT_MATCH,
   PEN_DUMP_ELEMENT_SIZE_NOT_MATCH,
@@ -89,8 +92,11 @@ enum dumpState{
   PEN_DUMP_UNABLE_TO_READ_INT_ARRAYS,
   PEN_DUMP_UNABLE_TO_READ_UNSIGNED_ARRAYS,
   PEN_DUMP_UNABLE_TO_READ_CHAR_ARRAYS,
+  PEN_DUMP_UNABLE_TO_READ_FILES,
+  PEN_DUMP_UNABLE_TO_OPEN_FILE,
   PEN_DUMP_INTEGER_LARGER_THAN_MAXIMUM,
-  PEN_DUMP_INVALID_TYPE
+  PEN_DUMP_INVALID_TYPE,
+  PEN_DUMP_CHAR_BITS_MISMATCH,
 };
 
 
@@ -581,18 +587,48 @@ public:
   }
 };
 
+struct fileDump{
+
+  friend class pen_dump;
+  
+private:
+  std::string* path;
+    
+  size_t dumpBits;
+public:
+
+  static const size_t charMem = sizeof(unsigned char);  
+  static const uint16_t charBits = CHAR_BIT;
+  
+  fileDump(std::string& pathIn) : path(&pathIn) {
+    dumpBits = path->size()*charBits;
+  }
+
+  inline const std::string& getPath() const { return *path; }
+  inline void setPath(const std::string& newPath) {
+    path->assign(newPath);
+    dumpBits = path->size()*charBits;
+  }
+
+  inline bool isStored(const std::string& pathIn) const {
+    return path == &pathIn;
+  }
+};
+
 class pen_dump{
 
   typedef std::vector<dArray >::iterator iteratorD;
   typedef std::vector<iArray >::iterator iteratorI;
   typedef std::vector<uiArray>::iterator iteratorUI;
   typedef std::vector<ucArray>::iterator iteratorUC;
+  typedef std::vector<fileDump>::iterator iteratorF;
   
 private:
   std::vector<dArray> pdouble;
   std::vector<iArray> pint;
   std::vector<uiArray> punsigned;
   std::vector<ucArray> puchar;
+  std::vector<fileDump> pfiles;
 
   std::vector<pen_dump*> subDumps;
   
@@ -602,6 +638,7 @@ private:
   int dumpInt(unsigned char* pout, size_t& pos) const;
   int dumpUnsigned(unsigned char* pout, size_t& pos) const;
   int dumpChar(unsigned char* pout, size_t& pos) const;
+  int dumpFiles(unsigned char* pout, size_t& pos) const;
   int dumpSubDumps(unsigned char* pout,
 		   size_t& pos,
 		   const size_t outputSize,
@@ -611,6 +648,7 @@ private:
   int readInt(const unsigned char* const pin, size_t& pos, const unsigned verbose = 0);
   int readUnsigned(const unsigned char* const pin, size_t& pos, const unsigned verbose = 0);
   int readChar(const unsigned char* const pin, size_t& pos, const unsigned verbose = 0);
+  int readFiles(const unsigned char* const pin, size_t& pos, const unsigned verbose = 0);
   int readSubDumps(const unsigned char* const pin, size_t& pos, const unsigned verbose);  
 
 public:
@@ -636,10 +674,11 @@ public:
   inline size_t nInts() const {return pint.size();}
   inline size_t nUnsigneds() const {return punsigned.size();}
   inline size_t nChars() const {return puchar.size();}
+  inline size_t nFiles() const {return pfiles.size();}
   inline size_t nSubDumps() const{return subDumps.size();}
 
   inline size_t nRegistered() const {
-    return nDoubles()+nInts()+nUnsigneds()+nChars()+nSubDumps();
+    return nDoubles()+nInts()+nUnsigneds()+nChars()+nFiles()+nSubDumps();
   }
 
   inline size_t memory() const {
@@ -769,6 +808,8 @@ public:
   
   int toDump(unsigned char* p, const size_t n);
 
+  int toDumpFile(std::string& filePath);
+  
   inline int remove(const pen_dump* subDump){
 
     if(subDump == nullptr)
@@ -834,6 +875,7 @@ public:
   }
     
   int remove(const unsigned char* p);
+  int removeFile(const std::string& path);
   
   int dump(unsigned char*& pout,
 	   size_t& written,
@@ -850,16 +892,21 @@ public:
     pint.clear();
     punsigned.clear();
     puchar.clear();
+    pfiles.clear();
     subDumps.clear();
     dataBits = 0;
+    //Add global metadata for char bits (char size)
+    dataBits += metadataESize;     
     //Add global metadata for double arrays (num arrays and element bits)
     dataBits += metadataNelem + metadataESize; 
     //Add global metadata for integer arrays
     dataBits += metadataNelem;   //num arrays 
     //Add global metadata for unsigned arrays
     dataBits += metadataNelem;   //num arrays
-    //Add global metadata for char arrays (num arrays and element bits)
-    dataBits += metadataNelem + metadataESize;
+    //Add global metadata for char arrays (num arrays)
+    dataBits += metadataNelem;
+    //Add global metadata for files (num files)
+    dataBits += metadataNelem;   //num of files
     //Add global metadata for subdumps (num subdumps)
     dataBits += metadataNelem;   //num sub dumps
   }

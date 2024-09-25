@@ -46,3 +46,4 @@
 #include "tallyPSS.cpp"
 #include "tallyDetectionSpatialDistrib.cpp"
 #include "tallyEmergingSphericalDistribution.cpp"
+#include "tallySingles.cpp"

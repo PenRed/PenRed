@@ -436,6 +436,7 @@ public:
   
   std::string stringify(const size_t nSpaces = 0, const bool printExample = true) const;
   std::string stringifyExample(const std::string& prefixIn) const;
+  std::string stringifyYAML() const;
   
   int parse(const pen_parserSection& config,
 	    std::string& errorString);
@@ -595,6 +596,17 @@ public:
     const pen_readerSection& section = readObjectSection<configurableObj>();
     return section.stringify();
   }
+
+  template<class configurableObj>
+  static std::string stringifyYAMLObjectSection(){
+    static_assert(isConfigurable<configurableObj>(),
+		  "readReaderSection: Error: The provided"
+		  " type is not configurable i.e. 'pen_format'"
+		  " has not been defined.");
+
+    const pen_readerSection& section = readObjectSection<configurableObj>();
+    return section.stringifyYAML();
+  }  
   
   template<class configurableObj>
   static inline int read(const pen_parserSection& in,

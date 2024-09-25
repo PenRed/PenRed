@@ -84,6 +84,8 @@ const char* pen_parserError(const int err){
     return "Conditions and requirements not fulfilled";
   case INTDATA_READER_SINGLE_VALUE_SECTION_WITH_MULTIPLE_KEYS :
     return "Mutliple keys assigned to a single element subsection";
+  case INTDATA_READER_NOT_CONFIGURABLE:
+    return "Data type is not configurable i.e.'pen_format' has not been defined";
   case INTDATA_READER_SPECIFIC_READER_ERROR:
     return "Error returned from specific reader";
     
@@ -933,6 +935,82 @@ void pen_parserSection::stringify(std::string& strout) const{
     it->second.stringify(aux);
     strout += it->first + " " + aux + '\n';
   }
+}
+
+//Stringify YAML function
+std::string pen_parserSection::stringifyYAML() const{
+
+  //This function stringify the section in YAML format. Notice that
+  //the keys are ordered, so it is not necessary to check every element
+  //to create the sections.
+  
+  //Prepare strings
+  std::string strout;
+  std::string aux;
+
+  //Save number of spaces
+  size_t nSpaces = 0;
+  
+  //Iterate all elements
+  elementMap::const_iterator it;
+  std::string lastPrefix = "";
+  for(it = elements.cbegin(); it != elements.cend(); it++){
+
+    //Get last slash position
+    size_t lastSlash = it->first.rfind('/');
+    if(lastSlash == std::string::npos){
+      //No slash found. Print the key and value of this element
+      it->second.stringify(aux);
+      strout += std::string(nSpaces, ' ') + it->first + ": " + aux + '\n';
+      lastPrefix = "";
+    }
+    else{
+      //Slashes found. Open sections until the last slash
+      std::string elementPrefix = it->first.substr(0, lastSlash+1);
+
+      //First check and skip the sections created by the previous element
+      size_t afterPrevSlash = lastPrefix.size();
+      while(!lastPrefix.empty() && elementPrefix.find(lastPrefix) != 0){
+	//Remove last section from last prefix
+	size_t prefixPrevSlash = lastPrefix.rfind('/', lastPrefix.size()-2);
+	if(prefixPrevSlash != std::string::npos){
+	  lastPrefix = lastPrefix.substr(0,prefixPrevSlash+1);
+	  afterPrevSlash = prefixPrevSlash+1;
+	  //Remove spaces
+	  nSpaces -= 4;
+	}
+	else{
+	  //No common prefix found
+	  lastPrefix = "";
+	  nSpaces = 0;
+	  afterPrevSlash = 0;
+	}
+      }
+      
+      size_t nextSlash = it->first.find('/', afterPrevSlash);
+      while(nextSlash != std::string::npos){
+	//Open this section
+	strout += std::string(nSpaces, ' ') +
+	  it->first.substr(afterPrevSlash, nextSlash - afterPrevSlash) + ":\n";
+	//Increase number of spaces
+	nSpaces += 4;
+	//Save slash position
+	afterPrevSlash = nextSlash+1;
+	//find next slash
+	nextSlash = it->first.find('/', afterPrevSlash);      
+      }
+      
+
+      //Last slash reached, print the element
+      it->second.stringify(aux);
+      strout += std::string(nSpaces, ' ') + it->first.substr(lastSlash+1) + ": " + aux + '\n';
+
+      //Save last prefix
+      lastPrefix = elementPrefix;
+    }
+  }
+
+  return strout;
 }
 
 //Parse function

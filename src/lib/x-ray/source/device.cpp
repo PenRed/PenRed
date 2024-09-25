@@ -1001,8 +1001,6 @@ namespace penred{
       for(unsigned i = 0; i < nThreads; i++){
 	simConfigs[i].iThread = i;
 	simConfigs[i].copyCommonConfig(baseSimConfig);
-	//Set, by default, std::cout as output stream
-	simConfigs[i].setOutstream(std::cout);
 	//Set seed pair
 	simConfigs[i].setSeeds(reader.seedPair+i);
 	simConfigs[i].fSimFinish =

@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2023 Universitat de València - UV
-//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2024 Universitat de València - UV
+//    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -35,18 +35,7 @@ const uint16_t pen_dump::charBits;
 
 pen_dump::pen_dump()
 {
-  dataBits = 0;
-  //Add global metadata for double arrays (num arrays and element bits)
-  dataBits += metadataNelem + metadataESize; 
-  //Add global metadata for integer arrays
-  dataBits += metadataNelem;   //num arrays 
-  //Add global metadata for unsigned arrays
-  dataBits += metadataNelem;   //num arrays
-  //Add global metadata for char arrays (num arrays and element bits)
-  dataBits += metadataNelem + metadataESize;
-  //Add global metadata for subdumps (num subdumps)
-  dataBits += metadataNelem;   //num sub dumps
-  
+  clear();  
 }
 
 int pen_dump::toDump(double*        p, const size_t n){
@@ -115,6 +104,29 @@ int pen_dump::toDump(unsigned char* p, const size_t n){
 
   return PEN_DUMP_SUCCESS;
 }
+int pen_dump::toDumpFile(std::string& filePath){
+
+  if(filePath.empty())
+    return PEN_DUMP_NULL_POINTER;
+  
+  //Check if this pointer has already been registered
+  for(iteratorF i = pfiles.begin(); i != pfiles.end(); ++i){
+
+      if(i->isStored(filePath)){	
+	return PEN_DUMP_SUCCESS;
+      }
+  }
+
+  //Add new element to unsigned integer array 
+  pfiles.emplace_back(filePath);
+
+  fileDump* plast = &(pfiles.back());
+  
+  //Add required memory for all elements
+  dataBits += plast->dumpBits;
+
+  return PEN_DUMP_SUCCESS;
+}
 
 int pen_dump::remove(const double*        p){
 
@@ -148,6 +160,19 @@ int pen_dump::remove(const unsigned char* p){
       dataBits -= it->dumpBits;
       dataBits -= metadataNelem;
       puchar.erase(it);
+      return PEN_DUMP_SUCCESS;      
+    }
+  }
+  return PEN_DUMP_ELEMENT_NOT_FOUND;
+}
+int pen_dump::removeFile(const std::string& path){
+  //Check if this file has already been registered
+  std::vector<fileDump>::iterator it;
+  for(it = pfiles.begin(); it != pfiles.end(); ++it){
+  
+    if(it->isStored(path)){
+      dataBits -= it->dumpBits;
+      pfiles.erase(it);
       return PEN_DUMP_SUCCESS;      
     }
   }
@@ -298,11 +323,8 @@ int pen_dump::dumpChar(unsigned char* pout, size_t& pos) const{
   uint32_t nArrays = puchar.size();
   memcpy(&pout[pos],&nArrays,sizeof(uint32_t));
   pos += sizeof(uint32_t);
-  //Store bits per element
-  memcpy(&pout[pos],&charBits,sizeof(uint16_t));
-  pos += sizeof(uint16_t);
   
-  //Iterate over integer arrays
+  //Iterate over char arrays
   std::vector<ucArray>::const_iterator it;
   for(it = puchar.begin(); it != puchar.end(); ++it){
     unsigned char* p = it->p;
@@ -315,6 +337,32 @@ int pen_dump::dumpChar(unsigned char* pout, size_t& pos) const{
     //Save data
     memcpy(&pout[pos],p,charMem*nElements);
     pos += charMem*nElements;
+  }
+    
+  return PEN_DUMP_SUCCESS;
+}
+
+int pen_dump::dumpFiles(unsigned char* pout, size_t& pos) const{
+  
+  uint32_t nFiles = pfiles.size();
+  memcpy(&pout[pos],&nFiles,sizeof(uint32_t));
+  pos += sizeof(uint32_t);
+  
+  //Iterate over files
+  std::vector<fileDump>::const_iterator it;
+  for(it = pfiles.begin(); it != pfiles.end(); ++it){
+    const std::string& path = it->getPath();
+
+    //Get filename size
+    const uint32_t pathLength = static_cast<uint32_t>(path.length());
+
+    //Save number of characters in file path
+    memcpy(&pout[pos],&pathLength,sizeof(uint32_t));
+    pos += sizeof(uint32_t);
+
+    //Save file path
+    memcpy(&pout[pos],path.c_str(),charMem*pathLength);
+    pos += charMem*pathLength;
   }
     
   return PEN_DUMP_SUCCESS;
@@ -376,6 +424,11 @@ int pen_dump::dump(unsigned char*& pout,
   
   written = 0;
   int err = 0;
+
+  //Dump char bits
+  memcpy(&pout[written],&charBits,sizeof(uint16_t));
+  written += sizeof(uint16_t);
+  
   //Dump double arrays
   err = dumpDouble(pout,written);
   if(err != PEN_DUMP_SUCCESS){
@@ -430,6 +483,20 @@ int pen_dump::dump(unsigned char*& pout,
       pout = nullptr;
     }
     return PEN_DUMP_ERROR_CHAR_DUMP;
+  }
+
+  //Dump files paths
+  err = dumpFiles(pout,written);
+  if(err != PEN_DUMP_SUCCESS){
+    if(verbose > 0){
+      printf("dump:Error: Error dumping file paths.\n");
+      printf("            Error code: %d\n",err);
+    }
+    if(freeOnError){
+      free(pout);
+      pout = nullptr;
+    }
+    return PEN_DUMP_ERROR_FILE_DUMP;
   }
 
   //Dump sub dumps
@@ -688,11 +755,8 @@ int pen_dump::readChar(const unsigned char* const pin,
 		       const unsigned verbose){
 
   uint32_t nArrays;
-  uint16_t elementMem;
   memcpy(&nArrays,&pin[pos],sizeof(uint32_t));
   pos += sizeof(uint32_t);
-  memcpy(&elementMem,&pin[pos],sizeof(uint16_t));
-  pos += sizeof(uint16_t);
 
   //Check array number
   if(nArrays != puchar.size()){
@@ -712,10 +776,6 @@ int pen_dump::readChar(const unsigned char* const pin,
     uint32_t nElements;
     memcpy(&nElements,&pin[pos],sizeof(uint32_t));
     pos += sizeof(uint32_t);
-
-    //Recalculate the number of elements to read according the read element size
-    //and the byte size of current machine
-    nElements = nElements*elementMem/charBits;
     
     if(nElements != puchar[i].n){
       if(verbose > 0){
@@ -727,11 +787,68 @@ int pen_dump::readChar(const unsigned char* const pin,
     }
 
     //Extract elements
-    memcpy(p,&pin[pos],nElements);
-    pos += nElements;
+    memcpy(p,&pin[pos],charMem*nElements);
+    pos += charMem*nElements;
   }
   return PEN_DUMP_SUCCESS;
 }
+
+int pen_dump::readFiles(const unsigned char* const pin,
+			size_t& pos,
+			const unsigned verbose){
+
+  uint32_t nFiles;
+  memcpy(&nFiles,&pin[pos],sizeof(uint32_t));
+  pos += sizeof(uint32_t);
+
+  //Check files number
+  if(nFiles != pfiles.size()){
+    if(verbose > 0){
+      printf("pen_dump:readFiles: Error: Number of files mismatch.\n");
+      printf("                   Read: %u\n",nFiles);
+      printf("               Expected: %lu\n",pfiles.size());
+    }    
+    return PEN_DUMP_NARRAY_NOT_MATCH;
+  }
+
+  //Read all file paths
+  for(size_t i = 0; i < nFiles; i++){
+    
+    //Read number of characters in the file path
+    uint32_t nElements;
+    memcpy(&nElements,&pin[pos],sizeof(uint32_t));
+    pos += sizeof(uint32_t);
+
+    //Check if the path is not empty
+    if(nElements > 0){
+
+      //Get filename
+      std::vector<char> v(nElements);
+      memcpy(v.data(),&pin[pos],nElements);
+      pos += nElements;
+
+      //Save filename
+      pfiles[i].setPath(v.data());
+
+      //Check if the file is accessible
+      FILE* ftest = fopen(pfiles[i].getPath().c_str(), "r");
+      if(ftest == nullptr){
+	if(verbose > 0){
+	  printf("pen_dump:readFiles: Error: Unable to open file.\n"
+		 "                   path: %s\n",
+		 pfiles[i].getPath().c_str());
+	}
+	return PEN_DUMP_UNABLE_TO_OPEN_FILE;
+      }
+      fclose(ftest);
+    }
+    else{
+      pfiles[i].setPath("");
+    }
+  }
+  return PEN_DUMP_SUCCESS;
+}
+
 
 int pen_dump::readSubDumps(const unsigned char* const pin,
 			   size_t& pos,
@@ -776,6 +893,16 @@ int pen_dump::read(const unsigned char* const pin,
   
   int err;
 
+  //Read char bits
+  uint16_t auxCharBits;
+  memcpy(&auxCharBits,&pin[pos],sizeof(uint16_t));
+  pos += sizeof(uint16_t);
+
+  //Check char bits
+  if(auxCharBits != charBits){
+    return PEN_DUMP_CHAR_BITS_MISMATCH;
+  }
+
   //Read doubles
   err = readDouble(pin,pos,verbose);
   if(err != PEN_DUMP_SUCCESS){
@@ -816,6 +943,16 @@ int pen_dump::read(const unsigned char* const pin,
     return PEN_DUMP_UNABLE_TO_READ_CHAR_ARRAYS;
   }
 
+  //Read files
+  err = readFiles(pin,pos,verbose);
+  if(err != PEN_DUMP_SUCCESS){
+    if(verbose > 0){
+      printf("pen_dump:read:Error: unable to read required files.\n");
+      printf("                     Error code: %d\n",err);
+    }
+    return PEN_DUMP_UNABLE_TO_READ_FILES;
+  }
+  
   //Read sub dumps
   err = readSubDumps(pin,pos,verbose);
   if(err != PEN_DUMP_SUCCESS){

@@ -631,10 +631,11 @@ std::string pen_readerSection::stringifyExample(const std::string& prefixIn) con
   if(singleValueSection){
     if(elements.size() > 0){
       std::string pathExample = prefixIn;
-      if(!pathExample.empty())
+      if(!pathExample.empty()){
 	pathExample.pop_back();
-      result += pathExample + " " +
-	elements.begin()->second.stringifyExample() + "\n";
+	result += pathExample + " ";
+      }
+      result += elements.begin()->second.stringifyExample() + "\n";
     }
   }else{
     for(const auto& e : elements){
@@ -646,6 +647,16 @@ std::string pen_readerSection::stringifyExample(const std::string& prefixIn) con
     result += s.second.stringifyExample(actualPath + s.first + subsectionArrayKey);
   }
   return result;
+}
+
+std::string pen_readerSection::stringifyYAML() const {
+
+  pen_parserSection section;
+  std::string errorString;
+  long unsigned errorLine;
+  parseString(stringifyExample(""), section, errorString, errorLine);
+  
+  return section.stringifyYAML();
 }
 
 

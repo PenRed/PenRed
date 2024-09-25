@@ -137,7 +137,7 @@ inline __usedFunc operator|(__usedFunc a, __usedFunc b)
 //////////////////////////
 
 template <class stateType>
-class pen_genericTally{
+class pen_genericTally : public penred::logs::logger{
 
 private:
 
@@ -561,7 +561,7 @@ bool __tallySort (pen_genericTally<pen_particleState>* i,
 // Tally cluster classes
 //////////////////////////
 
-class pen_commonTallyCluster{
+class pen_commonTallyCluster : public penred::logs::logger{
 
 private:
   unsigned nthread;
@@ -653,8 +653,8 @@ public:
 		 const unsigned verbose = 0);
 
   inline void setStack(const pen_KPAR kpar, const abc_particleStack* stack){
-    for(tallyIterator i = tallies_beginSim.begin();
-	i != tallies_beginSim.end(); ++i)
+    for(tallyIterator i = tallies.begin();
+	i != tallies.end(); ++i)
       (*i)->setStack(kpar,stack);
   }
   
@@ -855,7 +855,7 @@ public:
 };
 
 template <class stateType>
-class pen_specificTallyCluster{
+class pen_specificTallyCluster : public penred::logs::logger{
 
 private:
   unsigned nthread;
@@ -1187,12 +1187,22 @@ public:
   }
 
   inline void run_beginSim(){
+
+    //Default all tally logs to simulation log
+    for(auto t : tallies)
+      t->setDefaultLog(penred::logs::SIMULATION);
+    
     for(tallyIterator i = tallies_beginSim.begin();
 	i != tallies_beginSim.end(); ++i)
       (*i)->tally_beginSim();
   }
 
   inline void run_endSim(const unsigned long long nhist){
+
+    //Default all tally logs to configuration log
+    for(auto t : tallies)
+      t->setDefaultLog(penred::logs::CONFIGURATION);
+    
     for(tallyIterator i = tallies_endSim.begin();
 	i != tallies_endSim.end(); ++i)
       (*i)->tally_endSim(nhist);

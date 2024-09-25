@@ -21,5 +21,8 @@ setup(
     package_data={
         'pyPenred': ['*.so']
     },
+    install_requires=[
+        'pyyaml',
+    ],
     zip_safe=False,
 )

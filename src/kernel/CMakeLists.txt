@@ -61,6 +61,7 @@ add_library(pen_grids STATIC ${PROJECT_SOURCE_DIR}/kernel/grids/source/pen_grids
 target_include_directories(pen_grids PUBLIC ${PROJECT_SOURCE_DIR}/kernel/grids/includes)
 target_include_directories(pen_grids PUBLIC ${PROJECT_SOURCE_DIR}/kernel/includes)
 
+target_link_libraries(pen_grids pen_internalData)
 target_link_libraries(pen_grids pen_errors)
 
 # Create pen_contexts lib

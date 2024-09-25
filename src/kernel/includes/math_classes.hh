@@ -1560,6 +1560,8 @@ namespace penred{
       const std::array<std::pair<double, double>, dim>& readLimits() const {
 	return limits;
       }
+      inline const std::array<double, dim>& readBinWidths() const { return binWidths; }
+      inline double readBinWidth(size_t idim) const { return binWidths[idim]; }
       inline unsigned long getNBins(const unsigned idim) const { return nBins[idim]; }
       inline unsigned long getNBins() const { return totalBins; }
       inline unsigned long effectiveDim() const {
@@ -2133,7 +2135,7 @@ namespace penred{
 
       //Get functions
       const std::vector<type>& readData() const { return data; }
-      const std::vector<double>& readSigam() const { return sigma; }
+      const std::vector<double>& readSigma() const { return sigma; }
 
       template<size_t dimInit>
       int init(const std::array<unsigned long, dimInit>& nBinsIn,
@@ -2625,6 +2627,44 @@ namespace penred{
 		      }
 
 		      return {q, sigma};
+		    },
+		    nSigma,
+		    printCoordinates,
+		    printBinNumber,
+		    printOnlyEffective);
+	
+      }
+
+      inline void print(FILE* fout,
+			const unsigned long long nhists,
+			const double* binFactors,
+			const unsigned nSigma,
+			const bool printCoordinates,
+			const bool printBinNumber,
+			const bool printOnlyEffective = false) const {
+
+	//Calculate normalization factor
+	const double factor = 1.0/static_cast<double>(nhists);
+
+	//Print description and dimension information
+	this->
+	  printData(fout,
+		    [this, factor, binFactors] //Function to calculate value and sigma
+		    (const unsigned long i, //Global index
+		     const std::array<unsigned long, dim>&) -> std::pair<double,double> {
+
+		      //Print value information and error
+		      double binFactor = binFactors[i];
+		      const double q = data[i]*factor;
+		      double sigma = data2[i]*factor - q*q;
+		      if(sigma > 0.0){
+			sigma = sqrt(sigma*factor);
+		      }
+		      else{
+			sigma = 0.0;
+		      }
+
+		      return {q*binFactor, sigma*binFactor};
 		    },
 		    nSigma,
 		    printCoordinates,

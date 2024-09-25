@@ -466,3 +466,5 @@ add_subdirectory(contexts)
 add_subdirectory(measurements)
 
 add_subdirectory(compositions)
+
+add_subdirectory(internalData)

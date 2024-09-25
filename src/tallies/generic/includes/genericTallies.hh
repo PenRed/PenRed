@@ -49,5 +49,6 @@
 #include "tallyPSS.hh"
 #include "tallyDetectionSpatialDistrib.hh"
 #include "tallyEmergingSphericalDistribution.hh"
+#include "tallySingles.hh"
 
 #endif

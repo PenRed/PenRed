@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2022-2023 Universitat de València - UV
-//    Copyright (C) 2022-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2022-2024 Universitat de València - UV
+//    Copyright (C) 2022-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -2294,8 +2294,9 @@ int pen_meshBodyGeo::meshGetLine(std::vector<std::ifstream>& included,
 	//Open the file and read from it
 	included.emplace_back(word2);
 	if(!included.back().is_open()){
-	  printf("pen_meshBodyGeo:configure: Error: Unable to "
-		 "open included file '%s'\n", word2);
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "pen_meshBodyGeo:configure: Error: Unable to "
+				       "open included file '%s'\n", word2);
 	  return -1;
 	}
 	return meshGetLine(included, root, line, nRead);

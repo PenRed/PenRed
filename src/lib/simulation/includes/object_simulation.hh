@@ -35,6 +35,8 @@
 #include <iostream>
 #include <memory>
 #include <thread>
+#include <future>
+#include <chrono>
 
 namespace penred{
 
@@ -55,9 +57,13 @@ namespace penred{
     }    
   
     template <class contextType>
-    class simulator{
+    class simulator : public logs::logger{
 
     private:
+
+      bool simulating;
+      std::future<int> simFuture;
+      mutable std::mutex simMutex;
 
       std::array<bool,pen_imageExporter::nFormats()> enabledFormats;
       unsigned nThreads;
@@ -70,12 +76,16 @@ namespace penred{
       pen_parserSection talliesConfig;
       pen_parserSection VRConfig;
 
+      //Base simulation configuration
+      simConfig baseSimConfig;
+      //Simulation configuration for each running thread
+      std::vector<penred::simulation::simConfig> simConfigs;
+      
       template<class stateType>
       int configureSource(pen_specificStateGen<stateType>& source,
 			  const pen_parserSection& config,
-			  std::ostream& out,
 			  const unsigned verbose){
-  
+	
 	//Check if specific sampler exists
 	bool useSpecific = config.isSection("specific");
   
@@ -83,23 +93,23 @@ namespace penred{
 	std::string auxkpar;
 	int err = config.read("kpar",auxkpar);
 	if(err != INTDATA_SUCCESS && !useSpecific){
-	  if(verbose > 0 && out){
-	    out << "configureSource: Error: Particle type field ('kpar') not found "
+	  if(verbose > 0){
+	    cout << "configureSource: Error: Particle type field ('kpar') not found "
 	      "and no specific sampling specified. String expected:"<< std::endl;
 	    for(unsigned i = 0; i < constants::nParTypes; ++i){
-	      out << "\t" << particleName(i) << std::endl;
+	      cout << "\t" << particleName(i) << std::endl;
 	    }
 	  }
 	  return -1;
-	} else if(!useSpecific && verbose > 1 && out) {
-	  out << "Selected particle: " << auxkpar << std::endl;
+	} else if(!useSpecific && verbose > 1) {
+	  cout << "Selected particle: " << auxkpar << std::endl;
 	}
 
 	//Get particle ID
 	unsigned id = particleID(auxkpar.c_str());
 	if(!isKpar(id)){
-	  if(verbose > 0 && out)
-	    out << "\nInvalid selected particle type: " << auxkpar << std::endl;
+	  if(verbose > 0)
+	    cout << "\nInvalid selected particle type: " << auxkpar << std::endl;
 	  return -2;
 	}
 	source.kpar = static_cast<pen_KPAR>(id);
@@ -107,8 +117,8 @@ namespace penred{
 	//Configure source
 	source.configure(config,nThreads,verbose);
 	if(source.configureStatus() != 0){
-	  if(verbose > 0 && out){
-	    out << "\nError on source configuration" << std::endl;
+	  if(verbose > 0){
+	    cout << "\nError on source configuration" << std::endl;
 	  }
 	  return -3;
 	}
@@ -118,12 +128,11 @@ namespace penred{
 
       int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>>& genericSources,
 				   std::vector<pen_specificStateGen<pen_state_gPol>>& polarisedGammaSources,
-				   std::ostream& out,
 				   const unsigned verbose){
-
+	
 	if(particleSourcesConfig.empty()){
-	  if(verbose > 0 && out){
-	    out << "Error: Missing particle sources configuration." << std::endl;
+	  if(verbose > 0){
+	    cout << "Error: Missing particle sources configuration." << std::endl;
 	  }
 	  return errors::ERROR_MISSING_SOURCE_CONFIGURATION;
 	}
@@ -138,8 +147,8 @@ namespace penred{
 	errG = particleSourcesConfig.readSubsection("generic", genericSourceSection);
 	errP = particleSourcesConfig.readSubsection("polarized", polarisedSourceSection);
 	if(errG != INTDATA_SUCCESS && errP != INTDATA_SUCCESS){
-	  if(verbose > 0 && out){
-	    out << "createParticleGenerators: Error: Fields 'generic' nor "
+	  if(verbose > 0){
+	    cout << "createParticleGenerators: Error: Fields 'generic' nor "
 	      "'polarized' don't exists. No source specified" << std::endl;;
 	  }
 	  return errors::ERROR_NO_SOURCE;
@@ -157,8 +166,8 @@ namespace penred{
 	unsigned nPolarizedSources = polarisezSourceNames.size();  
 
 	if(nGenericSources < 1 && nPolarizedSources < 1){
-	  if(verbose > 0 && out){
-	    out << "createParticleGenerators: Error: Simulation requires, "
+	  if(verbose > 0){
+	    cout << "createParticleGenerators: Error: Simulation requires, "
 	      "at last, one particle source." << std::endl;
 	  }
 	  return errors::ERROR_NO_SOURCE;
@@ -190,8 +199,8 @@ namespace penred{
 	  //Get source section
 	  pen_parserSection genSection;
 	  if(genericSourceSection.readSubsection(genericSourceNames[i],genSection) != INTDATA_SUCCESS){
-	    if(verbose > 0 && out){
-	      out << "createParticleGenerators: Error: Unable to extract "
+	    if(verbose > 0){
+	      cout << "createParticleGenerators: Error: Unable to extract "
 		"section for generic source '" << genericSourceNames[i] << "'" << std::endl;
 	    }
 	    err++;
@@ -204,8 +213,8 @@ namespace penred{
 	    //Load history number
 	    double nhists;
 	    if(genSection.read("nhist",nhists) != INTDATA_SUCCESS){
-	      if(verbose > 0 && out){
-		out << "createParticleGenerators: Error: Unable to read field 'nhist' "
+	      if(verbose > 0){
+		cout << "createParticleGenerators: Error: Unable to read field 'nhist' "
 		  "for generic source '" << genericSourceNames[i] << "'" << std::endl;
 	      }
 	      err++;
@@ -213,9 +222,9 @@ namespace penred{
 	    }
 
 	    if(nhists <= 0.5){
-	      if(verbose > 0 && out){
-		out << "createParticleGenerators: Error on generic source "
-		    << genericSourceNames[i] << ". "
+	      if(verbose > 0){
+		cout << "createParticleGenerators: Error on generic source "
+		     << genericSourceNames[i] << ". "
 		  "Number of histories must be greater than zero" << std::endl;
 	      }
 	      err++;
@@ -224,9 +233,9 @@ namespace penred{
       
 	    //Load source
 	    if(configureSource(genericSources[i],
-			       genSection,out,verbose) != 0){
-	      if(verbose > 0 && out){
-		out << "createParticleGenerators: Error: Can't create and "
+			       genSection,verbose) != 0){
+	      if(verbose > 0){
+		cout << "createParticleGenerators: Error: Can't create and "
 		  "configure source '" << genericSourceNames[i] << "'." << std::endl;
 	      }
 	      err++;
@@ -246,19 +255,20 @@ namespace penred{
 #endif
 	    // ***************************** LB END ********************************** //
 	    if(errTask != 0){
-	      if(verbose > 0 && out){
-		out << "createParticleGenerators: Error on generic source "
-		    << genericSourceNames[i] << ". Unable to init source task\n"
-		  "   Error code: " << errTask << std::endl;
+	      if(verbose > 0){
+		cout << "createParticleGenerators: Error on generic source "
+		     << genericSourceNames[i]
+		     << ". Unable to init source task\n   Error code: "
+		     << errTask << std::endl;
 	      }
 	      err++;
 	      continue;
 	    }
 
-	    if(verbose > 1 && out){
-	      out << "Histories to simulate at source "
-		  << genericSources[i].name << ": "
-		  << genericSources[i].toDo() << std::endl;
+	    if(verbose > 1){
+	      cout << "Histories to simulate at source "
+		   << genericSources[i].name << ": "
+		   << genericSources[i].toDo() << std::endl;
 	    }
 	  }
 	}
@@ -268,10 +278,10 @@ namespace penred{
 	  //Get source section
 	  pen_parserSection genSection;
 	  if(polarisedSourceSection.readSubsection(polarisezSourceNames[i],genSection) != INTDATA_SUCCESS){
-	    if(verbose > 0 && out){
-	      out << "createParticleGenerators: Error: Unable to extract section "
+	    if(verbose > 0){
+	      cout << "createParticleGenerators: Error: Unable to extract section "
 		"for polarized gamma source '"
-		  << polarisezSourceNames[i] << "'" << std::endl;
+		   << polarisezSourceNames[i] << "'" << std::endl;
 	    }
 	    err++;
 	    continue;
@@ -283,20 +293,20 @@ namespace penred{
 	    //Load history number
 	    double nhists;
 	    if(genSection.read("nhist",nhists) != INTDATA_SUCCESS){
-	      if(verbose > 0 && out){
-		out << "createParticleGenerators: Error: Unable to read field "
+	      if(verbose > 0){
+		cout << "createParticleGenerators: Error: Unable to read field "
 		  "'nhist' for polarized gamma source '" << polarisezSourceNames[i]
-		    << "'" << std::endl;
+		     << "'" << std::endl;
 	      }
 	      err++;
 	      continue;
 	    }
 
 	    if(nhists <= 0.5){
-	      if(verbose > 0 && out){
-		out << "createParticleGenerators: Error on polarized gamma source "
-		    << polarisezSourceNames[i]
-		    << ". Number of histories must be greater than zero" << std::endl;
+	      if(verbose > 0){
+		cout << "createParticleGenerators: Error on polarized gamma source "
+		     << polarisezSourceNames[i]
+		     << ". Number of histories must be greater than zero" << std::endl;
 	      }
 	      err++;
 	      continue;	
@@ -304,11 +314,11 @@ namespace penred{
       
 	    //Load source
 	    if(configureSource(polarisedGammaSources[i],
-			       genSection, out, verbose) != 0){
-	      if(verbose > 0 && out){
-		out << "createParticleGenerators: Error: Can't "
+			       genSection, verbose) != 0){
+	      if(verbose > 0){
+		cout << "createParticleGenerators: Error: Can't "
 		  "create and configure source '"
-		    << polarisezSourceNames[i] << "'." << std::endl;
+		     << polarisezSourceNames[i] << "'." << std::endl;
 	      }
 	      err++;
 	    }
@@ -326,19 +336,19 @@ namespace penred{
 	    int errTask = polarisedGammaSources[i].initTask(nThreads,uihists,verbose);      
 #endif
 	    if(errTask != 0){
-	      if(verbose > 0 && out){
-		out << "createParticleGenerators: Error on polarised source "
-		    << polarisedGammaSources[i].name << ". Unable to init source task\n"
+	      if(verbose > 0){
+		cout << "createParticleGenerators: Error on polarised source "
+		     << polarisedGammaSources[i].name << ". Unable to init source task\n"
 		  "   Error code: " << errTask << std::endl;
 	      }
 	      err++;
 	      continue;
 	    }
 
-	    if(verbose > 1 && out)
-	      out << "Histories to simulate at source "
-		  << polarisedGammaSources[i].name << ": "
-		  << polarisedGammaSources[i].toDo() << std::endl;
+	    if(verbose > 1)
+	      cout << "Histories to simulate at source "
+		   << polarisedGammaSources[i].name << ": "
+		   << polarisedGammaSources[i].toDo() << std::endl;
 	  }
 	}
       
@@ -347,12 +357,11 @@ namespace penred{
 
       int createGeometry(std::shared_ptr<wrapper_geometry>& geometry,
 			 const pen_parserSection& matInfo,
-			 std::ostream& out,
 			 const unsigned verbose){
-
+	
 	if(geometryConfig.empty()){
-	  if(verbose > 0 && out){
-	    out << "Error: Missing geometry configuration." << std::endl;
+	  if(verbose > 0){
+	    cout << "Error: Missing geometry configuration." << std::endl;
 	  }
 	  return errors::ERROR_MISSING_GEOMETRY_CONFIGURATION;
 	}
@@ -366,8 +375,8 @@ namespace penred{
 	//Get geometry type
 	std::string geoType;
 	if(geometrySection.read("type",geoType) != INTDATA_SUCCESS){
-	  if(verbose > 0 && out){
-	    out << "createGeometry: Error: field 'type' not "
+	  if(verbose > 0){
+	    cout << "createGeometry: Error: field 'type' not "
 	      "specified. String expected.\n" << std::endl;
 	  }
 	  return errors::ERROR_MISSING_TYPE;
@@ -376,9 +385,9 @@ namespace penred{
 	//Create geometry
 	geometry.reset(penGeoRegister_create(geoType.c_str()));
 	if(geometry == nullptr){
-	  if(verbose > 0 && out){
-	    out << "createGeometry: Error creating geometry instance of type '"
-		<< geoType <<  "'. Unknown type." << std::endl;
+	  if(verbose > 0){
+	    cout << "createGeometry: Error creating geometry instance of type '"
+		 << geoType <<  "'. Unknown type." << std::endl;
 	  }
 	  return errors::ERROR_UNKNOWN_TYPE;
 	}
@@ -386,16 +395,16 @@ namespace penred{
 	//Configure geometry  
 	geometry->name.assign("geometry");    
 	if(geometry->configure(geometrySection,verbose) != 0){
-	  if(verbose > 0 && out){
-	    out << "createGeometry: Error: Geometry configuration failed." << std::endl;
+	  if(verbose > 0){
+	    cout << "createGeometry: Error: Geometry configuration failed." << std::endl;
 	  }
 	  return errors::ERROR_AT_GEOMETRY_CONFIGURATION;
 	}
   
 	//Check errors
 	if(geometry->configureStatus() != 0){
-	  if(verbose > 0 && out){
-	    out << "createGeometry: Error: Geometry configuration failed." << std::endl;
+	  if(verbose > 0){
+	    cout << "createGeometry: Error: Geometry configuration failed." << std::endl;
 	  }
 	  return errors::ERROR_AT_GEOMETRY_CONFIGURATION;
 	}
@@ -406,12 +415,11 @@ namespace penred{
 
       int createTallies(std::vector<pen_commonTallyCluster>& tallyGroups,
 			const contextType& context,
-			std::ostream& out,
 			const unsigned verbose){
-
+	
 	if(talliesConfig.empty()){
-	  if(verbose > 0 && out){
-	    out << "Error: Missing tally configuration." << std::endl;
+	  if(verbose > 0){
+	    cout << "Error: Missing tally configuration." << std::endl;
 	  }	  
 	  return errors::ERROR_MISSING_TALLY_CONFIGURATION;
 	}
@@ -465,8 +473,8 @@ namespace penred{
 	for(unsigned j = 0; j < nThreads; j++){
 	  int err = tallyGroups[j].configureStatus();
 	  if(err != 0){
-	    if(verbose > 0 && out){
-	      out << "createTallies: Error on tally cluster " << j <<
+	    if(verbose > 0){
+	      cout << "createTallies: Error on tally cluster " << j <<
 		" creation and configuration (err code " << err << ")." << std::endl;
 	    }
 	    failedClusters++;
@@ -482,10 +490,10 @@ namespace penred{
 
 	  int err = tallyGroups[j].shareConfig(tallyGroups[0], verbose);
 	  if(err != 0){
-	    if(verbose > 0 && out)
-	      out << "createTallies: Error on tally cluster " << j <<
+	    if(verbose > 0)
+	      cout << "createTallies: Error on tally cluster " << j <<
 		". Unable to get configuration from thread 0 (err code "
-		  << err << ")." << std::endl;
+		   << err << ")." << std::endl;
 	    failedClusters++;
 	  }
 	}
@@ -500,31 +508,30 @@ namespace penred{
       int setVarianceReduction(const std::shared_ptr<wrapper_geometry>& geometry,
 			       pen_VRCluster<pen_particleState>& genericVR,
 			       pen_VRCluster<pen_state_gPol>& photonVR,
-			       std::ostream& out,
 			       const unsigned verbose){
-
+	
 	if(VRConfig.empty()){
-	  if(verbose > 0 && out){
-	    out << "No variance reduction specified." << std::endl;
+	  if(verbose > 0){
+	    cout << "No variance reduction specified." << std::endl;
 	  }
 	  return errors::SUCCESS;
 	}
 
-	if(verbose > 1 && out)
-	  out << std::endl;
+	if(verbose > 1)
+	  cout << std::endl;
   
 	pen_parserSection VRgeneric;
 	if(VRConfig.readSubsection("generic",VRgeneric) != INTDATA_SUCCESS){
-	  if(verbose > 1 && out){
-	    out << "No generic variance reduction specified." << std::endl;
+	  if(verbose > 1){
+	    cout << "No generic variance reduction specified." << std::endl;
 	  }
 	}
 	else{
 	  genericVR.configure(VRgeneric,*geometry,verbose);
 	  genericVR.name.assign("Generic-VR");
 	  if(genericVR.configureStatus() != 0){
-	    if(verbose > 0 && out){
-	      out << "setVarianceReduction: Error: Unable to configure "
+	    if(verbose > 0){
+	      cout << "setVarianceReduction: Error: Unable to configure "
 		"generic variance reduction." << std::endl;
 	    }
 	    return errors::ERROR_ON_VR_CONFIGURATION;
@@ -533,15 +540,15 @@ namespace penred{
 
 	pen_parserSection VRphoton;
 	if(VRConfig.readSubsection("photon",VRphoton) != INTDATA_SUCCESS){
-	  if(verbose > 1 && out){
-	    out << "No photon based variance reduction specified." << std::endl;
+	  if(verbose > 1){
+	    cout << "No photon based variance reduction specified." << std::endl;
 	  }
 	}else{
 	  photonVR.name.assign("Photon-VR");
 	  photonVR.configure(VRphoton,*geometry,verbose);
 	  if(photonVR.configureStatus() != 0){
-	    if(verbose > 0 && out){
-	      out << "setVarianceReduction: Error: Unable to configure "
+	    if(verbose > 0){
+	      cout << "setVarianceReduction: Error: Unable to configure "
 		"photon specific variance reduction." << std::endl;
 	    }
 	    return errors::ERROR_ON_VR_CONFIGURATION;
@@ -550,10 +557,125 @@ namespace penred{
   
 	return errors::SUCCESS;
       }
+
+      inline int setContextConfigTrusted(const pen_parserSection& config,
+					 const std::string& prefix = ""){
+	if(simulating){
+	  return errors::ERROR_SIMULATION_RUNNING;
+	}	
+	
+	if(prefix.empty())
+	  contextConfig = config;
+	else{
+	  if(config.readSubsection(prefix.c_str(), contextConfig) != INTDATA_SUCCESS)
+	    return errors::ERROR_MISSING_PATH;
+	}
+	return errors::SUCCESS;
+      }      
+      inline int setSourceConfigTrusted(const pen_parserSection& config,
+					const std::string& prefix = ""){
+	if(simulating){
+	  return errors::ERROR_SIMULATION_RUNNING;
+	}
+	
+	if(prefix.empty())
+	  particleSourcesConfig = config;
+	else{
+	  if(config.readSubsection(prefix.c_str(), particleSourcesConfig) != INTDATA_SUCCESS)
+	    return errors::ERROR_MISSING_PATH;
+	}
+	return errors::SUCCESS;
+      }      
+      inline int setGeometryConfigTrusted(const pen_parserSection& config,
+					  const std::string& prefix = ""){
+	if(simulating){
+	  return errors::ERROR_SIMULATION_RUNNING;
+	}
+	
+	if(prefix.empty())
+	  geometryConfig = config;
+	else{
+	  if(config.readSubsection(prefix.c_str(), geometryConfig) != INTDATA_SUCCESS)
+	    return errors::ERROR_MISSING_PATH;
+	}
+	return errors::SUCCESS;
+      }      
+      inline int setTallyConfigTrusted(const pen_parserSection& config,
+				       const std::string& prefix = ""){
+	if(simulating){
+	  return errors::ERROR_SIMULATION_RUNNING;
+	}
+	
+	if(prefix.empty())
+	  talliesConfig = config;
+	else{
+	  if(config.readSubsection(prefix.c_str(), talliesConfig) != INTDATA_SUCCESS)
+	    return errors::ERROR_MISSING_PATH;
+	}
+	return errors::SUCCESS;
+      }      
+      inline int setVRConfigTrusted(const pen_parserSection& config,
+				    const std::string& prefix = ""){
+	if(simulating){
+	  return errors::ERROR_SIMULATION_RUNNING;
+	}
+	
+	if(prefix.empty())
+	  VRConfig = config;
+	else{
+	  if(config.readSubsection(prefix.c_str(), VRConfig) != INTDATA_SUCCESS)
+	    return errors::ERROR_MISSING_PATH;
+	}
+	return errors::SUCCESS;
+      }
+      inline int setSimConfigTrusted(const simConfig& conf){
+	if(simulating){
+	  return errors::ERROR_SIMULATION_RUNNING;
+	}
+	
+	baseSimConfig = conf;
+	return errors::SUCCESS;	
+      }
+      int setSimConfigTrusted(const pen_parserSection& config,
+			      const std::string& prefix = "",
+			      const unsigned verbose = 1){
+	if(simulating){
+	  return errors::ERROR_SIMULATION_RUNNING;
+	}
+	
+	int errSimConfig = baseSimConfig.configure(prefix.c_str(),config);
+	if(errSimConfig != penred::simulation::errors::SUCCESS){
+	  if(verbose > 1)
+	    printf("simulator: setSimConfig: Error: Unable to parse "
+		   "simulation configuration section: Invalid seeds\n");
+	  return errors::ERROR_INVALID_SEEDS;
+	}
+
+	return errors::SUCCESS;
+      }
+      inline int setSimConfigTrusted(const std::string& configString,
+				     const std::string& prefix = ""){
+	
+	pen_parserSection configSect;
+	std::string errorLine;
+	long unsigned errorLineNum;
+	int err = parseString(configString,
+			      configSect,
+			      errorLine,
+			      errorLineNum);
+	if(err != INTDATA_SUCCESS){
+	  printf("Error parsing configuration text"
+		 "  Error code: %d\n"
+		 "  Error message: %s\n"
+		 "  Error located at line %lu, at text: %s",
+		 err, pen_parserError(err), errorLineNum, errorLine.c_str());
+	  return errors::ERROR_PARSING_CONFIG;
+	}
+	   
+	return setSimConfigTrusted(configSect, prefix);	
+      }      
       
     public:
-
-      simConfig baseSimConfig;
 
       static constexpr const char* defaultSimPath      = "simulation";
       static constexpr const char* defaultSourcePath   = "sources";
@@ -564,7 +686,7 @@ namespace penred{
       static std::string versionMessage(){
 
 	return std::string("***************************************************************\n"
-			   " PenRed version: 1.11.0b (11-July-2024) \n"
+			   " PenRed version: 1.12.0 (25-September-2024) \n"
 			   " Copyright (c) 2019-2024 Universitat Politecnica de Valencia\n"
 			   " Copyright (c) 2019-2024 Universitat de Valencia\n"
 			   " Reference: Computer Physics Communications, 267 (2021) 108065\n"
@@ -577,11 +699,14 @@ namespace penred{
 			   "***************************************************************\n");    
       }
       
-      simulator() : nThreads(1),
+      simulator() : simulating(false),
+		    nThreads(1),
 		    nSeedPair(-1),
 		    ASCIIResults(true),
 		    finalDump(false)
       {
+	//Set default log to configuration
+	setDefaultLog(penred::logs::CONFIGURATION);
 	std::fill(enabledFormats.begin(), enabledFormats.end(), false);
       }
       
@@ -589,6 +714,13 @@ namespace penred{
       // Set functions
       inline int enableFormat(const std::string& format){
 
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
+
+	if(simulating){
+	  return errors::ERROR_SIMULATION_RUNNING;
+	}
+	
 	//Check if it is a known format
 	if(!pen_imageExporter::isFormat(format.c_str()))
 	  return -1;
@@ -598,7 +730,17 @@ namespace penred{
 
 	return errors::SUCCESS;
       }
-      inline void setThreads(const unsigned nThreadsIn){
+      inline int setThreads(const unsigned nThreadsIn){
+
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
+
+	if(simulating){
+	  return errors::ERROR_SIMULATION_RUNNING;
+	}
+	
+#ifndef _PEN_USE_THREADS_
+		
 	if(nThreadsIn == 0){
 	  unsigned int nConcurrency = std::thread::hardware_concurrency();
 	  if(nConcurrency > 0)
@@ -609,8 +751,21 @@ namespace penred{
 	else{
 	  nThreads = nThreadsIn;
 	}
+#else
+	nThreads = 1;
+#endif
+
+	return errors::SUCCESS;
       }
       inline int setSeedPair(const int seedPairIn){
+	
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
+
+	if(simulating){
+	  return errors::ERROR_SIMULATION_RUNNING;
+	}	
+	
 	if(seedPairIn > 1000){
 	  return errors::ERROR_INVALID_SEED_PAIR;
 	}
@@ -618,106 +773,246 @@ namespace penred{
 	return errors::SUCCESS;
       }
       
-      inline void enableASCII(const bool enable){ ASCIIResults = enable; }
-      inline void enableFinalDump(const bool enable){ finalDump = enable; }
+      inline int enableASCII(const bool enable){
+	
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
+
+	if(simulating){
+	  return errors::ERROR_SIMULATION_RUNNING;
+	}	
+	
+	ASCIIResults = enable;
+	return errors::SUCCESS;
+      }
+      inline int enableFinalDump(const bool enable){
+	
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
+
+	if(simulating){
+	  return errors::ERROR_SIMULATION_RUNNING;
+	}	
+	
+	finalDump = enable;
+	return errors::SUCCESS;
+      }
 
       //Set configuration functions
       inline int setContextConfig(const pen_parserSection& config,
 				  const std::string& prefix = ""){
-	if(prefix.empty())
-	  contextConfig = config;
-	else{
-	  if(config.readSubsection(prefix.c_str(), contextConfig) != INTDATA_SUCCESS)
-	    return errors::ERROR_MISSING_PATH;
-	}
-	return errors::SUCCESS;
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
+
+	return setContextConfigTrusted(config, prefix);
       }
+      inline int setContextConfig(const std::string& configString,
+				  const std::string& prefix = ""){
+	
+	pen_parserSection configSect;
+	std::string errorLine;
+	long unsigned errorLineNum;
+	int err = parseString(configString,
+			      configSect,
+			      errorLine,
+			      errorLineNum);
+	if(err != INTDATA_SUCCESS){
+	  printf("Error parsing configuration text"
+		 "  Error code: %d\n"
+		 "  Error message: %s\n"
+		 "  Error located at line %lu, at text: %s",
+		 err, pen_parserError(err), errorLineNum, errorLine.c_str());
+	  return errors::ERROR_PARSING_CONFIG;
+	}
+	   
+	return setContextConfig(configSect, prefix);	
+      }
+      
       inline int setSourceConfig(const pen_parserSection& config,
 				 const std::string& prefix = ""){
-	if(prefix.empty())
-	  particleSourcesConfig = config;
-	else{
-	  if(config.readSubsection(prefix.c_str(), particleSourcesConfig) != INTDATA_SUCCESS)
-	    return errors::ERROR_MISSING_PATH;
-	}
-	return errors::SUCCESS;
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
+
+	return setSourceConfigTrusted(config, prefix);
       }
+      inline int setSourceConfig(const std::string& configString,
+				 const std::string& prefix = ""){
+	
+	pen_parserSection configSect;
+	std::string errorLine;
+	long unsigned errorLineNum;
+	int err = parseString(configString,
+			      configSect,
+			      errorLine,
+			      errorLineNum);
+	if(err != INTDATA_SUCCESS){
+	  printf("Error parsing configuration text"
+		 "  Error code: %d\n"
+		 "  Error message: %s\n"
+		 "  Error located at line %lu, at text: %s",
+		 err, pen_parserError(err), errorLineNum, errorLine.c_str());
+	  return errors::ERROR_PARSING_CONFIG;
+	}
+	   
+	return setSourceConfig(configSect, prefix);	
+      }
+      
       inline int setGeometryConfig(const pen_parserSection& config,
 				   const std::string& prefix = ""){
-	if(prefix.empty())
-	  geometryConfig = config;
-	else{
-	  if(config.readSubsection(prefix.c_str(), geometryConfig) != INTDATA_SUCCESS)
-	    return errors::ERROR_MISSING_PATH;
-	}
-	return errors::SUCCESS;
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
+
+	return setGeometryConfigTrusted(config, prefix);
       }
+      inline int setGeometryConfig(const std::string& configString,
+				   const std::string& prefix = ""){
+	
+	pen_parserSection configSect;
+	std::string errorLine;
+	long unsigned errorLineNum;
+	int err = parseString(configString,
+			      configSect,
+			      errorLine,
+			      errorLineNum);
+	if(err != INTDATA_SUCCESS){
+	  printf("Error parsing configuration text"
+		 "  Error code: %d\n"
+		 "  Error message: %s\n"
+		 "  Error located at line %lu, at text: %s",
+		 err, pen_parserError(err), errorLineNum, errorLine.c_str());
+	  return errors::ERROR_PARSING_CONFIG;
+	}
+	   
+	return setGeometryConfig(configSect, prefix);	
+      }
+      
       inline int setTallyConfig(const pen_parserSection& config,
 				const std::string& prefix = ""){
-	if(prefix.empty())
-	  talliesConfig = config;
-	else{
-	  if(config.readSubsection(prefix.c_str(), talliesConfig) != INTDATA_SUCCESS)
-	    return errors::ERROR_MISSING_PATH;
-	}
-	return errors::SUCCESS;
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
+
+	return setTallyConfigTrusted(config, prefix);
       }
+      inline int setTallyConfig(const std::string& configString,
+				const std::string& prefix = ""){
+	
+	pen_parserSection configSect;
+	std::string errorLine;
+	long unsigned errorLineNum;
+	int err = parseString(configString,
+			      configSect,
+			      errorLine,
+			      errorLineNum);
+	if(err != INTDATA_SUCCESS){
+	  printf("Error parsing configuration text"
+		 "  Error code: %d\n"
+		 "  Error message: %s\n"
+		 "  Error located at line %lu, at text: %s",
+		 err, pen_parserError(err), errorLineNum, errorLine.c_str());
+	  return errors::ERROR_PARSING_CONFIG;
+	}
+	   
+	return setTallyConfig(configSect, prefix);	
+      }
+      
       inline int setVRConfig(const pen_parserSection& config,
 			     const std::string& prefix = ""){
-	if(prefix.empty())
-	  VRConfig = config;
-	else{
-	  if(config.readSubsection(prefix.c_str(), VRConfig) != INTDATA_SUCCESS)
-	    return errors::ERROR_MISSING_PATH;
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
+
+	return setVRConfigTrusted(config, prefix);
+      }
+      inline int setVRConfig(const std::string& configString,
+			     const std::string& prefix = ""){
+	
+	pen_parserSection configSect;
+	std::string errorLine;
+	long unsigned errorLineNum;
+	int err = parseString(configString,
+			      configSect,
+			      errorLine,
+			      errorLineNum);
+	if(err != INTDATA_SUCCESS){
+	  printf("Error parsing configuration text"
+		 "  Error code: %d\n"
+		 "  Error message: %s\n"
+		 "  Error located at line %lu, at text: %s",
+		 err, pen_parserError(err), errorLineNum, errorLine.c_str());
+	  return errors::ERROR_PARSING_CONFIG;
 	}
-	return errors::SUCCESS;
-      }      
+	   
+	return setVRConfig(configSect, prefix);	
+      }
+      
 
       // Get functions
-      inline simConfig& getSimConfig() { return baseSimConfig; }
+      inline const simConfig& readBaseSimConfig() const { return baseSimConfig; }
       
       //Simulation configuration function
-      int configureSimConfig(const pen_parserSection& config,
-			     const std::string& prefix = "",
-			     const unsigned verbose = 1){
-	int errSimConfig = baseSimConfig.configure(prefix.c_str(),config);
-	if(errSimConfig != penred::simulation::errors::SUCCESS){
-	  if(verbose > 1)
-	    printf("simulator: configureSimConfig: Error: Unable to parse "
-		   "simulation configuration section: Invalid seeds\n");
-	  return errors::ERROR_INVALID_SEEDS;
-	}
+      inline int setSimConfig(const simConfig& conf){
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
 
-	return errors::SUCCESS;
+	return setSimConfigTrusted(conf);
       }
+      inline int setSimConfig(const pen_parserSection& config,
+			      const std::string& prefix = "",
+			      const unsigned verbose = 1){
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
+
+	return setSimConfigTrusted(config, prefix, verbose);
+      }
+      inline int setSimConfig(const std::string& configString,
+			      const std::string& prefix = ""){
+	
+	pen_parserSection configSect;
+	std::string errorLine;
+	long unsigned errorLineNum;
+	int err = parseString(configString,
+			      configSect,
+			      errorLine,
+			      errorLineNum);
+	if(err != INTDATA_SUCCESS){
+	  printf("Error parsing configuration text"
+		 "  Error code: %d\n"
+		 "  Error message: %s\n"
+		 "  Error located at line %lu, at text: %s",
+		 err, pen_parserError(err), errorLineNum, errorLine.c_str());
+	  return errors::ERROR_PARSING_CONFIG;
+	}
+	   
+	return setSimConfigTrusted(configSect, prefix);	
+      }
+      
 
       int configure(const pen_parserSection& config,
-		    std::ostream& out = std::cout,
 		    const std::string& prefixSimConfig = defaultSimPath,
 		    const std::string& prefixSourceConfig = defaultSourcePath,
 		    const std::string& prefixGeometryConfig = defaultGeometryPath,
 		    const std::string& prefixTallyConfig = defaultTallyPath,
 		    const std::string& prefixVRConfig = defaultVRPath){
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
 
+	if(simulating){
+	  return errors::ERROR_SIMULATION_RUNNING;
+	}	
 
 	// ** Simulation configuration
-	if(configureSimConfig(config,prefixSimConfig) != errors::SUCCESS){
+	if(setSimConfigTrusted(config,prefixSimConfig) != errors::SUCCESS){
 	  return -1;
 	}
 
 	unsigned verbose = baseSimConfig.verbose;
-
-	if(verbose > 1 && out){
-	  out << baseSimConfig.stringifyState() << std::endl;
-	}
 
 	// ** Number of threads
 
 	int auxThreads;
 	std::string path = prefixSimConfig + "/threads";
 	if(config.read(path,auxThreads) != INTDATA_SUCCESS){
-	  if(verbose > 1){
-	    out << "\n\nNumber of threads not specified, "
+	  if(verbose > 2){
+	    cout << "\n\nNumber of threads not specified, "
 	      "only one thread will be used.\n\n" << std::endl;
 	  }
 	  auxThreads = 1;
@@ -725,8 +1020,8 @@ namespace penred{
 	// ************************** MULTI-THREADING ***************************** //
 #ifndef _PEN_USE_THREADS_
 	else{
-	  if(verbose > 1){
-	    out << "\n\nMulti-threading has not been activated during compilation"
+	  if(verbose > 2){
+	    cout << "\n\nMulti-threading has not been activated during compilation"
 	      ", only one thread will be used\n\n" << std::endl;
 	  }
 	}
@@ -734,15 +1029,15 @@ namespace penred{
 #else
 	if(auxThreads <= 0){
 
-	  if(verbose > 1)
-	    out << "Automatic selection of threads enabled\n" << std::endl;
+	  if(verbose > 2)
+	    cout << "Automatic selection of threads enabled\n" << std::endl;
 	  
 	  unsigned int nConcurrency = std::thread::hardware_concurrency();
 
 	  if(nConcurrency > 0)
 	    auxThreads = nConcurrency;
 	  else{
-	    out << "The hardware concurrency value is not well defined "
+	    cout << "The hardware concurrency value is not well defined "
 	      "or not computable. One thread will be used" << std::endl;
 	    auxThreads = 1;
 	  }
@@ -752,11 +1047,11 @@ namespace penred{
 	// ************************ MULTI-THREADING END *************************** //
 
 	//Set threads
-	setThreads(static_cast<unsigned>(auxThreads));
-	if(verbose > 1){
-	  out << "\nNumber of simulating threads: " << nThreads << std::endl;
+	nThreads = static_cast<unsigned>(auxThreads);
+	if(verbose > 2){
+	  cout << "\nNumber of simulating threads: " << nThreads << std::endl;
 	  if(nThreads > 1){
-	    out << "Initial random seeds will be selected using "
+	    cout << "Initial random seeds will be selected using "
 	      "\"rand0\" function to ensure truly independent sequences "
 	      "of random numbers.\n" << std::endl;
 	  }
@@ -769,13 +1064,13 @@ namespace penred{
 	if(config.read(path,nseedPairAux) == INTDATA_SUCCESS){
 	  if(setSeedPair(nseedPairAux) != errors::SUCCESS){
 	    if(verbose > 0){
-	      out << "Invalid initial seed pair number " << nseedPairAux << std::endl;
-	      out << "Available seed pair range is [0,1000]" << std::endl;
-	      out << "Seed pair will be unchanged. " << std::endl;
+	      cout << "Invalid initial seed pair number " << nseedPairAux << std::endl;
+	      cout << "Available seed pair range is [0,1000]" << std::endl;
+	      cout << "Seed pair will be unchanged. " << std::endl;
 	    }
 	  }
-	  else if(verbose > 1){
-	    out << "Selected rand0 seed pair number: " << nSeedPair << std::endl;
+	  else if(verbose > 2){
+	    cout << "Selected rand0 seed pair number: " << nSeedPair << std::endl;
 	  }
 	}else{
 	  nSeedPair = -1;
@@ -786,13 +1081,13 @@ namespace penred{
 	bool ASCIIResultsAux = true;
 	path = prefixSimConfig + "/ascii-results"; 
 	if(config.read(path,ASCIIResultsAux) == INTDATA_SUCCESS){
-	  enableASCII(ASCIIResultsAux);
+	  ASCIIResults = ASCIIResultsAux;
 	}
 
 	bool finalDumpAux = false;
 	path = prefixSimConfig + "/finalDump"; 
 	if(config.read("simulation/finalDump",finalDumpAux) != INTDATA_SUCCESS){
-	  enableFinalDump(finalDumpAux);
+	  finalDump = finalDumpAux;
 	}
 
 	// Save context config
@@ -801,30 +1096,33 @@ namespace penred{
 	
 	// Get source configuration
 	//*******************************
-	if(config.readSubsection(prefixSourceConfig.c_str(), particleSourcesConfig) != INTDATA_SUCCESS){
-	  if(verbose > 0 && out){
-	    out << "Error: Missing source configuration section '"
-		<< prefixSourceConfig << "'" << std::endl;
+	if(config.readSubsection(prefixSourceConfig.c_str(),
+				 particleSourcesConfig) != INTDATA_SUCCESS){
+	  if(verbose > 0){
+	    cout << "Error: Missing source configuration section '"
+		 << prefixSourceConfig << "'" << std::endl;
 	  }
 	  return errors::ERROR_MISSING_SOURCE_CONFIGURATION;
 	}
 
 	// Get geometry configuration
 	//*******************************
-	if(config.readSubsection(prefixGeometryConfig.c_str(), geometryConfig) != INTDATA_SUCCESS){
-	  if(verbose > 0 && out){
-	    out << "Error: Missing geometry configuration section '"
-		<< prefixGeometryConfig << "'" << std::endl;
+	if(config.readSubsection(prefixGeometryConfig.c_str(),
+				 geometryConfig) != INTDATA_SUCCESS){
+	  if(verbose > 0){
+	    cout << "Error: Missing geometry configuration section '"
+		 << prefixGeometryConfig << "'" << std::endl;
 	  }
 	  return errors::ERROR_MISSING_GEOMETRY_CONFIGURATION;
 	}
 
 	// Get tally configuration
 	//*******************************
-	if(config.readSubsection(prefixTallyConfig.c_str(), talliesConfig) != INTDATA_SUCCESS){
-	  if(verbose > 0 && out){
-	    out << "Error: Missing tallies configuration section '"
-		<< prefixTallyConfig << "'" << std::endl;
+	if(config.readSubsection(prefixTallyConfig.c_str(),
+				 talliesConfig) != INTDATA_SUCCESS){
+	  if(verbose > 0){
+	    cout << "Error: Missing tallies configuration section '"
+		 << prefixTallyConfig << "'" << std::endl;
 	  }
 	  return errors::ERROR_MISSING_TALLY_CONFIGURATION;
 	}
@@ -836,8 +1134,38 @@ namespace penred{
 	return errors::SUCCESS;
       }
 
+      inline int configure(const std::string& configString,
+			   const std::string& prefixSimConfig = defaultSimPath,
+			   const std::string& prefixSourceConfig = defaultSourcePath,
+			   const std::string& prefixGeometryConfig = defaultGeometryPath,
+			   const std::string& prefixTallyConfig = defaultTallyPath,
+			   const std::string& prefixVRConfig = defaultVRPath){
+	
+	pen_parserSection configSect;
+	std::string errorLine;
+	long unsigned errorLineNum;
+	int err = parseString(configString,
+			      configSect,
+			      errorLine,
+			      errorLineNum);
+	if(err != INTDATA_SUCCESS){
+	  printf("Error parsing configuration text"
+		 "  Error code: %d\n"
+		 "  Error message: %s\n"
+		 "  Error located at line %lu, at text: %s",
+		 err, pen_parserError(err), errorLineNum, errorLine.c_str());
+	  return errors::ERROR_PARSING_CONFIG;
+	}
+	   
+	return configure(configSect,
+			 prefixSimConfig,
+			 prefixSourceConfig,
+			 prefixGeometryConfig,
+			 prefixTallyConfig,
+			 prefixVRConfig);	
+      }
+
       inline int configFromFile(const std::string& filename,
-				std::ostream& out = std::cout,
 				const std::string& prefixSimConfig = defaultSimPath,
 				const std::string& prefixSourceConfig = defaultSourcePath,
 				const std::string& prefixGeometryConfig = defaultGeometryPath,
@@ -851,15 +1179,15 @@ namespace penred{
 	int err = parseFile(filename.c_str(),config,errorLine,errorLineNum);
   
 	if(err != INTDATA_SUCCESS){
-	  out << "Error parsing configuration.\n"
-	    "Error code: " << err <<  "\n"
-	    "Error message: " << pen_parserError(err) << "\n"
-	    "Error located at line " << errorLineNum
-	      << ", at text: " << errorLine << std::endl;
+	  cout << "Error parsing configuration.\n"
+	    "  Error code: " << err <<  "\n"
+	    "  Error message: " << pen_parserError(err) << "\n"
+	    "  Error located at line " << errorLineNum
+	       << ", at text: " << errorLine << std::endl;
 	  return errors::ERROR_PARSING_CONFIG;
 	}
 
-	return configure(config, out,
+	return configure(config,
 			 prefixSimConfig,
 			 prefixSourceConfig,
 			 prefixGeometryConfig,
@@ -867,8 +1195,29 @@ namespace penred{
 			 prefixVRConfig);
       }
       
-      int simulate(std::ostream& out = std::cout){
+      int simulate(){
 
+	//Get lock until configuration finish
+	std::unique_lock<std::mutex> lock(simMutex);
+	
+	if(simulating){
+	  return errors::ERROR_SIMULATION_RUNNING;
+	}
+	
+	//Ensure required configurations are provided
+	if(contextConfig.empty()){
+	  return errors::ERROR_MISSING_CONTEXT_CONFIGURATION;
+	}
+	if(particleSourcesConfig.empty()){
+	  return errors::ERROR_MISSING_SOURCE_CONFIGURATION;
+	}
+	if(geometryConfig.empty()){
+	  return errors::ERROR_MISSING_GEOMETRY_CONFIGURATION;
+	}
+	if(talliesConfig.empty()){
+	  return errors::ERROR_MISSING_TALLY_CONFIGURATION;
+	}
+	
 	//Create a timer to measure the expended time in initialization 
 	pen_timer initializationTimer;
 
@@ -877,14 +1226,13 @@ namespace penred{
 	
 	// Create a simulation config for each thread
 	//*********************************************
-	std::vector<penred::simulation::simConfig> simConfigs(nThreads);
+	simConfigs.clear();
+	simConfigs = std::vector<penred::simulation::simConfig>(nThreads);
 
 	// ** Copy basic configuration
 	for(unsigned i = 0; i < nThreads; i++){
 	  simConfigs[i].iThread = i;
 	  simConfigs[i].copyCommonConfig(baseSimConfig);
-	  //Set, by default, std::cout as output stream
-	  simConfigs[i].setOutstream(out);
 	}
 
 	// ** Set random seeds
@@ -913,20 +1261,20 @@ namespace penred{
 	//Create and configure sources
 	int err = createParticleGenerators(genericSources,
 					   polarisedGammaSources,
-					   out, verbose);
+					   verbose);
 	
 	if(err != 0){
-	  if(verbose > 0 && out){
+	  if(verbose > 0){
 	    if(err > 0){
-	      out << "\nErrors at sources creation"
+	      cout << "\nErrors at sources creation"
 		" and configuration.\n" << std::endl;
 	    }
 	  }
 	  return errors::ERROR_AT_SOURCE_CONFIGURATION;
 	}
 
-	if(verbose > 1 && out)
-	  out << std::endl;
+	if(verbose > 1)
+	  cout << std::endl;
 
 	std::chrono::seconds::rep balanceInterval =
 	  static_cast<std::chrono::seconds::rep>(1.0e9);
@@ -965,16 +1313,16 @@ namespace penred{
 	    globEmax = polarisedGammaSources[i].maxEnergy();
 	}
 
-	if(verbose > 1 && out){
-	  out << "Maximum global energy: " << globEmax << " eV" << std::endl;
+	if(verbose > 1){
+	  cout << "Maximum global energy: " << globEmax << " eV" << std::endl;
 	}
 
 	//****************************
 	// Materials
 	//****************************
 
-	if(verbose > 1 && out){
-	  out << "\n\n------------------------------------\n\n"
+	if(verbose > 1){
+	  cout << "\n\n------------------------------------\n\n"
 	    " **** Materials ****\n"
 	    " *******************\n" << std::endl; 
 	}
@@ -992,22 +1340,22 @@ namespace penred{
 	// Geometry parameters
 	//****************************
 
-	if(verbose > 1 && out){
-	  out << "\n\n------------------------------------\n\n"
+	if(verbose > 1){
+	  cout << "\n\n------------------------------------\n\n"
 	    " **** Geometry parameters\n" << std::endl;
 	}
 
 	std::shared_ptr<wrapper_geometry> geometry;
   
 	//Create and configure geometry
-	int errGeo = createGeometry(geometry, matInfoSection, out, verbose);
+	int errGeo = createGeometry(geometry, matInfoSection, verbose);
 	if(errGeo != errors::SUCCESS)
 	  return errGeo;
 
 	//Set geometry to context
 	if(context.setGeometry(geometry.get()) != 0){
-	  if(verbose > 0 && out){
-	    out << "Error setting geometry to context." << std::endl;
+	  if(verbose > 0){
+	    cout << "Error setting geometry to context." << std::endl;
 	  }
 	  return errors::ERROR_SETTING_GEOMETRY_TO_CONTEXT;
 	}
@@ -1035,12 +1383,12 @@ namespace penred{
 	talliesVect.resize(nThreads);
 
 	//Init tallies
-	if(createTallies(talliesVect, context, out, verbose) != 0)
+	if(createTallies(talliesVect, context, verbose) != 0)
 	  return errors::ERROR_CREATING_TALLIES;
 
-	out << "\n" << talliesVect[0].numTallies() << " tallies created for each thread." << std::endl;
+	cout << "\n" << talliesVect[0].numTallies() << " tallies created for each thread." << std::endl;
 	if(talliesVect[0].numTallies() == 0){
-	  out << "The simulation will not extract any information. Abort it." << std::endl;
+	  cout << "The simulation will not extract any information. Abort it." << std::endl;
 	  return errors::SUCCESS;
 	}
 
@@ -1052,10 +1400,10 @@ namespace penred{
 	pen_VRCluster<pen_state_gPol> photonVR;
 	int vrRet = setVarianceReduction(geometry,
 					 genericVR, photonVR,
-					 out, verbose);
+					 verbose);
 	if(vrRet != errors::SUCCESS){
-	  if(verbose > 0 && out){
-	    out << "Error on variance reduction section.\n"
+	  if(verbose > 0){
+	    cout << "Error on variance reduction section.\n"
 	      "             Error code: " << vrRet << std::endl;
 	  }
 	  return vrRet;
@@ -1065,7 +1413,7 @@ namespace penred{
 	// History loop
 	//****************************
 
-	out.flush();
+	cout.flush();
 
 	// ************************** MULTI-THREADING ***************************** //
 #ifdef _PEN_USE_THREADS_
@@ -1080,11 +1428,17 @@ namespace penred{
 	  talliesVect[i].run_beginSim();
 	}
 
-	if(verbose > 1 && out){
-	  out << "Initialization processing time: "
-	      << initializationTimer.timer()
-	      << " s" << std::endl;
-	}	
+	if(verbose > 1){
+	  cout << "Initialization processing time: "
+	       << initializationTimer.timer()
+	       << " s" << std::endl;
+	}
+
+	//Flag the simulation as running
+	simulating = true;
+	
+	//Unlock after configuration finish
+	lock.unlock();
 
 	//Substract initialization time to maximum simulation time
 	long long int initTime = static_cast<long long int>(initializationTimer.timer());
@@ -1236,8 +1590,11 @@ namespace penred{
 	double CPUendSim = CPUtime();
 	double usertime = CPUendSim-time0;
 
-	if(verbose > 1 && out){
-	  out << "SImulation finished, starting results reduce step" << std::endl;
+	//Change default log to simulation log
+	setDefaultLog(penred::logs::SIMULATION);
+
+	if(verbose > 1){
+	  cout << "Simulation finished, starting results reduce step" << std::endl;
 	}
 
 	//If enabled, print final dumps
@@ -1271,20 +1628,20 @@ namespace penred{
 	  }
 	}
   
-	out << "\n\nSimulated histories: " << totalHists << "\n"
-	    << "Simulation real time: " << simtime << " s\n"
-	    << "Simulation user time: " << usertime << " s\n"
-	    << "Histories per second and thread: " << static_cast<double>(totalHists)/usertime << "\n"
-	    << "Histories per second: " << static_cast<double>(totalHists)/(usertime/double(nThreads)) << "\n"
-	    << "Results processing time: " << postProcessTime <<" s" << std::endl;
+	cout << "\n\nSimulated histories: " << totalHists << "\n"
+	     << "Simulation real time: " << simtime << " s\n"
+	     << "Simulation user time: " << usertime << " s\n"
+	     << "Histories per second and thread: " << static_cast<double>(totalHists)/usertime << "\n"
+	     << "Histories per second: " << static_cast<double>(totalHists)/(usertime/double(nThreads)) << "\n"
+	     << "Results processing time: " << postProcessTime <<" s" << std::endl;
 
 	// ******************************* LB ************************************ //
 #ifdef _PEN_USE_LB_
   
 	//Print load balance reports
 	if(genericSources.size() > 0){
-	  if(verbose > 1 && out)
-	    out << "Printing load balance reports for generic sources...";
+	  if(verbose > 1)
+	    cout << "Printing load balance reports for generic sources...";
 	  for(const auto& source : genericSources){
 	    FILE* fout = nullptr;
 	    std::string filenameLBTh(source.name);
@@ -1293,13 +1650,13 @@ namespace penred{
 	    source.task.printReport(fout);
 	    fclose(fout);	    
 	  }
-	  if(verbose > 1 && out)
-	    out << " Done!" << std::endl;
+	  if(verbose > 1)
+	    cout << " Done!" << std::endl;
 	}
 
 	if(polarisedGammaSources.size() > 0){
-	  if(verbose > 1 && out)
-	    out << "Printing load balance reports for polarised sources...";
+	  if(verbose > 1)
+	    cout << "Printing load balance reports for polarised sources...";
 	  for(const auto& source : polarisedGammaSources){
 	    FILE* fout = nullptr;
 	    std::string filenameLBTh(source.name);
@@ -1308,14 +1665,104 @@ namespace penred{
 	    source.task.printReport(fout);
 	    fclose(fout);
 	  }
-	  if(verbose > 1 && out)
-	    out << " Done!" << std::endl;
+	  if(verbose > 1)
+	    cout << " Done!" << std::endl;
 	}
 #endif
 
+	//Get lock to flag simulation as completed
+	const std::lock_guard<std::mutex> lock2(simMutex);
+	
+	//Return to configuration log
+	setDefaultLog(penred::logs::CONFIGURATION);
+	
+	simulating = false;
+	
 	return errors::SUCCESS;
       }
-      
+
+#ifdef _PEN_USE_THREADS_
+      inline int simulateAsync(){
+
+	//Launch the simulation asynchronously. This function will block the
+	//execution until the whole configuration and initialziation are done.
+	//Then, the control is returned to the calling thread.
+	//
+	// If the configuration and initialization fail, the function will
+	// return the configuration error code. Otherwise, a SUCCESS is returned
+	//
+
+	using namespace std::chrono_literals;
+  
+	simFuture = std::async(std::launch::async, [this]() -> int{
+	  return this->simulate();
+	});
+
+	//Wait until the result is available or the simulation starts
+	while(simFuture.wait_for(1s) == std::future_status::timeout){
+	  const std::lock_guard<std::mutex> lock(simMutex);
+	  
+	  if(simulating){
+	    //The simulation is already running, return control
+	    return errors::SUCCESS;
+	  }
+	}
+	
+	//The configuration has failed or the simulation has been completed.
+	//Return the 'simulate' return value
+	return simFuture.get();
+      }
+#endif
+
+      //Simulation status functions
+      inline std::vector<double> simSpeeds() const {
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
+
+	//Return each thread mean speed
+	std::vector<double> meanSpeeds;
+	for(const penred::simulation::simConfig& simConf : simConfigs){
+	  meanSpeeds.push_back(simConf.getSpeedInSource());
+	}
+	return meanSpeeds;
+      }
+      inline std::vector<std::pair<unsigned long long, unsigned long long>>
+      simulated() const {	
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
+	
+	//Return each thread mean speed
+	std::vector<std::pair<unsigned long long, unsigned long long>> done;
+	for(const penred::simulation::simConfig& simConf : simConfigs){
+	  done.emplace_back(simConf.getSimulatedInSource(), simConf.getToSimulateInSource());
+	}
+	return done;
+      }
+      inline std::vector<std::string> stringifyStatus() const {
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
+
+	//Return each thread mean speed
+	std::vector<std::string> states;
+	for(const penred::simulation::simConfig& simConf : simConfigs){
+	  states.emplace_back(simConf.stringifyState());
+	}
+	return states;
+      }
+      inline bool isSimulating() const{
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);	
+	return simulating;
+      }
+      inline void forceFinish() {
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
+	if(simulating){
+	  for(penred::simulation::simConfig& simConf : simConfigs){
+	    simConf.updateToSimulate(simConf.getSimulatedInSource());
+	  }
+	}
+      }
     };
 
   } // namespace simulation

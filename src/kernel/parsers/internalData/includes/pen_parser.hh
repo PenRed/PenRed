@@ -87,6 +87,7 @@ enum pen_parserErrors{INTDATA_SUCCESS = 0,
 		      INTDATA_READER_REQUIREMENTS_AND_CONDITIONS_NOT_FULFILLED = -39,
 		      INTDATA_READER_SPECIFIC_READER_ERROR = -40,
 		      INTDATA_READER_SINGLE_VALUE_SECTION_WITH_MULTIPLE_KEYS = -41,
+		      INTDATA_READER_NOT_CONFIGURABLE = -42,
 		      INTDATA_UNKNOWN_ERROR = -99
 };
 
@@ -932,7 +933,8 @@ public:
     return aux;
   }  
   void stringify(std::string&) const;
-
+  std::string stringifyYAML() const;
+  
   //Parse function
   inline int parse(const char* data, const bool overwrite = false){
     std::string aux(data);

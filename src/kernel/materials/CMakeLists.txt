@@ -44,3 +44,5 @@ target_link_libraries (pen_materials pen_errors)
 target_link_libraries (pen_materials pen_grids)
 target_link_libraries(pen_materials pen_randoms)
 target_link_libraries(pen_materials pen_compositionsDB)
+target_link_libraries(pen_materials pen_internalData)
+
