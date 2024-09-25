@@ -86,13 +86,13 @@ private:
       }
     }
 
-    constexpr int toBuffer(char* b, size_t max) const {
+    inline int toBuffer(char* b, size_t max) const {
       return snprintf(b, max, "%15.5E %15.5E %15.5E %15.5E "
 		      "%25.15E %15.5E\n",
 		      E, x, y, z, t, weight);
     }
 
-    constexpr int toBufferFinal(char* b, size_t max) const {
+    inline int toBufferFinal(char* b, size_t max) const {
       return snprintf(b, max, "%15.5E %15.5E %15.5E %15.5E "
 		      "%25.15E %15.5E\n",
 		      E, x/E, y/E, z/E, t, weight/E);
