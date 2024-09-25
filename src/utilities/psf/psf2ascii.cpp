@@ -76,7 +76,7 @@ int main(int argc, char** argv){
   fclose(fin);
   fclose(fout);  
 
-  printf("Processed psf chunks: %u (%lu B)\n",nchunks,size_t(nchunks)*psf.memory());
+  printf("Processed psf chunks: %u (%lu B)\n",nchunks, static_cast<unsigned long>(size_t(nchunks)*psf.memory()));
   
   return 0;
 }
