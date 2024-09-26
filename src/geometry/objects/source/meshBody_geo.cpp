@@ -1494,7 +1494,8 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	  
 	    fprintf(freport,"     - Region %u: %s\n", ir,
 		    region.stringify().c_str());
-	    fprintf(freport,"        Triangles: %lu\n", region.nElements());
+	    fprintf(freport,"        Triangles: %lu\n",
+		    static_cast<unsigned long>(region.nElements()));
 	    for(const auto& t : region.elements){
 	      fprintf(freport,"         %s\n",t.stringify().c_str());
 	    }

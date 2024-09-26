@@ -387,7 +387,8 @@ int pen_dump::dumpSubDumps(unsigned char* pout,
     if(err != PEN_DUMP_SUCCESS){
       if(verbose > 0){
 	auto it = find(subDumps.begin(), subDumps.end(), p);
-	printf("dumpSubDumps:Error: Error dumping sub dump %ld.\n", it-subDumps.begin());
+	printf("dumpSubDumps:Error: Error dumping sub dump %ld.\n",
+	       static_cast<long int>(std::distance(subDumps.cbegin(), it)));
 	printf("             Error code: %d\n",err);
       }
       return err;
@@ -513,8 +514,8 @@ int pen_dump::dump(unsigned char*& pout,
   if(written != memory()){
     if(verbose > 0){
       printf("dump:Error: written data bytes mismatch with expected.\n");
-      printf("            written: %lu\n",written);
-      printf("            expected: %lu\n",memory());
+      printf("            written: %lu\n",static_cast<unsigned long>(written));
+      printf("            expected: %lu\n",static_cast<unsigned long>(memory()));
     }
     if(freeOnError){
       free(pout);
@@ -541,8 +542,8 @@ int pen_dump::readDouble(const unsigned char* const pin,
   if(nArrays != pdouble.size()){
     if(verbose > 0){
       printf("pen_dump:readDouble: Error: Number of arrays mismatch.\n");
-      printf("                   Read: %u\n",nArrays);
-      printf("               Expected: %lu\n",pdouble.size());
+      printf("                   Read: %lu\n",static_cast<unsigned long>(nArrays));
+      printf("               Expected: %lu\n",static_cast<unsigned long>(pdouble.size()));
     }
     return PEN_DUMP_NARRAY_NOT_MATCH;
   }
@@ -569,9 +570,10 @@ int pen_dump::readDouble(const unsigned char* const pin,
 
     if(nElements != pdouble[i].n){
       if(verbose > 0){
-	printf("pen_dump:readDouble: Error: Number of elements in array %lu mismatch.\n",i);
-	printf("                   Read: %u\n",nElements);
-	printf("               Expected: %lu\n",pdouble[i].n);
+	printf("pen_dump:readDouble: Error: Number of elements "
+	       "in array %lu mismatch.\n",static_cast<unsigned long>(i));
+	printf("                   Read: %lu\n",static_cast<unsigned long>(nElements));
+	printf("               Expected: %lu\n",static_cast<unsigned long>(pdouble[i].n));
       }
       return PEN_DUMP_ELEMENT_NUMBER_NOT_MATCH;
     }
@@ -610,8 +612,8 @@ int pen_dump::readInt(const unsigned char* const pin,
   if(nArrays != pint.size()){
     if(verbose > 0){
       printf("pen_dump:readInt: Error: Number of arrays mismatch.\n");
-      printf("                   Read: %u\n",nArrays);
-      printf("               Expected: %lu\n",pint.size());
+      printf("                   Read: %lu\n",static_cast<unsigned long>(nArrays));
+      printf("               Expected: %lu\n",static_cast<unsigned long>(pint.size()));
     }    
     return PEN_DUMP_NARRAY_NOT_MATCH;
   }
@@ -633,10 +635,13 @@ int pen_dump::readInt(const unsigned char* const pin,
     //Check if elements to read fits in the specified type
     if(usedBits > it->typeBits){
       if(verbose > 0){
-	printf("pen_dump:readInt: Error: Element memory size doesn't fit in specified type.\n");
-	printf("                   Read: %u bits\n",usedBits);
-	printf("               Expected: %lu bits\n",it->typeBits);
-      }    
+	printf("pen_dump:readInt: Error: Element memory size doesn't "
+	       "fit in specified type.\n");
+	printf("                   Read: %lu bits\n",
+	       static_cast<unsigned long>(usedBits));
+	printf("               Expected: %lu bits\n",
+	       static_cast<unsigned long>(it->typeBits));
+      }
       return PEN_DUMP_ELEMENT_SIZE_NOT_MATCH;
     }
     
@@ -647,9 +652,11 @@ int pen_dump::readInt(const unsigned char* const pin,
 
     if(nElements != it->n){
       if(verbose > 0){
-	printf("pen_dump:readInt: Error: Number of elements in array %lu mismatch.\n",size_t(it - pint.begin()));
-	printf("                   Read: %u\n",nElements);
-	printf("               Expected: %lu\n",it->n);
+	printf("pen_dump:readInt: Error: Number of elements in "
+	       "array %ld mismatch.\n",
+	       static_cast<long int>(std::distance(pint.cbegin(), it)));
+	printf("                   Read: %lu\n",static_cast<unsigned long>(nElements));
+	printf("               Expected: %lu\n",static_cast<unsigned long>(it->n));
       }      
       return PEN_DUMP_ELEMENT_NUMBER_NOT_MATCH;
     }
@@ -686,8 +693,9 @@ int pen_dump::readUnsigned(const unsigned char* const pin,
   if(nArrays != punsigned.size()){
     if(verbose > 0){
       printf("pen_dump:readUnsigned: Error: Number of arrays mismatch.\n");
-      printf("                   Read: %u\n",nArrays);
-      printf("               Expected: %lu\n",punsigned.size());
+      printf("                   Read: %lu\n",static_cast<unsigned long>(nArrays));
+      printf("               Expected: %lu\n",
+	     static_cast<unsigned long>(punsigned.size()));
     }    
     return PEN_DUMP_NARRAY_NOT_MATCH;
   }
@@ -709,9 +717,12 @@ int pen_dump::readUnsigned(const unsigned char* const pin,
     //Check if elements to read fits in the specified type
     if(usedBits > it->typeBits){
       if(verbose > 0){
-	printf("pen_dump:readInt: Error: Element memory size doesn't fit in specified type.\n");
-	printf("                   Read: %u bits\n",usedBits);
-	printf("               Expected: %lu bits\n",it->typeBits);
+	printf("pen_dump:readInt: Error: Element memory size "
+	       "doesn't fit in specified type.\n");
+	printf("                   Read: %lu bits\n",
+	       static_cast<unsigned long>(usedBits));
+	printf("               Expected: %lu bits\n",
+	       static_cast<unsigned long>(it->typeBits));
       }    
       return PEN_DUMP_ELEMENT_SIZE_NOT_MATCH;
     }
@@ -723,9 +734,11 @@ int pen_dump::readUnsigned(const unsigned char* const pin,
 
     if(nElements != it->n){
       if(verbose > 0){
-	printf("pen_dump:readInt: Error: Number of elements in array %lu mismatch.\n",size_t(it - punsigned.begin()));
-	printf("                   Read: %u\n",nElements);
-	printf("               Expected: %lu\n",it->n);
+	printf("pen_dump:readInt: Error: Number of elements in "
+	       "array %lu mismatch.\n",
+	       static_cast<long int>(std::distance(punsigned.cbegin(), it)));
+	printf("                   Read: %lu\n",static_cast<unsigned long>(nElements));
+	printf("               Expected: %lu\n",static_cast<unsigned long>(it->n));
       }      
       return PEN_DUMP_ELEMENT_NUMBER_NOT_MATCH;
     }
@@ -762,9 +775,9 @@ int pen_dump::readChar(const unsigned char* const pin,
   if(nArrays != puchar.size()){
     if(verbose > 0){
       printf("pen_dump:readChar: Error: Number of arrays mismatch.\n");
-      printf("                   Read: %u\n",nArrays);
-      printf("               Expected: %lu\n",puchar.size());
-    }    
+      printf("                   Read: %lu\n",static_cast<unsigned long>(nArrays));
+      printf("               Expected: %lu\n",static_cast<unsigned long>(puchar.size()));
+    }
     return PEN_DUMP_NARRAY_NOT_MATCH;
   }
 
@@ -779,9 +792,10 @@ int pen_dump::readChar(const unsigned char* const pin,
     
     if(nElements != puchar[i].n){
       if(verbose > 0){
-	printf("pen_dump:readChar: Error: Number of elements in array %lu mismatch.\n",i);
-	printf("                   Read: %u\n",nElements);
-	printf("               Expected: %lu\n",puchar[i].n);
+	printf("pen_dump:readChar: Error: Number of elements in "
+	       "array %lu mismatch.\n",static_cast<unsigned long>(i));
+	printf("                   Read: %lu\n",static_cast<unsigned long>(nElements));
+	printf("               Expected: %lu\n",static_cast<unsigned long>(puchar[i].n));
       }
       return PEN_DUMP_ELEMENT_NUMBER_NOT_MATCH;
     }
@@ -805,8 +819,8 @@ int pen_dump::readFiles(const unsigned char* const pin,
   if(nFiles != pfiles.size()){
     if(verbose > 0){
       printf("pen_dump:readFiles: Error: Number of files mismatch.\n");
-      printf("                   Read: %u\n",nFiles);
-      printf("               Expected: %lu\n",pfiles.size());
+      printf("                   Read: %lu\n",static_cast<unsigned long>(nFiles));
+      printf("               Expected: %lu\n",static_cast<unsigned long>(pfiles.size()));
     }    
     return PEN_DUMP_NARRAY_NOT_MATCH;
   }
@@ -862,8 +876,9 @@ int pen_dump::readSubDumps(const unsigned char* const pin,
   if(nSubDumps != subDumps.size()){
     if(verbose > 0){
       printf("pen_dump:readSubDumps: Error: Number of subdumps mismatch.\n");
-      printf("                   Read: %u\n",nSubDumps);
-      printf("               Expected: %lu\n",subDumps.size());
+      printf("                   Read: %lu\n",static_cast<unsigned long>(nSubDumps));
+      printf("               Expected: %lu\n",
+	     static_cast<unsigned long>(subDumps.size()));
     }
     return PEN_DUMP_NARRAY_NOT_MATCH;
   }

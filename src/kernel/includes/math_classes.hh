@@ -1062,7 +1062,8 @@ struct container : public box<T>{
       char errmsg[200];
       sprintf(errmsg,"container:split: Error: %lu/%lu elements "
 	      "out of defined regions.\n",
-	      remaining,regions[index2Split].elements.size());      
+	      static_cast<unsigned long>(remaining),
+	      static_cast<unsigned long>(regions[index2Split].elements.size()));
       throw std::runtime_error(errmsg); 
     }
 
@@ -1150,7 +1151,8 @@ struct container : public box<T>{
 	     "      Expected elements : %lu\n"
 	     "      Final elements    : %lu\n"
 	     " Please, report this issue.\n",
-	     initElements, finalElements);
+	     static_cast<unsigned long>(initElements),
+	     static_cast<unsigned long>(finalElements));
       fflush(stdout);
       throw std::range_error("Lost elements on container split");      
     }
