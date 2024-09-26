@@ -3147,7 +3147,8 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 				      }
 				      configStatus = PEN_QUAD_GEO_NS; return configStatus;
 				    }
-				  strcpy(DEFS[KSD-1],DEFS[KS-1]);
+				  std::memcpy(DEFS[KSD-1],DEFS[KS-1],100);
+				  //std::strcpy(DEFS[KSD-1],DEFS[KS-1]);
 				  ISCL[KS-1] = KSD;
 				  strcpy(BLINE,DEFS[KSD-1]);
 				  double QXX = surfaces[KS-1].AXX;
