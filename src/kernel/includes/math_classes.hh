@@ -1791,6 +1791,118 @@ namespace penred{
 	}	
       }
 
+      int print2DMatrixData(const char* prefix,
+			    const std::function<
+			    std::pair<double,double>(const unsigned long,
+						     const std::array<unsigned long, dim>&)
+			    > fvalue,
+			    const bool printOnlyEffective = false){
+
+	//Create an array to store local dim indexes
+	std::array<unsigned long, dim> indexes;
+	std::fill(indexes.begin(), indexes.end(), 0lu);
+
+	//Check the number of dimensions
+	if(dim < 2){
+	  //Only one dimension, print all values in a single row
+	  std::string baseFilename(prefix);
+	  FILE* fval = fopen((baseFilename + ".dat").c_str(), "w");
+	  if(fval == nullptr){
+	    return 1;
+	  }
+	  FILE* ferr = fopen((baseFilename + "_err.dat").c_str(), "w");
+	  if(ferr == nullptr){
+	    return 1;
+	  }
+	  
+	  for(unsigned long i = 0; i < totalBins; ++i){
+	    //Get the value and error
+	    std::pair<double, double> val = fvalue(i, indexes);
+
+	    //Print them
+	    fprintf(fval,"%.5E ", val.first);
+	    fprintf(ferr,"%.5E ", val.second);
+	  }
+
+	  //Close files
+	  fclose(fval);
+	  fclose(ferr);
+	}else{
+	  //Two or more dimensions found, create
+	  //bidimensional matrix for each "plane"
+	  
+	  //Iterate all bins
+	  unsigned long k = 0;
+	  while(k < totalBins){
+
+	    //Create the files to store the next data plane
+	    std::string baseFilename = prefix;
+	    if(printOnlyEffective){
+	      for(size_t idim = 2; idim < dim; ++idim){
+		if(nBins[idim] > 1) //Add only efective dimensions to filename
+		  baseFilename += "_" + std::to_string(indexes[idim]);
+	      }
+	    }
+	    else{
+	      for(size_t idim = 2; idim < dim; ++idim){
+		baseFilename += "_" + std::to_string(indexes[idim]);
+	      }
+	    }
+	    FILE* fval = fopen((baseFilename + ".dat").c_str(), "w");
+	    if(fval == nullptr){
+	      return 1;
+	    }
+	    FILE* ferr = fopen((baseFilename + "_err.dat").c_str(), "w");
+	    if(ferr == nullptr){
+	      return 1;
+	    }
+
+	    //Iterate the first two dimensions
+	    for(size_t j = 0; j < nBins[1]; ++j){
+	      for(size_t i = 0; i < nBins[0]; ++i){
+		//Get the value and error
+		std::pair<double, double> val = fvalue(k, indexes);
+	    
+		//Print them
+		fprintf(fval,"%.5E ", val.first);
+		fprintf(ferr,"%.5E ", val.second);
+
+		//Increase counters
+		++indexes[0];
+		++k;
+	      }
+	      //Row finish, begin a new line
+	      fprintf(fval,"\n");
+	      fprintf(ferr,"\n");
+	      
+	      //Fix counters
+	      indexes[0] = 0;
+	      ++indexes[1];
+	    }
+
+	    //Check for other dimensions index increment
+	    for(size_t idim = 1; idim < dim; ++idim){
+	      if(indexes[idim] >= nBins[idim]){
+	      
+		indexes[idim] = 0;
+		if(idim < dim-1){
+		  ++indexes[idim+1];
+		}
+	      }
+	      else{
+		break;
+	      }	    
+	    }
+
+	    //Close files
+	    fclose(fval);
+	    fclose(ferr);
+	  }
+	}
+
+	return 0;
+      }
+      
       //Read function
       int loadData(std::vector<double>& data,
 		   std::vector<double>& sigma,
@@ -2354,6 +2466,19 @@ namespace penred{
 		    printBinNumber,
 		    printOnlyEffective);
 	
+      }
+
+      inline int printMatrix(const char* prefix,
+			     const bool printOnlyEffective = false){
+
+	//Print description and dimension information
+	return this->
+	  print2DMatrixData
+	  (prefix,
+	   [this](const unsigned long i, //Function to calculate value and sigma
+		  const std::array<unsigned long, dim>&) -> std::pair<double,double> {
+	    return {data[i], sigma[i]};
+	  },printOnlyEffective);	
       }
 
       //Read functions

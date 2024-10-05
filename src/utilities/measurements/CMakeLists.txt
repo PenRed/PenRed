@@ -29,7 +29,7 @@
 
 
 #############################
-#  MEASUREMENT TESTS
+#  MEASUREMENT UTILITIES
 #############################
 
 
@@ -45,4 +45,15 @@ install(
   TARGETS profile
   DESTINATION ${PROJECT_SOURCE_DIR}/compiled/utilities/measurement
   )  
+#-----------------------------------------------------------------------------
+
+add_executable(toMatrix ${CMAKE_CURRENT_SOURCE_DIR}/toMatrix.cpp)
+
+target_include_directories(toMatrix PUBLIC ${PROJECT_SOURCE_DIR}/kernel/includes)
+
+#-----------------------------------------------------------------------------
+install(
+  TARGETS toMatrix
+  DESTINATION ${PROJECT_SOURCE_DIR}/compiled/utilities/measurement
+  )
 #-----------------------------------------------------------------------------
