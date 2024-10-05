@@ -19,7 +19,7 @@ setup(
         'Programming Language :: C++',
     ],
     package_data={
-        'pyPenred': ['*.so']
+        'pyPenred': ['*.so', '*.dll']
     },
     install_requires=[
         'pyyaml',

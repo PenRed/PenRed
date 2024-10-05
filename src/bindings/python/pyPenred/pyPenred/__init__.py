@@ -7,10 +7,27 @@ simulation = importlib.import_module(".simulation", __name__)
 
 simulation.create = simulation.simulator
 
+def readConfigFile(filename):
+    '''
+    Read a configuration file in both, YAML or penRed
+    internal format, and returns the associated dictionary.
+    '''
+    try:
+        f = open(configFile)
+        d = yaml.load(f, Loader=yaml.SafeLoader)
+        return d
+    except:
+        yamlstr = simulation.configFile2YAML(filename)
+        return yaml.safe_load(yamlstr)
+
 def runFromFile(configFile = "config.in",
                 statusTime = 120,
                 configLog = "config.log",
                 simulationLog = "simulation.log"):
+    '''
+    Configures and runs a simulation from the specified file.
+    Reports the simulation status periodically.
+    '''
 
     #Set logs
     simulation.setConfigurationLog(str(configLog))

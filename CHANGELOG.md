@@ -4,13 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.12.0] - 2024-09-25
+## [1.12.0] - 2024-10-05
 
 ### Added
 - Global log system
 - Better support to perform penred simulations from python
 - Detection singles/pulses tally
 - Utility to convert penred data format files to YAML. These YAML files can be used by the penred python wrapper
+- Script to automatically compile and install the pyPenred python wrapper
+
+### Changed
+- The dockerfile to create containers has been updated
 
 ### Fixed
 - Bug: Only tallies which implement the 'begin_sim' function gets particle stacks pointers

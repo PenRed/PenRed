@@ -124,89 +124,120 @@ PYBIND11_MODULE(simulation,m){
   m.doc() = "penred simulation module";
 
   m.def("setConfigurationLog",
-	[](const std::string& filename){
+	[](const std::string& filename) -> void{
 	  if(filename.empty())
 	    penred::logs::logger::setConfigurationLogFile(nullptr);
 	  else
 	    penred::logs::logger::setConfigurationLogFile(filename.c_str());
 	}, "Sets configuration log file");
   m.def("setSimulationLog",
-	[](const std::string& filename){
+	[](const std::string& filename) -> void{
 	  if(filename.empty())
 	    penred::logs::logger::setSimulationLogFile(nullptr);
 	  else
 	    penred::logs::logger::setSimulationLogFile(filename.c_str());
-	}, "Sets configuration log file");  
+	}, "Sets simulation log file");
+
+  m.def("errorMessage",
+	[](const int& ierror) -> py::str{
+	  return py::str(penred::simulation::errors::errorMessage(ierror));
+	}, "Returns the error message associated with the specified error code");
 
   m.def("dict2SectionString", &dict2SectionString, "Converts a dictionary to a compatible penRed configuration section string");
+
+  m.def("configFile2YAML",
+	[](const std::string& filename) -> py::str{
+	  if(filename.empty())
+	    return std::string("");
+	  else{
+
+	    //Parse configuration file
+	    pen_parserSection config;
+	    std::string errorLine;
+	    unsigned long errorLineNum;
+	    int err = parseFile(filename.c_str(),config,errorLine,errorLineNum);
+	    
+	    if(err != INTDATA_SUCCESS){
+	      printf("Error parsing configuration.\n");
+	      printf("Error code: %d\n",err);
+	      printf("Error message: %s\n",pen_parserError(err));
+	      printf("Error located at line %lu, at text: %s\n",
+		     errorLineNum,errorLine.c_str());
+	      return std::string("");
+	    }
+
+	    //Create YAML string
+	    return config.stringifyYAML();
+	  }
+	}, "Reads a configuration file and returns a YAML string with the read information");
 
   py::class_<penred::simulation::simulator<pen_context>>(m, "simulator")
     .def(py::init<>())
     .def("configFromFile",
 	 [](penred::simulation::simulator<pen_context>& obj,
-	    const std::string& filename){
+	    const std::string& filename) -> int{
 	   return obj.configFromFile(filename);
-	 }, "Configure the whole simulation from a configuration file. The format must match the penred internal data structure.")
+	 }, "Saves the whole simulation configuration from a configuration file. The format must match the penRed internal data structure.")
     .def("configFromString",
 	 [](penred::simulation::simulator<pen_context>& obj,
-	    const std::string& configString){	   
+	    const std::string& configString) -> int{	   
 	   return obj.configure(configString);
-	 }, "Configure the whole simulation from a string")
+	 }, "Saves the whole simulation configuration from a string matching the penRed internal data format")
     .def("configure",
 	 [](penred::simulation::simulator<pen_context>& obj,
-	    const py::dict& config){
+	    const py::dict& config) -> int{
 	   
 	   std::string configString = dict2SectionString(config);	   
 	   return obj.configure(configString);
-	 }, "Configure the whole simulation using the provided dictionary")    
+	 }, "Saves the whole simulation configuration from the provided dictionary. Returns 0 on success")
     .def("configContext",
 	 [](penred::simulation::simulator<pen_context>& obj,
-	    const py::dict& config){
+	    const py::dict& config) -> int{
 
 	   std::string configString = dict2SectionString(config);
 	   
 	   return obj.setContextConfig(configString);
-	 }, "Configure the context using the provided dictionary")
+	 }, "Saves the context configuration from the provided dictionary. Returns 0 on success")
     .def("configSource",
 	 [](penred::simulation::simulator<pen_context>& obj,
-	    const py::dict& config){
+	    const py::dict& config) -> int{
 
 	   std::string configString = dict2SectionString(config);
 	   
 	   return obj.setSourceConfig(configString);
-	 }, "Configure particle sources using the provided dictionary")
+	 }, "Saves the particle sources configuration from the provided dictionary. Returns 0 on success")
     .def("configGeometry",
 	 [](penred::simulation::simulator<pen_context>& obj,
-	    const py::dict& config){
+	    const py::dict& config) -> int{
 
 	   std::string configString = dict2SectionString(config);
 	   
 	   return obj.setGeometryConfig(configString);
-	 }, "Configure the geometry using the provided dictionary")
+	 }, "Saves the geometry configuration from the provided dictionary. Returns 0 on success")
     .def("configTally",
 	 [](penred::simulation::simulator<pen_context>& obj,
-	    const py::dict& config){
+	    const py::dict& config) -> int{
 
 	   std::string configString = dict2SectionString(config);
 	   
 	   return obj.setTallyConfig(configString);
-	 }, "Configure tallies using the provided dictionary")
+	 }, "Saves the tallies configuration from the provided dictionary. Returns 0 on success")
     .def("configVR",
 	 [](penred::simulation::simulator<pen_context>& obj,
-	    const py::dict& config){
+	    const py::dict& config) -> int{
 
 	   std::string configString = dict2SectionString(config);
 	   
 	   return obj.setVRConfig(configString);
-	 })
+	 }, "Saves the variance reduction configuration from the provided dictionary. Returns 0 on success")
     .def("setSimConfig",
 	 [](penred::simulation::simulator<pen_context>& obj,
-	    const py::dict& config){
+	    const py::dict& config) -> int{
 
 	   std::string configString = dict2SectionString(config);
 	   
 	   return obj.setSimConfig(configString);
-	 }, "Configure the simulation parameters using the provided dictionary")
+	 }, "Saves the simulation parameters from the provided dictionary. Returns 0 on success")
     .def("simulate",
 	 [](penred::simulation::simulator<pen_context>& obj, const bool async = false) -> int {
 	   if(async){
@@ -215,15 +246,29 @@ PYBIND11_MODULE(simulation,m){
 	   }
 	   else
 	     return obj.simulate();
-	 }, "Runs a simulation according to the provided configurations")
+	 }, "Runs a simulation according to the saved configurations.\n"
+	 "The boolean argument specify the simulation mode, selecting asynchronous (true) or blocking (false).\n"
+	 "Returns 0 if the configuration process finish with no errors.")
     .def("simSpeeds",
-	 [](penred::simulation::simulator<pen_context>& obj){
-	   return obj.simSpeeds();
-	 }, "Returns a vector with the simulation speeds for each thread")
+	 [](penred::simulation::simulator<pen_context>& obj) -> py::tuple{
+	   auto speeds = obj.simSpeeds();
+	   py::tuple resTuple = py::tuple(speeds.size());
+	   for(size_t i = 0; i < speeds.size(); ++i)
+	     resTuple[i] = py::tuple(py::float_(speeds[i]));
+	   return resTuple;
+	 }, "Returns a tuple with the simulation speeds, in histories per second, for each thread")
     .def("simulated",
-	 [](penred::simulation::simulator<pen_context>& obj){
-	   return obj.simulated();
-	 }, "Returns a vector with the the pairs (simulated, to simulate) histories for each thread at the current source")
+	 [](penred::simulation::simulator<pen_context>& obj) -> py::tuple{
+	   auto sim2sim = obj.simulated();
+	   py::tuple resTuple = py::tuple(sim2sim.size());
+	   for(size_t i = 0; i < sim2sim.size(); ++i){
+	     py::tuple element = py::tuple(2);
+	     element[0] = py::int_(sim2sim[i].first);
+	     element[1] = py::int_(sim2sim[i].second);
+	     resTuple[i] = element;
+	   }
+	   return resTuple;
+	 }, "Returns a tuple with the the pairs (simulated, to simulate) histories for each thread at the current source")
     .def("stringifyStatus",
 	 [](penred::simulation::simulator<pen_context>& obj){
 	   std::vector<std::string> r = obj.stringifyStatus();
@@ -231,15 +276,15 @@ PYBIND11_MODULE(simulation,m){
 	   for(size_t i = 0; i < r.size(); ++i)
 	     resTuple[i] = py::str(r[i]);
 	   return resTuple;
-	 }, "Returns a vector with the stringified simulation state of each thread")        
+	 }, "Returns a tuple with the stringified simulation status of each thread")        
     .def("isSimulating",
-	 [](penred::simulation::simulator<pen_context>& obj){
+	 [](penred::simulation::simulator<pen_context>& obj) -> py::bool_{
 	   return obj.isSimulating();
 	 }, "Returns 'true' if the simulation is running and 'false' otherwise")
     .def("forceFinish",
-	 [](penred::simulation::simulator<pen_context>& obj){
-	   return obj.forceFinish();
-	 }, "Forces the simulation finish")
+	 [](penred::simulation::simulator<pen_context>& obj) -> void{
+	   obj.forceFinish();
+	 }, "Forces the simulation finish reducing the number of histories to be simulated.")
     .def("__repr__",
 	 [](const penred::simulation::simulator<pen_context>& /*obj*/){
 	   return std::string("<penred.simulator>");

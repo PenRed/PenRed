@@ -96,6 +96,37 @@ namespace penred{
 	ERROR_PARSING_CONFIG,
 	ERROR_SIMULATION_RUNNING,
       };
+
+      constexpr const char* errorMessage(const int val){
+	switch(val){
+	case SUCCESS: return "Success";
+	case GEOMETRY_NOT_REACHED: return "Geometry not reached";
+	case KPAR_NOT_FOUND: return "Unknown particle type";
+	case ERROR_INVALID_SEEDS: return "Invalid seeds";
+	case ERROR_LOADING_DUMP: return "Error loading dump";
+	case ERROR_SECTION_NOT_FOUND: return "Section not found";
+	case ERROR_INVALID_SEED_PAIR: return "Invalid seed pair";
+	case ERROR_NO_SOURCE: return "No source defined";
+	case ERROR_MISSING_PATH: return "Missing path";
+	case ERROR_MISSING_SOURCE_CONFIGURATION: return "Missing source configuration";
+	case ERROR_MISSING_GEOMETRY_CONFIGURATION: return "Missing geometry configuration";
+	case ERROR_MISSING_TALLY_CONFIGURATION: return "Missing tally configuration";
+	case ERROR_AT_SOURCE_CONFIGURATION: return "Error configuring source";
+	case ERROR_AT_CONTEXT_CONFIGURATION: return "Error configuring context";
+	case ERROR_AT_CONTEXT_CONFIGURATION_WITH_GEOMETRY: return "Error configuring context with geometry";
+	case ERROR_MISSING_CONTEXT_CONFIGURATION: return "Missing context configuration";
+	case ERROR_MISSING_TYPE: return "Missing type";
+	case ERROR_UNKNOWN_TYPE: return "Unknown type";
+	case ERROR_AT_GEOMETRY_CONFIGURATION: return "Error configuring geometry";
+	case ERROR_SETTING_GEOMETRY_TO_CONTEXT: return "Error setting geometry to context";
+	case ERROR_CREATING_TALLIES: return "Error creating tallies";
+	case ERROR_ON_TALLIES_CONFIGURATION: return "Error configuring tallies";
+	case ERROR_ON_VR_CONFIGURATION: return "Error configuring variance reduction";
+	case ERROR_PARSING_CONFIG: return "Error parsing configuration";
+	case ERROR_SIMULATION_RUNNING: return "Simulation is running";
+	default: return "Unknown error";
+	}
+      }
     }
 
     namespace simFlags{

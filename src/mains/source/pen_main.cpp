@@ -261,21 +261,13 @@ int main(int argc, char** argv){
   if(strcmp(argv[1],"--version") == 0 || strcmp(argv[1],"-v") == 0){
     return 0;
   }
-
-  printf("Simulation configuration starts. Configuration logs will be"
-	 " saved in the file 'config.log'. Simulation logs will be saved "
-	 "in the file 'simulation.log'\n");
-
-  penred::logs::logger log;  
-  log.setConfigurationLogFile("config.log");
-  log.setSimulationLogFile("simulation.log");
   
   bool addDumps = false;
   if(argc >= 3){
     if(strcmp(argv[2],"--addDumps") == 0){ //The argv[1] contains the configuration file
-      log.printf("Adding specified dumps\n");
+      printf("Adding specified dumps\n");
       if(argc < 5){
-	log.printf("Error: At least two dumps are required\n");
+	printf("Error: At least two dumps are required\n");
 	return -1;
       }
       addDumps = true;
@@ -295,11 +287,11 @@ int main(int argc, char** argv){
   int MThProvided;
   int MPIinitErr = MPI_Init_thread(nullptr, nullptr, MPI_THREAD_SERIALIZED,&MThProvided);
   if(MPIinitErr != MPI_SUCCESS){
-    log.printf("Unable to initialize MPI. Error code: %d\n",MPIinitErr);
+    printf("Unable to initialize MPI. Error code: %d\n",MPIinitErr);
     return -1;
   }
   if(MThProvided != MPI_THREAD_SERIALIZED){
-    log.printf("Warning: The MPI implementation used doesn't provide"
+    printf("Warning: The MPI implementation used doesn't provide"
 	   "support for serialized thread communication.\n"
 	   "This could produce unexpected behaviours or performance issues.\n");
   }
@@ -310,19 +302,19 @@ int main(int argc, char** argv){
 
   if(verbose > 1){
     if(rank == 0){
-      log.printf("%d MPI processes started.\n",mpiSize);
+      printf("%d MPI processes started.\n",mpiSize);
     }
   }
   
   //Redirect stdout to individual log files
   char stdoutFilename[100];
   snprintf(stdoutFilename,100,"rank-%03d.log",rank);
-  log.printf("Rank %d: Redirect 'stdout' to file '%s'\n",rank,stdoutFilename);
+  printf("Rank %d: Redirect 'stdout' to file '%s'\n",rank,stdoutFilename);
   if(freopen(stdoutFilename, "w", stdout) == NULL){
-    log.printf("Rank %d: Can't redirect stdout to '%s'\n",rank,stdoutFilename);
+    printf("Rank %d: Can't redirect stdout to '%s'\n",rank,stdoutFilename);
   }
   else if(verbose > 1){
-    log.printf("\n**** Rank %d Log ****\n\n",rank);
+    printf("\n**** Rank %d Log ****\n\n",rank);
   }
     
 #endif
@@ -342,12 +334,42 @@ int main(int argc, char** argv){
   //printf("%s\n", config.stringify().c_str());
   
   if(err != INTDATA_SUCCESS){
-    log.printf("Error parsing configuration.\n");
-    log.printf("Error code: %d\n",err);
-    log.printf("Error message: %s\n",pen_parserError(err));
-    log.printf("Error located at line %lu, at text: %s\n",
+    printf("Error parsing configuration.\n");
+    printf("Error code: %d\n",err);
+    printf("Error message: %s\n",pen_parserError(err));
+    printf("Error located at line %lu, at text: %s\n",
 	   errorLineNum,errorLine.c_str());
     return -1;
+  }
+
+  //Set log files
+  std::string configLogFilename;
+  if(config.read("log/configuration",configLogFilename) != INTDATA_SUCCESS){
+    configLogFilename.assign("config.log");
+  }
+  std::string simLogFilename;
+  if(config.read("log/simulation",simLogFilename) != INTDATA_SUCCESS){
+    simLogFilename.assign("simulation.log");
+  }
+
+  penred::logs::logger log;  
+  if(!configLogFilename.empty()){
+#ifdef _PEN_USE_MPI_
+    configLogFilename = "rank-" + std::to_string(rank) + "-" + configLogFilename;
+#endif
+    if(verbose > 1){
+      printf("Configuration log redirected to '%s'\n", configLogFilename.c_str());
+    }
+    log.setConfigurationLogFile(configLogFilename.c_str());
+  }
+  if(!simLogFilename.empty()){
+#ifdef _PEN_USE_MPI_
+    simLogFilename = "rank-" + std::to_string(rank) + "-" + simLogFilename;
+#endif    
+    if(verbose > 1){
+      printf("Simulation log redirected to '%s'\n", simLogFilename.c_str());
+    }
+    log.setSimulationLogFile(simLogFilename.c_str());  
   }
 
   // Get comon simulation configuration

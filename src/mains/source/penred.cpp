@@ -61,6 +61,26 @@ int main(int argc, char** argv){
     return -1;
   }
 
+  //Set log files
+  std::string configLogFilename;
+  if(config.read("log/configuration",configLogFilename) != INTDATA_SUCCESS){
+    configLogFilename.assign("config.log");
+  }
+  std::string simLogFilename;
+  if(config.read("log/simulation",simLogFilename) != INTDATA_SUCCESS){
+    simLogFilename.assign("simulation.log");
+  }
+
+  penred::logs::logger log;  
+  if(!configLogFilename.empty()){
+    printf("Configuration log redirected to '%s'\n", configLogFilename.c_str());
+    log.setConfigurationLogFile(configLogFilename.c_str());
+  }
+  if(!simLogFilename.empty()){
+    printf("Simulation log redirected to '%s'\n", simLogFilename.c_str());
+    log.setSimulationLogFile(simLogFilename.c_str());  
+  }
+
   // Configure simulator
   //***********************
   simula.configure(config);
