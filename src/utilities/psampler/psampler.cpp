@@ -209,10 +209,13 @@ int main()
 
   //Declare random generator
   pen_rand randoms;
+
   
-  
-  //Create a context
-  pen_context context;
+  //Create simulation context
+  std::shared_ptr<pen_context> pcontext = createContext<pen_context>();
+  //Get context reference. Notice that pcontext will
+  //not be released until the function ends
+  pen_context& context = *pcontext.get();
 
   //Create elements data base
   pen_elementDataBase elementsDB = context.getElementDB();

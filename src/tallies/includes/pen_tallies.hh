@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2023 Universitat de València - UV
-//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2024 Universitat de València - UV
+//    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -83,13 +83,12 @@ struct tally_StepData{
 // Register macros
 ///////////////////////
 
-#define DECLARE_TALLY(Class,State)			\
-  public: \
-  inline int registerStatus() const { return ___register_return;} \
-  inline const char* readID() const { return ___ID;}\
-  private: \
+#define DECLARE_TALLY(Class,State)			   \
+  public:						   \
+  static int registerStatus();				   \
+  const char* readID() const;				   \
   static const char* ___ID;\
-  static const int ___register_return;\
+  static volatile const int ___register_return;\
   inline int sum(const pen_genericTally<State>& sumtally){\
   const Class& derived = dynamic_cast<const Class&>(sumtally);\
   return sumTally(derived);\
@@ -97,15 +96,20 @@ struct tally_StepData{
   inline int shareConfig(const pen_genericTally<State>& sharingTally){ \
   const Class& derived = dynamic_cast<const Class&>(sharingTally);\
   return sharedConfig(derived);\
-  }
+  }\
+  private:
 
 #define REGISTER_COMMON_TALLY(Class, ID) \
-  const int Class::___register_return = pen_commonTallyCluster::addTally<Class>(static_cast<const char *>(#ID)); \
-  const char* Class::___ID = static_cast<const char *>(#ID);
+  volatile const int Class::___register_return = pen_commonTallyCluster::addTally<Class>(static_cast<const char *>(#ID)); \
+  const char* Class::___ID = static_cast<const char *>(#ID);		\
+  int Class::registerStatus() { return ___register_return;}		\
+  const char* Class::readID() const { return ___ID;}
 
 #define REGISTER_SPECIFIC_TALLY(Class, ID) \
-  const int Class::___register_return = pen_specificTallyCluster::addTally<Class>(static_cast<const char *>(#ID)); \
-  const char* Class::___ID = static_cast<const char *>(#ID);
+  volatile const int Class::___register_return = pen_specificTallyCluster::addTally<Class>(static_cast<const char *>(#ID)); \
+  const char* Class::___ID = static_cast<const char *>(#ID);		\
+  int Class::registerStatus() { return ___register_return;}		\
+  const char* Class::readID() const { return ___ID;}
 
 // Enumeration flags
 //////////////////////////
@@ -557,6 +561,15 @@ public:
 
 bool __tallySort (pen_genericTally<pen_particleState>* i,
 		  pen_genericTally<pen_particleState>* j);
+
+namespace penred{
+  namespace tally{
+    
+    //Check registered types
+    template <class stateType>
+    bool checkRegistered(const unsigned verbose);
+  }
+}
 
 // Tally cluster classes
 //////////////////////////

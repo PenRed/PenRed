@@ -30,6 +30,8 @@
 
 
 int main(){
+  //Ensure generic VR register variables are linked from the static library
+  penred::vr::checkRegistered<pen_state_gPol>(1);  
   printf("Registered photon VR:\n");
   printf("%s",pen_VRCluster<pen_state_gPol>::typesList().c_str());
   return 0;

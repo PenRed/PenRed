@@ -52,33 +52,37 @@
 #endif
   // ***************************** MPI END ********************************** //
 
-#define DECLARE_SAMPLER(Class) \
-  public: \
-  inline int registerStatus() const { return ___register_return;} \
-  virtual const char* readID() const {return ___ID;}\
-  private: \
-  static const char* ___ID;\
-  static const int ___register_return;\
+#define DECLARE_SAMPLER(Class)				\
+  public:						\
+  static int registerStatus();				\
+  const char* readID() const;				\
+  static const char* ___ID;				\
+  static volatile const int ___register_return;		\
+  private:
 
-#define DECLARE_SPECIFIC_SAMPLER(Class, State)	\
-  public: \
-  inline int registerStatus() const { return ___register_return;} \
-  virtual const char* readID() const {return ___ID;}\
-  private: \
-  static const char* ___ID;\
-  static const int ___register_return;\
+#define DECLARE_SPECIFIC_SAMPLER(Class, State)				\
+  public:								\
+  static int registerStatus();						\
+  const char* readID() const;						\
+  static const char* ___ID;						\
+  static volatile const int ___register_return;				\
   inline int shareConfig(const abc_specificSampler<State>& sharingSampler){ \
-  const Class& derived = dynamic_cast<const Class&>(sharingSampler);\
-  return sharedConfig(derived);\
-  }
+    const Class& derived = dynamic_cast<const Class&>(sharingSampler);	\
+    return sharedConfig(derived);					\
+  }									\
+  private:		       
 
 #define REGISTER_SAMPLER(Class, ID) \
-  const int Class::___register_return = registerSampler<Class>(static_cast<const char *>(#ID)); \
-  const char* Class::___ID = static_cast<const char *>(#ID);
+  volatile const int Class::___register_return = registerSampler<Class>(static_cast<const char *>(#ID)); \
+  const char* Class::___ID = static_cast<const char *>(#ID);		\
+  int Class::registerStatus() { return ___register_return;}			\
+  const char* Class::readID() const {return ___ID;}
 
-#define REGISTER_SPECIFIC_SAMPLER(Class, State, ID)				\
-  const int Class::___register_return = registerSpecificSampler<Class,State>(static_cast<const char *>(#ID)); \
-  const char* Class::___ID = static_cast<const char *>(#ID);
+#define REGISTER_SPECIFIC_SAMPLER(Class, State, ID)			\
+  volatile const int Class::___register_return = registerSpecificSampler<Class,State>(static_cast<const char *>(#ID)); \
+  const char* Class::___ID = static_cast<const char *>(#ID);		\
+  int Class::registerStatus() { return ___register_return;}			\
+  const char* Class::readID() const {return ___ID;}
 
 template <class particleState> class abc_specificSampler;
 class abc_spatialSampler;
@@ -385,6 +389,15 @@ public:
   
   virtual ~abc_timeSampler(){}
 };
+
+namespace penred{
+  namespace sampler{
+    
+    //Check registered types
+    template <class stateType>
+    bool checkRegistered(const unsigned verbose);
+  }
+}
 
 class pen_genericStateGen : public penred::logs::logger{
 
@@ -1401,6 +1414,13 @@ public:
 		 const unsigned nthreads,
 		 const unsigned verbose = 0){
 
+    //Check registered types to ensure static library linking of the register variable
+    if(!penred::sampler::checkRegistered<particleState>(verbose)){
+      if(verbose > 0){
+	printf("Warning: Some sapler types are not properly registered\n");
+      }
+    }
+
     //Check if specific field exists
     bool specificSpecified = config.isSection("specific");
     
@@ -1567,5 +1587,15 @@ inline void abc_specificSampler<particleState>::sampleGeneric(pen_particleState&
 #include "directionSamplers.hh"
 #include "energySamplers.hh"
 #include "timeSamplers.hh"
-  
+
+namespace penred{
+  namespace sampler{
+
+    template<>
+    bool checkRegistered<pen_particleState>(const unsigned verbose);
+
+    template<>
+    bool checkRegistered<pen_state_gPol>(const unsigned verbose);    
+  }
+}
 #endif

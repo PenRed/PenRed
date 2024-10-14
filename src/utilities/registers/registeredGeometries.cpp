@@ -31,6 +31,9 @@
 
 
 int main(){
+  //Ensure register variables are linked from static library
+  penred::geometry::checkRegisteredObj(1);
+  penred::geometry::checkRegisteredMesh(1);
   printf("Registered geometries:\n");
   printf("%s",geometryList().c_str());
   return 0;

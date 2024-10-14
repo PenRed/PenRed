@@ -146,8 +146,11 @@ namespace penred{
       // ** Create simulation context  
       //*******************************
   
-      //Create a context
-      pen_context contextSim;
+      //Create simulation context
+      std::shared_ptr<pen_context> pcontext = createContext<pen_context>();
+      //Get context reference. Notice that pcontext will
+      //not be released until the function ends
+      pen_context& contextSim = *pcontext.get();
 
       //Create context configuration
       pen_parserSection contextConf;

@@ -32,4 +32,36 @@
 
 #include "VRxraySplitting.hh"
 
+namespace penred{
+  namespace vr{
+
+    using typesSpecificVR = std::tuple<pen_VRxraysplitting>;    
+
+    template<size_t T>
+    typename std::enable_if<(T == std::tuple_size<typesSpecificVR>::value), bool>::type
+    checkRegistersSpecific(const unsigned){ return true; }
+    
+    template<size_t T>
+    typename std::enable_if<(T < std::tuple_size<typesSpecificVR>::value), bool>::type
+      checkRegistersSpecific(const unsigned verbose){
+      using tupleType = typename std::tuple_element<T, typesSpecificVR>::type;
+      int val = tupleType::registerStatus();
+      if(val != 0){
+	if(verbose > 0){
+	  printf("Warning: Specific VR type '%s' register failed."
+		 " Error code: %d\n",
+		 tupleType::___ID, val);
+	}
+	checkRegistersSpecific<T+1>(verbose);
+	return false;
+      }else{
+	return checkRegistersSpecific<T+1>(verbose);
+      }
+    }
+    
+    template<>
+    bool checkRegistered<pen_state_gPol>(const unsigned verbose);
+  }
+}
+
 #endif

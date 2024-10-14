@@ -428,6 +428,13 @@ void pen_genericStateGen::configure(const pen_parserSection& config,
   //Clear generator
   clear();
 
+  //Check registered types to ensure static library linking of the register variable
+  if(!penred::sampler::checkRegistered<pen_particleState>(verbose)){
+    if(verbose > 0){
+      printf("Warning: Some generic sampler types are not properly registered\n");
+    }
+  }
+  
   //*******************************
   // Check if age must be recorded
   //*******************************
@@ -713,3 +720,23 @@ instantiator<abc_timeSampler>& pen_genericStateGen::timeSamplers(){
 #include "directionSamplers.cpp"
 #include "energySamplers.cpp"
 #include "timeSamplers.cpp"
+
+
+namespace penred{
+  namespace sampler{
+
+    template<>
+    bool checkRegistered<pen_particleState>(const unsigned verbose){
+      return checkRegistersSpatial<0>(verbose) &&
+	checkRegistersDirection<0>(verbose) &&
+	checkRegistersEnergy<0>(verbose) &&
+	checkRegistersTime<0>(verbose) &&
+	checkRegistersSpecificCommon<0>(verbose);
+    }
+
+    template<>
+    bool checkRegistered<pen_state_gPol>(const unsigned verbose){
+      return checkRegistersSpecificGPol<0>(verbose);
+    }
+  }
+}

@@ -1294,7 +1294,10 @@ namespace penred{
 	//****************************
 
 	//Create simulation context
-	contextType context;
+	std::shared_ptr<contextType> pcontext = createContext<contextType>();
+	//Get context reference. Notice that pcontext will
+	//not be released until the end of the execution
+	contextType& context = *pcontext.get();
   
 	//Get global maximum energy
 	double globEmax = -1.0;

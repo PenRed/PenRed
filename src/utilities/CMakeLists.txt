@@ -70,9 +70,6 @@ CMAKE_DEPENDENT_OPTION(DICOM_KERNELS "Compile DICOM kernels utility" ON
 CMAKE_DEPENDENT_OPTION(MUTREN "Compile mutren" ON
                        "BUILD_UTILITIES" OFF) 
 
-CMAKE_DEPENDENT_OPTION(XRAY "Compile x-ray utilities" OFF
-                       "BUILD_UTILITIES;WITH_EMBEDDED_DB" OFF)
-
 CMAKE_DEPENDENT_OPTION(VIEWERS "Compile viewers" ON
                        "BUILD_UTILITIES" OFF)                       
                        
@@ -103,19 +100,7 @@ install(
 if(TALLIES_REGISTER)
     # Create registered tallies executable
     add_executable(regTallies ${PROJECT_SOURCE_DIR}/utilities/registers/registeredTallies.cpp)
-
-    #target libs
-	if (MSVC) 
-		target_link_libraries(regTallies tallies)
-		set_target_properties(regTallies PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WHOLEARCHIVE:tallies")
-
-	else(MSVC)
-        if(APPLE) #Check if is an Apple OS
-            target_link_libraries(regTallies -Wl,-force_load tallies)
-        else(APPLE) #By default assume a Unix OS
-            target_link_libraries(regTallies -Wl,--whole-archive tallies -Wl,--no-whole-archive)
-        endif(APPLE)
-	endif(MSVC)
+    target_link_libraries(regTallies tallies)
 
     # Install registered tallies executable
     install(
@@ -130,18 +115,7 @@ endif(TALLIES_REGISTER)
 if(SAMPLE_REGISTER)
     # Create registered samplers executable
     add_executable(regSamplers ${PROJECT_SOURCE_DIR}/utilities/registers/registeredSamplers.cpp)
-
-    #target libs
-	if (MSVC) 
-		target_link_libraries(regSamplers samplers)
-		set_target_properties(regSamplers PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WHOLEARCHIVE:samplers")
-	else(MSVC)
-        if(APPLE) #Check if is an Apple OS
-            target_link_libraries(regSamplers -Wl,-force_load samplers)
-        else(APPLE) #By default assume a Unix OS
-            target_link_libraries(regSamplers -Wl,--whole-archive samplers -Wl,--no-whole-archive)
-        endif(APPLE)
-	endif(MSVC)
+    target_link_libraries(regSamplers samplers)
 
     # Install registered samplers executable
     install(
@@ -156,20 +130,7 @@ endif(SAMPLE_REGISTER)
 if(GEOMETRY_REGISTER)
     # Create registered geometries executable
     add_executable(regGeometries ${PROJECT_SOURCE_DIR}/utilities/registers/registeredGeometries.cpp)
-
-    #target libs
-	if (MSVC) 
-		target_link_libraries(regGeometries pen_geos)
-		set_target_properties(regGeometries PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WHOLEARCHIVE:pen_geos")
-	else(MSVC)
-        if(APPLE) #Check if is an Apple OS
-            target_link_libraries(regGeometries -Wl,-force_load pen_geos)
-        else(APPLE) #By default assume a Unix OS
-            target_link_libraries(regGeometries -Wl,--whole-archive pen_geos -Wl,--no-whole-archive)
-        endif(APPLE)
-	endif(MSVC)
-    
-
+    target_link_libraries(regGeometries pen_geos)
 
     # Install registered geometries executable
     install(
@@ -185,18 +146,7 @@ endif(GEOMETRY_REGISTER)
 if(PHOTON_VR_REGISTER)
     # Create registered VR executable
     add_executable(regPhotonVR ${PROJECT_SOURCE_DIR}/utilities/registers/registeredPhotonVR.cpp)
-
-    #target libs
-	if (MSVC) 
-		target_link_libraries(regPhotonVR pen_VR)
-		set_target_properties(regPhotonVR PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WHOLEARCHIVE:pen_VR")
-	else(MSVC)
-        if(APPLE) #Check if is an Apple OS
-            target_link_libraries(regPhotonVR -Wl,-force_load pen_VR)
-        else(APPLE) #By default assume a Unix OS
-            target_link_libraries(regPhotonVR -Wl,--whole-archive pen_VR -Wl,--no-whole-archive)
-        endif(APPLE)
-	endif(MSVC)
+    target_link_libraries(regPhotonVR pen_VR)
 
     # Install registered VR executable
     install(
@@ -212,19 +162,7 @@ endif(PHOTON_VR_REGISTER)
 if(GENERIC_VR_REGISTER)
     # Create registered VR executable
     add_executable(regGenericVR ${PROJECT_SOURCE_DIR}/utilities/registers/registeredGenericVR.cpp)
-
-    #target libs
-	if (MSVC) 
-		target_link_libraries(regGenericVR pen_VR)
-		set_target_properties(regGenericVR PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WHOLEARCHIVE:pen_VR")
-	else(MSVC)
-        if(APPLE) #Check if is an Apple OS
-            target_link_libraries(regGenericVR -Wl,-force_load pen_VR)
-        else(APPLE) #By default assume a Unix OS
-            target_link_libraries(regGenericVR -Wl,--whole-archive pen_VR -Wl,--no-whole-archive)
-        endif(APPLE)
-	endif(MSVC)
-    
+    target_link_libraries(regGenericVR pen_VR)
 
     # Install registered VR executable
     install(

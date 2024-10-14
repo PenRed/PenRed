@@ -396,12 +396,19 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
   char CHR[7];  // Used to check the format of surface indices.
   char CCR, CNL;  // Used to identify 'C\r' and 'C\n' comments.
   // ----------------------------------------------------------------------
-  char ALIAS[NS][6], ALIAB[NB][6];
+  //char ALIAS[NS][6], ALIAB[NB][6];
+  std::vector<std::array<char, 6>> ALIAS(NS);
+  std::vector<std::array<char, 6>> ALIAB(NB);
   char C5[6], C5C[6], C4[5], C1;
   char CA[36] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'};
 
   char GFILE[13];
-  char BLINE[100], DEFB[NB][100], DEFS[NS][100], DEF[100];
+  //char BLINE[100], DEFB[NB][100], DEFS[NS][100], DEF[100];
+  char BLINE[100], DEF[100];
+  std::vector<std::array<char, 100>> DEFB(NB);
+  std::vector<std::array<char, 100>> DEFS(NS);
+  
+  
   const char* LNUL = "00000000";
   const char* LSUR = "SURFACE ";
   const char* LIND = "INDICES=";
@@ -439,15 +446,16 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
   const char* LFIL = "   FILE=";
 
   char LARRAY[8][9];
-  int  KQ[5], KM[NS];
+  int  KQ[5];
+  std::vector<int> KM(NS);
 
-  int IDESC[NB];
-  int IDONE[NB];
-  int ISCL[NS];
-  int IBCL[NB];
-  int IBOR[NB];
+  std::vector<int> IDESC(NB);
+  std::vector<int> IDONE(NB);
+  std::vector<int> ISCL(NS);
+  std::vector<int> IBCL(NB);
+  std::vector<int> IBOR(NB);
 
-  int KSFF[NS];
+  std::vector<int> KSFF(NS);
   
   char LKEYW[9];
 
@@ -475,7 +483,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
   int NSFF = 0;  // Number of fixed (starred) surfaces.
   for(unsigned int KS = 0; KS < NS; KS++)
     {
-      strcpy(ALIAS[KS], "    0"); // Surface aliases (user labels).
+      strcpy(ALIAS[KS].data(), "    0"); // Surface aliases (user labels).
       KSFF[KS] = 0;  // Clonable-free surfaces.
       surfaces[KS].AXX = 0.0;
       surfaces[KS].AXY = 0.0;
@@ -501,7 +509,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
       //  impact detectors. Detectors must be defined in the main program,
       //  after the call to subroutine GEOMIN.
       bodies[KB].KDET = 0;  // KDET(KB).ne.0 if body KB is part of a detector.
-      strcpy(ALIAB[KB], "    0");  // Body aliases (user labels).
+      strcpy(ALIAB[KB].data(), "    0");  // Body aliases (user labels).
       bodies[KB].MATER = 0;  // Material in body KB.
       bodies[KB].KBOMO = 0;  // 0 for bodies, 1 for modules.
       bodies[KB].KMOTH = 0;  // Mother of body KB (must be unique).
@@ -707,7 +715,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    {
 	      for(unsigned int KS0 = 0; KS0 < NSURF; KS0++)
 		{
-		  if(strcmp(C5,ALIAS[KS0]) == 0)
+		  if(strcmp(C5,ALIAS[KS0].data()) == 0)
 		    {
 		      if(verbose > 0){	      
 			if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
@@ -736,7 +744,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	      configStatus = PEN_QUAD_GEO_NS; return configStatus;	      
 	    }
 	  sprintf(DEF, "%s(%4d%s%s%s%s%s%s%s", LKEYW, KS, LARRAY[0], LARRAY[1], LARRAY[2], LARRAY[3], LARRAY[4], LARRAY[5], LARRAY[6]);
-	  strcpy(ALIAS[KS-1], C5);
+	  strcpy(ALIAS[KS-1].data(), C5);
 	  if(strcmp (LKEYW, LSUA) == 0)
 	    {
 	      KSFF[KS-1] = 1;
@@ -1053,7 +1061,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	      if(verbose > 0){	      
 		fprintf(IW, "%0*d\n",64,0);
 	      }
-	      strcpy(DEFS[KS-1],DEF);
+	      strcpy(DEFS[KS-1].data(),DEF);
 	      Eixir = false;
 	      continue;       //GOTO 2
 	    }
@@ -1379,7 +1387,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	      if(verbose > 0){	      
 		fprintf(IW, "%0*d\n",64,0);
 	      }
-	      strcpy(DEFS[KS-1],DEF);
+	      strcpy(DEFS[KS-1].data(),DEF);
 	      Eixir = false;
 	      continue;
 	    }
@@ -1442,7 +1450,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    {
 	      for(unsigned int KB0 = 0; KB0 < NBODYS; KB0++)
 		{
-		  if(strcmp(C5, ALIAB[KB0]) == 0)
+		  if(strcmp(C5, ALIAB[KB0].data()) == 0)
 		    {
 		      if(verbose > 0){	      
 			if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
@@ -1472,7 +1480,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    }
 	  
 	  sprintf(DEF, "%s(%4d%s%s%s%s%s%s%s", LKEYW, NBODYS, LARRAY[0], LARRAY[1], LARRAY[2], LARRAY[3], LARRAY[4], LARRAY[5], LARRAY[6]);
-	  strcpy(ALIAB[NBODYS-1],C5);
+	  strcpy(ALIAB[NBODYS-1].data(),C5);
 	  
 	  
 	  bool Eixir2 = false;
@@ -1598,7 +1606,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		  bool Eixir3 = false;
 		  for(unsigned int KS0 = 0; KS0 < NSURF; KS0++)
 		    {        
-		      if(strcmp(C5, ALIAS[KS0]) == 0)
+		      if(strcmp(C5, ALIAS[KS0].data()) == 0)
 			{
 			  KS = KS0+1;
 			  Eixir3 = true;
@@ -1696,7 +1704,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		      bool Eixir3 = false;
 		      for(unsigned int KB0 = 0; KB0 < NBODYS-1; KB0++)
 		        {
-			  if(strcmp(C5, ALIAB[KB0]) == 0)
+			  if(strcmp(C5, ALIAB[KB0].data()) == 0)
 			    {
 			      KB = KB0+1;
 			      Eixir3 = true;
@@ -1773,7 +1781,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		      bool Eixir3 = false;
 		      for(unsigned int KB0 = 0; KB0 < NBODYS-1; KB0++)
 			{
-			  if(strcmp(C5, ALIAB[KB0]) == 0)
+			  if(strcmp(C5, ALIAB[KB0].data()) == 0)
 			    {
 			      KB = KB0+1;
 			      Eixir3 = true;
@@ -1858,7 +1866,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  if(verbose > 0){	      
 	    fprintf(IW, "%0*d\n",64,0);
 	  }
-	  strcpy(DEFB[NBODYS-1],DEF);
+	  strcpy(DEFB[NBODYS-1].data(),DEF);
 	  Eixir = false;      //GOTO 2
 	  continue;
 	}
@@ -1921,7 +1929,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    {
 	      for(unsigned int KB0 = 0; KB0 < NBODYS; KB0++)
 		{
-		  if(strcmp(C5, ALIAB[KB0]) == 0)
+		  if(strcmp(C5, ALIAB[KB0].data()) == 0)
 		    {
 		      if(verbose > 0){	      
 			fprintf(IW, "%72s\n", BLINE);
@@ -1951,7 +1959,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    }
 	  sprintf(DEF, "%s(%4d%s%s%s%s%s%s%s", LKEYW, NBODYS, LARRAY[0], LARRAY[1], LARRAY[2], LARRAY[3], LARRAY[4], LARRAY[5], LARRAY[6]);      
 
-	  strcpy(ALIAB[NBODYS-1], C5);
+	  strcpy(ALIAB[NBODYS-1].data(), C5);
 
 	  bool Eixir2 = false;
 	  while(!Eixir2)
@@ -2102,7 +2110,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		  unsigned int KS = 0;
 		  for(unsigned int KS0 = 0; KS0 < NSURF; KS0++)
 		    {
-		      if(strcmp(C5, ALIAS[KS0]) == 0)
+		      if(strcmp(C5, ALIAS[KS0].data()) == 0)
 		        {
 			  KS = KS0+1;
 			  Eixir3 = true;
@@ -2229,7 +2237,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		      bool Eixir3 = false;  //GOTO 304
 		      for(unsigned int KB0 =  0; KB0 < NBODYS-1; KB0++)
 			{
-			  if(strcmp(C5, ALIAB[KB0]) == 0)
+			  if(strcmp(C5, ALIAB[KB0].data()) == 0)
 			    {
 			      KB = KB0+1;
 			      Eixir3 = true;
@@ -2373,7 +2381,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		      bool Eixir3 = false;  //GOTO 305
 		      for(unsigned int KB0 = 0; KB0 < NBODYS-1; KB0++)
 			{
-			  if(strcmp(C5, ALIAB[KB0]) == 0)
+			  if(strcmp(C5, ALIAB[KB0].data()) == 0)
 			    {
 			      KB = KB0+1;
 			      Eixir3 = true;
@@ -2672,7 +2680,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		fprintf(IW, "%0*d\n",64,0);
 	      }
 	      bodies[NBODYS-1].KBOMO = 1;
-	      strcpy(DEFB[NBODYS-1],DEF);
+	      strcpy(DEFB[NBODYS-1].data(),DEF);
 	      Eixir = false;
 	      continue;
 	    }
@@ -2756,7 +2764,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    {
 	      for(unsigned int KB0 = 0; KB0 < NBODYS; KB0++)
 		{
-		  if(strcmp(C5, ALIAB[KB0]) == 0)
+		  if(strcmp(C5, ALIAB[KB0].data()) == 0)
 		    {
 		      if(verbose > 0){	      
 			if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
@@ -2850,7 +2858,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  int KORIG;
 	  for(unsigned int KB0 = 0; KB0 < NBODYS; KB0++)
 	    {
-	      if(strcmp(C5, ALIAB[KB0]) == 0)
+	      if(strcmp(C5, ALIAB[KB0].data()) == 0)
 		{
 		  KORIG = KB0+1;
 		  if(bodies[KORIG-1].KBOMO != 1)
@@ -3147,10 +3155,11 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 				      }
 				      configStatus = PEN_QUAD_GEO_NS; return configStatus;
 				    }
-				  std::memcpy(DEFS[KSD-1],DEFS[KS-1],100);
+
+				  DEFS[KSD-1] = DEFS[KS-1];
 				  //std::strcpy(DEFS[KSD-1],DEFS[KS-1]);
 				  ISCL[KS-1] = KSD;
-				  strcpy(BLINE,DEFS[KSD-1]);
+				  strcpy(BLINE,DEFS[KSD-1].data());
 				  double QXX = surfaces[KS-1].AXX;
 				  double QXY = surfaces[KS-1].AXY;
 				  double QXZ = surfaces[KS-1].AXZ;
@@ -3259,8 +3268,8 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		  bodies[KB].KMOTH = 0;
 		}
 	      bodies[KB].KBOMO = bodies[KBO-1].KBOMO;
-	      strcpy(DEFB[KB],DEFB[KBO-1]);
-	      strcpy(BLINE,DEFB[KBO-1]);
+	      strcpy(DEFB[KB].data(),DEFB[KBO-1].data());
+	      strcpy(BLINE,DEFB[KBO-1].data());
 	      if(bodies[KB].KBOMO == 0)
 		{
 		  strcpy(LKEYW,LBOD);
@@ -3402,7 +3411,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		  }
 	      }
 	    }
-	  strcpy(ALIAB[KBD-1], C5C);
+	  strcpy(ALIAB[KBD-1].data(), C5C);
 	  bodies[KBD-1].KMOTH = 0;
 	  NBODYS = KBD;
 	  NSURF = KSD;
@@ -3623,7 +3632,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	      
 	  for(KB = 0; KB < NBODYS; KB++)
 	    {
-	      strcpy(C5,ALIAB[KB]);
+	      strcpy(C5,ALIAB[KB].data());
 	      if(C5[4] == '0'){ strncpy(bodies[KB].BALIAS, C5, 4); bodies[KB].BALIAS[4]='\0';}
 	    }
 	  //	      

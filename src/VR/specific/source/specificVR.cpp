@@ -28,3 +28,15 @@
 
 
 #include "VRxraySplitting.cpp"
+
+namespace penred{
+  namespace vr{
+    
+    template<>
+    bool checkRegistered<pen_state_gPol>(const unsigned verbose){
+      
+      return checkRegistersSpecific<0>(verbose);
+      
+    }
+  }
+}

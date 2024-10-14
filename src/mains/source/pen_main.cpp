@@ -920,7 +920,10 @@ int main(int argc, char** argv){
   //****************************
 
   //Create simulation context
-  pen_context context;
+  std::shared_ptr<pen_context> pcontext = createContext<pen_context>();
+  //Get context reference. Notice that pcontext will
+  //not be released until the end of the execution
+  pen_context& context = *pcontext.get();
   
   //Get global maximum energy
   double globEmax = -1.0;

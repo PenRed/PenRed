@@ -1378,7 +1378,12 @@ namespace penred{
 
       // ** Create context
 
-      pen_context context;
+      //Create simulation context
+      std::shared_ptr<pen_context> pcontext = createContext<pen_context>();
+      //Get context reference. Notice that pcontext will
+      //not be released until the function ends
+      pen_context& context = *pcontext.get();
+      
 
       //Run context configuration step with no geometry
       pen_parserSection matInfo;

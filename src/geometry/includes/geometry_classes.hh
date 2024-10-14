@@ -39,6 +39,15 @@
 
 template<class body> class pen_geometry;
 
+namespace penred{
+  namespace geometry{
+    
+    //Check registered types
+    bool checkRegisteredObj(const unsigned verbose);
+    bool checkRegisteredMesh(const unsigned verbose);
+  }
+}
+
 //-------------------
 // Base body struct
 //-------------------
@@ -97,6 +106,13 @@ public:
 	printf("          To avoid this warning change the value of 'checkBody' flag in abc_geometry class.\n");
       }
     }
+
+  //Check registered types to ensure static library linking of the register variable    
+    if(!penred::geometry::checkRegisteredObj(1)){
+      printf("Warning: Some geometry object types are not "
+	     "properly registered\n");
+    }
+    
   }
 
   inline const char* getType() const {return "BODIES";}
@@ -238,6 +254,13 @@ public:
 	printf("          To avoid this warning change the value of 'checkMesh' flag in abc_mesh class.\n");
       }
     }
+
+    //Check registered types to ensure static library linking of the register variable    
+    if(!penred::geometry::checkRegisteredMesh(1)){
+      printf("Warning: Some geometry mesh types are not "
+	     "properly registered\n");
+    }
+    
     for(unsigned i = 0; i <= constants::MAXMAT; i++){
       DSMAX[i] = 1.0e35;
       KDET[i] = 0;

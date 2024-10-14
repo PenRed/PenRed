@@ -38,6 +38,7 @@
 #include <functional>
 #include <algorithm>
 #include <numeric>
+#include <memory>
 
 #include "../states/pen_baseState.hh"
 #include "pen_constants.hh"
@@ -770,6 +771,9 @@ public:
 
 template <class baseMat>
 class abc_context : public wrapper_context{
+public:
+
+  typedef baseMat matType;
   
 private:
 
@@ -1092,6 +1096,17 @@ public:
     clear();
   };
 };
+
+template<class contextType>
+inline std::shared_ptr<contextType> createContext(){
+  static_assert(std::is_base_of<wrapper_context, contextType>::value,
+		"Error: 'createContext' cannot create contexts not"
+		"derived from 'wrapper_context'");
+  static_assert(std::is_base_of<abc_context<typename contextType::matType>, contextType>::value,
+		"Error: Context type provided to 'createContext' is not "
+		"derived from 'abc_context'");  
+  return std::make_shared<contextType>();
+}
 
 //-------------------
 // Energy grid

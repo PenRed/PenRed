@@ -52,12 +52,18 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
+if(DEFINED PYTHON_MODULE_EXTENSION)
+    set(MODULE_SUFFIX ${PYTHON_MODULE_EXTENSION})
+else()
+    set(MODULE_SUFFIX ${PYTHON_EXTENSION_SUFFIX})
+endif()
+
 # Create an extension module
 add_library(simulator MODULE ${CMAKE_CURRENT_SOURCE_DIR}/simulator.cpp)
 target_link_libraries(simulator PUBLIC pybind11::module)
 target_link_libraries(simulator PUBLIC pen_sim)
 set_target_properties(simulator PROPERTIES
-      OUTPUT_NAME simulation${PYTHON_EXTENSION_SUFFIX}
+      OUTPUT_NAME simulation${MODULE_SUFFIX}
       SUFFIX ""
       PREFIX "")
 

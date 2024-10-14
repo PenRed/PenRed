@@ -34,4 +34,37 @@
 #include "voxel_geo.hh"
 #include "DICOM_geo.hh"
 
+namespace penred{
+  namespace geometry{
+
+#ifdef _PEN_USE_DICOM_
+    using typesMeshGeos = std::tuple<pen_voxelGeo, pen_dicomGeo>;
+#else
+    using typesMeshGeos = std::tuple<pen_voxelGeo>;
+#endif
+
+    template<size_t T>
+    typename std::enable_if<T >= std::tuple_size<typesMeshGeos>::value, bool>::type
+    checkRegistersMesh(const unsigned){ return true; }
+    
+    template<size_t T>
+    typename std::enable_if<T < std::tuple_size<typesMeshGeos>::value, bool>::type
+    checkRegistersMesh(const unsigned verbose){
+      using tupleType = typename std::tuple_element<T, typesMeshGeos>::type;
+      int val = tupleType::registerStatus();
+      if(val != 0){
+	if(verbose > 0){
+	  printf("Warning: Mesh geometry type '%s' register failed."
+		 " Error code: %d\n",
+		 tupleType::___ID, val);
+	}
+	checkRegistersMesh<T+1>(verbose);
+	return false;
+      }else{
+	return checkRegistersMesh<T+1>(verbose);
+      }
+    }
+  }
+}
+
 #endif

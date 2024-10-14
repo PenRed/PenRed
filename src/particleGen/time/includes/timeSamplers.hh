@@ -32,4 +32,34 @@
 
 #include "decay_timeSampling.hh"
 
+namespace penred{
+  namespace sampler{
+
+    using typesGenericTime = std::tuple<decay_timeSampling>;
+
+
+    template<size_t T>
+    typename std::enable_if<T >= std::tuple_size<typesGenericTime>::value, bool>::type
+    checkRegistersTime(const unsigned){ return true; }
+    
+    template<size_t T>
+    typename std::enable_if<T < std::tuple_size<typesGenericTime>::value, bool>::type
+    checkRegistersTime(const unsigned verbose){
+      using tupleType = typename std::tuple_element<T, typesGenericTime>::type;
+      int val = tupleType::registerStatus();
+      if(val != 0){
+	if(verbose > 0){
+	  printf("Warning: Time sampler type '%s' register failed."
+		 " Error code: %d\n",
+		 tupleType::___ID, val);
+	}
+	checkRegistersTime<T+1>(verbose);
+	return false;
+      }else{
+	return checkRegistersTime<T+1>(verbose);
+      }
+    }
+  }
+}
+
 #endif

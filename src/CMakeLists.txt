@@ -72,8 +72,16 @@ project(PenRed LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+# Check build type
+if(NOT CMAKE_CONFIGURATION_TYPES)  # Single-configuration generators
+    if(NOT CMAKE_BUILD_TYPE)
+        set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+    endif()
+else()  # Multi-configuration generators
+    message(STATUS "Multi-configuration generator detected (e.g., Visual Studio). Use --config to specify build type.")
+endif()
+
 # set compiler flags
-set(CMAKE_CXX_FLAGS_DEBUG "-g")
 
 if(BUILD_STATIC)
     #SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
@@ -149,7 +157,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
   # We need a stack size of 8MB (as it is default on linux)
   # See https://github.com/open62541/open62541/issues/1326
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
+  #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
 
 else()
   #Other compilers
@@ -160,6 +168,9 @@ endif()
 OPTION(BUILD_EMBEDDED_DBS "Build PenRed embedded data bases " ON)
 CMAKE_DEPENDENT_OPTION(WITH_EMBEDDED_DB "Build PenRed main programs with embedded data bases " ON
                        "BUILD_EMBEDDED_DBS" OFF)
+
+CMAKE_DEPENDENT_OPTION(XRAY "Compile x-ray libs and utilities, if enabled" OFF
+                       "WITH_EMBEDDED_DB" OFF)
 
 #######################
 

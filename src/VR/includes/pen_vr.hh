@@ -46,16 +46,18 @@
 ///////////////////////
 
 #define DECLARE_VR(Class)			\
-  public: \
-  inline int registerStatus() const { return ___register_return;} \
-  inline const char* readID() const { return ___ID;}\
-  private: \
-  static const char* ___ID;\
-  static const int ___register_return;
+  public:					\
+  static int registerStatus();			\
+  const char* readID() const;			\
+  static const char* ___ID;			\
+  static volatile const int ___register_return;	\
+  private:
 
-#define REGISTER_VR(Class,stateType, ID)						\
-  const int Class::___register_return = registerGenericVR<Class,stateType>(static_cast<const char*>(#ID)); \
-  const char* Class::___ID = static_cast<const char *>(#ID);
+#define REGISTER_VR(Class,stateType, ID)				\
+  volatile const int Class::___register_return = registerGenericVR<Class,stateType>(static_cast<const char*>(#ID)); \
+  const char* Class::___ID = static_cast<const char *>(#ID);		\
+  int Class::registerStatus() { return ___register_return;}		\
+  const char* Class::readID() const { return ___ID;}
 
 // Enumeration flags
 //////////////////////////
@@ -157,6 +159,15 @@ public:
 
   virtual ~pen_genericVR(){};
 };
+
+namespace penred{
+  namespace vr{
+    
+    //Check registered types
+    template <class stateType>
+    bool checkRegistered(const unsigned verbose);
+  }
+}
 
 // Auxiliar functions
 ///////////////////////
@@ -354,6 +365,13 @@ void pen_VRCluster<stateType>::configure(const pen_parserSection& config,
   if(verbose > 1){
     penred::logs::logger::printf("\n------------------------------------\n");
     penred::logs::logger::printf("\n **** VR group '%s'\n",name.c_str());
+  }
+
+  //Check registered types to ensure static library linking of the register variable
+  if(!penred::vr::checkRegistered<stateType>(verbose)){
+    if(verbose > 0){
+      printf("Warning: Some VR types are not properly registered\n");
+    }
   }
 
   //Extract VR names

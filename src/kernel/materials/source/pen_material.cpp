@@ -4698,7 +4698,14 @@ void GPHaR(pen_material& mat, pen_elementDataBase& elemDB, FILE* IRD, FILE* IWR,
   
   char CS5[17][6];
 
-  double XGPHR[CGPH01::NDIM][17], X1[CGPH01::NDIM], Y1[CGPH01::NDIM], X2[CGPH01::NDIM], Y2[CGPH01::NDIM];
+  //double XGPHR[CGPH01::NDIM][17], X1[CGPH01::NDIM], Y1[CGPH01::NDIM], X2[CGPH01::NDIM], Y2[CGPH01::NDIM];
+
+  std::vector<std::array<double, 17>> XGPHR(CGPH01::NDIM);
+  std::vector<double> X1(CGPH01::NDIM);
+  std::vector<double> Y1(CGPH01::NDIM);
+  std::vector<double> X2(CGPH01::NDIM);
+  std::vector<double> Y2(CGPH01::NDIM);
+  
   int ISH[17], IZZ, NSHR, NDATA;
   
   strcpy(CS5[0], "total");
@@ -4851,7 +4858,8 @@ void GPHaR(pen_material& mat, pen_elementDataBase& elemDB, FILE* IRD, FILE* IWR,
         X2[N2-1] = exp(elemDB.EPH[I]);
         Y2[N2-1] = mat.STF[IEL]*exp(elemDB.XPH[I][0]);
       }
-      MERGE2(X1,Y1,X2,Y2,gph01.ER,gph01.XSR,N1,N2,gph01.NPHD);
+      MERGE2(X1.data(),Y1.data(),X2.data(),Y2.data(),
+	     gph01.ER,gph01.XSR,N1,N2,gph01.NPHD);
       if(penGetError() != PEN_SUCCESS){ return;}
     }
   }
@@ -4870,7 +4878,7 @@ void GPHaR(pen_material& mat, pen_elementDataBase& elemDB, FILE* IRD, FILE* IWR,
   {
     unsigned int I1, I2;
     EG1 = DLEMP[IE];
-    FINDI(X1,EG1,gph01.NPHD,I1);
+    FINDI(X1.data(),EG1,gph01.NPHD,I1);
     if(I1 == unsigned(gph01.NPHD-1)){I1--;}
     DX = X1[I1+1]-X1[I1];
     if(DX > 1.0E-15)
@@ -4882,7 +4890,7 @@ void GPHaR(pen_material& mat, pen_elementDataBase& elemDB, FILE* IRD, FILE* IWR,
       F1 = Y1[I1];
     }
     EG2 = DLEMP[IE+1];
-    FINDI(X1,EG2,gph01.NPHD,I2);
+    FINDI(X1.data(),EG2,gph01.NPHD,I2);
     if(I2 == unsigned(gph01.NPHD-1)){I2--;}
     DX = X1[I2+1]-X1[I2];
     if(DX > 1.0E-15)

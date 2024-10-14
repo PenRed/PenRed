@@ -37,4 +37,48 @@
 #include "cylinder_spatialSampling.hh"
 #include "measure_spatialSampling.hh"
 
+namespace penred{
+  namespace sampler{
+
+#ifdef _PEN_USE_DICOM_
+    using typesGenericSpatial = std::tuple<box_spatialSampling,
+					   point_spatialSampling,
+					   image_spatialSampling,
+					   cylinder_spatialSampling,
+					   measure3D_spatialSampling,
+					   measure2D_spatialSampling,
+					   measure1D_spatialSampling>;
+#else
+    using typesGenericSpatial = std::tuple<box_spatialSampling,
+					   point_spatialSampling,
+					   cylinder_spatialSampling,
+					   measure3D_spatialSampling,
+					   measure2D_spatialSampling,
+					   measure1D_spatialSampling>;    
+#endif
+
+    template<size_t T>
+    typename std::enable_if<T >= std::tuple_size<typesGenericSpatial>::value, bool>::type
+    checkRegistersSpatial(const unsigned){ return true; }
+    
+    template<size_t T>
+    typename std::enable_if<T < std::tuple_size<typesGenericSpatial>::value, bool>::type
+    checkRegistersSpatial(const unsigned verbose){
+      using tupleType = typename std::tuple_element<T, typesGenericSpatial>::type;
+      int val = tupleType::registerStatus();
+      if(val != 0){
+	if(verbose > 0){
+	  printf("Warning: Spatial sampler type '%s' register failed."
+		 " Error code: %d\n",
+		 tupleType::___ID, val);
+	}
+	checkRegistersSpatial<T+1>(verbose);
+	return false;
+      }else{
+	return checkRegistersSpatial<T+1>(verbose);
+      }
+    }
+  }
+}
+    
 #endif

@@ -29,3 +29,15 @@
 #include "VRsplitting.cpp"
 #include "VRradialSplitting.cpp"
 #include "VRRussianRoulette.cpp"
+
+namespace penred{
+  namespace vr{
+    
+    template<>
+    bool checkRegistered<pen_particleState>(const unsigned verbose){
+      
+      return checkRegistersGeneric<0>(verbose);
+      
+    }
+  }
+}

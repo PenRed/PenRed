@@ -26,9 +26,24 @@
 //    
 //
 
+#include "pen_geometries.hh"
 
 //Geometry register (don't change this line)
-
 #include "pen_geometry_register.cpp"
+
 #include "../objects/source/pen_object_geos.cpp"
 #include "../meshes/source/pen_mesh_geos.cpp"
+
+namespace penred{
+  namespace geometry{
+
+    bool checkRegisteredMesh(const unsigned verbose){
+      return checkRegistersMesh<0>(verbose);
+    }
+
+    bool checkRegisteredObj(const unsigned verbose){
+      return checkRegistersObject<0>(verbose);
+    }    
+    
+  }
+}

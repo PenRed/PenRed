@@ -33,4 +33,35 @@
 #include "sphereSection_directionSampling.hh"
 #include "cone_directionSampling.hh"
 
+namespace penred{
+  namespace sampler{
+
+    using typesGenericDirection = std::tuple<sphereSection_directionSampling,
+					     cone_directionSampling>;
+
+
+    template<size_t T>
+    typename std::enable_if<T >= std::tuple_size<typesGenericDirection>::value, bool>::type
+    checkRegistersDirection(const unsigned){ return true; }
+    
+    template<size_t T>
+    typename std::enable_if<T < std::tuple_size<typesGenericDirection>::value, bool>::type
+    checkRegistersDirection(const unsigned verbose){
+      using tupleType = typename std::tuple_element<T, typesGenericDirection>::type;
+      int val = tupleType::registerStatus();
+      if(val != 0){
+	if(verbose > 0){
+	  printf("Warning: Direction sampler type '%s' register failed."
+		 " Error code: %d\n",
+		 tupleType::___ID, val);
+	}
+	checkRegistersDirection<T+1>(verbose);
+	return false;
+      }else{
+	return checkRegistersDirection<T+1>(verbose);
+      }
+    }
+  }
+}
+
 #endif

@@ -34,4 +34,36 @@
 #include "monoenergetic.hh"
 #include "fileSpectrum_energySampling.hh"
 
+namespace penred{
+  namespace sampler{
+
+    using typesGenericEnergy = std::tuple<intervals_energySampling,
+					  monoenergetic,
+					  fileSpectrum_energySampling>;
+
+
+    template<size_t T>
+    typename std::enable_if<T >= std::tuple_size<typesGenericEnergy>::value, bool>::type
+    checkRegistersEnergy(const unsigned){ return true; }
+    
+    template<size_t T>
+    typename std::enable_if<T < std::tuple_size<typesGenericEnergy>::value, bool>::type
+    checkRegistersEnergy(const unsigned verbose){
+      using tupleType = typename std::tuple_element<T, typesGenericEnergy>::type;
+      int val = tupleType::registerStatus();
+      if(val != 0){
+	if(verbose > 0){
+	  printf("Warning: Energy sampler type '%s' register failed."
+		 " Error code: %d\n",
+		 tupleType::___ID, val);
+	}
+	checkRegistersEnergy<T+1>(verbose);
+	return false;
+      }else{
+	return checkRegistersEnergy<T+1>(verbose);
+      }
+    }
+  }
+}
+
 #endif

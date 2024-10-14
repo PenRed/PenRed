@@ -33,17 +33,19 @@
 #include "geometry_classes.hh"
 #include "instantiator.hh"
 
-#define DECLARE_GEOMETRY(Class) \
-  public: \
-  inline int registerStatus() const { return ___register_return;} \
-  inline const char* readID() const { return ___ID;}\
-  private: \
-  static const char* ___ID;\
-  static const int ___register_return;
+#define DECLARE_GEOMETRY(Class)						\
+  public:								\
+  static int registerStatus();						\
+  const char* readID() const;						\
+  static const char* ___ID;						\
+  static volatile const int ___register_return;				\
+private:
 
 #define REGISTER_GEOMETRY(Class, ID) \
-  const int Class::___register_return = penGeoRegister_add<Class>(static_cast<const char *>(#ID)); \
-  const char* Class::___ID = static_cast<const char *>(#ID);
+  volatile const int Class::___register_return = penGeoRegister_add<Class>(static_cast<const char *>(#ID)); \
+  const char* Class::___ID = static_cast<const char *>(#ID);		\
+  int Class::registerStatus() { return ___register_return;}		\
+  const char* Class::readID() const { return ___ID;}
 
 
 
