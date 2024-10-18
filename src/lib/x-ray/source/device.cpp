@@ -66,10 +66,10 @@ namespace penred{
 	if(verbose > 1){
 	  printf("constructDevice: Error: The minimum distance between "
 		 "inherent filter and first added filter must be %f cm\n"
-		 "    Inherent filter to source: %f\n"
-		 "    Added filter to source   : %f\n",
+		 "    Inherent filter end to source: %f\n"
+		 "    Added filter start to source   : %f\n",
 		 4.0*elementSpacing+2.0*collHeight,
-		 source2inherentFilter,
+		 inherentFilter2filters,
 		 source2filter);
 	}
 	return errors::INVALID_DISTANCE;

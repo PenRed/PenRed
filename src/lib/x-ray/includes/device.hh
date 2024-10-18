@@ -577,13 +577,11 @@ x-ray/bowtie/z/reader-description "Bowtie material atomic number Z"
 x-ray/bowtie/z/reader-value 13
 x-ray/bowtie/z/reader-conditions/gt0/type "greater"
 x-ray/bowtie/z/reader-conditions/gt0/value 0
-x-ray/bowtie/z/reader-required/type "optional_if_exist"
-x-ray/bowtie/z/reader-required/value "x-ray/bowtie/mat-file"
+x-ray/bowtie/z/reader-required/type "optional"
 
 x-ray/bowtie/mat-file/reader-description "Bowtie filter material file path"
 x-ray/bowtie/mat-file/reader-value "-"
-x-ray/bowtie/mat-file/reader-required/type "optional_if_exist"
-x-ray/bowtie/mat-file/reader-required/value "x-ray/bowtie/z"
+x-ray/bowtie/mat-file/reader-required/type "optional"
 
 x-ray/bowtie/auto-design/reader-description "Eanble/disable bowtie automatic design"
 x-ray/bowtie/auto-design/reader-value false

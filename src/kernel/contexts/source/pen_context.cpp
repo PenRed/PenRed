@@ -848,8 +848,8 @@ int pen_context::configure(const double EMAX,
 		 matData.density);
 	  for(size_t ic = 0; ic < matData.composition.size(); ++ic){
 	    printf("    %u: %E\n",
-		   matData.composition[i].Z,
-		   matData.composition[i].fraction);
+		   matData.composition[ic].Z,
+		   matData.composition[ic].fraction);
 	  }
 	  printf("\n");
 	}

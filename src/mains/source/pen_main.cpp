@@ -192,14 +192,14 @@ void checkUserInput(const char* filename,
 	char word1[500];
 	char word2[500];
 	sscanf(line, " %s %s ", word1, word2);
-	if(strcmp(word1,"get") == 0){
-	  if(strcmp(word2, "status") == 0){
+	if(strncmp(word1,"get", 3) == 0){
+	  if(strncmp(word2, "status", 6) == 0){
 	    //Print status of all threads
 	    for(const penred::simulation::simConfig& simConf : simConfigs){
 	      std::cout << simConf.stringifyState() << std::endl;
 	    }
-	  }else if(strcmp(word2, "speeds") == 0 ||
-		   strcmp(word2, "speed" ) == 0){
+	  }else if(strncmp(word2, "speeds", 6) == 0 ||
+		   strncmp(word2, "speed", 5) == 0){
 	    //Print mean speeds of all threads
 	    for(const penred::simulation::simConfig& simConf : simConfigs){
 	      double meanSpeed = simConf.getSpeedInSource();
@@ -208,7 +208,7 @@ void checkUserInput(const char* filename,
 	      std::cout << out;
 	    }
 	    std::cout << std::endl;
-	  }else if(strcmp(word2, "simulated") == 0){
+	  }else if(strncmp(word2, "simulated", 9) == 0){
 	    //Print simulated histories in each thread
 	    for(const penred::simulation::simConfig& simConf : simConfigs){
 	      unsigned long long simulated  = simConf.getSimulatedInSource();
@@ -221,7 +221,7 @@ void checkUserInput(const char* filename,
 	    std::cout << std::endl;	    
 	  }
 	}
-	else if(strcmp(word1,"help") == 0){
+	else if(strncmp(word1,"help", 4) == 0){
 	  printUserInputOptions(filename);
 	}
       }
