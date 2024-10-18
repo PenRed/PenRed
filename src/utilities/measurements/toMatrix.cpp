@@ -20,35 +20,41 @@
 //
 //    contact emails:
 //
-//        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
-//        sanolgi@upvnet.upv.es (Sandra Oliver Gil)
+//        vicent.gimenez.alventosa@gmail.com
 //    
-//
+// 
 
-#include <pybind11/pybind11.h>
+#include "math_classes.hh"
+#include <fstream>
 
-#include "pen_simulation.hh"
+int main(int argc, char** argv){
 
-namespace py = pybind11;
+  if(argc < 3){
+    printf("usage: %s data-file output-prefix\n", argv[0]);
+    return 1;
+  }
 
-PYBIND11_MODULE(simulator,m){
-
-  m.doc() = "penred simulation module";
-
-  py::class_<penred::simulation::simulator<pen_context>>(m, "simulator")
-    .def(py::init<>())
-    .def("configFromFile",
-	 [](penred::simulation::simulator<pen_context>& obj,
-	    const std::string& filename){
-	   return obj.configFromFile(filename);
-	 })
-    .def("simulate",
-	 [](penred::simulation::simulator<pen_context>& obj){
-	   return obj.simulate();
-	 })
-    .def("__repr__",
-	 [](const penred::simulation::simulator<pen_context>& /*obj*/){
-	   return std::string("<penred.simulator>");
-	 });
+  //Create a results structure with maximum dimensions
+  penred::measurements::results<double, penred::measurements::maxDims> toConvert;
   
+  //Read data
+  std::ifstream fin(argv[1], std::ifstream::in);
+  if(!fin){
+    printf("Unable to open file\n");
+    return 2;
+  }
+  
+  int err = toConvert.read(fin);
+  if(err != 0){
+    printf("Error reading data file.\n"
+	   "  Error code: %d\n"
+	   "  Error message: %s\n",
+	   err,
+	   penred::measurements::errorToString(err));
+    return 3;
+  }
+  fin.close();
+
+  //Convert to matrix
+  return toConvert.printMatrix(argv[2], true);
 }

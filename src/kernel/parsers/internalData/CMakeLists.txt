@@ -1,8 +1,8 @@
 
 #
 #
-#    Copyright (C) 2019 Universitat de València - UV
-#    Copyright (C) 2019 Universitat Politècnica de València - UPV
+#    Copyright (C) 2019-2024 Universitat de València - UV
+#    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -34,6 +34,6 @@
 #####################################
 
 # Create geo lib
-add_library(pen_internalData STATIC ${CMAKE_CURRENT_SOURCE_DIR}/source/pen_parser.cpp ${CMAKE_CURRENT_SOURCE_DIR}/source/pen_reader.cpp)
+add_library(pen_internalData STATIC ${CMAKE_CURRENT_SOURCE_DIR}/source/pen_parser.cpp ${CMAKE_CURRENT_SOURCE_DIR}/source/pen_reader.cpp ${CMAKE_CURRENT_SOURCE_DIR}/source/pen_data.cpp)
 
 target_include_directories(pen_internalData PUBLIC ${PROJECT_SOURCE_DIR}/kernel/parsers/internalData/includes)

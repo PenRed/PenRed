@@ -85,6 +85,7 @@ namespace penred{
 	ERROR_AT_SOURCE_CONFIGURATION,
 	ERROR_AT_CONTEXT_CONFIGURATION,
 	ERROR_AT_CONTEXT_CONFIGURATION_WITH_GEOMETRY,
+	ERROR_MISSING_CONTEXT_CONFIGURATION,
 	ERROR_MISSING_TYPE,
 	ERROR_UNKNOWN_TYPE,
 	ERROR_AT_GEOMETRY_CONFIGURATION,
@@ -93,7 +94,39 @@ namespace penred{
 	ERROR_ON_TALLIES_CONFIGURATION,
 	ERROR_ON_VR_CONFIGURATION,
 	ERROR_PARSING_CONFIG,
+	ERROR_SIMULATION_RUNNING,
       };
+
+      constexpr const char* errorMessage(const int val){
+	switch(val){
+	case SUCCESS: return "Success";
+	case GEOMETRY_NOT_REACHED: return "Geometry not reached";
+	case KPAR_NOT_FOUND: return "Unknown particle type";
+	case ERROR_INVALID_SEEDS: return "Invalid seeds";
+	case ERROR_LOADING_DUMP: return "Error loading dump";
+	case ERROR_SECTION_NOT_FOUND: return "Section not found";
+	case ERROR_INVALID_SEED_PAIR: return "Invalid seed pair";
+	case ERROR_NO_SOURCE: return "No source defined";
+	case ERROR_MISSING_PATH: return "Missing path";
+	case ERROR_MISSING_SOURCE_CONFIGURATION: return "Missing source configuration";
+	case ERROR_MISSING_GEOMETRY_CONFIGURATION: return "Missing geometry configuration";
+	case ERROR_MISSING_TALLY_CONFIGURATION: return "Missing tally configuration";
+	case ERROR_AT_SOURCE_CONFIGURATION: return "Error configuring source";
+	case ERROR_AT_CONTEXT_CONFIGURATION: return "Error configuring context";
+	case ERROR_AT_CONTEXT_CONFIGURATION_WITH_GEOMETRY: return "Error configuring context with geometry";
+	case ERROR_MISSING_CONTEXT_CONFIGURATION: return "Missing context configuration";
+	case ERROR_MISSING_TYPE: return "Missing type";
+	case ERROR_UNKNOWN_TYPE: return "Unknown type";
+	case ERROR_AT_GEOMETRY_CONFIGURATION: return "Error configuring geometry";
+	case ERROR_SETTING_GEOMETRY_TO_CONTEXT: return "Error setting geometry to context";
+	case ERROR_CREATING_TALLIES: return "Error creating tallies";
+	case ERROR_ON_TALLIES_CONFIGURATION: return "Error configuring tallies";
+	case ERROR_ON_VR_CONFIGURATION: return "Error configuring variance reduction";
+	case ERROR_PARSING_CONFIG: return "Error parsing configuration";
+	case ERROR_SIMULATION_RUNNING: return "Simulation is running";
+	default: return "Unknown error";
+	}
+      }
     }
 
     namespace simFlags{
@@ -119,9 +152,11 @@ namespace penred{
       unsigned long long newNhists = source.toDo(ithread);
       if(newNhists != nhists){
 	if(verbose > 1)
-	  printf("Thread %u: Source '%s': Number of histories to do "
-		 "updated from %llu to %llu.\n",
-		 ithread,source.name.c_str(),nhists,newNhists);
+	  penred::logs::logger::
+	    printf(penred::logs::SIMULATION,
+		   "Thread %u: Source '%s': Number of histories to do "
+		   "updated from %llu to %llu.\n",
+		   ithread,source.name.c_str(),nhists,newNhists);
 	nhists = newNhists;
       }
     }
@@ -131,16 +166,21 @@ namespace penred{
 			   const unsigned ithread,
 			   const unsigned verbose){
       int errCP = source.checkPoint(verbose);
-      if(errCP != 0 && verbose > 0)
-	printf("Thread %u: Source '%s': Error at load balancing "
-	       "checkpoint. Error code: %d\n",
-	       ithread,source.name.c_str(),errCP);
-      else if(errCP == 0 && verbose > 1){
-	printf("Thread %u: Source '%s': Load balance checkpoint "
-	       "done.\n",
-	       ithread,source.name.c_str());
+      if(errCP != 0 && verbose > 0){
+	penred::logs::logger::
+	  printf(penred::logs::SIMULATION,
+		 "Thread %u: Source '%s': Error at load balancing "
+		 "checkpoint. Error code: %d\n",
+		 ithread,source.name.c_str(),errCP);
       }
-    }    
+      else if(errCP == 0 && verbose > 1){
+	penred::logs::logger::
+	  printf(penred::logs::SIMULATION,
+		 "Thread %u: Source '%s': Load balance checkpoint "
+		 "done.\n",
+		 ithread,source.name.c_str());
+      }
+    }
 
     struct simState{
 
@@ -339,7 +379,7 @@ namespace penred{
     };    
 
     //Structure with configuration parameters
-    struct simConfig{
+    struct simConfig : public penred::logs::logger{
 
     public:
       
@@ -369,9 +409,6 @@ namespace penred{
 
       //Auxiliary string stream
       std::stringstream auxOut;
-
-      //Output stream
-      std::ostream out;
 
       static constexpr bool noFinishSim(const unsigned long long){ return true; } 
       
@@ -425,10 +462,10 @@ namespace penred{
 	if(appendEndl)
 	  s += '\n';
 	//Write it to the output stream
-	out << s;
+	cout << s;
 
 	//Flush output stream
-	out.flush();	
+	cout.flush();	
       }
       
       //Sim status functions
@@ -482,11 +519,7 @@ namespace penred{
 	status.updateToSimulate(toSimulate);
       }
       
-      //Set functions
-
-      inline void setOutstream(std::ostream& o){ out.rdbuf(o.rdbuf()); }
-      inline void clearOutstream() { out.rdbuf(nullptr); }
-      
+      //Set functions      
       inline void setSimulatedInFinished(const unsigned long long& nHists){
 	status.setSimulatedInFinished(nHists);
       }
@@ -664,7 +697,6 @@ namespace penred{
 	  result[i].iThread = i;
 	  result[i].copyCommonConfig(*this);
 	  result[i].setSeeds(initSeed+i);
-	  result[i].setOutstream(std::cout);
 	}
 
 	return result;

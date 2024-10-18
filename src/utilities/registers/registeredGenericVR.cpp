@@ -30,6 +30,8 @@
 
 
 int main(){
+  //Ensure generic VR register variables are linked from the static library
+  penred::vr::checkRegistered<pen_particleState>(1);
   printf("Registered generic VR:\n");
   printf("%s",pen_VRCluster<pen_particleState>::typesList().c_str());
   return 0;

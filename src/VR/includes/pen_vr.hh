@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2020 Universitat de València - UV
-//    Copyright (C) 2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2020-2024 Universitat de València - UV
+//    Copyright (C) 2020-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -46,16 +46,18 @@
 ///////////////////////
 
 #define DECLARE_VR(Class)			\
-  public: \
-  inline int registerStatus() const { return ___register_return;} \
-  inline const char* readID() const { return ___ID;}\
-  private: \
-  static const char* ___ID;\
-  static const int ___register_return;
+  public:					\
+  static int registerStatus();			\
+  const char* readID() const;			\
+  static const char* ___ID;			\
+  static volatile const int ___register_return;	\
+  private:
 
-#define REGISTER_VR(Class,stateType, ID)						\
-  const int Class::___register_return = registerGenericVR<Class,stateType>(static_cast<const char*>(#ID)); \
-  const char* Class::___ID = static_cast<const char *>(#ID);
+#define REGISTER_VR(Class,stateType, ID)				\
+  volatile const int Class::___register_return = registerGenericVR<Class,stateType>(static_cast<const char*>(#ID)); \
+  const char* Class::___ID = static_cast<const char *>(#ID);		\
+  int Class::registerStatus() { return ___register_return;}		\
+  const char* Class::readID() const { return ___ID;}
 
 // Enumeration flags
 //////////////////////////
@@ -68,7 +70,7 @@ enum __usedVRFunc{
 };
 
 template <class stateType>
-class pen_genericVR{
+class pen_genericVR : public penred::logs::logger{
 
 private:
   std::string name;
@@ -157,6 +159,15 @@ public:
 
   virtual ~pen_genericVR(){};
 };
+
+namespace penred{
+  namespace vr{
+    
+    //Check registered types
+    template <class stateType>
+    bool checkRegistered(const unsigned verbose);
+  }
+}
 
 // Auxiliar functions
 ///////////////////////
@@ -287,15 +298,15 @@ int pen_VRCluster<stateType>::createVR(const char* ID,
   std::string strName;
   if(VRname == nullptr || strName.assign(VRname).length() == 0){
     if(verbose > 0){
-      printf("VRCluster: createVR: Error: empty VR name.\n");
+      penred::logs::logger::printf("VRCluster: createVR: Error: empty VR name.\n");
     }
     return -3;
   }
   for(unsigned i = 0; i < VRs.size(); i++){
     if(strName.compare(VRs[i]->readName()) == 0){
       if(verbose > 0){
-	printf("VRCluster: createVR: Error: VR name '%s' "
-	       "already used.\n", VRname);
+	penred::logs::logger::printf("VRCluster: createVR: Error: VR name '%s' "
+				     "already used.\n", VRname);
       }
       return -4;
     }
@@ -306,8 +317,8 @@ int pen_VRCluster<stateType>::createVR(const char* ID,
   pVR = genericVRs().createInstance(ID);
   if(pVR == nullptr){
     if(verbose > 0){
-      printf("VRCluster: createVR: Error: unable to create a "
-	     "VR of type '%s'.\n",ID);
+      penred::logs::logger::printf("VRCluster: createVR: Error: unable to create a "
+				   "VR of type '%s'.\n",ID);
     }
     return -1;
   }
@@ -320,8 +331,10 @@ int pen_VRCluster<stateType>::createVR(const char* ID,
   if(errConfig != 0){
     delete pVR;
     if(verbose > 0){
-      printf("VRCluster: createVR: Error: VR '%s' of type '%s' "
-	     "failed on configuration step.\n",VRname,ID);
+      penred::logs::logger::printf("VRCluster: createVR: Error: VR "
+				   "'%s' of type '%s' "
+				   "failed on configuration step.\n",
+				   VRname,ID);
     }
     return -2;
   }
@@ -350,8 +363,15 @@ void pen_VRCluster<stateType>::configure(const pen_parserSection& config,
   clear();
 
   if(verbose > 1){
-    printf("\n------------------------------------\n");
-    printf("\n **** VR group '%s'\n",name.c_str());
+    penred::logs::logger::printf("\n------------------------------------\n");
+    penred::logs::logger::printf("\n **** VR group '%s'\n",name.c_str());
+  }
+
+  //Check registered types to ensure static library linking of the register variable
+  if(!penred::vr::checkRegistered<stateType>(verbose)){
+    if(verbose > 0){
+      printf("Warning: Some VR types are not properly registered\n");
+    }
   }
 
   //Extract VR names
@@ -362,16 +382,17 @@ void pen_VRCluster<stateType>::configure(const pen_parserSection& config,
   for(unsigned i = 0; i < vrNames.size(); ++i){
 
     if(verbose > 1){
-      printf("\n------------------------------------\n\n");
-      printf("\nVR '%s':\n\n",vrNames[i].c_str());
+      penred::logs::logger::printf("\n------------------------------------\n\n");
+      penred::logs::logger::printf("\nVR '%s':\n\n",vrNames[i].c_str());
     }
 
     //Get subsection for VR 'i'
     pen_parserSection vrSec;
     if(config.readSubsection(vrNames[i],vrSec) != INTDATA_SUCCESS){
       if(verbose > 0){
-	printf("VRCluster: configure: Error: unable to read "
-	       "section '%s' to configure VR.\n",vrNames[i].c_str());
+	penred::logs::logger::printf("VRCluster: configure: Error: unable to read "
+				     "section '%s' to configure VR.\n",
+				     vrNames[i].c_str());
       }
       err++;
       continue;
@@ -381,45 +402,48 @@ void pen_VRCluster<stateType>::configure(const pen_parserSection& config,
     std::string vrID;
     if(vrSec.read("type",vrID) != INTDATA_SUCCESS){
       if(verbose > 0){
-	printf("VRCluster: configure: Error: unable to read "
-	       "field %s/type. String expected\n",vrNames[i].c_str());
+	penred::logs::logger::printf("VRCluster: configure: Error: unable to read "
+				     "field %s/type. String expected\n",
+				     vrNames[i].c_str());
 	err++;
 	continue;
       }
     }
 
     if(verbose > 1){
-      printf("VR type: '%s'\n\n",vrID.c_str());
+      penred::logs::logger::printf("VR type: '%s'\n\n",vrID.c_str());
     }
 
     //Try to create and configure VR 'i'
     if(createVR(vrID.c_str(),vrNames[i].c_str(),
 		geometry,vrSec,verbose) != 0){
       if(verbose > 0){
-	printf("VRCluster: configure: Error: Unable to "
-	       "create and configure VR '%s' of type '%s'.\n",
-	       vrNames[i].c_str(),vrID.c_str());
+	penred::logs::logger::printf("VRCluster: configure: Error: Unable to "
+				     "create and configure VR '%s' of type '%s'.\n",
+				     vrNames[i].c_str(),vrID.c_str());
 	err++;
 	continue;
       }
     }
   }
-  if(verbose > 1){printf("\n------------------------------------\n\n");}
+  if(verbose > 1){
+    penred::logs::logger::printf("\n------------------------------------\n\n");
+  }
 
   if(err > 0){
     if(verbose > 0){
-      printf("VRCluster: configure: Error: %d VR "
-	     "creation failed.\n",err);
+      penred::logs::logger::printf("VRCluster: configure: Error: %d VR "
+				   "creation failed.\n",err);
     }
   }
 
   //Print created tallies
   if(verbose > 1){
-    printf("\nCreated common VR (name and type):\n\n");
+    penred::logs::logger::printf("\nCreated common VR (name and type):\n\n");
     for(unsigned i = 0; i < VRs.size(); i++){
-      printf("  %20s -> %20s\n",
-	     VRs[i]->readName().c_str(),
-	     VRs[i]->readID());
+      penred::logs::logger::printf("  %20s -> %20s\n",
+				   VRs[i]->readName().c_str(),
+				   VRs[i]->readID());
     }
   }
 

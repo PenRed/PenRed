@@ -31,6 +31,9 @@
 
 
 int main(){
+  //Ensure register variables are linked from static library
+  penred::sampler::checkRegistered<pen_particleState>(1);
+  penred::sampler::checkRegistered<pen_state_gPol>(1);
   printf("\n *** Registered generic and specific samplers with generic state:\n");
   printf("%s",pen_specificStateGen<pen_particleState>::samplersList().c_str());
   return 0;

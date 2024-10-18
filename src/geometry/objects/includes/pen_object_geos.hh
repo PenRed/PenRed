@@ -37,4 +37,37 @@
 #include "combo_geo.hh"
 #include "filter_geo.hh"
 
+namespace penred{
+  namespace geometry{
+
+    using typesObjectGeos = std::tuple<pen_quadricGeo,
+				       pen_dummyGeo,
+				       pen_meshBodyGeo,
+				       pen_comboGeo,
+				       pen_filterGeo>;
+
+    template<size_t T>
+    typename std::enable_if<T >= std::tuple_size<typesObjectGeos>::value, bool>::type
+    checkRegistersObject(const unsigned){ return true; }
+    
+    template<size_t T>
+    typename std::enable_if<T < std::tuple_size<typesObjectGeos>::value, bool>::type
+    checkRegistersObject(const unsigned verbose){
+      using tupleType = typename std::tuple_element<T, typesObjectGeos>::type;
+      int val = tupleType::registerStatus();
+      if(val != 0){
+	if(verbose > 0){
+	  printf("Warning: Object geometry type '%s' register failed."
+		 " Error code: %d\n",
+		 tupleType::___ID, val);
+	}
+	checkRegistersObject<T+1>(verbose);
+	return false;
+      }else{
+	return checkRegistersObject<T+1>(verbose);
+      }
+    }
+  }
+}
+
 #endif

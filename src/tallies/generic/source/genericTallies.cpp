@@ -46,3 +46,16 @@
 #include "tallyPSS.cpp"
 #include "tallyDetectionSpatialDistrib.cpp"
 #include "tallyEmergingSphericalDistribution.cpp"
+#include "tallySingles.cpp"
+
+namespace penred{
+  namespace tally{
+    
+    template<>
+    bool checkRegistered<pen_particleState>(const unsigned verbose){
+      
+      return checkRegistersGeneric<0>(verbose);
+      
+    }
+  }
+}

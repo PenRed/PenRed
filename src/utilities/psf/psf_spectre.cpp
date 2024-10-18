@@ -72,7 +72,9 @@ int main(int argc, char** argv){
   //Create a phase space file
   pen_psfreader psf;
 
-  printf("Expected particles per chunk: %lu (%lu B)\n",psf.bufferSize(),psf.memory());
+  printf("Expected particles per chunk: %lu (%lu B)\n",
+	 static_cast<unsigned long>(psf.bufferSize()),
+	 static_cast<unsigned long>(psf.memory()));
   
   //Open specified input file
   FILE* fin = nullptr;
@@ -114,7 +116,8 @@ int main(int argc, char** argv){
     }
   }
 
-  printf("Read psf chunks: %u (%lu B)\n",nchunks,size_t(nchunks)*psf.memory());
+  printf("Read psf chunks: %u (%lu B)\n",
+	 nchunks,static_cast<unsigned long>(size_t(nchunks)*psf.memory()));
   printf("Number of histories: %llu\n",nhists);
   
   //Write spectrum to output file

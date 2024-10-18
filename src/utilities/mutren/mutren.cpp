@@ -79,9 +79,12 @@ int main(int argc, const char** argv){
   pen_parserSection dummySection;
   geometry.configure(dummySection,2);
   
-  //Create a context
-  pen_context context;
-
+  //Create simulation context
+  std::shared_ptr<pen_context> pcontext = createContext<pen_context>();
+  //Get context reference. Notice that pcontext will
+  //not be released until the function ends
+  pen_context& context = *pcontext.get();
+  
   //Set context geometry
   context.setGeometry(&geometry);
   

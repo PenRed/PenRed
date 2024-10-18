@@ -23,26 +23,13 @@
 #    contact emails:
 #
 #        vicent.gimenez.alventosa@gmail.com
-#    
 #
 
+rm -r build
+mkdir build
+cd build
+cmake -DWITH_DICOM="OFF" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DWITH_LB="OFF" -DBUILD_PYTHON_MODULES="ON" -DBUILD_TESTS="OFF" -DBUILD_UTILITIES="OFF" ..
+cmake --build . --config Release --target install
 
-
-
-#############################
-#  X-RAY LIB
-#############################
-
-set(SOURCE
-${CMAKE_CURRENT_SOURCE_DIR}/source/collimator.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/source/filter.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/source/anode.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/source/phantom.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/source/utilities.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/source/device.cpp)
-
-# Create lib
-add_library(pen_xray STATIC ${SOURCE})
-
-target_include_directories(pen_xray PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/includes)
-target_link_libraries(pen_xray pen_sim)
+cd ../bindings/python/pyPenred
+pip install .

@@ -63,6 +63,13 @@ void pen_commonTallyCluster::configure(const wrapper_geometry* geometry,
     printf("\n **** Tally group '%s'\n",name.c_str());
   }
 
+  //Check registered types to ensure static library linking of the register variable
+  if(!penred::tally::checkRegistered<pen_particleState>(verbose)){
+    if(verbose > 0){
+      printf("Warning: Some tally types are not properly registered\n");
+    }
+  }
+
   //Set thread
   nthread = threadNum;
   

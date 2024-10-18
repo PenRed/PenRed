@@ -68,6 +68,7 @@ int configureSource(pen_specificStateGen<stateType>& source,
 		    const unsigned& nthreads,
 		    const pen_parserSection& config,
 		    const unsigned verbose){
+  penred::logs::logger log;  
   
   //Check if specific sampler exists
   bool useSpecific = config.isSection("specific");
@@ -77,14 +78,14 @@ int configureSource(pen_specificStateGen<stateType>& source,
   int err = config.read("kpar",auxkpar);
   if(err != INTDATA_SUCCESS && !useSpecific){
     if(verbose > 0){
-      printf("configureSource: Error: Particle type field ('kpar') not found and no specific sampling specified. String expected:\n");
-      printf("\telectron\n");
-      printf("\tgamma\n");
-      printf("\tpositron\n");
+      log.printf("configureSource: Error: Particle type field ('kpar') not found and no specific sampling specified. String expected:\n");
+      log.printf("\telectron\n");
+      log.printf("\tgamma\n");
+      log.printf("\tpositron\n");
     }
     return -1;
   } else if(!useSpecific && verbose > 1) {
-    printf("Selected particle: %s\n",auxkpar.c_str());
+    log.printf("Selected particle: %s\n",auxkpar.c_str());
   }
 
   //Obtain particle ID
@@ -96,7 +97,7 @@ int configureSource(pen_specificStateGen<stateType>& source,
     source.kpar = PEN_POSITRON;
   else if(!useSpecific){
     if(verbose > 0)
-      printf("\nInvalid selected particle type: %s\n",auxkpar.c_str());
+      log.printf("\nInvalid selected particle type: %s\n",auxkpar.c_str());
     return -2;
   }
 
@@ -104,7 +105,7 @@ int configureSource(pen_specificStateGen<stateType>& source,
   source.configure(config,nthreads,verbose);
   if(source.configureStatus() != 0){
     if(verbose > 0){
-      printf("\nError on source configuration\n");
+      log.printf("\nError on source configuration\n");
     }
     return -3;
   }
@@ -191,14 +192,14 @@ void checkUserInput(const char* filename,
 	char word1[500];
 	char word2[500];
 	sscanf(line, " %s %s ", word1, word2);
-	if(strcmp(word1,"get") == 0){
-	  if(strcmp(word2, "status") == 0){
+	if(strncmp(word1,"get", 3) == 0){
+	  if(strncmp(word2, "status", 6) == 0){
 	    //Print status of all threads
 	    for(const penred::simulation::simConfig& simConf : simConfigs){
 	      std::cout << simConf.stringifyState() << std::endl;
 	    }
-	  }else if(strcmp(word2, "speeds") == 0 ||
-		   strcmp(word2, "speed" ) == 0){
+	  }else if(strncmp(word2, "speeds", 6) == 0 ||
+		   strncmp(word2, "speed", 5) == 0){
 	    //Print mean speeds of all threads
 	    for(const penred::simulation::simConfig& simConf : simConfigs){
 	      double meanSpeed = simConf.getSpeedInSource();
@@ -207,7 +208,7 @@ void checkUserInput(const char* filename,
 	      std::cout << out;
 	    }
 	    std::cout << std::endl;
-	  }else if(strcmp(word2, "simulated") == 0){
+	  }else if(strncmp(word2, "simulated", 9) == 0){
 	    //Print simulated histories in each thread
 	    for(const penred::simulation::simConfig& simConf : simConfigs){
 	      unsigned long long simulated  = simConf.getSimulatedInSource();
@@ -220,7 +221,7 @@ void checkUserInput(const char* filename,
 	    std::cout << std::endl;	    
 	  }
 	}
-	else if(strcmp(word1,"help") == 0){
+	else if(strncmp(word1,"help", 4) == 0){
 	  printUserInputOptions(filename);
 	}
       }
@@ -245,7 +246,7 @@ int main(int argc, char** argv){
   }
 
   printf("***************************************************************\n");
-  printf(" PenRed version: 1.11.0b (11-July-2024) \n");
+  printf(" PenRed version: 1.12.0 (25-September-2024) \n");
   printf(" Copyright (c) 2019-2024 Universitat Politecnica de Valencia\n");
   printf(" Copyright (c) 2019-2024 Universitat de Valencia\n");
   printf(" Reference: Computer Physics Communications, 267 (2021) 108065\n"
@@ -341,19 +342,49 @@ int main(int argc, char** argv){
     return -1;
   }
 
+  //Set log files
+  std::string configLogFilename;
+  if(config.read("log/configuration",configLogFilename) != INTDATA_SUCCESS){
+    configLogFilename.assign("config.log");
+  }
+  std::string simLogFilename;
+  if(config.read("log/simulation",simLogFilename) != INTDATA_SUCCESS){
+    simLogFilename.assign("simulation.log");
+  }
+
+  penred::logs::logger log;  
+  if(!configLogFilename.empty()){
+#ifdef _PEN_USE_MPI_
+    configLogFilename = "rank-" + std::to_string(rank) + "-" + configLogFilename;
+#endif
+    if(verbose > 1){
+      printf("Configuration log redirected to '%s'\n", configLogFilename.c_str());
+    }
+    log.setConfigurationLogFile(configLogFilename.c_str());
+  }
+  if(!simLogFilename.empty()){
+#ifdef _PEN_USE_MPI_
+    simLogFilename = "rank-" + std::to_string(rank) + "-" + simLogFilename;
+#endif    
+    if(verbose > 1){
+      printf("Simulation log redirected to '%s'\n", simLogFilename.c_str());
+    }
+    log.setSimulationLogFile(simLogFilename.c_str());  
+  }
+
   // Get comon simulation configuration
   //*************************************
   penred::simulation::simConfig baseSimConfig;
   int errSimConfig = baseSimConfig.configure("simulation",config);
   if(errSimConfig != penred::simulation::errors::SUCCESS){
-    printf("Error: Unable to parse 'simulation' section: Invalid seeds\n");
+    log.printf("Error: Unable to parse 'simulation' section: Invalid seeds\n");
     return -1;
   }
   //Extract verbose level
   verbose = baseSimConfig.verbose;
 
   if(verbose > 1)
-    printf("%s\n", baseSimConfig.stringifyConfig().c_str());
+    log.printf("%s\n", baseSimConfig.stringifyConfig().c_str());
 
   // Get user interactive options
   //*************************************
@@ -368,11 +399,11 @@ int main(int argc, char** argv){
   }
 
   if(verbose > 1){
-    printf("User interactive %s ", userInteractiveEnabled ? "enabled" : "disabled");
+    log.printf("User interactive %s ", userInteractiveEnabled ? "enabled" : "disabled");
     if(userInteractiveEnabled){
-      printf("via filename '%s'\n", userInteractiveFilename.c_str());
+      log.printf("via filename '%s'\n", userInteractiveFilename.c_str());
     }else{
-      printf("\n");
+      log.printf("\n");
     }
   }
 
@@ -383,7 +414,7 @@ int main(int argc, char** argv){
   std::array<bool,pen_imageExporter::nFormats()> enabledFormats = {false};
   if(config.read("simulation/images",formatsSection) != INTDATA_SUCCESS){
     if(verbose > 1){
-      printf("No image format specified to export . Specify a format via the "
+      log.printf("No image format specified to export . Specify a format via the "
 	     "'simulation/images' section to enable image export.\n");
     }
   }else{
@@ -406,10 +437,10 @@ int main(int argc, char** argv){
 	//Check if this format exists
 	if(!pen_imageExporter::isFormat(format.c_str())){
 	  if(verbose > 0){
-	    printf("Error: Unknown image format '%s'\n"
+	    log.printf("Error: Unknown image format '%s'\n"
 		   " Available formats:\n",format.c_str());
 	    for(const char* formatName : pen_imageExporter::formatNames){
-	      printf(" -%s\n",formatName);
+	      log.printf(" -%s\n",formatName);
 	    }
 	  }
 	  return -2;	  
@@ -421,10 +452,10 @@ int main(int argc, char** argv){
     }
 
     if(verbose > 1){
-      printf("Image export enabled for the following formats:\n");
+      log.printf("Image export enabled for the following formats:\n");
       for(size_t i = 0; i < enabledFormats.size(); ++i){
 	if(enabledFormats[i]){
-	  printf(" -%s\n",
+	  log.printf(" -%s\n",
 		 pen_imageExporter::toString(static_cast<pen_imageExporter::formatTypes>(i)));
 	}
       }
@@ -436,14 +467,14 @@ int main(int argc, char** argv){
   int auxThreads;
   if(config.read("simulation/threads",auxThreads) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("\n\nNumber of threads not specified, only one thread will be used.\n\n");
+      log.printf("\n\nNumber of threads not specified, only one thread will be used.\n\n");
     }
     auxThreads = 1;
   }
   // ************************** MULTI-THREADING ***************************** //
 #ifndef _PEN_USE_THREADS_
   else{
-    printf("\n\nMulti-threading has not been activated during compilation"
+    log.printf("\n\nMulti-threading has not been activated during compilation"
 	   ", only one thread will be used\n\n");
   }
   auxThreads = 1;
@@ -452,14 +483,14 @@ int main(int argc, char** argv){
   if(auxThreads <= 0){
 
     if(verbose > 1)
-      printf("Automatic selection of threads enabled\n");
+      log.printf("Automatic selection of threads enabled\n");
     
     unsigned int nConcurrency = std::thread::hardware_concurrency();
 
     if(nConcurrency > 0)
       auxThreads = nConcurrency;
     else{
-      printf("The hardware concurrency value is not well defined or not computable."
+      log.printf("The hardware concurrency value is not well defined or not computable."
 	     " One thread will be used");
       auxThreads = 1;
     }
@@ -476,18 +507,18 @@ int main(int argc, char** argv){
   char keyMPIthreads[60];
   if(sprintf(keyMPIthreads,"simulation/rank/%d/threads",rank) < 0){
     if(verbose > 0)
-      printf("Error: Unable to create the configuration key to read the number of threads in the MPI rank %d\n",rank);
+      log.printf("Error: Unable to create the configuration key to read the number of threads in the MPI rank %d\n",rank);
     return -2;
   }
   
   if(config.read(keyMPIthreads,auxThreadsMPI) == INTDATA_SUCCESS){
     if(verbose > 1){
-      printf("Number of threads in rank %d set to %d.\n",rank,auxThreadsMPI);
+      log.printf("Number of threads in rank %d set to %d.\n",rank,auxThreadsMPI);
     }
 
     if(auxThreadsMPI <= 0){
       if(verbose > 0)
-	printf("Warning: Invalid number of threads, the value will not be considered\n");
+	log.printf("Warning: Invalid number of threads, the value will not be considered\n");
     }else{
       auxThreads = auxThreadsMPI;
     }
@@ -502,15 +533,15 @@ int main(int argc, char** argv){
   //threads to 2 to be able to add the dump files
   if(addDumps){
     if(verbose > 1){
-      printf("\n *** Number of simulating threads overwritten because 'addDumps' is enabled ***\n");
+      log.printf("\n *** Number of simulating threads overwritten because 'addDumps' is enabled ***\n");
     }
     nthreads = 2;
   }
 
   if(verbose > 1){
-    printf("\nNumber of simulating threads: %u\n",nthreads);
+    log.printf("\nNumber of simulating threads: %u\n",nthreads);
     if(nthreads > 1){
-      printf("Initial random seeds will be selected using \"rand0\" function to ensure truly independent sequences of random numbers.\n");
+      log.printf("Initial random seeds will be selected using \"rand0\" function to ensure truly independent sequences of random numbers.\n");
     }
   }
 
@@ -522,8 +553,6 @@ int main(int argc, char** argv){
   for(unsigned i = 0; i < nthreads; i++){
     simConfigs[i].iThread = i;
     simConfigs[i].copyCommonConfig(baseSimConfig);
-    //Set, by default, std::cout as output stream
-    simConfigs[i].setOutstream(std::cout);
   }
 
   // Get initial seed pair number
@@ -534,13 +563,13 @@ int main(int argc, char** argv){
   }
   else if(nseedPair < 0 || nseedPair > 1000){
     if(verbose > 0){
-      printf("Invalid initial seed pair number %d\n",nseedPair);
-      printf("Available seed pair range is [0,1000]\n");
+      log.printf("Invalid initial seed pair number %d\n",nseedPair);
+      log.printf("Available seed pair range is [0,1000]\n");
     }
     return -2;
   }
   else if(verbose > 1){
-    printf("Selected rand0 seed pair number: %d\n",nseedPair);
+    log.printf("Selected rand0 seed pair number: %d\n",nseedPair);
   }
   
   // Get CPU affinity option
@@ -552,11 +581,11 @@ int main(int argc, char** argv){
 
   if(verbose > 1){
     if(CPUaffinity){
-      printf("Threads CPU affinity enabled\n");
+      log.printf("Threads CPU affinity enabled\n");
     }
     else{
-      printf("Threads CPU affinity disabled.\n");
-      printf("    Enable it with: 'simulation/thread-affinity true'\n");
+      log.printf("Threads CPU affinity disabled.\n");
+      log.printf("    Enable it with: 'simulation/thread-affinity true'\n");
     }
   }
 
@@ -568,7 +597,7 @@ int main(int argc, char** argv){
   }
   if(verbose > 1){
     if(!ASCIIResults){
-      printf("ASCII results write disabled\n");
+      log.printf("ASCII results write disabled\n");
     }
   }
 
@@ -582,7 +611,7 @@ int main(int argc, char** argv){
   std::string dump2read;  
   if(config.read("simulation/dump2read",dump2read) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("\n\nNo recovery dump filename specified.\n\n");
+      log.printf("\n\nNo recovery dump filename specified.\n\n");
     }
     dump2read.clear();
   }
@@ -594,7 +623,7 @@ int main(int argc, char** argv){
   }
   else if(dump2ascii && dump2read.length() == 0){
     if(verbose > 0){
-      printf("\n\nError: Conversion from dump to ascii required but no dump file specified (field 'simulation/dump2read').\n\n");
+      log.printf("\n\nError: Conversion from dump to ascii required but no dump file specified (field 'simulation/dump2read').\n\n");
     }
     return -2;
   }
@@ -604,7 +633,7 @@ int main(int argc, char** argv){
   std::string contextlogfile;  
   if(config.read("simulation/contextlogfile",contextlogfile) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("\n\nNo context log filename specified.\n\n");
+      log.printf("\n\nNo context log filename specified.\n\n");
     }
     contextlogfile.clear();
   }
@@ -628,8 +657,8 @@ int main(int argc, char** argv){
   int errAuxEsp = 99;
   if((errAuxEsp = config.read("loadBalance/balance-interval",balanceIntervald)) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("\n\nTime between load balances not specified.\n");
-      printf("Read of parameter 'loadBalance/balance-interval' "
+      log.printf("\n\nTime between load balances not specified.\n");
+      log.printf("Read of parameter 'loadBalance/balance-interval' "
 	     "failed because: %s\n\n",
 	     pen_parserError(errAuxEsp));
     }
@@ -638,22 +667,22 @@ int main(int argc, char** argv){
     if(balanceIntervald <= 10.0){
       balanceIntervald = 10.1;
       if(verbose > 1)
-	printf("Balance interval must be greater than 10s.\n");
+	log.printf("Balance interval must be greater than 10s.\n");
     }
     if(verbose > 1)
-      printf("Balance interval set to %E.\n",balanceIntervald);
+      log.printf("Balance interval set to %E.\n",balanceIntervald);
   }
   
   if(config.read("loadBalance/host",LBhost) == INTDATA_SUCCESS){
     if(config.read("loadBalance/port",LBport) != INTDATA_SUCCESS){
       if(verbose > 0){
-	printf("Unable to read external balance port. Integer expected\n");
+	log.printf("Unable to read external balance port. Integer expected\n");
 	return -2;
       }
     }
     if(config.read("loadBalance/worker",LBworker) != INTDATA_SUCCESS){
       if(verbose > 0){
-	printf("Unable to read external balance worker ID. Integer expected\n");
+	log.printf("Unable to read external balance worker ID. Integer expected\n");
 	return -2;
       }
     }
@@ -665,8 +694,8 @@ int main(int argc, char** argv){
     config.read("loadBalance/hostname",hostname);
     
     if(verbose > 1){
-      printf("Configured external load balance server at %s:%d\n",LBhost.c_str(),LBport);
-      printf(" SSL configuraiton:\n"
+      log.printf("Configured external load balance server at %s:%d\n",LBhost.c_str(),LBport);
+      log.printf(" SSL configuraiton:\n"
 	     "       CA: %s\n"
 	     "     cert: %s\n"
 	     "      key: %s\n"
@@ -681,10 +710,10 @@ int main(int argc, char** argv){
 #ifdef _PEN_USE_LB_HTTP_
   else if(config.read("loadBalance/url",LBurl) == INTDATA_SUCCESS){
     if(verbose > 1)
-      printf("Enabled external HTTP load balance server at url: %s\n",LBurl.c_str());
+      log.printf("Enabled external HTTP load balance server at url: %s\n",LBurl.c_str());
     if(config.read("loadBalance/worker",LBworker) != INTDATA_SUCCESS){
       if(verbose > 0){
-	printf("Unable to read external balance worker ID. Integer expected\n");
+	log.printf("Unable to read external balance worker ID. Integer expected\n");
 	return -2;
       }
     }    
@@ -694,7 +723,7 @@ int main(int argc, char** argv){
 // **********************   HTTP END   **********************
   else{
     if(verbose > 1){
-      printf("External load balance host has not been specifeid\n");
+      log.printf("External load balance host has not been specifeid\n");
     }
   }
   
@@ -744,7 +773,7 @@ int main(int argc, char** argv){
   //initial seeds for all MPI processes and threads.
   
   if(nReqSeeds > 1001){
-    printf("Error: Unsuficient initial seeds for all processes "
+    log.printf("Error: Unsuficient initial seeds for all processes "
 	   "and seeds (%d required).\n"
 	   "        Please, use less threads to use, as maximum,"
 	   " 1001 initial seeds.\n",nReqSeeds);
@@ -779,15 +808,15 @@ int main(int argc, char** argv){
   if(err != 0){
     if(verbose > 0){
       if(err > 0){
-	printf("\n");
-	printf("Errors at sources creation and configuration.\n");
-	printf("\n");
+	log.printf("\n");
+	log.printf("Errors at sources creation and configuration.\n");
+	log.printf("\n");
       }
     }
     return -3;
   }
   if(verbose > 1)
-    printf("\n");
+    log.printf("\n");
 
   //Set interval between checks
   for(auto& source : genericSources){
@@ -801,7 +830,7 @@ int main(int argc, char** argv){
       ec=source.setLBserver(LBworker,LBurl.c_str(),verbose);
       if(ec != 0){
 	if(verbose > 0){
-	  printf("Unable to configure load balance HTTP server\n"
+	  log.printf("Unable to configure load balance HTTP server\n"
 		 "    Error code: %d\n",ec);
 	  return -3;
 	}
@@ -823,7 +852,7 @@ int main(int argc, char** argv){
 			    verbose);
       if(ec != 0){
 	if(verbose > 0){
-	  printf("Unable to configure load balance server\n"
+	  log.printf("Unable to configure load balance server\n"
 		 "    Error code: %d\n",ec);
 	  return -3;
 	}
@@ -842,7 +871,7 @@ int main(int argc, char** argv){
       ec=source.setLBserver(LBworker,LBurl.c_str(),verbose);
       if(ec != 0){
 	if(verbose > 0){
-	  printf("Unable to configure load balance HTTP server\n"
+	  log.printf("Unable to configure load balance HTTP server\n"
 		 "    Error code: %d\n",ec);
 	  return -3;
 	}
@@ -864,7 +893,7 @@ int main(int argc, char** argv){
 			    verbose);
       if(ec != 0){
 	if(verbose > 0){
-	  printf("Unable to configure load balance server\n"
+	  log.printf("Unable to configure load balance server\n"
 		 "    Error code: %d\n",ec);
 	  return -3;
 	}
@@ -891,7 +920,10 @@ int main(int argc, char** argv){
   //****************************
 
   //Create simulation context
-  pen_context context;
+  std::shared_ptr<pen_context> pcontext = createContext<pen_context>();
+  //Get context reference. Notice that pcontext will
+  //not be released until the end of the execution
+  pen_context& context = *pcontext.get();
   
   //Get global maximum energy
   double globEmax = -1.0;
@@ -911,16 +943,16 @@ int main(int argc, char** argv){
   }
 
   if(verbose > 1){
-    printf("Maximum global energy: %14.2E eV\n",globEmax);
+    log.printf("Maximum global energy: %14.2E eV\n",globEmax);
   }
 
   //****************************
   // Materials
   //****************************
 
-  printf("\n\n------------------------------------\n\n");
-  printf(" **** Materials ****\n");
-  printf(" *******************\n\n");
+  log.printf("\n\n------------------------------------\n\n");
+  log.printf(" **** Materials ****\n");
+  log.printf(" *******************\n\n");
 
   //Initialize context with no geometry
   pen_parserSection matInfoSection;
@@ -932,8 +964,8 @@ int main(int argc, char** argv){
   // Geometry parameters
   //****************************
 
-  printf("\n\n------------------------------------\n\n");
-  printf(" **** Geometry parameters\n\n");
+  log.printf("\n\n------------------------------------\n\n");
+  log.printf(" **** Geometry parameters\n\n");
 
   wrapper_geometry* geometry;
   
@@ -972,9 +1004,9 @@ int main(int argc, char** argv){
   if(createTallies(talliesVect, nthreads, context, config, verbose) != 0)
     return -9;
 
-  printf("\n%d tallies created for each thread.\n",talliesVect[0].numTallies());
+  log.printf("\n%d tallies created for each thread.\n",talliesVect[0].numTallies());
   if(talliesVect[0].numTallies() == 0){
-    printf("The simulation will not extract any information.\n");
+    log.printf("The simulation will not extract any information.\n");
     return 0;
   }
   
@@ -996,7 +1028,7 @@ int main(int argc, char** argv){
       if(firstLoad){
 	firstLoad = false;
 	//Read the first dump file
-	printf("\nLoading first dump file: '%s'\n",filename);
+	log.printf("\nLoading first dump file: '%s'\n",filename);
 	int errDump = talliesVect[0].readDumpfile(filename,
 						  simulated,
 						  seed1,seed2,
@@ -1006,7 +1038,7 @@ int main(int argc, char** argv){
 
 	if(errDump != 0){
 	  if(verbose > 0){
-	    printf("Error loading dumped data file '%s': %d\n",filename,errDump);
+	    log.printf("Error loading dumped data file '%s': %d\n",filename,errDump);
 	  }
 	  return -10;
 	}	
@@ -1014,7 +1046,7 @@ int main(int argc, char** argv){
       else{
 
 	//Read and add the dump file
-	printf("\nAdding dump file: '%s'\n",filename);
+	log.printf("\nAdding dump file: '%s'\n",filename);
 	int errDump = talliesVect[1].readDumpfile(filename,
 						  simulated,
 						  seed1,seed2,
@@ -1023,7 +1055,7 @@ int main(int argc, char** argv){
 						  verbose);	
 	if(errDump != 0){
 	  if(verbose > 0){
-	    printf("Error loading dumped data file '%s': %d\n",filename,errDump);
+	    log.printf("Error loading dumped data file '%s': %d\n",filename,errDump);
 	  }
 	  return -10;
 	}
@@ -1032,7 +1064,7 @@ int main(int argc, char** argv){
 
 	if(errSum != 0){
 	  if(verbose > 0){
-	    printf("Error adding dumped data from file '%s': %d\n",filename,errSum);
+	    log.printf("Error adding dumped data from file '%s': %d\n",filename,errSum);
 	  }
 	  return -11;
 	}
@@ -1041,17 +1073,17 @@ int main(int argc, char** argv){
       totalSimHists += simulated;
       if(lastSource >= 0){
 	if(verbose > 1){
-	  printf("Warning: Dump file '%s' generated from a "
+	  log.printf("Warning: Dump file '%s' generated from a "
 		 "non finished simulation\n",filename);
 	}
       }
       if(verbose > 1){
-	printf(" - Simulated histories: %llu\n",simulated);
-	printf(" - Last seeds: %d %d\n",seed1,seed2);
+	log.printf(" - Simulated histories: %llu\n",simulated);
+	log.printf(" - Last seeds: %d %d\n",seed1,seed2);
       }
     }
 
-    printf("\nTotal simulated histories: %llu\n",totalSimHists);
+    log.printf("\nTotal simulated histories: %llu\n",totalSimHists);
     
     if(ASCIIResults){
       talliesVect[0].saveData(totalSimHists);
@@ -1069,7 +1101,7 @@ int main(int argc, char** argv){
   if(dump2read.length() > 0){
 
     if(verbose > 1){
-      printf("Load dump files '%s' for %d threads\n",dump2read.c_str(), nthreads);
+      log.printf("Load dump files '%s' for %d threads\n",dump2read.c_str(), nthreads);
     }
 
     std::string auxstr(dump2read); 
@@ -1104,22 +1136,22 @@ int main(int argc, char** argv){
       
       if(errDump != 0){
 	if(verbose > 0){
-	  printf("Error loading dumped data for thread %d: %d\n",i,errDump);
+	  log.printf("Error loading dumped data for thread %d: %d\n",i,errDump);
 	}
 	return -10;
       }
 
       if(verbose > 1){
 	//Report data in dump file and finish execution
-	printf(" *** Dump information of thread %u:\n\n",i);
-	printf("  Total simulated histories: %llu\n",
+	log.printf(" *** Dump information of thread %u:\n\n",i);
+	log.printf("  Total simulated histories: %llu\n",
 	       simConfigs[i].getSimulatedInFinished() +
 	       simConfigs[i].getInitiallySimulatedInFirstSource());
 	int seed1, seed2;
 	simConfigs[i].getSeeds(seed1,seed2);
-	printf("                 Last seeds: %9d %9d\n",seed1,seed2);
-	printf("    Next source to simulate: %d\n",simConfigs[i].getFirstSourceIndex());
-	printf(" Source histories simulated: %llu\n",
+	log.printf("                 Last seeds: %9d %9d\n",seed1,seed2);
+	log.printf("    Next source to simulate: %d\n",simConfigs[i].getFirstSourceIndex());
+	log.printf(" Source histories simulated: %llu\n",
 	       simConfigs[i].getInitiallySimulatedInFirstSource());	
       }
       
@@ -1181,13 +1213,13 @@ int main(int argc, char** argv){
 				   genericVR,photonVR,verbose);
   if(vrRet < 0){
     if(verbose > 0){
-      printf("Error on variance reduction section.\n");
-      printf("             Error code: %d\n",vrRet);
+      log.printf("Error on variance reduction section.\n");
+      log.printf("             Error code: %d\n",vrRet);
     }
     return -11;
   }
   if(vrRet > 0 && verbose > 1){
-    printf("No variance reduction technics enabled.\n");
+    log.printf("No variance reduction technics enabled.\n");
   }  
     
   //****************************
@@ -1202,6 +1234,9 @@ int main(int argc, char** argv){
 #endif
   // ************************ MULTI-THREADING END *************************** //
 
+  //Set default log to simulation
+  log.setDefaultLog(penred::logs::SIMULATION);  
+  
   pen_timer timer;
   double time0 = CPUtime();
   
@@ -1211,11 +1246,11 @@ int main(int argc, char** argv){
 
   if(simConfigs[0].getFirstSourceIndex() > 0){
     if(verbose > 1)
-      printf("Skip already simulated sources (%d)\n",simConfigs[0].getFirstSourceIndex());
+      log.printf("Skip already simulated sources (%d)\n",simConfigs[0].getFirstSourceIndex());
   }
 
   if(verbose > 1){
-    printf("Initialization processing time: %E s\n", initializationTimer.timer());
+    log.printf("Initialization processing time: %E s\n", initializationTimer.timer());
   }
 
   //Substract initialization time to maximum simulation time
@@ -1259,10 +1294,10 @@ int main(int argc, char** argv){
 	  int raff = pthread_setaffinity_np(simThreads.back().native_handle(),
 					    sizeof(cpu_set_t), &cpuset);
 	  if(raff != 0){
-	    printf(" Unable to set affinity for thread %d\n",ithread);
+	    log.printf(" Unable to set affinity for thread %d\n",ithread);
 	  }
 	  else{
-	    printf(" Affinity for thread %d set to CPU %d\n",ithread,ithread);
+	    log.printf(" Affinity for thread %d set to CPU %d\n",ithread,ithread);
 	  }
 	}
 #endif      
@@ -1345,10 +1380,10 @@ int main(int argc, char** argv){
 	  int raff = pthread_setaffinity_np(simThreads.back().native_handle(),
 					    sizeof(cpu_set_t), &cpuset);
 	  if(raff != 0){
-	    printf(" Unable to set affinity for thread %d\n",ithread);
+	    log.printf(" Unable to set affinity for thread %d\n",ithread);
 	  }
 	  else{
-	    printf(" Affinity for thread %d set to CPU %d\n",ithread,ithread);
+	    log.printf(" Affinity for thread %d set to CPU %d\n",ithread,ithread);
 	  }
 	}
 #endif
@@ -1418,10 +1453,10 @@ int main(int argc, char** argv){
   if(verbose > 1){
   // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_
-    printf("Rank %u: Simulation finished, starting results reduce step\n",rank);
+    log.printf("Rank %u: Simulation finished, starting results reduce step\n",rank);
 #else    
   // ***************************** MPI END ********************************** //
-    printf("Simulation finished, starting results reduce step\n");
+    log.printf("Simulation finished, starting results reduce step\n");
 #endif
   }
 
@@ -1459,19 +1494,19 @@ int main(int argc, char** argv){
 
   //Print local report information
 
-  printf("\n\n");
-  printf("\n*********** Rank %03u *************\n",rank);
-  printf("Simulated histories: %20llu \n",localHists);
-  printf("Simulation real time: %12.4E s\n",simtime);
-  printf("Simulation user time: %12.4E s\n",usertime);
+  log.printf("\n\n");
+  log.printf("\n*********** Rank %03u *************\n",rank);
+  log.printf("Simulated histories: %20llu \n",localHists);
+  log.printf("Simulation real time: %12.4E s\n",simtime);
+  log.printf("Simulation user time: %12.4E s\n",usertime);
 #if defined(_MSC_VER)
-  printf("Histories per second: %12.4E\n", static_cast<double>(localHists) / usertime);
+  log.printf("Histories per second: %12.4E\n", static_cast<double>(localHists) / usertime);
 #else
-  printf("Histories per second and thread: %12.4E\n",static_cast<double>(localHists)/usertime);
-  printf("Histories per second: %12.4E\n",static_cast<double>(localHists)/(usertime/double(nthreads)));
+  log.printf("Histories per second and thread: %12.4E\n",static_cast<double>(localHists)/usertime);
+  log.printf("Histories per second: %12.4E\n",static_cast<double>(localHists)/(usertime/double(nthreads)));
 #endif
-  printf("Results processing time: %12.4E s\n",postProcessTime);
-  printf("\n*********** END REPORT *************\n");
+  log.printf("Results processing time: %12.4E s\n",postProcessTime);
+  log.printf("\n*********** END REPORT *************\n");
   fflush(stdout);
   
 
@@ -1546,16 +1581,16 @@ int main(int argc, char** argv){
     }
   }
   
-  printf("\n\nSimulated histories: %20llu\n",totalHists);
-  printf("Simulation real time: %12.4E s\n",simtime);
-  printf("Simulation user time: %12.4E s\n",usertime);
+  log.printf("\n\nSimulated histories: %20llu\n",totalHists);
+  log.printf("Simulation real time: %12.4E s\n",simtime);
+  log.printf("Simulation user time: %12.4E s\n",usertime);
 #if defined(_MSC_VER)
-  printf("Histories per second: %12.4E\n", static_cast<double>(totalHists) / usertime);
+  log.printf("Histories per second: %12.4E\n", static_cast<double>(totalHists) / usertime);
 #else
-  printf("Histories per second and thread: %12.4E\n",static_cast<double>(totalHists)/usertime);
-  printf("Histories per second: %12.4E\n",static_cast<double>(totalHists)/(usertime/double(nthreads)));
+  log.printf("Histories per second and thread: %12.4E\n",static_cast<double>(totalHists)/usertime);
+  log.printf("Histories per second: %12.4E\n",static_cast<double>(totalHists)/(usertime/double(nthreads)));
 #endif
-  printf("Results processing time: %12.4E s\n",postProcessTime);
+  log.printf("Results processing time: %12.4E s\n",postProcessTime);
   
 #endif
 
@@ -1564,7 +1599,7 @@ int main(int argc, char** argv){
   
   //Print load balance reports
   if(genericSources.size() > 0){
-    printf("Printing load balance reports for generic sources...");
+    log.printf("Printing load balance reports for generic sources...");
     for(const auto& source : genericSources){
       FILE* fout = nullptr;
 
@@ -1591,10 +1626,10 @@ int main(int argc, char** argv){
       source.task.printReport(fout);
       fclose(fout);
     }
-    printf(" Done!\n");
+    log.printf(" Done!\n");
   }
   if(polarisedGammaSources.size() > 0){
-    printf("Printing load balance reports for polarised sources...");
+    log.printf("Printing load balance reports for polarised sources...");
     for(const auto& source : polarisedGammaSources){
       FILE* fout = nullptr;
 
@@ -1620,7 +1655,7 @@ int main(int argc, char** argv){
       source.task.printReport(fout);
       fclose(fout);
     }
-    printf(" Done!\n");
+    log.printf(" Done!\n");
   }
 #endif
   // ***************************** LB END ********************************** //
@@ -1645,6 +1680,8 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
 			     const pen_parserSection& config,
 			     const unsigned verbose){
 
+  penred::logs::logger log;  
+  
   int errG = 0;
   int errP = 0;
   int err = 0;
@@ -1656,7 +1693,7 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
   errP = config.readSubsection("sources/polarized",polarisedSourceSection);
   if(errG != INTDATA_SUCCESS && errP != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("createParticleGenerators: Error: Fields 'sources/generic' nor 'sources/polarized' don't exists. No source specified\n");
+      log.printf("createParticleGenerators: Error: Fields 'sources/generic' nor 'sources/polarized' don't exists. No source specified\n");
     }
     return -2;
   }
@@ -1674,7 +1711,7 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
 
   if(nGenericSources < 1 && nPolarizedSources < 1){
     if(verbose > 0)
-      printf("createParticleGenerators: Error: Simulation requires, at last, one particle source.\n");
+      log.printf("createParticleGenerators: Error: Simulation requires, at last, one particle source.\n");
     return -3;    
   }
 
@@ -1705,7 +1742,7 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
     pen_parserSection genSection;
     if(genericSourceSection.readSubsection(genericSourceNames[i],genSection) != INTDATA_SUCCESS){
       if(verbose > 0){
-	printf("createParticleGenerators: Error: Unable to extract section for generic source '%s'\n",genericSourceNames[i].c_str());
+	log.printf("createParticleGenerators: Error: Unable to extract section for generic source '%s'\n",genericSourceNames[i].c_str());
       }
       err++;
       continue;
@@ -1718,7 +1755,7 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
       double nhists;
       if(genSection.read("nhist",nhists) != INTDATA_SUCCESS){
 	if(verbose > 0){
-	  printf("createParticleGenerators: Error: Unable to read field 'nhist' "
+	  log.printf("createParticleGenerators: Error: Unable to read field 'nhist' "
 		 "for generic source '%s'\n",genericSourceNames[i].c_str());
 	}
 	err++;
@@ -1727,7 +1764,7 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
 
       if(nhists <= 0.5){
 	if(verbose > 0){
-	  printf("createParticleGenerators: Error on generic source %s. "
+	  log.printf("createParticleGenerators: Error on generic source %s. "
 		 "Number of histories must be greater than zero\n",genericSourceNames[i].c_str());
 	}
 	err++;
@@ -1739,7 +1776,7 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
 			 nthreads,
 			 genSection,verbose) != 0){
 	if(verbose > 0)
-	  printf("createParticleGenerators: Error: Can't create and "
+	  log.printf("createParticleGenerators: Error: Can't create and "
 		 "configure source '%s'.\n",genericSourceNames[i].c_str());	
 	err++;
       }
@@ -1759,7 +1796,7 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
   // ***************************** LB END ********************************** //
       if(errTask != 0){
 	if(verbose > 0)
-	  printf("createParticleGenerators: Error on generic source %s. "
+	  log.printf("createParticleGenerators: Error on generic source %s. "
 		 "Unable to init source task\n"
 		 "   Error code: %d\n",
 		 genericSourceNames[i].c_str(),errTask);
@@ -1768,7 +1805,7 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
       }
 
       if(verbose > 1)
-	printf("Histories to simulate at source %s: %llu\n",
+	log.printf("Histories to simulate at source %s: %llu\n",
 	       genericSources[i].name.c_str(),genericSources[i].toDo());      
     }
   }
@@ -1779,7 +1816,7 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
     pen_parserSection genSection;
     if(polarisedSourceSection.readSubsection(polarisezSourceNames[i],genSection) != INTDATA_SUCCESS){
       if(verbose > 0){
-	printf("createParticleGenerators: Error: Unable to extract section for polarized gamma source '%s'\n",polarisezSourceNames[i].c_str());
+	log.printf("createParticleGenerators: Error: Unable to extract section for polarized gamma source '%s'\n",polarisezSourceNames[i].c_str());
       }
       err++;
       continue;
@@ -1792,7 +1829,7 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
       double nhists;
       if(genSection.read("nhist",nhists) != INTDATA_SUCCESS){
 	if(verbose > 0){
-	  printf("createParticleGenerators: Error: Unable to read field 'nhist' for polarized gamma source '%s'\n",polarisezSourceNames[i].c_str());
+	  log.printf("createParticleGenerators: Error: Unable to read field 'nhist' for polarized gamma source '%s'\n",polarisezSourceNames[i].c_str());
 	}
 	err++;
 	continue;
@@ -1800,7 +1837,7 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
 
       if(nhists <= 0.5){
 	if(verbose > 0){
-	  printf("createParticleGenerators: Error on polarized gamma source %s. Number of histories must be greater than zero\n",polarisezSourceNames[i].c_str());
+	  log.printf("createParticleGenerators: Error on polarized gamma source %s. Number of histories must be greater than zero\n",polarisezSourceNames[i].c_str());
 	}
 	err++;
 	continue;	
@@ -1811,7 +1848,7 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
 			 nthreads,
 			 genSection,verbose) != 0){
 	if(verbose > 0)
-	  printf("createParticleGenerators: Error: Can't create and configure source '%s'.\n",polarisezSourceNames[i].c_str());	
+	  log.printf("createParticleGenerators: Error: Can't create and configure source '%s'.\n",polarisezSourceNames[i].c_str());	
 	err++;
       }
 
@@ -1829,7 +1866,7 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
 #endif
       if(errTask != 0){
 	if(verbose > 0)
-	  printf("createParticleGenerators: Error on polarised source %s. "
+	  log.printf("createParticleGenerators: Error on polarised source %s. "
 		 "Unable to init source task\n"
 		 "   Error code: %d\n",
 		 polarisedGammaSources[i].name.c_str(),errTask);
@@ -1838,7 +1875,7 @@ int createParticleGenerators(std::vector<pen_specificStateGen<pen_particleState>
       }
 
       if(verbose > 1)
-	printf("Histories to simulate at source %s: %llu\n",
+	log.printf("Histories to simulate at source %s: %llu\n",
 	       polarisedGammaSources[i].name.c_str(),
 	       polarisedGammaSources[i].toDo());
     }
@@ -1852,19 +1889,20 @@ int createTallies(std::vector<pen_commonTallyCluster>& tallyGroups,
 		  const pen_context& context,
 		  const pen_parserSection& config,
 		  const unsigned verbose){
+  penred::logs::logger log;  
 
   //Extract source section
   pen_parserSection talliesSection;
   int err = config.readSubsection("tallies",talliesSection);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("createTallies: Error: Configuration 'tallies' section doesn't exists.\n");
+      log.printf("createTallies: Error: Configuration 'tallies' section doesn't exists.\n");
     }
     return -1;
   }
 
   if(nthreads < 1){
-    printf("createTallies: Error: Simulation requires, at last, one thread for execution.");
+    log.printf("createTallies: Error: Simulation requires, at last, one thread for execution.");
     return -2;
   }
 
@@ -1918,7 +1956,7 @@ int createTallies(std::vector<pen_commonTallyCluster>& tallyGroups,
     err = tallyGroups[j].configureStatus();
     if(err != 0){
       if(verbose > 0)
-	printf("createTallies: Error on tally cluster %u "
+	log.printf("createTallies: Error on tally cluster %u "
 	       "creation and configuration (err code %d).\n",j,err);
       failedClusters++;
     }
@@ -1934,7 +1972,7 @@ int createTallies(std::vector<pen_commonTallyCluster>& tallyGroups,
     err = tallyGroups[j].shareConfig(tallyGroups[0], verbose);
     if(err != 0){
       if(verbose > 0)
-	printf("createTallies: Error on tally cluster %u. "
+	log.printf("createTallies: Error on tally cluster %u. "
 	       "Unable to get configuration from thread 0 (err code %d).\n",j,err);
       failedClusters++;
     }
@@ -1951,12 +1989,14 @@ int createGeometry(wrapper_geometry*& geometry,
 		   const pen_context& context,
 		   const unsigned verbose){
   
+  penred::logs::logger log;
+  
   //Get geometry section
   pen_parserSection geometrySection;
   int err = config.readSubsection("geometry",geometrySection);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("createGeometry: Error: Configuration 'geometry' section doesn't exist.\n");
+      log.printf("createGeometry: Error: Configuration 'geometry' section doesn't exist.\n");
     }
     return -2;
   }
@@ -1975,7 +2015,7 @@ int createGeometry(wrapper_geometry*& geometry,
   std::string geoType;
   if(geometrySection.read("type",geoType) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("createGeometry: Error: field 'geometry/type' not specified. String expected.\n");
+      log.printf("createGeometry: Error: field 'geometry/type' not specified. String expected.\n");
     }
     return -3;
   }
@@ -1984,7 +2024,7 @@ int createGeometry(wrapper_geometry*& geometry,
   geometry = penGeoRegister_create(geoType.c_str());
   if(geometry == nullptr){
     if(verbose > 0){
-      printf("createGeometry: Error creating geometry instance of type '%s'\n", geoType.c_str());
+      log.printf("createGeometry: Error creating geometry instance of type '%s'\n", geoType.c_str());
     }
     return -4;
   }
@@ -1993,14 +2033,14 @@ int createGeometry(wrapper_geometry*& geometry,
   geometry->name.assign("geometry");    
   if(geometry->configure(geometrySection,verbose) != 0){
     if(verbose > 0)
-      printf("createGeometry: Error: Fail on geometry configuration.\n");
+      log.printf("createGeometry: Error: Fail on geometry configuration.\n");
     return -5;
   }
   
   //Check errors
   if(geometry->configureStatus() != 0){
     if(verbose > 0)
-      printf("createGeometry: Error: Fail on geometry configuration.\n");
+      log.printf("createGeometry: Error: Fail on geometry configuration.\n");
     return -5;
   }
 
@@ -2014,28 +2054,30 @@ int setVarianceReduction(const wrapper_geometry& geometry,
 			 pen_VRCluster<pen_state_gPol>& photonVR,
 			 const unsigned verbose){
 
+  penred::logs::logger log;  
+
   //Extract variance reduction section
   pen_parserSection VRSection;
   if(config.readSubsection("VR",VRSection) != INTDATA_SUCCESS){
     if(verbose > 1){
-      printf("No variance reduction specified.\n");
+      log.printf("No variance reduction specified.\n");
     }
     return 1;
   }
 
-  if(verbose > 1)printf("\n");
+  if(verbose > 1)log.printf("\n");
   
   pen_parserSection VRgeneric;
   if(VRSection.readSubsection("generic",VRgeneric) != INTDATA_SUCCESS){
     if(verbose > 1){
-      printf("No generic variance reduction specified.\n");
+      log.printf("No generic variance reduction specified.\n");
     }
   }
   else{
     genericVR.configure(VRgeneric,geometry,verbose);
     genericVR.name.assign("Generic-VR");
     if(genericVR.configureStatus() != 0){
-      printf("setVarianceReduction: Error: Unable to configure "
+      log.printf("setVarianceReduction: Error: Unable to configure "
 	     "generic variance reduction.");
       return -24;
     }
@@ -2044,13 +2086,13 @@ int setVarianceReduction(const wrapper_geometry& geometry,
   pen_parserSection VRphoton;
   if(VRSection.readSubsection("photon",VRphoton) != INTDATA_SUCCESS){
     if(verbose > 1){
-      printf("No photon based variance reduction specified.\n");
+      log.printf("No photon based variance reduction specified.\n");
     }
   }else{
     photonVR.name.assign("Photon-VR");
     photonVR.configure(VRphoton,geometry,verbose);
     if(photonVR.configureStatus() != 0){
-      printf("setVarianceReduction: Error: Unable to configure "
+      log.printf("setVarianceReduction: Error: Unable to configure "
 	     "photon specific variance reduction.");
       return -25;
     }    

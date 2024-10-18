@@ -1062,7 +1062,8 @@ struct container : public box<T>{
       char errmsg[200];
       sprintf(errmsg,"container:split: Error: %lu/%lu elements "
 	      "out of defined regions.\n",
-	      remaining,regions[index2Split].elements.size());      
+	      static_cast<unsigned long>(remaining),
+	      static_cast<unsigned long>(regions[index2Split].elements.size()));
       throw std::runtime_error(errmsg); 
     }
 
@@ -1150,7 +1151,8 @@ struct container : public box<T>{
 	     "      Expected elements : %lu\n"
 	     "      Final elements    : %lu\n"
 	     " Please, report this issue.\n",
-	     initElements, finalElements);
+	     static_cast<unsigned long>(initElements),
+	     static_cast<unsigned long>(finalElements));
       fflush(stdout);
       throw std::range_error("Lost elements on container split");      
     }
@@ -1560,6 +1562,8 @@ namespace penred{
       const std::array<std::pair<double, double>, dim>& readLimits() const {
 	return limits;
       }
+      inline const std::array<double, dim>& readBinWidths() const { return binWidths; }
+      inline double readBinWidth(size_t idim) const { return binWidths[idim]; }
       inline unsigned long getNBins(const unsigned idim) const { return nBins[idim]; }
       inline unsigned long getNBins() const { return totalBins; }
       inline unsigned long effectiveDim() const {
@@ -1787,6 +1791,118 @@ namespace penred{
 	}	
       }
 
+      int print2DMatrixData(const char* prefix,
+			    const std::function<
+			    std::pair<double,double>(const unsigned long,
+						     const std::array<unsigned long, dim>&)
+			    > fvalue,
+			    const bool printOnlyEffective = false){
+
+	//Create an array to store local dim indexes
+	std::array<unsigned long, dim> indexes;
+	std::fill(indexes.begin(), indexes.end(), 0lu);
+
+	//Check the number of dimensions
+	if(dim < 2){
+	  //Only one dimension, print all values in a single row
+	  std::string baseFilename(prefix);
+	  FILE* fval = fopen((baseFilename + ".dat").c_str(), "w");
+	  if(fval == nullptr){
+	    return 1;
+	  }
+	  FILE* ferr = fopen((baseFilename + "_err.dat").c_str(), "w");
+	  if(ferr == nullptr){
+	    return 1;
+	  }
+	  
+	  for(unsigned long i = 0; i < totalBins; ++i){
+	    //Get the value and error
+	    std::pair<double, double> val = fvalue(i, indexes);
+
+	    //Print them
+	    fprintf(fval,"%.5E ", val.first);
+	    fprintf(ferr,"%.5E ", val.second);
+	  }
+
+	  //Close files
+	  fclose(fval);
+	  fclose(ferr);
+	}else{
+	  //Two or more dimensions found, create
+	  //bidimensional matrix for each "plane"
+	  
+	  //Iterate all bins
+	  unsigned long k = 0;
+	  while(k < totalBins){
+
+	    //Create the files to store the next data plane
+	    std::string baseFilename = prefix;
+	    if(printOnlyEffective){
+	      for(size_t idim = 2; idim < dim; ++idim){
+		if(nBins[idim] > 1) //Add only efective dimensions to filename
+		  baseFilename += "_" + std::to_string(indexes[idim]);
+	      }
+	    }
+	    else{
+	      for(size_t idim = 2; idim < dim; ++idim){
+		baseFilename += "_" + std::to_string(indexes[idim]);
+	      }
+	    }
+	    FILE* fval = fopen((baseFilename + ".dat").c_str(), "w");
+	    if(fval == nullptr){
+	      return 1;
+	    }
+	    FILE* ferr = fopen((baseFilename + "_err.dat").c_str(), "w");
+	    if(ferr == nullptr){
+	      return 1;
+	    }
+
+	    //Iterate the first two dimensions
+	    for(size_t j = 0; j < nBins[1]; ++j){
+	      for(size_t i = 0; i < nBins[0]; ++i){
+		//Get the value and error
+		std::pair<double, double> val = fvalue(k, indexes);
+	    
+		//Print them
+		fprintf(fval,"%.5E ", val.first);
+		fprintf(ferr,"%.5E ", val.second);
+
+		//Increase counters
+		++indexes[0];
+		++k;
+	      }
+	      //Row finish, begin a new line
+	      fprintf(fval,"\n");
+	      fprintf(ferr,"\n");
+	      
+	      //Fix counters
+	      indexes[0] = 0;
+	      ++indexes[1];
+	    }
+
+	    //Check for other dimensions index increment
+	    for(size_t idim = 1; idim < dim; ++idim){
+	      if(indexes[idim] >= nBins[idim]){
+	      
+		indexes[idim] = 0;
+		if(idim < dim-1){
+		  ++indexes[idim+1];
+		}
+	      }
+	      else{
+		break;
+	      }	    
+	    }
+
+	    //Close files
+	    fclose(fval);
+	    fclose(ferr);
+	  }
+	}
+
+	return 0;
+      }
+      
       //Read function
       int loadData(std::vector<double>& data,
 		   std::vector<double>& sigma,
@@ -2133,7 +2249,7 @@ namespace penred{
 
       //Get functions
       const std::vector<type>& readData() const { return data; }
-      const std::vector<double>& readSigam() const { return sigma; }
+      const std::vector<double>& readSigma() const { return sigma; }
 
       template<size_t dimInit>
       int init(const std::array<unsigned long, dimInit>& nBinsIn,
@@ -2350,6 +2466,19 @@ namespace penred{
 		    printBinNumber,
 		    printOnlyEffective);
 	
+      }
+
+      inline int printMatrix(const char* prefix,
+			     const bool printOnlyEffective = false){
+
+	//Print description and dimension information
+	return this->
+	  print2DMatrixData
+	  (prefix,
+	   [this](const unsigned long i, //Function to calculate value and sigma
+		  const std::array<unsigned long, dim>&) -> std::pair<double,double> {
+	    return {data[i], sigma[i]};
+	  },printOnlyEffective);	
       }
 
       //Read functions
@@ -2625,6 +2754,44 @@ namespace penred{
 		      }
 
 		      return {q, sigma};
+		    },
+		    nSigma,
+		    printCoordinates,
+		    printBinNumber,
+		    printOnlyEffective);
+	
+      }
+
+      inline void print(FILE* fout,
+			const unsigned long long nhists,
+			const double* binFactors,
+			const unsigned nSigma,
+			const bool printCoordinates,
+			const bool printBinNumber,
+			const bool printOnlyEffective = false) const {
+
+	//Calculate normalization factor
+	const double factor = 1.0/static_cast<double>(nhists);
+
+	//Print description and dimension information
+	this->
+	  printData(fout,
+		    [this, factor, binFactors] //Function to calculate value and sigma
+		    (const unsigned long i, //Global index
+		     const std::array<unsigned long, dim>&) -> std::pair<double,double> {
+
+		      //Print value information and error
+		      double binFactor = binFactors[i];
+		      const double q = data[i]*factor;
+		      double sigma = data2[i]*factor - q*q;
+		      if(sigma > 0.0){
+			sigma = sqrt(sigma*factor);
+		      }
+		      else{
+			sigma = 0.0;
+		      }
+
+		      return {q*binFactor, sigma*binFactor};
 		    },
 		    nSigma,
 		    printCoordinates,

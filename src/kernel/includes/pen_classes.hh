@@ -38,6 +38,7 @@
 #include <functional>
 #include <algorithm>
 #include <numeric>
+#include <memory>
 
 #include "../states/pen_baseState.hh"
 #include "pen_constants.hh"
@@ -56,7 +57,7 @@ class wrapper_geometry;
 // Materials
 //-------------------
 
-class abc_material{
+class abc_material : public penred::logs::logger{
 
 private:
   
@@ -112,10 +113,11 @@ public:
 // Geometry
 //-------------------
 
-class wrapper_geometry{
+class wrapper_geometry : public penred::logs::logger{
 
 protected:
   int configStatus;
+
 public:
 
   std::string name;
@@ -180,7 +182,7 @@ public:
 //-------------------
 
 template<class stateType>
-class abc_VR{
+class abc_VR : public penred::logs::logger{
 
 public:
   virtual void run_particleStack(const unsigned long long nhist,
@@ -617,7 +619,7 @@ template<class stateType> class pen_particleStack : public abc_particleStack{
   std::vector<stateType> states;
  public:
   
-  constexpr pen_particleStack() : abc_particleStack() {
+  pen_particleStack() : abc_particleStack() {
     states.resize(constants::NMS);
   }
 
@@ -630,7 +632,8 @@ template<class stateType> class pen_particleStack : public abc_particleStack{
       }
     else
       {
-	printf("pen_particleStack:store:Warning: Stack full\n");
+	penred::logs::logger::printf(penred::logs::SIMULATION,
+				     "pen_particleStack:store:Warning: Stack full\n");
 	//Stack is full remove particle with less energy
 	unsigned int lessEpos = 0;
 	double minE = 1.0e35;
@@ -678,7 +681,7 @@ template<class stateType> class pen_particleStack : public abc_particleStack{
 // Context
 //-------------------
 
-class wrapper_context{
+class wrapper_context : public penred::logs::logger{
 
 public:
   
@@ -768,7 +771,10 @@ public:
 
 template <class baseMat>
 class abc_context : public wrapper_context{
+public:
 
+  typedef baseMat matType;
+  
 private:
 
   //Array with cutoff energies
@@ -1091,11 +1097,22 @@ public:
   };
 };
 
+template<class contextType>
+inline std::shared_ptr<contextType> createContext(){
+  static_assert(std::is_base_of<wrapper_context, contextType>::value,
+		"Error: 'createContext' cannot create contexts not"
+		"derived from 'wrapper_context'");
+  static_assert(std::is_base_of<abc_context<typename contextType::matType>, contextType>::value,
+		"Error: Context type provided to 'createContext' is not "
+		"derived from 'abc_context'");  
+  return std::make_shared<contextType>();
+}
+
 //-------------------
 // Energy grid
 //-------------------
 
-class abc_grid{
+class abc_grid : public penred::logs::logger{
 
 public:
   // ****  Energy grid and interpolation constants. The means of "Raw" calificative
@@ -1124,7 +1141,7 @@ public:
 };
 
 template<size_t dim>
-class abc_genericGrid{
+class abc_genericGrid : public penred::logs::logger{
 public:
   static const size_t size = dim;
   double EMIN, EL, EU, ET[size], DLEMP[size], DLEMP1, DLFC;

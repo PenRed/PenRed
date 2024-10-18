@@ -49,5 +49,76 @@
 #include "tallyPSS.hh"
 #include "tallyDetectionSpatialDistrib.hh"
 #include "tallyEmergingSphericalDistribution.hh"
+#include "tallySingles.hh"
+
+namespace penred{
+  namespace tally{
+
+#ifdef _PEN_USE_DICOM_
+    using typesGenericTallies = std::tuple<pen_EdepMat,
+					   pen_EdepBody,
+					   pen_SphericalDoseDistrib,
+					   pen_tallyTracking,
+					   pen_EmergingPartDistrib,
+					   pen_CylindricalDoseDistrib,
+					   pen_ImpactDetector,
+					   pen_tallySecondary,
+					   pen_SpatialDoseDistrib,
+					   pen_AngularDet,
+					   pen_tallyPhaseSpaceFile,
+					   pen_tallyKermaTrackLength,
+					   pen_DICOMDoseDistrib,
+					   pen_CTsinogram,
+					   pen_tallyDICOMkerma,
+					   pen_PSS,
+					   pen_DetectionSpatialDistrib,
+					   pen_EmergingSphericalDistrib,
+					   pen_Singles>;
+#else
+    using typesGenericTallies = std::tuple<pen_EdepMat,
+					   pen_EdepBody,
+					   pen_SphericalDoseDistrib,
+					   pen_tallyTracking,
+					   pen_EmergingPartDistrib,
+					   pen_CylindricalDoseDistrib,
+					   pen_ImpactDetector,
+					   pen_tallySecondary,
+					   pen_SpatialDoseDistrib,
+					   pen_AngularDet,
+					   pen_tallyPhaseSpaceFile,
+					   pen_tallyKermaTrackLength,
+					   pen_CTsinogram,
+					   pen_PSS,
+					   pen_DetectionSpatialDistrib,
+					   pen_EmergingSphericalDistrib,
+					   pen_Singles>;    
+#endif
+
+    template<size_t T>
+    typename std::enable_if<T >= std::tuple_size<typesGenericTallies>::value, bool>::type
+    checkRegistersGeneric(const unsigned){ return true; }
+    
+    template<size_t T>
+    typename std::enable_if<T < std::tuple_size<typesGenericTallies>::value, bool>::type
+    checkRegistersGeneric(const unsigned verbose){
+      using tupleType = typename std::tuple_element<T, typesGenericTallies>::type;
+      int val = tupleType::registerStatus();
+      if(val != 0){
+	if(verbose > 0){
+	  printf("Warning: generic tally type '%s' register failed."
+		 " Error code: %d\n",
+		 tupleType::___ID, val);
+	}
+	checkRegistersGeneric<T+1>(verbose);
+	return false;
+      }else{
+	return checkRegistersGeneric<T+1>(verbose);
+      }
+    }
+    
+    template<>
+    bool checkRegistered<pen_particleState>(const unsigned verbose);
+  }
+}
 
 #endif

@@ -66,10 +66,10 @@ namespace penred{
 	if(verbose > 1){
 	  printf("constructDevice: Error: The minimum distance between "
 		 "inherent filter and first added filter must be %f cm\n"
-		 "    Inherent filter to source: %f\n"
-		 "    Added filter to source   : %f\n",
+		 "    Inherent filter end to source: %f\n"
+		 "    Added filter start to source   : %f\n",
 		 4.0*elementSpacing+2.0*collHeight,
-		 source2inherentFilter,
+		 inherentFilter2filters,
 		 source2filter);
 	}
 	return errors::INVALID_DISTANCE;
@@ -1001,8 +1001,6 @@ namespace penred{
       for(unsigned i = 0; i < nThreads; i++){
 	simConfigs[i].iThread = i;
 	simConfigs[i].copyCommonConfig(baseSimConfig);
-	//Set, by default, std::cout as output stream
-	simConfigs[i].setOutstream(std::cout);
 	//Set seed pair
 	simConfigs[i].setSeeds(reader.seedPair+i);
 	simConfigs[i].fSimFinish =
@@ -1380,7 +1378,12 @@ namespace penred{
 
       // ** Create context
 
-      pen_context context;
+      //Create simulation context
+      std::shared_ptr<pen_context> pcontext = createContext<pen_context>();
+      //Get context reference. Notice that pcontext will
+      //not be released until the function ends
+      pen_context& context = *pcontext.get();
+      
 
       //Run context configuration step with no geometry
       pen_parserSection matInfo;

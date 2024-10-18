@@ -34,4 +34,38 @@
 #include "VRradialSplitting.hh"
 #include "VRRussianRoulette.hh"
 
+namespace penred{
+  namespace vr{
+
+    using typesGenericVR = std::tuple<pen_VRsplitting,
+				      pen_VRRussianRoulette,
+				      pen_VRradialSplitting>;
+
+    template<size_t T>
+    typename std::enable_if<T >= std::tuple_size<typesGenericVR>::value, bool>::type
+    checkRegistersGeneric(const unsigned){ return true; }
+    
+    template<size_t T>
+    typename std::enable_if<T < std::tuple_size<typesGenericVR>::value, bool>::type
+    checkRegistersGeneric(const unsigned verbose){
+      using tupleType = typename std::tuple_element<T, typesGenericVR>::type;
+      int val = tupleType::registerStatus();
+      if(val != 0){
+	if(verbose > 0){
+	  printf("Warning: generic VR type '%s' register failed."
+		 " Error code: %d\n",
+		 tupleType::___ID, val);
+	}
+	checkRegistersGeneric<T+1>(verbose);
+	return false;
+      }else{
+	return checkRegistersGeneric<T+1>(verbose);
+      }
+    }
+    
+    template<>
+    bool checkRegistered<pen_particleState>(const unsigned verbose);
+  }
+}
+
 #endif

@@ -25,26 +25,14 @@
 //    
 //
 
-
-#include "pen_simulation.hh"
+#include "pen_data.hh"
 
 int main(int argc, char** argv){
 
-  if(argc < 2){
-    printf("usage: %s config-filename\n",argv[0]);
+  if(argc < 3){
+    printf("usage: %s internalData-filename outputYAML\n",argv[0]);
     return 0;
   }
-
-  // Create simulator object
-  //**************************
-  penred::simulation::simulator<pen_context> simula;
-
-  //Print version
-  std::cout << simula.versionMessage() << std::endl;
-
-  //**************************
-  // Parse configuration
-  //**************************
 
   //Parse configuration file
   pen_parserSection config;
@@ -61,31 +49,15 @@ int main(int argc, char** argv){
     return -1;
   }
 
-  //Set log files
-  std::string configLogFilename;
-  if(config.read("log/configuration",configLogFilename) != INTDATA_SUCCESS){
-    configLogFilename.assign("config.log");
-  }
-  std::string simLogFilename;
-  if(config.read("log/simulation",simLogFilename) != INTDATA_SUCCESS){
-    simLogFilename.assign("simulation.log");
+  //Create YAML file
+  std::string yamlString = config.stringifyYAML();
+  FILE* fout = fopen(argv[2], "w");
+  if(fout == nullptr){
+    printf("Error: Unable to open file %s", argv[2]);
+    return -2;
   }
 
-  penred::logs::logger log;  
-  if(!configLogFilename.empty()){
-    printf("Configuration log redirected to '%s'\n", configLogFilename.c_str());
-    log.setConfigurationLogFile(configLogFilename.c_str());
-  }
-  if(!simLogFilename.empty()){
-    printf("Simulation log redirected to '%s'\n", simLogFilename.c_str());
-    log.setSimulationLogFile(simLogFilename.c_str());  
-  }
+  fprintf(fout, "%s\n", yamlString.c_str());
 
-  // Configure simulator
-  //***********************
-  simula.configure(config);
-
-  // Run simulation
-  //***********************
-  simula.simulate();
+  return 0;
 }

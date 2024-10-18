@@ -22,27 +22,17 @@
 #
 #    contact emails:
 #
-#        vicent.gimenez.alventosa@gmail.com
+#        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
 #    
 #
 
+# Create mutren executable
+add_executable(internalData2YAML ${CMAKE_CURRENT_SOURCE_DIR}/internalData2YAML.cpp)
 
+target_link_libraries(internalData2YAML pen_internalData)
 
-
-#############################
-#  X-RAY LIB
-#############################
-
-set(SOURCE
-${CMAKE_CURRENT_SOURCE_DIR}/source/collimator.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/source/filter.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/source/anode.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/source/phantom.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/source/utilities.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/source/device.cpp)
-
-# Create lib
-add_library(pen_xray STATIC ${SOURCE})
-
-target_include_directories(pen_xray PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/includes)
-target_link_libraries(pen_xray pen_sim)
+# Install mutren executable
+install(
+TARGETS internalData2YAML
+DESTINATION ${PROJECT_SOURCE_DIR}/compiled/internalData/
+)

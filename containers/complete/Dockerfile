@@ -1,7 +1,7 @@
 #
 #
-#    Copyright (C) 2020 Universitat de València - UV
-#    Copyright (C) 2020 Universitat Politècnica de València - UPV
+#    Copyright (C) 2024 Universitat de València - UV
+#    Copyright (C) 2024 Universitat Politècnica de València - UPV
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -25,33 +25,27 @@
 #
 
 # Download fedora as base image
-FROM fedora:30
+FROM fedora:39
 
-# Set root user
-USER root
+# Update image and install all dependencies, including DICOM support
+RUN dnf update -y && dnf install -y git gcc-c++ make cmake dcmtk dcmtk-devel libjpeg libjpeg-devel libxml2 libxml2-devel openssl openssl-devel
 
-# Update image and install git
-RUN dnf update -y
-# Install git
-RUN dnf install -y git
-# Install compiler, cmake and make
-RUN dnf install -y gcc-c++ make cmake
-# Install DICOM reader library (dcmtk)
-RUN dnf install -y dcmtk dcmtk-devel libjpeg libjpeg-devel libxml2 libxml2-devel openssl openssl-devel
+#Clone PenRed repository, compile the code, save the main program and remove the build and source files
+RUN cd && git clone https://github.com/PenRed/PenRed.git \
+  && mkdir PenRed/src/build && cd PenRed/src/build \
+  && cmake -DWITH_NATIVE="OFF" -DWITH_DICOM="ON" -DWITH_MULTI_THREADING="ON" ../ \
+  && make install && cd \
+  && cp PenRed/src/compiled/mains/penmain/pen_main /usr/bin/penred && rm -fr PenRed
 
-#Clone PenRed repository and compile the code
-WORKDIR root
-RUN git clone https://github.com/PenRed/PenRed.git
-RUN mkdir PenRed/src/build && cd PenRed/src/build && cmake -DWITH_DICOM="ON" -DWITH_MULTI_THREADING="ON" ../ && make install 
-
-RUN cp PenRed/src/compiled/mains/penmain/pen_main /usr/bin/penred
-
-# Create a PenRed user
-RUN useradd -ms /bin/bash penred
-
-# Change to penred user
+# Add penred user and create simulation folder
+RUN groupadd --gid 1000 penred \
+  && useradd --uid 1000 --gid penred --create-home --no-log-init --shell /bin/bash penred \
+  && mkdir /sim \
+  && chown penred:penred /sim
 USER penred
-WORKDIR /home/penred
+
+# Set working directory
+WORKDIR /sim
 
 # Set entry point
 ENTRYPOINT ["/usr/bin/penred"]

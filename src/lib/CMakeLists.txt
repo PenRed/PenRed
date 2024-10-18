@@ -74,6 +74,6 @@ add_subdirectory(parameters)
 add_subdirectory(simulation)
 
 # x-ray folder
-if(WITH_EMBEDDED_DB)
+if(XRAY)
     add_subdirectory(x-ray)
-endif(WITH_EMBEDDED_DB)
+endif(XRAY)

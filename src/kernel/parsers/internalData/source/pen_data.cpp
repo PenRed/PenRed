@@ -1,8 +1,7 @@
-
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024 Universitat de València - UV
+//    Copyright (C) 2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -22,18 +21,9 @@
 //    contact emails:
 //
 //        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
 //    
 //
 
+#include "pen_data.hh"
 
-#include "pen_tallies.hh"
-
-
-int main(){
-  //Ensure register variables are linked from the static library
-  penred::tally::checkRegistered<pen_particleState>(1);
-  printf("Registered common tallies:\n");
-  printf("%s",pen_commonTallyCluster::typesList().c_str());
-  return 0;
-}
+std::vector<penred::logs::loggerFile> penred::logs::logger::_flog(penred::logs::logger::nlogs);

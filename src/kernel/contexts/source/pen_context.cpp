@@ -848,8 +848,8 @@ int pen_context::configure(const double EMAX,
 		 matData.density);
 	  for(size_t ic = 0; ic < matData.composition.size(); ++ic){
 	    printf("    %u: %E\n",
-		   matData.composition[i].Z,
-		   matData.composition[i].fraction);
+		   matData.composition[ic].Z,
+		   matData.composition[ic].fraction);
 	  }
 	  printf("\n");
 	}
@@ -1731,7 +1731,9 @@ pen_context* pen_context::createAuxContext(double EMAX,
   context = new pen_context();
   if(context == nullptr){
     if(verbose > 0){
-      printf("createAuxContext: Error allocating auxilary context.\n");      
+      penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				   "createAuxContext: Error allocating "
+				   "auxilary context.\n");      
     }
     return nullptr;
   }
@@ -1740,8 +1742,9 @@ pen_context* pen_context::createAuxContext(double EMAX,
   int errmat = context->setMats<pen_material>(1);
   if(errmat != 0){
     if(verbose > 0){
-      printf("createAuxContext: Error at context "
-	     "material creation: %d.\n",errmat);
+      penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				   "createAuxContext: Error at context "
+				   "material creation: %d.\n",errmat);
     }
     delete context;
     return nullptr;
@@ -1765,8 +1768,9 @@ pen_context* pen_context::createAuxContext(double EMAX,
   if(verbose > 0){
     fcontext = fopen("rangeContext.rep","w");
     if(fcontext == nullptr){
-      printf("createAuxContext: Error: unable to create "
-	     "file 'rangeContext.rep'\n");
+      penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				   "createAuxContext: Error: unable to create "
+				   "file 'rangeContext.rep'\n");
       delete context;
       return nullptr;
     }
@@ -1778,8 +1782,10 @@ pen_context* pen_context::createAuxContext(double EMAX,
   int err = context->init(EMAX,nullptr,INFO,PMFILEstr);
   if(err != 0){
     if(verbose > 0){
-      printf("createAuxContext: Error: Unable to configure range context."
-	     "More details can be found in 'rangeContext.rep' file.\n");
+      penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				   "createAuxContext: Error: Unable to "
+				   "configure range context. More details "
+				   "can be found in 'rangeContext.rep' file.\n");
     }
     delete context;
     return nullptr;

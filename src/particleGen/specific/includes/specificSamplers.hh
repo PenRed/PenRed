@@ -39,4 +39,72 @@
 #include "brachySource.hh"
 #include "memoryPSFsource.hh"
 
+namespace penred{
+  namespace sampler{
+
+#ifdef _PEN_USE_DICOM_
+    using typesSpecificCommonState = std::tuple<random_specificSampler,
+						psf_specificSampler,
+						ct_specificSampler,
+						pennuc_specificSampler,
+						brachy_specificSampler,
+						psfMemory_specificSampler>;
+#else
+    using typesSpecificCommonState = std::tuple<random_specificSampler,
+						psf_specificSampler,
+						ct_specificSampler,
+						pennuc_specificSampler,
+						psfMemory_specificSampler>;    
+#endif
+
+    using typesSpecificGPolState = std::tuple<gammaPolarised_specificSampler>;
+    
+
+    template<size_t T>
+    typename std::enable_if<T >= std::tuple_size<typesSpecificCommonState>::value, bool>::type
+    checkRegistersSpecificCommon(const unsigned){ return true; }
+    
+    template<size_t T>
+    typename std::enable_if<T < std::tuple_size<typesSpecificCommonState>::value, bool>::type
+    checkRegistersSpecificCommon(const unsigned verbose){
+      using tupleType = typename std::tuple_element<T, typesSpecificCommonState>::type;
+      int val = tupleType::registerStatus();
+      if(val != 0){
+	if(verbose > 0){
+	  printf("Warning: Specific sampler type '%s' register failed."
+		 " Error code: %d\n",
+		 tupleType::___ID, val);
+	}
+	checkRegistersSpecificCommon<T+1>(verbose);
+	return false;
+      }else{
+	return checkRegistersSpecificCommon<T+1>(verbose);
+      }
+    }
+      
+      
+    template<size_t T>
+    typename std::enable_if<T >= std::tuple_size<typesSpecificGPolState>::value, bool>::type
+    checkRegistersSpecificGPol(const unsigned){ return true; }
+    
+    template<size_t T>
+    typename std::enable_if<T < std::tuple_size<typesSpecificGPolState>::value, bool>::type
+    checkRegistersSpecificGPol(const unsigned verbose){
+      using tupleType = typename std::tuple_element<T, typesSpecificGPolState>::type;
+      int val = tupleType::registerStatus();
+      if(val != 0){
+	if(verbose > 0){
+	  printf("Warning: Specific sampler type '%s' register failed."
+		 " Error code: %d\n",
+		 tupleType::___ID, val);
+	}
+	checkRegistersSpecificGPol<T+1>(verbose);
+	return false;
+      }else{
+	return checkRegistersSpecificGPol<T+1>(verbose);
+      }
+    }    
+  }
+}
+
 #endif

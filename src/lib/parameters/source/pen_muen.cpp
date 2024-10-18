@@ -67,8 +67,11 @@ int pen_muen::calculate(const double Emin,
     return -2;
   }
 
-  //Create a context
-  pen_context context;
+  //Create simulation context
+  std::shared_ptr<pen_context> pcontext = createContext<pen_context>();
+  //Get context reference. Notice that pcontext will
+  //not be released until the function ends
+  pen_context& context = *pcontext.get();  
   
   //Set the number of materials to context (1 per thread)
   unsigned int nCalcThreads = 1;
@@ -273,8 +276,12 @@ int pen_muen::calculate(const char** energySpectrums,
     return -2;
   }
   
-  //Create a context
-  pen_context context;
+  //Create simulation context
+  std::shared_ptr<pen_context> pcontext = createContext<pen_context>();
+  //Get context reference. Notice that pcontext will
+  //not be released until the function ends
+  pen_context& context = *pcontext.get();  
+
   
   //Set the number of materials to context (1 per thread)
   unsigned int nCalcThreads = 1;
