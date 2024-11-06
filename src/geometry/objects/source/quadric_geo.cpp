@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2021 Universitat de València - UV
-//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2024 Universitat de València - UV
+//    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -568,7 +568,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
       Eixir0 = true;
       char AUXBL[100];
       memset(AUXBL,0,sizeof(AUXBL));
-      fscanf(IR,"%[^\r\n]%*[^\n]",AUXBL);
+      fscanf(IR,"%99[^\r\n]%*[^\n]",AUXBL);
       if(fgetc(IR)=='\r'){fgetc(IR);}
       BLINE[0]='\0';
       if(strlen(AUXBL)>72){sprintf(BLINE,"%-.72s",AUXBL);}else{sprintf(BLINE,"%-72s",AUXBL);}
@@ -610,7 +610,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
     {
       Eixir = true;
       BLINE[0]='\0';
-      fscanf(IR,"%[^\r\n]%*[^\n]",BLINE);
+      fscanf(IR,"%99[^\r\n]%*[^\n]",BLINE);
       if(fgetc(IR)=='\r'){fgetc(IR);}
       if(((BLINE[0] == 'C' || BLINE[0] == 'c') && (BLINE[1] == '\0' || BLINE[1] == CCR || BLINE[1] == CNL || BLINE[1] == ' ')) || BLINE[0] == '#')
 	{
@@ -757,7 +757,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	      Eixir2 = true;
 
         BLINE[0]='\0';
-        fscanf(IR,"%[^\r\n]%*[^\n]",BLINE);
+        fscanf(IR,"%99[^\r\n]%*[^\n]",BLINE);
         if(fgetc(IR)=='\r'){fgetc(IR);}
 	    if(((BLINE[0] == 'C' || BLINE[0] == 'c') && (BLINE[1] == '\0' || BLINE[1] == CCR || BLINE[1] == CNL || BLINE[1] == ' ')) || BLINE[0] == '#')
 		{
@@ -839,7 +839,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		{
 		  Eixir2 = true;
 		  memset(BLINE,0,sizeof(BLINE));
-          fscanf(IR,"%[^\r\n]%*[^\n]",BLINE);
+          fscanf(IR,"%99[^\r\n]%*[^\n]",BLINE);
           if(fgetc(IR)=='\r'){fgetc(IR);}
 		  if(((BLINE[0] == 'C' || BLINE[0] == 'c') && (BLINE[1] == '\0' || BLINE[1] == CCR || BLINE[1] == CNL || BLINE[1] == ' ')) || BLINE[0] == '#')
 		    {
@@ -1085,7 +1085,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    {
 	      Eixir2 = true;
 	      memset(BLINE,0,sizeof(BLINE));
-          fscanf(IR,"%[^\r\n]%*[^\n]",BLINE);
+          fscanf(IR,"%99[^\r\n]%*[^\n]",BLINE);
           if(fgetc(IR)=='\r'){fgetc(IR);}
 	      if(((BLINE[0] == 'C' || BLINE[0] == 'c') && (BLINE[1] == '\0' || BLINE[1] == CCR || BLINE[1] == CNL || BLINE[1] == ' ')) || BLINE[0] == '#')
 		{
@@ -1226,7 +1226,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		{
 		  Eixir3 = true;
 		  memset(BLINE,0,sizeof(BLINE));
-          fscanf(IR,"%[^\r\n]%*[^\n]",BLINE);
+          fscanf(IR,"%99[^\r\n]%*[^\n]",BLINE);
           if(fgetc(IR)=='\r'){fgetc(IR);}
 		  if(((BLINE[0] == 'C' || BLINE[0] == 'c') && (BLINE[1] == '\0' || BLINE[1] == CCR || BLINE[1] == CNL || BLINE[1] == ' ')) || BLINE[0]  == '#')
 		    {
@@ -1488,7 +1488,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    {
 	      Eixir2 = true;
 	      memset(BLINE,0,sizeof(BLINE));
-          fscanf(IR,"%[^\r\n]%*[^\n]",BLINE);
+          fscanf(IR,"%99[^\r\n]%*[^\n]",BLINE);
           if(fgetc(IR)=='\r'){fgetc(IR);}
 	      if(((BLINE[0] == 'C' || BLINE[0] == 'c') && (BLINE[1] == '\0' || BLINE[1] == CCR || BLINE[1] == CNL || BLINE[1] == ' ')) || BLINE[0] == '#')
 		{
@@ -1539,7 +1539,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    {
 	      Eixir2 = true;
 	      memset(BLINE,0,sizeof(BLINE));
-          fscanf(IR,"%[^\r\n]%*[^\n]",BLINE);
+          fscanf(IR,"%99[^\r\n]%*[^\n]",BLINE);
           if(fgetc(IR)=='\r'){fgetc(IR);}
 	      if(((BLINE[0] == 'C' || BLINE[0] == 'c') && (BLINE[1] == '\0' || BLINE[1] == CCR || BLINE[1] == CNL || BLINE[1] == ' ')) || BLINE[0] == '#')
 		{
@@ -1966,7 +1966,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    {
 	      Eixir2 = true;
 	      memset(BLINE,0,sizeof(BLINE));
-          fscanf(IR,"%[^\r\n]%*[^\n]",BLINE);
+          fscanf(IR,"%99[^\r\n]%*[^\n]",BLINE);
           if(fgetc(IR)=='\r'){fgetc(IR);}
 	      if(((BLINE[0] == 'C' || BLINE[0] == 'c') && (BLINE[1] == '\0' || BLINE[1] == CCR || BLINE[1] == CNL || BLINE[1] == ' ')) || BLINE[0] == '#')
 		{
@@ -2025,7 +2025,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    {
 	      Eixir2 = true;
 	      memset(BLINE,0,sizeof(BLINE));
-          fscanf(IR,"%[^\r\n]%*[^\n]",BLINE);
+          fscanf(IR,"%99[^\r\n]%*[^\n]",BLINE);
           if(fgetc(IR)=='\r'){fgetc(IR);}
 	      if(((BLINE[0] == 'C' || BLINE[0] == 'c') && (BLINE[1] == '\0' || BLINE[1] == CCR || BLINE[1] == CNL || BLINE[1] == ' ')) || BLINE[0] == '#')
 		{
@@ -2495,7 +2495,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		{
 		  Eixir3 = true;
 		  memset(BLINE,0,sizeof(BLINE));
-          fscanf(IR,"%[^\r\n]%*[^\n]",BLINE);
+          fscanf(IR,"%99[^\r\n]%*[^\n]",BLINE);
           if(fgetc(IR)=='\r'){fgetc(IR);}
 		  if(((BLINE[0] == 'C' || BLINE[0] == 'c') && (BLINE[1] == '\0' || BLINE[1] == CCR || BLINE[1] == CNL || BLINE[1] == ' ')) || BLINE[0] == '#')
 		    {
@@ -2783,7 +2783,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    {
 	      Eixir2 = true;
 	      memset(BLINE,0,sizeof(BLINE));
-          fscanf(IR,"%[^\r\n]%*[^\n]",BLINE);
+          fscanf(IR,"%99[^\r\n]%*[^\n]",BLINE);
           if(fgetc(IR)=='\r'){fgetc(IR);}
 	      if(((BLINE[0] == 'C' || BLINE[0] == 'c') && (BLINE[1] == '\0' || BLINE[1] == CCR || BLINE[1] == CNL || BLINE[1] == ' ')) || BLINE[0] == '#')
 		{
@@ -2893,7 +2893,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    {
 	      Eixir2 = true;
 	      memset(BLINE,0,sizeof(BLINE));
-          fscanf(IR,"%[^\r\n]%*[^\n]",BLINE);
+          fscanf(IR,"%99[^\r\n]%*[^\n]",BLINE);
           if(fgetc(IR)=='\r'){fgetc(IR);}
 	      if(((BLINE[0] == 'C' || BLINE[0] == 'c') && (BLINE[1] == '\0' || BLINE[1] == CCR || BLINE[1] == CNL || BLINE[1] == ' ')) || BLINE[0] == '#')
 		{
@@ -2939,7 +2939,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		{
 		  Eixir2 = true;
 		  memset(BLINE,0,sizeof(BLINE));
-          fscanf(IR,"%[^\r\n]%*[^\n]",BLINE);
+          fscanf(IR,"%99[^\r\n]%*[^\n]",BLINE);
           if(fgetc(IR)=='\r'){fgetc(IR);}
 		  if(((BLINE[0] == 'C' || BLINE[0] == 'c') && (BLINE[1] == '\0' || BLINE[1] == CCR || BLINE[1] == CNL || BLINE[1] == ' ')) || BLINE[0] == '#')
 		    {
@@ -3447,7 +3447,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    {
 	      Eixir2 = true;
 	      memset(BLINE,0,sizeof(BLINE));
-          fscanf(IR,"%[^\r\n]%*[^\n]",BLINE);
+          fscanf(IR,"%99[^\r\n]%*[^\n]",BLINE);
           if(fgetc(IR)=='\r'){fgetc(IR);}
 	      if(((BLINE[0] == 'C' || BLINE[0] == 'c') && (BLINE[1] == '\0' || BLINE[1] == CCR || BLINE[1] == CNL || BLINE[1] == ' ')) || BLINE[0] == '#')
 		{
@@ -3518,7 +3518,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    {
 	      Eixir2 = true;
 	      memset(BLINE,0,sizeof(BLINE));
-          fscanf(IR,"%[^\r\n]%*[^\n]",BLINE);
+          fscanf(IR,"%99[^\r\n]%*[^\n]",BLINE);
           if(fgetc(IR)=='\r'){fgetc(IR);}
 	      if(((BLINE[0] == 'C' || BLINE[0] == 'c') && (BLINE[1] == '\0' || BLINE[1] == CCR || BLINE[1] == CNL || BLINE[1] == ' ')) || BLINE[0] == '#')
 		{
