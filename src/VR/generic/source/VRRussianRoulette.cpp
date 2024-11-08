@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2020-2021 Universitat de València - UV
-//    Copyright (C) 2020-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2020-2024 Universitat de València - UV
+//    Copyright (C) 2020-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -189,8 +189,8 @@ int pen_VRRussianRoulette::configure(const pen_parserSection& config,
 
   if(bodies.size() > 0){
     if(verbose > 1){
-      printf("\n\n **** Body roussian roulette:\n\n");
-      printf(" Body  | survival prob\n");      
+      printf("\n\n **** Body russian roulette:\n\n");
+      printf("   Body   | survival prob\n");      
     }
     
     for(unsigned ibname = 0; ibname < bodies.size(); ibname++){
@@ -257,9 +257,16 @@ int pen_VRRussianRoulette::configure(const pen_parserSection& config,
 
       //Print configuration
       if(verbose > 1){
-	printf(" %5d   %.5E\n", ibody,survivalProb);
-      }
-      
+        long int len = bodies[ibname].length();
+        long int remaining = 10-len;
+        long int remaining05 = remaining/2;
+        
+        if(remaining > 0){
+          printf("%*s%s%*s  %5E\n", remaining05, " ", bodies[ibname].c_str(), remaining05 + remaining % 2, " ", survivalProb);
+        }else{
+          printf(" %s  %5E\n", bodies[ibname].c_str(),survivalProb); 
+       }
+     }
     }
   }
   else if(verbose > 1){
@@ -268,11 +275,20 @@ int pen_VRRussianRoulette::configure(const pen_parserSection& config,
 
   if(verbose > 1){
     printf("\n\nFinal russian roulette:\n\n");
-    printf(" Body  | survival prob\n");
-    for(unsigned ibody = 0; ibody < pen_geoconst::NB; ibody++){      
-      
-      if(LRR[ibody])
-	printf(" %5u   %.5E\n", ibody,DRR[ibody]);
+    printf("   Body   | survival prob\n");
+    for(unsigned ibody = 0; ibody < pen_geoconst::NB; ibody++){
+       std::string bname = geometry.getBodyName(ibody);
+      if(LRR[ibody]){
+        long int len = bname.length();
+        long int remaining = 10-len;
+        long int remaining05 = remaining/2;
+        
+        if(remaining > 0){
+          printf("%*s%s%*s  %5E\n", remaining05, " ", bname.c_str(), remaining05 + remaining % 2, " ", DRR[ibody]);
+        }else{
+          printf(" %s  %5E\n", bname.c_str(),DRR[ibody]);          
+        }
+      }
     }
     printf("\n\n");
   }

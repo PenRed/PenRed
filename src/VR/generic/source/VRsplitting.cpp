@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2020 Universitat de València - UV
-//    Copyright (C) 2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2020-2024 Universitat de València - UV
+//    Copyright (C) 2020-2024 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -190,7 +190,7 @@ int pen_VRsplitting::configure(const pen_parserSection& config,
   if(bodies.size() > 0){
     if(verbose > 1){
       printf("\n\n **** Body splitting:\n\n");
-      printf(" Body  | splitting\n");      
+      printf("   Body   | splitting\n");      
     }
     
     for(unsigned ibname = 0; ibname < bodies.size(); ibname++){
@@ -250,14 +250,22 @@ int pen_VRsplitting::configure(const pen_parserSection& config,
 		 "splitting factor (%d).\n",splitting);
 	return -30;
       }
-
+        
       //Set splitting factor for specified body
       ISPL[ibody] = (unsigned)splitting;	  
       LSPL[ibody] = true;	  
 
       //Print configuration
       if(verbose > 1){
-	printf(" %5d   %5d\n", ibody,splitting);
+        long int len = bodies[ibname].length();
+        long int remaining = 10-len;
+        long int remaining05 = remaining/2;
+        
+        if(remaining > 0){
+          printf("%*s%s%*s  %5u\n", remaining05, " ", bodies[ibname].c_str(), remaining05 + remaining % 2, " ", ISPL[ibody]);
+        }else{
+          printf(" %s  %5d\n", bodies[ibname].c_str(),splitting);          
+        }
       }
       
     }
@@ -268,11 +276,23 @@ int pen_VRsplitting::configure(const pen_parserSection& config,
 
   if(verbose > 1){
     printf("\n\nFinal splitting:\n\n");
-    printf(" Body  | splitting\n");
-    for(unsigned ibody = 0; ibody < pen_geoconst::NB; ibody++){      
+    printf("   Body   | splitting\n");
+    
+    
+    for(unsigned ibody = 0; ibody < pen_geoconst::NB; ibody++){
+       std::string bname = geometry.getBodyName(ibody);
       
-      if(LSPL[ibody])
-	printf(" %5u   %5u\n", ibody,ISPL[ibody]);
+      if(LSPL[ibody]){
+        long int len = bname.length();
+        long int remaining = 10-len;
+        long int remaining05 = remaining/2;
+        
+        if(remaining > 0){
+          printf("%*s%s%*s  %5u\n", remaining05, " ", bname.c_str(), remaining05 + remaining % 2, " ", ISPL[ibody]);
+        }else{
+          printf(" %s  %5d\n", bname.c_str(),ISPL[ibody]);          
+        }
+      }
     }
     printf("\n\n");
   }
