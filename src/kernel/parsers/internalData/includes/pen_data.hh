@@ -128,8 +128,10 @@ namespace penred{
 	va_start(args, format);
 	if(_flog[ilog].isOpen()){
 	  result = vfprintf(_flog[ilog].getFile(), format, args);      
+	  fflush(_flog[ilog].getFile());
 	}else{
 	  result = vprintf(format, args);
+	  fflush(stdout);
 	}
 	va_end(args);
 	return result;
@@ -141,8 +143,10 @@ namespace penred{
 	va_start(args, format);
 	if(_flog[defaultLog].isOpen()){
 	  result = vfprintf(_flog[defaultLog].getFile(), format, args);      
+	  fflush(_flog[defaultLog].getFile());
 	}else{
 	  result = vprintf(format, args);
+	  fflush(stdout);
 	}
 	va_end(args);
 	return result;
