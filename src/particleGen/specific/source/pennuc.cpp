@@ -2,6 +2,7 @@
 //
 //    Copyright (C) 2020-2023 Universitat de València - UV
 //    Copyright (C) 2020-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -2572,23 +2573,23 @@ void pennuc_specificSampler::ATRELI(const char* ATRELIFNAME,
   for (IS = 1; IS <= 16; IS++)
     {
       int I0 = IFIRST[IZ - 1][IS - 1];
-      int IN = ILAST[IZ - 1][IS - 1];
+      int iN = ILAST[IZ - 1][IS - 1];
       double PT = 0.0E0;
-      for (int I = I0; I <= IN; I++)
+      for (int I = I0; I <= iN; I++)
 	{
 	  PT = PT + P[I - 1];
 	}
-      for (int I = I0; I <= IN; I++)
+      for (int I = I0; I <= iN; I++)
 	{
 	  double PPI = 0.0E0;
-	  for (int J = I0; J <= IN; J++)
+	  for (int J = I0; J <= iN; J++)
 	    {
 	      if (IAL[J - 1] == I)
 		{
 		  PPI = PPI + (1.0E0 - F[J - 1]);
 		}
 	    }
-	  PPI = (PPI + F[I - 1]) / double (IN - I0 + 1);
+	  PPI = (PPI + F[I - 1]) / double (iN - I0 + 1);
 	  if (TST < fabs (1.0E0 - PPI * PT / P[I - 1]))
 	    {
 	      TST = fabs (1.0E0 - PPI * PT / P[I - 1]);

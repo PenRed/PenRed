@@ -3,6 +3,7 @@
 #
 #    Copyright (C) 2019-2024 Universitat de València - UV
 #    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+#    Copyright (C) 2024 Vicent Giménez Alventosa
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -30,13 +31,15 @@
  
 #----------------------------------------------------------------------------
 # Check CMake version
-cmake_minimum_required(VERSION 3.0.2 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.24.0 FATAL_ERROR)
 #-----------------------------------------------------------------------------
 CMAKE_POLICY(SET CMP0054 NEW)
 #-----------------------------------------------------------------------------
 include(CMakeDependentOption)
 
 option(WITH_DICOM "Build PenRed DICOM " OFF)
+CMAKE_DEPENDENT_OPTION(FORCE_DICOM_DOWNLOAD "Build PenRed with DICOM support building dependencies from source" OFF
+                       "WITH_DICOM" OFF)
 
 option(WITH_MULTI_THREADING "Build PenRed with multi-threading " ON)
 option(WITH_MPI "Build PenRed with MPI " OFF)
@@ -158,6 +161,22 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   # We need a stack size of 8MB (as it is default on linux)
   # See https://github.com/open62541/open62541/issues/1326
   #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
+
+  if(WIN32)
+    #Set static runtime for windows
+    if (CMAKE_BUILD_TYPE STREQUAL "Release")
+      set(CUSTOM_FLAGS "/MT")
+      add_compile_options(/MT)
+    elseif (CMAKE_BUILD_TYPE STREQUAL "Debug")
+      set(CUSTOM_FLAGS "/MTd")
+      add_compile_options(/MTd)
+    else()
+      set(CUSTOM_FLAGS "/MT")
+      add_compile_options(/MT)
+    endif()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CUSTOM_FLAGS}")
+    message(STATUS "CXX Flags: ${CMAKE_CXX_FLAGS}")
+  endif(WIN32)
 
 else()
   #Other compilers

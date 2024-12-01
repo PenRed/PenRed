@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.1] -
+
+### Added
+- CMake instructions to download and build all necessari dependencies for DICOM support
+- Option option to force the download and compilation of the DICOM package instead of using the system-installed version
+- Dirent header file for Windows
+
+### Changed
+- The embedded database generation has been refactored to save memory usage during compilation
+
+### Fixed
+- Bug: DICOM geometry configuration return success even if enclosure parameters are not provided
+- The PSF sampler triggers a segmentation fault when it encounters a particle with energy exceeding the defined maximum
+
 ## [1.12.0b] - 2024-11-06
 
 ### Changed

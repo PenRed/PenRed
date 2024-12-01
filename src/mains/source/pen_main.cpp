@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -246,9 +247,10 @@ int main(int argc, char** argv){
   }
 
   printf("***************************************************************\n");
-  printf(" PenRed version: 1.12.0b (13-November-2024) \n");
+  printf(" PenRed version: 1.12.1 (1-December-2024) \n");
   printf(" Copyright (c) 2019-2024 Universitat Politecnica de Valencia\n");
   printf(" Copyright (c) 2019-2024 Universitat de Valencia\n");
+  printf(" Copyright (c) 2024 Vicent Giménez Alventosa\n");
   printf(" Reference: Computer Physics Communications, 267 (2021) 108065\n"
          "            https://doi.org/10.1016/j.cpc.2021.108065\n");
   printf(" This is free software; see the source for copying conditions.\n"

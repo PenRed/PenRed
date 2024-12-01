@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -3111,7 +3112,7 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	      if(KDG > 0){ Eixir2 = false; continue;}    //GOTO 406
 	    }
 
-  	  int IN = 0;
+  	  int iN = 0;
 	  for(unsigned int I = 0; I < NB; I++)
 	    {
 	      IBCL[I] = 0;  // Label of a cloned body or module.
@@ -3190,47 +3191,47 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 					if(i==63){fprintf(IW, "%c\n", BLINE[i]);}
 					else{fprintf(IW, "%c", BLINE[i]);}
 				      }
-				    fprintf(IW, "%s(%2d,%2d,%2d,%2d,%2d)\n", LIND, IN, IN, IN, IN, IN);
+				    fprintf(IW, "%s(%2d,%2d,%2d,%2d,%2d)\n", LIND, iN, iN, iN, iN, iN);
 				  
 				    if(fabs(surfaces[KSD-1].AXX) > 1.0E-20)
 				      {
-					fprintf(IW, "%s(%22.15E,%4d%s\n", LAXX, surfaces[KSD-1].AXX, IN, LOPEN);
+					fprintf(IW, "%s(%22.15E,%4d%s\n", LAXX, surfaces[KSD-1].AXX, iN, LOPEN);
 				      }
 				    if(fabs(surfaces[KSD-1].AXY) > 1.0E-20)
 				      {
-					fprintf(IW, "%s(%22.15E,%4d%s\n", LAXY, surfaces[KSD-1].AXY, IN, LOPEN);				      
+					fprintf(IW, "%s(%22.15E,%4d%s\n", LAXY, surfaces[KSD-1].AXY, iN, LOPEN);				      
 				      }
 				    if(fabs(surfaces[KSD-1].AXZ) > 1.0E-20)
 				      {
-					fprintf(IW, "%s(%22.15E,%4d%s\n", LAXZ, surfaces[KSD-1].AXZ, IN, LOPEN);
+					fprintf(IW, "%s(%22.15E,%4d%s\n", LAXZ, surfaces[KSD-1].AXZ, iN, LOPEN);
 				      }
 				    if(fabs(surfaces[KSD-1].AYY) > 1.0E-20)
 				      {
-					fprintf(IW, "%s(%22.15E,%4d%s\n", LAYY, surfaces[KSD-1].AYY, IN, LOPEN);
+					fprintf(IW, "%s(%22.15E,%4d%s\n", LAYY, surfaces[KSD-1].AYY, iN, LOPEN);
 				      }
 				    if(fabs(surfaces[KSD-1].AYZ) > 1.0E-20)
 				      {
-					fprintf(IW, "%s(%22.15E,%4d%s\n", LAYZ, surfaces[KSD-1].AYZ, IN, LOPEN);
+					fprintf(IW, "%s(%22.15E,%4d%s\n", LAYZ, surfaces[KSD-1].AYZ, iN, LOPEN);
 				      }
 				    if(fabs(surfaces[KSD-1].AZZ) > 1.0E-20)
 				      {
-					fprintf(IW, "%s(%22.15E,%4d%s\n", LAZZ, surfaces[KSD-1].AZZ, IN, LOPEN);
+					fprintf(IW, "%s(%22.15E,%4d%s\n", LAZZ, surfaces[KSD-1].AZZ, iN, LOPEN);
 				      }
 				    if(fabs(surfaces[KSD-1].AX) > 1.0E-20)
 				      {
-					fprintf(IW, "%s(%22.15E,%4d%s\n", LAX, surfaces[KSD-1].AX, IN, LOPEN);
+					fprintf(IW, "%s(%22.15E,%4d%s\n", LAX, surfaces[KSD-1].AX, iN, LOPEN);
 				      }
 				    if(fabs(surfaces[KSD-1].AY) > 1.0E-20)
 				      {
-					fprintf(IW, "%s(%22.15E,%4d%s\n", LAY, surfaces[KSD-1].AY, IN, LOPEN);
+					fprintf(IW, "%s(%22.15E,%4d%s\n", LAY, surfaces[KSD-1].AY, iN, LOPEN);
 				      }
 				    if(fabs(surfaces[KSD-1].AZ) > 1.0E-20)
 				      {				      
-					fprintf(IW, "%s(%22.15E,%4d%s\n", LAZ, surfaces[KSD-1].AZ, IN, LOPEN);
+					fprintf(IW, "%s(%22.15E,%4d%s\n", LAZ, surfaces[KSD-1].AZ, iN, LOPEN);
 				      }
 				    if(fabs(surfaces[KSD-1].A0) > 1.0E-20)
 				      {	
-					fprintf(IW, "%s(%22.15E,%4d%s\n", LA0, surfaces[KSD-1].A0, IN, LOPEN);
+					fprintf(IW, "%s(%22.15E,%4d%s\n", LA0, surfaces[KSD-1].A0, iN, LOPEN);
 				      }
 				    fprintf(IW, "0000000000000000000000000000000000000000000000000000000000000000\n");
 				  }

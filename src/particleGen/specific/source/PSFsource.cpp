@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2023 Universitat de València - UV
 //    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -174,6 +175,19 @@ void psf_specificSampler::sample(pen_particleState& state,
       remainingChunks = 0;
       splitted = 0;
       requiredSplits = 0;
+      return;
+    }
+
+    //Check energy
+    if(state.E > expectedMaxEnergy){
+      //Energy is out of range!!
+      printf("psf_specificSampler:sample: Error on thread %d: Particle out of energy range (%.5E).\n",getThread(),state.E);
+      state.reset();
+      genKpar = ALWAYS_AT_END;
+      dhist = sumDHist;
+      remainingChunks = 0;
+      splitted = 0;
+      requiredSplits = 0;      
       return;
     }
 
@@ -350,6 +364,9 @@ int psf_specificSampler::configure(double& Emax,
     Emax = 0.0;
     return -5;
   }
+
+  //Save expected maximum energy
+  expectedMaxEnergy = Emax;
 
   // Read weight window
   //********************

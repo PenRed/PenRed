@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -848,20 +849,22 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   ///////////////////////////////
   double dr;
   if(config.read("enclosure-margin",dr) != INTDATA_SUCCESS){
-      if(verbose > 0){
-        printf("pen_voxelGeo:configure:Error: Enclosure margin value"
-        " 'enclosure-margin' not found. "
-        "Double expected.\n");
-      }
-      err++;
+    if(verbose > 0){
+      printf("pen_voxelGeo:configure:Error: Enclosure margin value"
+	     " 'enclosure-margin' not found. "
+	     "Double expected.\n");
+    }
+    configStatus = 10;
+    return 10;
   }else{
-      if(dr < 1.0e-6){
-          if(verbose > 0){
-            printf("pen_voxelGeo:configure:Error: Enclosure "
-            "margin value must be greater than zero\n");
-          }
-          err++;
+    if(dr < 1.0e-6){
+      if(verbose > 0){
+	printf("pen_voxelGeo:configure:Error: Enclosure "
+	       "margin value must be greater than zero\n");
       }
+      configStatus = 10;
+      return 10;
+    }
       
     enclosureMargin = dr;
     
@@ -887,7 +890,8 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
       if(verbose > 0){
         printf("pen_dicomGeo:configure: Error: Unable to read enclosure material ID for material. Integer expecteed");
       }
-      err++;
+      configStatus = 11;
+      return 11;
     }
     //Check material ID
     if(auxMat < 1 || auxMat > (int)constants::MAXMAT){
@@ -896,7 +900,8 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
         printf("                         ID: %d\n",auxMat);
         printf("Maximum number of materials: %d\n",constants::MAXMAT);
       }
-      err++;
+      configStatus = 12;
+      return 12;
     }
     else
         enclosureMat=auxMat;
