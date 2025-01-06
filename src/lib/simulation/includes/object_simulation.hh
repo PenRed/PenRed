@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2024 Universitat de València - UV
 //    Copyright (C) 2024 Universitat Politècnica de València - UPV
-//    Copyright (C) 2024 Vicent Giménez Alventosa
+//    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -1448,14 +1448,14 @@ namespace penred{
 	//Substract initialization time to maximum simulation time
 	long long int initTime = static_cast<long long int>(initializationTimer.timer());
 	for(unsigned ithread = 0; ithread < nThreads; ++ithread)
-	  simConfigs[ithread].maxSimTime -= initTime*1000ll;
+	  simConfigs[ithread].consumeMaxSimTime(initTime*1000ll);
 
 	//Iterate over generic sources
 	for(unsigned iSource = simConfigs[0].getFirstSourceIndex();
 	    iSource < genericSources.size(); ++iSource){
 
 	  //Check remaining simulation time
-	  if(simConfigs[0].maxSimTime <= 0)
+	  if(simConfigs[0].getMaxSimTime() <= 0)
 	    break; //Finish the simulation
     
 
@@ -1481,13 +1481,12 @@ namespace penred{
 	    for(unsigned ithread = 0; ithread < nThreads; ++ithread){
 	      simThreads[ithread].join();
 	      //Update remaining simulation time
-	      simConfigs[0].maxSimTime =
-		std::min(simConfigs[0].maxSimTime, simConfigs[ithread].maxSimTime);
+	      simConfigs[0].setMaxSimTime(std::min(simConfigs[0].getMaxSimTime(), simConfigs[ithread].getMaxSimTime()));
 	    }
 
 	    //Update maximum simulation times
 	    for(unsigned ithread = 0; ithread < nThreads; ++ithread){
-	      simConfigs[ithread].maxSimTime = simConfigs[0].maxSimTime;
+	      simConfigs[ithread].setMaxSimTime(simConfigs[0].getMaxSimTime());
 	    }
       
 	    //Clear threads
@@ -1517,7 +1516,7 @@ namespace penred{
 	for(unsigned iSource = 0; iSource < polarisedGammaSources.size(); iSource++){
 
 	  //Check remaining simulation time
-	  if(simConfigs[0].maxSimTime <= 0)
+	  if(simConfigs[0].getMaxSimTime() <= 0)
 	    break; //Finish the simulation
 
     
@@ -1545,14 +1544,13 @@ namespace penred{
 	    for(unsigned ithread = 0; ithread < nThreads; ++ithread){
 	      simThreads[ithread].join();
 	      //Update remaining simulation time
-	      simConfigs[0].maxSimTime =
-		std::min(simConfigs[0].maxSimTime, simConfigs[ithread].maxSimTime);
+	      simConfigs[0].setMaxSimTime(std::min(simConfigs[0].getMaxSimTime(), simConfigs[ithread].getMaxSimTime()));
 
 	    }
 
 	    //Update maximum simulation times
 	    for(unsigned ithread = 0; ithread < nThreads; ++ithread){
-	      simConfigs[ithread].maxSimTime = simConfigs[0].maxSimTime;
+	      simConfigs[ithread].setMaxSimTime(simConfigs[0].getMaxSimTime());
 	    }
 
 	    //Clear threads
@@ -1764,7 +1762,7 @@ namespace penred{
 	const std::lock_guard<std::mutex> lock(simMutex);
 	if(simulating){
 	  for(penred::simulation::simConfig& simConf : simConfigs){
-	    simConf.updateToSimulate(simConf.getSimulatedInSource());
+	    simConf.setMaxSimTime(simConf.simTime());
 	  }
 	}
       }

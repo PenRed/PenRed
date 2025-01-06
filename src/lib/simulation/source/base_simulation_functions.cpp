@@ -44,11 +44,11 @@ namespace penred{
       firstSourceIndex(0),
       simulatedHistsInFirstSource(0),
       actualSource(""),
+      maxSimTime(1000000000000000),
       iThread(0),
       dumpTime(1000000000000000),
       dumpFilename("dump"),
       writePartial(false),
-      maxSimTime(1000000000000000),
       fSimFinish(simConfig::noFinishSim),
       verbose(2){}
 
@@ -65,11 +65,11 @@ namespace penred{
       firstSourceIndex(0),
       simulatedHistsInFirstSource(0),
       actualSource(""),
+      maxSimTime(maxSimTimeIn),
       iThread(iThreadIn),
       dumpTime(dumpTimeIn),
       dumpFilename(dumpFilenameIn),
       writePartial(writePartialIn),
-      maxSimTime(maxSimTimeIn),
       fSimFinish(simConfig::noFinishSim),
       verbose(verboseIn){}
 

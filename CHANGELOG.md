@@ -8,14 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - CMake instructions to download and build all necessari dependencies for DICOM support
-- Option option to force the download and compilation of the DICOM package instead of using the system-installed version
+- Option to force the download and compilation of the DICOM package instead of using the system-installed version
 - Dirent header file for Windows
+- Set default simulation configuration file name to 'config.in' when no file is provided
 
 ### Changed
 - The embedded database generation has been refactored to save memory usage during compilation
 
 ### Fixed
 - Bug: DICOM geometry configuration return success even if enclosure parameters are not provided
+- Bug: Forced termination of simulation is not functioning correctly in asynchronous simulation mode
 - The PSF sampler triggers a segmentation fault when it encounters a particle with energy exceeding the defined maximum
 
 ## [1.12.0b] - 2024-11-06

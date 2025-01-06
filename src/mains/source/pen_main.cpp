@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
-//    Copyright (C) 2024 Vicent Giménez Alventosa
+//    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -241,26 +241,20 @@ void checkUserInput(const char* filename,
 
 int main(int argc, char** argv){
 
+  std::string configFilename("config.in");
   if(argc < 2){
-    printf("usage: %s config-filename\n",argv[0]);
-    return 0;
+    printf("No argument provided, the default filename "
+	   "(config.in) will be used to configure the simulation.\n"
+	   "To specify a different file use: %s config-filename\n",argv[0]);
+  }else{
+    configFilename.assign(argv[1]);
   }
 
-  printf("***************************************************************\n");
-  printf(" PenRed version: 1.12.1 (1-December-2024) \n");
-  printf(" Copyright (c) 2019-2024 Universitat Politecnica de Valencia\n");
-  printf(" Copyright (c) 2019-2024 Universitat de Valencia\n");
-  printf(" Copyright (c) 2024 Vicent Giménez Alventosa\n");
-  printf(" Reference: Computer Physics Communications, 267 (2021) 108065\n"
-         "            https://doi.org/10.1016/j.cpc.2021.108065\n");
-  printf(" This is free software; see the source for copying conditions.\n"
-	 " There is NO warranty; not even for MERCHANTABILITY or\n"
-         " FITNESS FOR A PARTICULAR PURPOSE.\n");
-  printf(" Please, report bugs and suggestions at our github repository\n"
-	 "         https://github.com/PenRed/PenRed\n");
-  printf("***************************************************************\n\n");
+  printf("%s\n",
+	 penred::simulation::simulator<pen_context>::versionMessage().c_str());
   
-  if(strcmp(argv[1],"--version") == 0 || strcmp(argv[1],"-v") == 0){
+  if(configFilename.compare("--version") == 0 ||
+     configFilename.compare("-v") == 0){
     return 0;
   }
   
@@ -330,7 +324,7 @@ int main(int argc, char** argv){
   pen_parserSection config;
   std::string errorLine;
   unsigned long errorLineNum;
-  int err = parseFile(argv[1],config,errorLine,errorLineNum);
+  int err = parseFile(configFilename.c_str(),config,errorLine,errorLineNum);
 
   //printf("Configuration:\n");
   //printf("%s\n", config.stringify().c_str());
@@ -1258,14 +1252,14 @@ int main(int argc, char** argv){
   //Substract initialization time to maximum simulation time
   long long int initTime = static_cast<long long int>(initializationTimer.timer());
   for(unsigned ithread = 0; ithread < nthreads; ++ithread)
-    simConfigs[ithread].maxSimTime -= initTime*1000ll;
+    simConfigs[ithread].consumeMaxSimTime(initTime*1000ll);
   
   //Iterate over generic sources
   for(unsigned iSource = simConfigs[0].getFirstSourceIndex();
       iSource < genericSources.size(); ++iSource){
 
     //Check remaining simulation time
-    if(simConfigs[0].maxSimTime <= 0)
+    if(simConfigs[0].getMaxSimTime() <= 0)
       break; //Finish the simulation
     
 
@@ -1315,13 +1309,12 @@ int main(int argc, char** argv){
       for(unsigned ithread = 0; ithread < nthreads; ++ithread){
 	simThreads[ithread].join();
 	//Update remaining simulation time
-	simConfigs[0].maxSimTime =
-	  std::min(simConfigs[0].maxSimTime, simConfigs[ithread].maxSimTime);
+	simConfigs[0].setMaxSimTime(std::min(simConfigs[0].getMaxSimTime(), simConfigs[ithread].getMaxSimTime()));
       }
 
       //Update maximum simulation times
       for(unsigned ithread = 0; ithread < nthreads; ++ithread){
-	simConfigs[ithread].maxSimTime = simConfigs[0].maxSimTime;
+	simConfigs[ithread].setMaxSimTime(simConfigs[0].getMaxSimTime());
       }
       
       //Clear threads
@@ -1351,7 +1344,7 @@ int main(int argc, char** argv){
   for(unsigned iSource = 0; iSource < polarisedGammaSources.size(); iSource++){
 
     //Check remaining simulation time
-    if(simConfigs[0].maxSimTime <= 0)
+    if(simConfigs[0].getMaxSimTime() <= 0)
       break; //Finish the simulation
 
     
@@ -1402,14 +1395,13 @@ int main(int argc, char** argv){
       for(unsigned ithread = 0; ithread < nthreads; ++ithread){
 	simThreads[ithread].join();
 	//Update remaining simulation time
-	simConfigs[0].maxSimTime =
-	  std::min(simConfigs[0].maxSimTime, simConfigs[ithread].maxSimTime);
+	simConfigs[0].setMaxSimTime(std::min(simConfigs[0].getMaxSimTime(), simConfigs[ithread].getMaxSimTime()));
 
       }
 
       //Update maximum simulation times
       for(unsigned ithread = 0; ithread < nthreads; ++ithread){
-	simConfigs[ithread].maxSimTime = simConfigs[0].maxSimTime;
+	simConfigs[ithread].setMaxSimTime(simConfigs[0].getMaxSimTime());
       }
 
       //Clear threads

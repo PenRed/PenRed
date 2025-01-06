@@ -2,6 +2,7 @@
 //
 //    Copyright (C) 2024 Universitat de València - UV
 //    Copyright (C) 2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -30,9 +31,13 @@
 
 int main(int argc, char** argv){
 
+  std::string configFilename("config.in");
   if(argc < 2){
-    printf("usage: %s config-filename\n",argv[0]);
-    return 0;
+    printf("No argument provided, the default filename "
+	   "(config.in) will be used to configure the simulation.\n"
+	   "To specify a different file use: %s config-filename\n",argv[0]);
+  }else{
+    configFilename.assign(argv[1]);
   }
 
   // Create simulator object
@@ -50,7 +55,7 @@ int main(int argc, char** argv){
   pen_parserSection config;
   std::string errorLine;
   unsigned long errorLineNum;
-  int err = parseFile(argv[1],config,errorLine,errorLineNum);
+  int err = parseFile(configFilename.c_str(),config,errorLine,errorLineNum);
   
   if(err != INTDATA_SUCCESS){
     printf("Error parsing configuration.\n");

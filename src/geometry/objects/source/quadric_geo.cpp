@@ -3589,7 +3589,8 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		          continue;
 		        }
 		    }
-		  fclose(IR);
+		  if(IR != nullptr)
+		    fclose(IR);
 		  IR = fopen(GFILE, "r");
 		  if(IR == nullptr){
 		    if(verbose > 0){
