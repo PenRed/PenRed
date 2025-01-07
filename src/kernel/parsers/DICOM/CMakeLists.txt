@@ -62,6 +62,7 @@ if(FORCE_DICOM_DOWNLOAD OR NOT ZLIB_FOUND)
             -DCMAKE_INSTALL_PREFIX:PATH=${ZLIB_INSTALL_DIR}   # Install location
             -DBUILD_SHARED_LIBS:BOOL=OFF                        # Build static library
             -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}       # Match the project's build type
+            -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=${CMAKE_POSITION_INDEPENDENT_CODE} # To handle python modules and normal compilations
     )
 
     # Get the ZLib include and library paths for later use
@@ -142,6 +143,7 @@ if(FORCE_DICOM_DOWNLOAD OR NOT DCMTK_FOUND)
         GIT_TAG        DCMTK-3.6.7  # DCMTK version
         INSTALL_DIR "${DCMTK_INSTALL_DIR}"                 # Installation directory
         CMAKE_CACHE_ARGS
+            -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=${CMAKE_POSITION_INDEPENDENT_CODE} # To handle python modules and normal compilations
             -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}       # Match the project's build type
             -DCMAKE_INSTALL_PREFIX:PATH=${DCMTK_INSTALL_DIR}
             -DDCMTK_MODULES:STRING=${DCMTK_MODULES}
@@ -238,7 +240,10 @@ if(FORCE_DICOM_DOWNLOAD OR NOT DCMTK_FOUND)
     message(STATUS "Set DCMTK include directory: ${DCMTK_INCLUDE_DIRS}")
     message(STATUS "Set DCMTK libraries: ${DCMTK_LIBRARIES}")
 
-    add_dependencies(dcmtk zlib)
+    # If zlib has been fetched, add it as dcmtk dependencies
+    if(TARGET zlib)
+        add_dependencies(dcmtk zlib)
+    endif()
 else()
     message(STATUS "DCMTK library found: ${DCMTK_INCLUDE_DIRS}")
 endif()

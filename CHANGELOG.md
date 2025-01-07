@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Bug: DICOM geometry configuration return success even if enclosure parameters are not provided
 - Bug: Forced termination of simulation is not functioning correctly in asynchronous simulation mode
+- Compilation: Python binding compilation fails when DCMTK is enabled and fetched
 - The PSF sampler triggers a segmentation fault when it encounters a particle with energy exceeding the defined maximum
 
 ## [1.12.0b] - 2024-11-06
