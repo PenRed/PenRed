@@ -2,6 +2,7 @@
 #
 #    Copyright (C) 2022-2023 Universitat de València - UV
 #    Copyright (C) 2022-2023 Universitat Politècnica de València - UPV
+#    Copyright (C) 2024 Vicent Giménez Alventosa
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -29,11 +30,11 @@ bl_info = {
     "name": "PenRed Geometry builder",
     "author": "Vicent Giménez Alventosa",
     "version": (1, 0),
-    "blender": (2, 93, 0),
+    "blender": (3, 6, 9),
     "location": "View3D > Add > Quadric",
     "description": "Adds quadric objects to construct PenRed geometries and export meshes to PenRed format",
     "warning": "",
-    "doc_url": "",
+    "doc_url": "https://github.com/PenRed/PenRed/tree/master/doc",
     "category": "Add Mesh",
 }
 

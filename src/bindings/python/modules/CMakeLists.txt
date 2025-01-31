@@ -31,6 +31,13 @@ find_package(pybind11 CONFIG)
 # If pybind11 is not installed, download it from github
 if(NOT pybind11_FOUND)
 
+        # Ensure the correct Python version is used with pybind11
+        set(PYTHON_INCLUDE_DIR ${Python3_INCLUDE_DIRS})
+        set(PYTHON_LIBRARIES ${Python3_LIBRARIES})
+
+        set(PYBIND11_FINDPYTHON ON CACHE BOOL "" FORCE)
+        set(PYBIND11_PYTHON_VERSION ${Python3_VERSION} CACHE STRING "" FORCE)
+
         include(FetchContent)
 
         # Download pybind11
@@ -43,7 +50,6 @@ if(NOT pybind11_FOUND)
         FetchContent_MakeAvailable(pybind11)
 
 endif(NOT pybind11_FOUND)
-
 
 # Get python version
 execute_process(

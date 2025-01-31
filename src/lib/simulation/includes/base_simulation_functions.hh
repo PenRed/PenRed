@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -410,6 +411,10 @@ namespace penred{
       //Auxiliary string stream
       std::stringstream auxOut;
 
+      //Maximum simulation time
+      mutable std::mutex simControlLock;
+      long long int maxSimTime;  //In ms      
+
       static constexpr bool noFinishSim(const unsigned long long){ return true; } 
       
     public:
@@ -420,8 +425,6 @@ namespace penred{
       std::string dumpFilename;
       //Enable/disable write partial results
       bool writePartial;
-      //Maximum simulation time
-      long long int maxSimTime;  //In ms
 
       //Finish simulation function.
       //Returns true if the simulation must continue and false to stop it
@@ -438,6 +441,20 @@ namespace penred{
 		const long long int& maxSimTimeIn,
 		const int& iSeed1, const int& iSeed2,
 		const unsigned& verboseIn);
+
+      //Maximum time setter and getter
+      inline void setMaxSimTime(const long long int& maxSimTimeIn) noexcept{
+	std::lock_guard<std::mutex> guard(simControlLock);
+	maxSimTime = maxSimTimeIn;
+      }
+      inline long long int getMaxSimTime() const noexcept{
+	std::lock_guard<std::mutex> guard(simControlLock);
+	return maxSimTime;
+      }
+      inline void consumeMaxSimTime(const long long int& consumed) noexcept{
+	std::lock_guard<std::mutex> guard(simControlLock);
+	maxSimTime -= consumed;
+      }      
 
       //Print functions
       inline std::string threadPrefix() const {
@@ -673,7 +690,7 @@ namespace penred{
       }
 
       inline void copyCommonConfig(const simConfig& c){
-
+	
 	//Copy only common configuration parameters
 	//to all workers in the same simulation
 	iSeed1 = c.iSeed1;
@@ -685,7 +702,7 @@ namespace penred{
 	dumpTime = c.dumpTime;
 	dumpFilename = c.dumpFilename;
 	writePartial = c.writePartial;
-	maxSimTime = c.maxSimTime;
+	setMaxSimTime(c.getMaxSimTime());
 	verbose = c.verbose;
       }
 
@@ -1839,7 +1856,8 @@ namespace penred{
       config.setInitSeedsToRand(random);
 
       //Create a stopwatch for simulation time
-      pen_stopWatch simLimitWatch(config.maxSimTime);
+      long long int maxSimTime = config.getMaxSimTime();
+      pen_stopWatch simLimitWatch(maxSimTime);
       
       //Create a stopwatch for dumps
       pen_stopWatch dumpWatch(config.dumpTime);
@@ -1978,6 +1996,18 @@ namespace penred{
 	  //End previous history
 	  tallies.run_endHist(hist);
 
+	  //Check if a report is needed in the configuration
+	  if(++simConfRepCount % 1000 == 0){
+	    config.report(hist);
+	    simConfRepCount = 0;
+	    //Check maximum simulation time for changes
+	    if(maxSimTime != config.getMaxSimTime()){
+	      //Update the stop watch duration
+	      maxSimTime = config.getMaxSimTime();
+	      simLimitWatch.duration(maxSimTime);
+	    }
+	  }
+	  
 	  //Get actual time
 	  const auto tnow = std::chrono::steady_clock::now();
 	  //Check if elapsed time reaches dump interval
@@ -2060,7 +2090,7 @@ namespace penred{
 	    if(verbose > 1){
 	      config << config.threadAndSourcePrefix()
 		     << "Simulation time limit reached ("
-		     << config.maxSimTime/1000 << "). "
+		     << maxSimTime/1000 << "). "
 		     << "Dump simulation at history number " << hist
 		     << " with " << currentHists << "/" << nhists
 		     << " simulated in actual source, with seeds "
@@ -2081,12 +2111,6 @@ namespace penred{
 	    //Finish the simulation
 	    status.setFlag(simFlags::MAX_TIME_REACHED);
 	    break;
-	  }
-
-	  //Check if a report is needed in the configuration
-	  if(++simConfRepCount % 1000 == 0){
-	    config.report(hist);
-	    simConfRepCount = 0;
 	  }
 	    	  
 	  //Increment history counter
@@ -2155,7 +2179,7 @@ namespace penred{
       }
       
       //Update maximum simulation time
-      config.maxSimTime -= static_cast<long long int>(config.simTime()*1000.0);
+      config.consumeMaxSimTime(static_cast<long long int>(config.simTime()*1000.0));
 
       return simFlags::SUCCESS;
     }
@@ -2212,7 +2236,8 @@ namespace penred{
       config.setInitSeedsToRand(random);
 
       //Create a stopwatch for simulation time
-      pen_stopWatch simLimitWatch(config.maxSimTime);
+      long long int maxSimTime = config.getMaxSimTime();
+      pen_stopWatch simLimitWatch(maxSimTime);
       
       //Start all stopWatch counts
       simLimitWatch.start();
@@ -2323,6 +2348,18 @@ namespace penred{
 
 	if(dhist > 0){
 
+	  //Check if a report is needed in the configuration
+	  if(++simConfRepCount % 1000 == 0){
+	    config.report(hist);
+	    simConfRepCount = 0;
+	    //Check maximum simulation time for changes
+	    if(maxSimTime != config.getMaxSimTime()){
+	      //Update the stop watch duration
+	      maxSimTime = config.getMaxSimTime();
+	      simLimitWatch.duration(maxSimTime);
+	    }	    
+	  }
+	    	  	  
 	  //Get actual time
 	  const auto tnow = std::chrono::steady_clock::now();
 	  //Check if the simulation must be stopped
@@ -2335,7 +2372,7 @@ namespace penred{
 	    if(verbose > 1){
 	      config << config.threadAndSourcePrefix()
 		     << "Simulation time limit reached ("
-		     << config.maxSimTime/1000 << "). "
+		     << maxSimTime/1000 << "). "
 		     << "at history number " << hist
 		     << " with " << currentHists << "/" << nhists
 		     << " simulated in actual source, with seeds "
@@ -2347,12 +2384,6 @@ namespace penred{
 	    break;	
 	  }
 
-	  //Check if a report is needed in the configuration
-	  if(++simConfRepCount % 1000 == 0){
-	    config.report(hist);
-	    simConfRepCount = 0;
-	  }
-	    	  
 	  //Increment history counter
 	  hist += dhist;
 
@@ -2408,7 +2439,7 @@ namespace penred{
       }
       
       //Update maximum simulation time
-      config.maxSimTime -= static_cast<long long int>(config.simTime()*1000.0);
+      config.consumeMaxSimTime(static_cast<long long int>(config.simTime()*1000.0));
 
       return simFlags::SUCCESS;
     }

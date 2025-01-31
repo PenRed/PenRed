@@ -28,6 +28,7 @@ int main(int argc, char** argv){
   fheader << "#define __PEN_MAT_DATABASE__" << std::endl;
 
   fheader << "\n#include <array>" << std::endl;
+  fheader << "\n#include <string>" << std::endl;
 
   fheader << "\nnamespace penred{\n";
   fheader << "   namespace penMatDB{" << std::endl;
@@ -61,23 +62,37 @@ int main(int argc, char** argv){
 
     //Create the variable name with no points
     std::string varName = penred::dataBases::toVariableName(line);
-    
-    //Add a line per subfile to the header file
-    for(unsigned i = 0; i < nSubFiles; ++i){
-      fheader << "      constexpr const char* const " << varName << "_" << i << " = {\n";
-      fheader << "                  #include \"" << line << "_" << i << "\"\n";
-      fheader << "      };" << std::endl;
+
+    //Define a variable corresponding to a each subfile in the header file
+    fheader << "// " << varName << std::endl;
+    for (unsigned i = 0; i < nSubFiles; ++i) {
+        fheader << "      extern const char* const " << varName << "_" << i << ";" << std::endl;
     }
     fheader << std::endl;
-    
-    //Create an array with all subfiles
-    fheader << "      constexpr std::array<const char* const, " << nSubFiles << "> " << varName << " = {\n"
-	    << "                                                 " << varName << "_0";
-    for(unsigned i = 1; i < nSubFiles; ++i){
-      fheader << ",\n"
-	      << "                                                 " << varName << "_" << i;      
+    //Define also the array containing all element data in the header file
+    fheader << "      extern const std::array<const char* const, " << nSubFiles << "> " << varName << ";\n" << std::endl;
+
+    //Create the source file for this database element
+    std::string srcFileName(argv[3]);
+    srcFileName += "/" + varName + ".cpp";
+    std::ofstream fsrc(srcFileName);
+    fsrc << "#include \"database.hh\"" << std::endl;
+    for (unsigned i = 0; i < nSubFiles; ++i) {
+        fsrc << "      const char* const penred::penMatDB::" << varName << "_" << i << " = {\n";
+        fsrc << "                  #include \"" << line << "_" << i << "\"\n";
+        fsrc << "      };" << std::endl;
     }
-    fheader << "\n                                                 };\n" << std::endl;
+    fsrc << std::endl;
+
+    //Create an array with all subfiles (src)
+    fsrc << "      const std::array<const char* const, " << nSubFiles << "> penred::penMatDB::" << varName << " = {\n"
+        << "                                                 penred::penMatDB::" << varName << "_0";
+    for (unsigned i = 1; i < nSubFiles; ++i) {
+        fsrc << ",\n"
+            << "                                                 penred::penMatDB::" << varName << "_" << i;
+    }
+    fsrc << "\n                                                 };\n" << std::endl;
+    fsrc.close();
   }
 
   //Write function to convert filename to data pointer

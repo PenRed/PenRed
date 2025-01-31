@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2023 Universitat de València - UV
 //    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -35,9 +36,15 @@
 #include <algorithm>
 #include <stdexcept>
 #include <cstdint>
-#include <dirent.h>
 #include <cmath>
 #include <numeric>
+
+#ifdef _WIN32
+#define NOMINMAX
+#include "dirent.h" // Use dirent Windows version
+#else
+#include <dirent.h> // Use dirent Unix version
+#endif
 
 /* make sure OS specific configuration is included first */
 #include "dcmtk/config/osconfig.h"    

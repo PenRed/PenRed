@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2020 Universitat de València - UV
 //    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -52,12 +53,14 @@ public:
 
 class pen_stopWatch{
 private:
+  std::chrono::steady_clock::time_point _start;
   std::chrono::steady_clock::time_point stop;
   std::chrono::milliseconds interval;
 public:
 
   pen_stopWatch() : interval(0){
-    stop = std::chrono::steady_clock::now();
+    _start = std::chrono::steady_clock::now();
+    stop = _start;
   }
 
   template<class T> pen_stopWatch(T elapsed, const typename std::enable_if<std::is_integral<T>::value,bool>::type /*dummy*/ = true){
@@ -68,16 +71,21 @@ public:
       toWait = static_cast<std::chrono::milliseconds::rep>(elapsed);
     
     interval = std::chrono::milliseconds(toWait);
-    stop = std::chrono::steady_clock::now();
+    _start = std::chrono::steady_clock::now();
+    stop = _start;
   }
   
   template<class T> void duration(const T elapsed){
     interval = std::chrono::milliseconds(elapsed);
+    if(_start < stop){
+      //Update stop
+      stop = _start + interval;
+    }
   }
 
   inline void start(){
-    stop = std::chrono::steady_clock::now();
-    stop += interval;
+    _start = std::chrono::steady_clock::now();
+    stop = _start + interval;
   }
 
   inline bool check(const std::chrono::steady_clock::time_point& time) const {
