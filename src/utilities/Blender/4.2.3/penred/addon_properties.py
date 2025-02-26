@@ -1,0 +1,832 @@
+
+import bpy
+
+materialRows = 20
+materialColumns = 20
+maxMaterial = materialRows*materialColumns
+
+def update_source_direction(self, context):
+    # Force the 3D viewport to redraw
+    for area in context.screen.areas:
+        if area.type == 'VIEW_3D':
+            area.tag_redraw()
+
+# Tallies properties
+#####################
+
+## Object dependent tallies
+
+# Cylindrical dose distrib
+class tallyCylDoseDistrib(bpy.types.PropertyGroup):
+    name : bpy.props.StringProperty(name = "Tally Name", default = "Cyl-Dose")
+    show : bpy.props.BoolProperty(name = "Show Tally Properties", default = True)
+    nr : bpy.props.IntProperty(name = "Radial Bins", min = 1, default = 1,
+                               description="Number of radial bins")
+    nz : bpy.props.IntProperty(name = "Z Bins", min = 1, default = 1,
+                               description="Number of Z bins")
+    nPhi : bpy.props.IntProperty(name = "Angular Bins", min = 1, default = 1,
+                                 description="Number of angular bins")
+
+# Impact detector
+class tallyImpactDetector(bpy.types.PropertyGroup):
+    name : bpy.props.StringProperty(name = "Tally Name", default = "Impact-Detector")
+    show : bpy.props.BoolProperty(name = "Show Tally Properties", default = True)
+    emin : bpy.props.FloatProperty(
+        name = "Minimum Energy",
+        default = 1.0e3,
+        min = 0.0,
+        description="Minimum energy, in eV, to be detected",
+        update=lambda self, context: setattr(self, "eminEdit", False))
+    eminEdit : bpy.props.BoolProperty(name = "Minimum Energy Edit", default = False)
+    
+    emax : bpy.props.FloatProperty(
+        name = "Maximum Energy",
+        default = 1.0e5,
+        min = 0.0,
+        description="Maximum energy, in eV, to be detected",
+        update=lambda self, context: setattr(self, "emaxEdit", False))
+    emaxEdit : bpy.props.BoolProperty(name = "Maximum Energy Edit", default = False)
+    
+    ebins : bpy.props.IntProperty(name = "Energy Bins", min = 1, default = 200,
+                                   description="Number of energy bins")
+    showEBox : bpy.props.BoolProperty(name = "Show Energy Properties", default = True)
+    fluence : bpy.props.BoolProperty(name = "Fluence", default = False,
+                                   description="Enable/disable fluence detection")
+    fluenceLogScale : bpy.props.BoolProperty(name = "Fluence Log Scale", default = False,
+                                             description="Enable/disable fluence logarithmic scale")
+    spectrum : bpy.props.BoolProperty(name = "Spectrum", default = True,
+                                      description="Enable/disable spectrum detection")
+    spectrumLogScale : bpy.props.BoolProperty(name = "Spectrum Log Scale", default = False,
+                                              description="Enable/disable spectrum logarithmic scale")
+    edep : bpy.props.BoolProperty(name = "Energy Deposition", default = False,
+                                  description="Enable/disable energy deposition detection")
+    edepLogScale : bpy.props.BoolProperty(name = "Energy Deposition Log Scale", default = False,
+                                          description="Enable/disable energy deposition logarithmic scale")
+    age : bpy.props.BoolProperty(name = "Age", default = False,
+                                 description="Enable/disable age detection")
+    ageMin : bpy.props.FloatProperty(name = "Minimum Age", default = 0.0, min = 0.0,
+                                     description="Minimum age, in seconds, to be detected")
+    ageMax : bpy.props.FloatProperty(name = "Maximum Age", default = 30.0, min = 0.0,
+                                     description="Maximum age, in seconds, to be detected")
+    ageBins : bpy.props.IntProperty(name = "Age Bins", min = 1, default = 200,
+                                    description="Number of age bins")
+    ageLogScale : bpy.props.BoolProperty(name = "Age Log Scale", default = False,
+                                         description="Enable/disable age logarithmic scale")
+    showAgeBox : bpy.props.BoolProperty(name = "Show Age Properties", default = True)
+
+# Spatial dose distribution
+class tallySpatialDoseDistrib(bpy.types.PropertyGroup):
+    name : bpy.props.StringProperty(name = "Tally Name", default = "Spatial-Dose")
+    show : bpy.props.BoolProperty(name = "Show Tally Properties", default = True)
+    nx : bpy.props.IntProperty(name = "X Bins", min = 1, default = 1,
+                               description="Number of X axis bins")
+    ny : bpy.props.IntProperty(name = "Y Bins", min = 1, default = 1,
+                               description="Number of Y axis bins")
+    nz : bpy.props.IntProperty(name = "Z Bins", min = 1, default = 1,
+                               description="Number of Z axis bins")
+
+# Spatial dose distribution
+class tallySphericalDoseDistrib(bpy.types.PropertyGroup):
+    name : bpy.props.StringProperty(name = "Tally Name", default = "Spherical-Dose")
+    show : bpy.props.BoolProperty(name = "Show Tally Properties", default = True)
+    nr : bpy.props.IntProperty(name = "Radial Bins", min = 1, default = 1,
+                               description="Number of radial bins")
+    ntheta : bpy.props.IntProperty(name = "Polar Bins", min = 1, default = 1,
+                                   description="Number of polar bins")
+    nphi : bpy.props.IntProperty(name = "Azimuth Bins", min = 1, default = 1,
+                                 description="Number of azimuth bins")
+
+# Phase Space File
+class tallyPSF(bpy.types.PropertyGroup):
+    name : bpy.props.StringProperty(name = "Tally Name", default = "PSF")
+    show : bpy.props.BoolProperty(name = "Show Tally Properties", default = True)
+    emin : bpy.props.FloatProperty(
+        name = "Minimum Energy",
+        default = 1.0e3,
+        min = 0.0,
+        description="Minimum energy, in eV, to be recorded",
+        update=lambda self, context: setattr(self, "eminEdit", False))
+    eminEdit : bpy.props.BoolProperty(name = "Minimum Energy Edit", default = False)
+    
+    emax : bpy.props.FloatProperty(
+        name = "Maximum Energy",
+        default = 1.0e6,
+        min = 0.0,
+        description="Maximum energy, in eV, to be recorded",
+        update=lambda self, context: setattr(self, "emaxEdit", False))
+    emaxEdit : bpy.props.BoolProperty(name = "Maximum Energy Edit", default = False)
+    
+    gamma : bpy.props.BoolProperty(name = "Record Gammas", default = True,
+                                   description="Enable/disable gamma recording")
+    electron : bpy.props.BoolProperty(name = "Record Electrons", default = True,
+                                      description="Enable/disable electron recording")
+    positron : bpy.props.BoolProperty(name = "Record Positrons", default = True,
+                                      description="Enable/disable positron recording")
+
+# Kerma track length
+class tallyKerma(bpy.types.PropertyGroup):
+    name : bpy.props.StringProperty(name = "Tally Name", default = "Kerma")
+    show : bpy.props.BoolProperty(name = "Show Tally Properties", default = True)
+    emin : bpy.props.FloatProperty(
+        name = "Minimum Energy",
+        default = 1.0e3,
+        min = 0.0,
+        description="Gamma minimum energy, in eV, to be recorded",
+        update=lambda self, context: setattr(self, "eminEdit", False))
+    eminEdit : bpy.props.BoolProperty(name = "Minimum Energy Edit", default = False)
+    
+    emax : bpy.props.FloatProperty(
+        name = "Maximum Energy",
+        default = 1.0e6,
+        min = 0.0,
+        description="Gamma maximum energy, in eV, to be recorded",
+        update=lambda self, context: setattr(self, "emaxEdit", False))
+    emaxEdit : bpy.props.BoolProperty(name = "Maximum Energy Edit", default = False)
+
+    nx : bpy.props.IntProperty(name = "X Bins", min = 1, default = 1,
+                               description="Number of X axis bins")
+    ny : bpy.props.IntProperty(name = "Y Bins", min = 1, default = 1,
+                               description="Number of Y axis bins")
+    nz : bpy.props.IntProperty(name = "Z Bins", min = 1, default = 1,
+                               description="Number of Z axis bins")
+    
+    nr : bpy.props.IntProperty(name = "Radial Bins", min = 1, default = 1,
+                               description="Number of radial bins")
+    nphi : bpy.props.IntProperty(name = "Azimuth Bins", min = 1, default = 1,
+                               description="Number of azimuth bins")
+    ntheta : bpy.props.IntProperty(name = "Polar Bins", min = 1, default = 1,
+                               description="Number of polar bins")
+    
+    meshType : bpy.props.EnumProperty(
+        name = "Mesh type",
+        description = "Choose the mesh type to score the kerma",
+        items = [
+            ("MESH_CART" , "Cartesian", "Cartesian mesh"),
+            ("MESH_CYL", "Cylindrical", "Cylindrical mesh"),
+            ("MESH_SPH", "Spherical", "Spherical mesh"),
+        ],
+        default = "MESH_CART"
+    )
+
+    dataPath : bpy.props.StringProperty(name = "Data Prefix", default = "",
+                                        description = "Prefix of the mu-en data files."
+                                        " If empty, the data files will be created in the simulation folder")
+
+# Spatial distribution
+class tallySpatialDistrib(bpy.types.PropertyGroup):
+    name : bpy.props.StringProperty(name = "Tally Name", default = "Spatial-Distrib")
+    show : bpy.props.BoolProperty(name = "Show Tally Properties", default = True)
+
+    emin : bpy.props.FloatProperty(
+        name = "Minimum Energy",
+        default = 1.0e3,
+        min = 0.0,
+        description="Minimum energy, in eV, to be detected",
+        update=lambda self, context: setattr(self, "eminEdit", False))
+    eminEdit : bpy.props.BoolProperty(name = "Minimum Energy Edit", default = False)
+    
+    emax : bpy.props.FloatProperty(
+        name = "Maximum Energy",
+        default = 1.0e6,
+        min = 0.0,
+        description="Maximum energy, in eV, to be detected",
+        update=lambda self, context: setattr(self, "emaxEdit", False))
+    emaxEdit : bpy.props.BoolProperty(name = "Maximum Energy Edit", default = False)
+
+    ebins : bpy.props.IntProperty(name = "Energy Bins", min = 1, default = 1,
+                               description="Number of energy bins")
+
+    
+    nx : bpy.props.IntProperty(name = "X Bins", min = 1, default = 1,
+                               description="Number of X axis bins")
+    ny : bpy.props.IntProperty(name = "Y Bins", min = 1, default = 1,
+                               description="Number of Y axis bins")
+    nz : bpy.props.IntProperty(name = "Z Bins", min = 1, default = 1,
+                               description="Number of Z axis bins")
+
+    printCoordinates : bpy.props.BoolProperty(name = "Print Coordinates", default = True,
+                                              description="Enable/disable coordinates print in results")
+
+    printBins : bpy.props.BoolProperty(name = "Print Bins", default = True,
+                                       description="Enable/disable bin numbers print in results")
+    
+    particleType : bpy.props.EnumProperty(
+        name = "Detected Particle",
+        description = "Choose the particle to be detected",
+        items = [
+            ("PART_GAMMA" , "Gamma", "Gamma"),
+            ("PART_ELECTRON", "Electron", "Electron"),
+            ("PART_POSITRON", "Positron", "Positron"),
+        ],
+        default = "PART_GAMMA"
+    )
+    
+# Angular Detector
+class tallyAngularDetector(bpy.types.PropertyGroup):
+    name : bpy.props.StringProperty(name = "Tally Name", default = "Angular-Detector")
+    show : bpy.props.BoolProperty(name = "Show Tally Properties", default = True)
+
+    emin : bpy.props.FloatProperty(
+        name = "Minimum Energy",
+        default = 1.0e3,
+        min = 0.0,
+        description="Minimum energy, in eV, to be detected",
+        update=lambda self, context: setattr(self, "eminEdit", False))
+    eminEdit : bpy.props.BoolProperty(name = "Minimum Energy Edit", default = False)
+    
+    emax : bpy.props.FloatProperty(
+        name = "Maximum Energy",
+        default = 1.0e6,
+        min = 0.0,
+        description="Maximum energy, in eV, to be detected",
+        update=lambda self, context: setattr(self, "emaxEdit", False))
+    emaxEdit : bpy.props.BoolProperty(name = "Maximum Energy Edit", default = False)
+    
+    ebins : bpy.props.IntProperty(name = "Energy bins", min = 1, default = 1,
+                                 description="Number of energy bins")
+    
+    theta1 : bpy.props.FloatProperty(name = "Minimum Polar Angle", default = 0.0, min = 0.0, max=180.0,
+                                   description="Minimum polar angle, in degrees, to be detected")
+
+    theta2 : bpy.props.FloatProperty(name = "Maximum Polar Angle", default = 180.0, min = 0.0, max = 180.0,
+                                   description="Maximum polar angle, in degrees, to be detected")
+
+    phi1 : bpy.props.FloatProperty(name = "Minimum Azimuthal Angle", default = 0.0, min = 0.0, max=360.0,
+                                   description="Minimum polar angle, in degrees, to be detected")
+
+    phi2 : bpy.props.FloatProperty(name = "Maximum Azimuthal Angle", default = 360.0, min = 0.0, max = 360.0,
+                                   description="Maximum polar angle, in degrees, to be detected")
+    
+    logScale : bpy.props.BoolProperty(name = "Log Scale", default = False,
+                                      description="Enable/disable energy logarithmic scale")
+
+## World dependent tallies
+
+# Emergint particle distribution
+class tallyEmergingParticle(bpy.types.PropertyGroup):
+    name : bpy.props.StringProperty(name = "Tally Name", default = "Emerging-Part")
+    show : bpy.props.BoolProperty(name = "Show Tally Properties", default = True)
+
+    emin : bpy.props.FloatProperty(
+        name = "Minimum Energy",
+        default = 1.0e3,
+        min = 0.0,
+        description="Minimum energy, in eV, to be scored",
+        update=lambda self, context: setattr(self, "eminEdit", False))
+    eminEdit : bpy.props.BoolProperty(name = "Minimum Energy Edit", default = False)
+    
+    emax : bpy.props.FloatProperty(
+        name = "Maximum Energy",
+        default = 1.0e6,
+        min = 0.0,
+        description="Maximum energy, in eV, to be detected",
+        update=lambda self, context: setattr(self, "emaxEdit", False))
+    emaxEdit : bpy.props.BoolProperty(name = "Maximum Energy Edit", default = False)
+    
+    ebins : bpy.props.IntProperty(name = "Energy bins", min = 1, default = 1,
+                                 description="Number of energy bins")    
+
+    nTheta : bpy.props.IntProperty(name = "Polar Bins", min = 1, default = 1,
+                                 description="Number of polar bins")
+    
+    nPhi : bpy.props.IntProperty(name = "Azimuthal Bins", min = 1, default = 1,
+                                 description="Number of azimuthal bins")
+
+# Tracks
+class tallyTracks(bpy.types.PropertyGroup):
+    name : bpy.props.StringProperty(name = "Tally Name", default = "Tracks")
+    show : bpy.props.BoolProperty(name = "Show Tally Properties", default = False)
+    enable : bpy.props.BoolProperty(name = "Enable Track", default = False)
+
+    nHists : bpy.props.IntProperty(name = "Histories", min = 1, default = 10,
+                                   description="Number of histories to be tracked")
+    
+    
+talliesPropsClasses = (
+    tallyCylDoseDistrib,
+    tallyImpactDetector,
+    tallySpatialDoseDistrib,
+    tallySphericalDoseDistrib,
+    tallyPSF,
+    tallyKerma,
+    tallySpatialDistrib,
+    tallyAngularDetector,
+    tallyEmergingParticle,
+    tallyTracks,
+)
+
+# Source properties
+####################
+class sourceProperties(bpy.types.PropertyGroup):
+    
+    # Eanble/disable using the object as a particle source
+    enabled : bpy.props.BoolProperty(name = "Source",
+                                     description = "Flag this object as particle source",
+                                     default = False)
+    
+    # Generic source parameters
+    particleType : bpy.props.EnumProperty(
+        name = "Source Type",
+        description = "Choose the source particle type",
+        items = [
+            ("PART_GAMMA" , "Gamma", "Gamma"),
+            ("PART_ELECTRON", "Electron", "Electron"),
+            ("PART_POSITRON", "Positron", "Positron"),
+            ("PART_PSF", "PSF", "Phase Space File"),
+        ],
+        default = "PART_GAMMA"
+    )
+    sourcePSF : bpy.props.StringProperty(name = "Source Phase Space File",
+                                         description = "Path to the source Phase Space File",
+                                         default = "data.psf")
+    psfMaxE : bpy.props.FloatProperty(
+        name = "PSF Maximum Energy",
+        description = "Maximum energy, in eV, of particles recorded in the PSF",
+        default = 1.0e6,
+        min=50.0,
+        max=1.0e9,
+        update=lambda self, context: setattr(self, "psfMaxEEdit", False))
+    psfMaxEEdit : bpy.props.BoolProperty(name = "Energy Edit", default = False)
+
+    split : bpy.props.IntProperty(name = "PSF Split",
+                                  min = 1,
+                                  description = "Splitting factor applied to each PSF particle",
+                                  default = 10)
+
+    psfWindow : bpy.props.FloatVectorProperty(
+        name="PSF Weight Window",
+        description="PSF weight window. Russian Roulette is applied to particles below the minimum weight. Splitting is applied to particles over the maximum weight",
+        size=2,
+        default=(0.1, 0.5),
+        update=lambda self, context: setattr(self, "psfWindow", (psfWindow[0], max(self.psfWindow[0], self.psfWindow[1])))
+    )
+
+
+    nHists : bpy.props.FloatProperty(
+        name = "Histories",
+        description = "Number of histories to simulate",
+        min = 1.0,
+        max = 1.0e19,
+        default = 1.0e6,
+        update=lambda self, context: setattr(self, "nHistsEdit", False))
+    nHistsEdit : bpy.props.BoolProperty(name = "History Number Edit", default = False)
+    
+    # Energy parameters
+    energyType : bpy.props.EnumProperty(
+        name = "Energy Type",
+        description = "Choose the source energy type",
+        items = [
+            ("ENERGY_MONO" , "Monoenergetic", "Monoenergetic"),
+            ("ENERGY_SFILE", "Spectrum", "Spectrum file"),
+        ],
+        default = "ENERGY_MONO"
+    )
+    energy : bpy.props.FloatProperty(
+        name = "Source Energy",
+        description = "Source energy in eV",
+        default = 1.0e3,
+        min=50.0,
+        max=1.0e9,
+        update=lambda self, context: setattr(self, "energyEdit", False))
+    energyEdit : bpy.props.BoolProperty(name = "Energy Edit", default = False)
+    
+    spcFile : bpy.props.StringProperty(name = "Source Spectrum File",
+                                       description = "Source energy spectrum filename",
+                                       default = "spectrum.spc")
+
+    # Direction parameters
+    aperture: bpy.props.FloatProperty(name = "Source Aperture",
+                                      description = "Source aperture in degrees",
+                                      default = 0.0,
+                                      min=0.0,
+                                      max=180.0)
+    direction: bpy.props.FloatVectorProperty(name = "Direction",
+                                             description = "Source direction vector",
+                                             size = 3,
+                                             default = (0.0,0.0,1.0),
+                                             update=update_source_direction)
+
+    # Time parameters
+    timeRecord : bpy.props.BoolProperty(name = "Source Time Record",
+                                        description = "Toggle record time during simulation",
+                                        default = False)
+    timeType : bpy.props.EnumProperty(
+        name = "Time Type",
+        description = "Choose the source time initialization type",
+        items = [
+            ("TIME_NOINIT" , "No initialization", "No initialization"),
+            ("TIME_DECAY", "Decay", "Exponential decay"),
+        ],
+        default = "TIME_NOINIT"
+    )
+    decayHalf: bpy.props.FloatProperty(name = "Source Half Life",
+                                       description = "Decay half life, in seconds",
+                                       default = 1.0,
+                                       min=0.0)
+
+    timeWindow : bpy.props.FloatVectorProperty(
+        name="Time Sampling Window",
+        description="Particle time will be sampled inside this time window, specified in seconds",
+        size=2,
+        default=(0.0, 30.0),
+        update=lambda self, context: setattr(self, "timeWindow", (timeWindow[0], max(self.timeWindow[0], self.timeWindow[1])))
+    )
+    
+    
+# Object Properties group
+###########################
+class objectProperties(bpy.types.PropertyGroup):
+
+    ## Generic object properties ##
+    material : bpy.props.IntProperty(name = "Material Index",
+                                     min = 0,
+                                     max = maxMaterial,
+                                     description = "Material index assigned to the object",
+                                     default = 1)
+
+    isDetector : bpy.props.BoolProperty(name = "Detector Toggle",
+                                        description = "Sets this object as a detector",
+                                        default = False)    
+    detector : bpy.props.IntProperty(name = "Detector Index",
+                                     min = 1,
+                                     description = "Detector index assigned to the object",
+                                     default = 1)
+
+    dsmaxEnabled: bpy.props.BoolProperty(
+        name = "Maximum Class II Distance Toggle",
+        description=
+        "Enable/disable limiting the distance between hard interactions in Class II scheme (dsmax)",
+        default = False)
+    dsmax : bpy.props.FloatProperty(
+        name = "Maximum Class II Distance",
+        default = 1.0,
+        min = 0.0,
+        description=
+        "Limiting distance, in cm, for Class II scheme",
+        update=lambda self, context: setattr(self, "dsmaxEdit", False)
+    )
+    dsmaxEdit: bpy.props.BoolProperty(
+        name = "Maximum Class II Distance Edit",
+        description=
+        "Limiting distance, in cm, for Class II scheme",
+        default = False)
+    
+    ## Quadric object properties ##
+    quadricType : bpy.props.StringProperty(name = "Quadric Type", default = "unknown")
+
+    module : bpy.props.BoolProperty(name = "Module", default = False)
+    r1 : bpy.props.FloatProperty(name = "r1", default = 0.0,
+                                 min = 0.0,
+                                 update=lambda self, context: (bpy.ops.remesh.remesh_operator(), None)[1])
+    r2 : bpy.props.FloatProperty(name = "r2", default = 0.0,
+                                 min = 0.0,
+                                 update=lambda self, context: (bpy.ops.remesh.remesh_operator(), None)[1])
+
+    ## Source parameters ##
+    source: bpy.props.PointerProperty(type=sourceProperties)
+    
+    ## Tally parameters ##
+    showTalliesCylDose : bpy.props.BoolProperty(name = "Show Cylindrical Dose Tallies", default = True)
+    talliesCylDose: bpy.props.CollectionProperty(type=tallyCylDoseDistrib)
+    
+    showTalliesImpactDet : bpy.props.BoolProperty(name = "Show Impact Detector Tallies", default = True)
+    talliesImpactDetector : bpy.props.CollectionProperty(type=tallyImpactDetector)
+    
+    showTalliesSpatialDose : bpy.props.BoolProperty(name = "Show Spatial Dose Tallies", default = True)
+    talliesSpatialDoseDistrib : bpy.props.CollectionProperty(type=tallySpatialDoseDistrib)
+    
+    showTalliesSphericalDose : bpy.props.BoolProperty(name = "Show Spherical Dose Tallies", default = True)
+    talliesSphericalDoseDistrib : bpy.props.CollectionProperty(type=tallySphericalDoseDistrib)
+    
+    showTalliesPSF : bpy.props.BoolProperty(name = "Show PSF Tallies", default = True)
+    talliesPSF : bpy.props.CollectionProperty(type=tallyPSF)
+    
+    showTalliesKerma : bpy.props.BoolProperty(name = "Show Kerma Tallies", default = True)
+    talliesKerma : bpy.props.CollectionProperty(type=tallyKerma)
+    
+    showTalliesSpatialDistrib : bpy.props.BoolProperty(name="Show Spatial Distrib Tallies", default = True)
+    talliesSpatialDistrib : bpy.props.CollectionProperty(type=tallySpatialDistrib)
+    
+    showTalliesAngularDet : bpy.props.BoolProperty(name = "Show Angular Detector Tallies", default = True)
+    talliesAngularDetector : bpy.props.CollectionProperty(type=tallyAngularDetector)
+
+# Material properties groups
+#############################
+class elementProperties(bpy.types.PropertyGroup):
+    z : bpy.props.IntProperty(name = "Z", min = 1, max = 99, default = 1)
+    wFraction : bpy.props.FloatProperty(name = "Weight Factor", min = 0.0, default = 1.0)    
+
+class materialProperties(bpy.types.PropertyGroup):
+    name : bpy.props.StringProperty(name = "Material Name", default = "material")
+    show : bpy.props.BoolProperty(name = "Show Material Properties", default = True)
+    index : bpy.props.IntProperty(name = "Index", min = 1, default = 1)
+    composition : bpy.props.CollectionProperty(type=elementProperties)
+    density : bpy.props.FloatProperty(
+        name = "Density",
+        default = 1.0,
+        min = 1.0e-10,
+        description="Material density in g/cm^3"
+    )
+    
+    # Gamma
+    gammaCutoffType : bpy.props.EnumProperty(
+        name = "Gamma Cutoff Type",
+        description = "Choose the cutoff type for gammas",
+        items = [
+            ("CUTOFF_EABS" , "Energy", "Energy absorption"),
+            ("CUTOFF_RANGE", "Range", "Minimum range"),
+        ],
+        default = "CUTOFF_EABS"
+    )
+    gammaEabs : bpy.props.FloatProperty(
+        name = "Gamma Energy Absorption",
+        default = 1.0e3,
+        min = 50.0,
+        description="Absorption energy, in eV, for gammas",
+        update=lambda self, context: setattr(self, "gammaEabsEdit", False)
+    )
+    gammaEabsEdit : bpy.props.BoolProperty(
+        name = "Gamma Absorption Energy Edit",
+        description="Absorption energy, in eV, for gammas",
+        default = False)
+    gammaRange : bpy.props.FloatProperty(
+        name = "Gamma Minimum Range",
+        default = 1.0,
+        min = 0.0,
+        description="Minimum range in terms of mean free path, in cm, for gammas"
+    )
+
+    # Electrons
+    electronCutoffType : bpy.props.EnumProperty(
+        name = "Electron Cutoff Type",
+        description = "Choose the cutoff type for electrons",
+        items = [
+            ("CUTOFF_EABS" , "Energy", "Energy absorption"),
+            ("CUTOFF_RANGE", "Range", "Minimum range"),
+        ],
+        default = "CUTOFF_EABS"
+    )    
+    electronEabs : bpy.props.FloatProperty(
+        name = "Electron Energy Absorption",
+        default = 1.0e3,
+        min = 50.0,
+        description="Absorption energy, in eV, for electrons",
+        update=lambda self, context: setattr(self, "electronEabsEdit", False)
+    )
+    electronEabsEdit : bpy.props.BoolProperty(
+        name = "Electron Absorption Energy Edit",
+        description="Absorption energy, in eV, for electrons",
+        default = False)
+    electronRange : bpy.props.FloatProperty(
+        name = "Electron Minimum Range",
+        default = 1.0,
+        min = 0.0,
+        description=
+        "Minimum range in terms of Continuous Slowing Down Approximation (CSDA), in cm, for electrons"
+    )
+
+    # Positrons
+    positronCutoffType : bpy.props.EnumProperty(
+        name = "Positron Cutoff Type",
+        description = "Choose the cutoff type for positrons",
+        items = [
+            ("CUTOFF_EABS" , "Energy", "Energy absorption"),
+            ("CUTOFF_RANGE", "Range", "Minimum range"),
+        ],
+        default = "CUTOFF_EABS"
+    )
+    positronEabs : bpy.props.FloatProperty(
+        name = "Positron Energy Absorption",
+        default = 1.0e3,
+        min = 50.0,
+        description="Absorption energy, in eV, for positrons",
+        update=lambda self, context: setattr(self, "positronEabsEdit", False)
+    )
+    positronEabsEdit : bpy.props.BoolProperty(
+        name = "Positron Absorption Energy Edit",
+        description="Absorption energy, in eV, for positrons",        
+        default = False)
+    positronRange : bpy.props.FloatProperty(
+        name = "Positron Minimum Range",
+        default = 1.0,
+        min = 0.0,
+        description=
+        "Minimum range in terms of Continuous Slowing Down Approximation (CSDA), in cm, for positrons"
+    )
+
+    # Advanced parameters
+    enableAdvanced : bpy.props.BoolProperty(
+        name = "Advanced Parameters Toggle",
+        description = "Enable/disable material advanced parameters",
+        default = False)
+
+    showAdvanced : bpy.props.BoolProperty(
+        name = "Show Advanced Properties",
+        default = False)
+    
+    C1 : bpy.props.FloatProperty(
+        name = "Average Angular Deflection",
+        default = 0.05,
+        min = 0.0,
+        max = 0.2,
+        description=
+        "Average angular deflection produced by multiple elastic scattering along a path length equal to the mean free path between consecutive hard elastic events."
+    )
+        
+    C2 : bpy.props.FloatProperty(
+        name = "Maximum Average Fractional Energy Loss",
+        default = 0.05,
+        min = 0.0,
+        max = 0.2,
+        description=
+        "Maximum average fractional energy loss between consecutive hard elastic events."
+    )
+
+    WCC : bpy.props.FloatProperty(
+        name = "Inelastic Cutoff Energy Loss",
+        default = 1.0e3,
+        min = 0.0,
+        max = 1.0e9,
+        description=
+        "Cutoff energy loss, in eV, for hard inelastic collisions.",
+        update=lambda self, context: setattr(self, "WCCEdit", False)
+    )
+    WCCEdit: bpy.props.BoolProperty(
+        name = "Inelastic Cutoff Energy Loss Edit",
+        description=
+        "Cutoff energy loss, in eV, for hard inelastic collisions.",        
+        default = False)
+        
+    WCR : bpy.props.FloatProperty(
+        name = "Bremsstrahlung Cutoff Energy Loss",
+        default = 1.0e3,
+        min = 0.0,
+        max = 1.0e9,
+        description=
+        "Cutoff energy loss, in eV, for hard Bremsstrahlung collisions.",
+        update=lambda self, context: setattr(self, "WCREdit", False)
+    )
+    WCREdit: bpy.props.BoolProperty(
+        name = "Bremsstrahlung Cutoff Energy Loss Edit",
+        description=
+        "Cutoff energy loss, in eV, for hard Bremsstrahlung collisions",
+        default = False)
+
+
+# Simulation properties groups
+#############################
+class simulationProperties(bpy.types.PropertyGroup):
+    
+    enableDumps : bpy.props.BoolProperty(
+        name = "Enable Dumps",
+        description = "Enable/Disable write partial results dumps",
+        default = False)
+    dumpInterval : bpy.props.FloatProperty(
+        name = "Dump Interval",
+        default = 3600,
+        min = 0.0,
+        description=
+        "Interval, in seconds, between results dump."
+    )
+    dumpWriteFile : bpy.props.StringProperty(
+        name = "Write Dump Files",
+        description = "Filename to write dumps. For each thread, a 'thN' prefix will be added, where N is the thread number",
+        default = "dump.dat")
+
+    readDumps : bpy.props.BoolProperty(
+        name = "Read Dumps",
+        description = "Enable/Disable resuming simulation from dump files",
+        default = False)
+    dumpReadFile : bpy.props.StringProperty(
+        name = "Read Dump Files",
+        description = "Filename to write dumps. For each thread, a 'thN' prefix will be added, where N is the thread number",
+        default = "dump.dat")
+
+    finalDump : bpy.props.BoolProperty(
+        name = "Final Dumps",
+        description = "Enable/Disable creating dumps at the simulation end",
+        default = False)
+
+    asciiResults : bpy.props.BoolProperty(
+        name = "ASCII Results",
+        description = "Enable/Disable creating results in ASCII format. If disabled, results will be writen to 'results.dump' in dump format",
+        default = True)
+
+    partialResults : bpy.props.BoolProperty(
+        name = "ASCII Partial Results",
+        description = "Enable/Disable creating partial results in ASCII format",
+        default = False)
+    
+    
+    outputPrefix : bpy.props.StringProperty(name = "Output Prefix",
+                                         description = "Prefix for results files",
+                                         default = "")
+    
+
+    # Threads
+    threadSelType : bpy.props.EnumProperty(
+        name = "Thread Selection Type",
+        description = "Choose how the number of threads is selected",
+        items = [
+            ("AUTO" , "Auto", "All available threads"),
+            ("MANUAL", "Manual", "Manual selected"),
+        ],
+        default = "AUTO"
+    )
+    nThreads : bpy.props.IntProperty(
+        name = "Threads Number",
+        min = 1,
+        max = 1000,
+        description = "Number of threads to be used during simulation",
+        default = 4)
+    seedPair : bpy.props.IntProperty(name = "Seed Pair",
+                                     min = 0,
+                                     max = 1000,
+                                     description = "Initial seed pair to initialize random number generator",
+                                    default = 0)
+
+    limitSimTime : bpy.props.BoolProperty(
+        name = "Toggle Maximum Simulation Time",
+        description = "Enable/Disable the simulation time limit",
+        default = False)
+    maxSimTime : bpy.props.FloatProperty(
+        name = "Maximum Simulation Time",
+        default = 3600,
+        min = 10.0,
+        description=
+        "Maximum simulation time in seconds"
+    )
+
+# World properties group
+#############################
+class worldProperties(bpy.types.PropertyGroup):
+
+    ## Materials parameters ##
+    materials : bpy.props.CollectionProperty(type=materialProperties)
+
+    ## Simulation ##
+    simulation : bpy.props.PointerProperty(type=simulationProperties)
+    
+    ## Tallies ##
+    showTalliesEmergingPart : bpy.props.BoolProperty(name="Show Emerging Particles Tallies", default = True)
+    talliesEmergingParticle : bpy.props.CollectionProperty(type=tallyEmergingParticle)
+    tracksTally : bpy.props.PointerProperty(type=tallyTracks)
+
+    
+    
+def register():
+
+    # Register source properties
+    bpy.utils.register_class(sourceProperties)
+    
+    # Register tally properties
+    for cls in talliesPropsClasses:
+        bpy.utils.register_class(cls)
+
+    # Register globa properties
+    bpy.utils.register_class(objectProperties)
+
+    # Register element properties
+    bpy.utils.register_class(elementProperties)
+
+    # Register material properties
+    bpy.utils.register_class(materialProperties)
+
+    # Register simulation properties
+    bpy.utils.register_class(simulationProperties)    
+    
+    # Register world properties
+    bpy.utils.register_class(worldProperties)
+
+    # Add properties to objects
+    bpy.types.Object.penred_settings = bpy.props.PointerProperty(type=objectProperties)
+
+    # Add properties to world
+    bpy.types.World.penred_settings = bpy.props.PointerProperty(type=worldProperties)
+    
+def unregister():
+
+    # Unregister source properties
+    bpy.utils.unregister_class(sourceProperties)
+    
+    for cls in talliesPropsClasses:
+        bpy.utils.unregister_class(cls)
+
+    # Unregister element properties
+    bpy.utils.unregister_class(elementProperties)
+
+    # Unregister material properties
+    bpy.utils.unregister_class(materialProperties)
+    
+    # Unregister simulation properties
+    bpy.utils.register_class(simulationProperties)    
+    
+    del bpy.types.Object.penred_settings
+    bpy.utils.unregister_class(objectProperties)    
+
+    # Delete world penRed settings
+    del bpy.types.world.penred_settings
+
+    # Unregister world properties
+    bpy.utils.unregister_class(worldProperties)
+    
