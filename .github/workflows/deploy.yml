@@ -2,28 +2,43 @@ name: Deploy Documentation
 on:
   push:
     branches:
-      - v-1.13.0
+      - main
+  workflow_dispatch:  # Allow manual triggering of the workflow
+
+# Grant permissions for the workflow to deploy to GitHub Pages
+permissions:
+  pages: write
+  id-token: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       # Check out the repository
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       # Set up Python
       - uses: actions/setup-python@v4
         with:
           python-version: 3.x
 
-      # Install MkDocs, ReadTheDocs theme, and PyMdown extensions
+      # Install MkDocs, Material theme, and PyMdown extensions
       - run: pip install mkdocs mkdocs-material pymdown-extensions
 
-      # Navigate to the directory containing mkdocs.yml and docs/
       # Build the documentation
-      - run: cd src/utilities/Blender/4.2.3/mkdocs && ls && mkdocs build --site-dir ./site
+      - run: cd src/utilities/Blender/4.2.3/mkdocs && mkdocs build --site-dir ./site
 
-      # Deploy to GitHub Pages
-      - uses: peaceiris/actions-gh-pages@v3
+      # Upload the built documentation as a GitHub Pages artifact
+      - uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./src/utilities/Blender/4.2.3/mkdocs/site
+          path: ./src/utilities/Blender/4.2.3/mkdocs/site
+
+  deploy-pages:
+    needs: deploy  # Wait for the deploy job to complete
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      # Deploy the artifact to GitHub Pages
+      - uses: actions/deploy-pages@v4
