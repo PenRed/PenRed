@@ -1,0 +1,32 @@
+name: Deploy Documentation
+on:
+  push:
+    branches:
+      - v-1.13.0
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # Check out the repository
+      - uses: actions/checkout@v3
+
+      # Set up Python
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.x
+
+      # Navigate to the directory containing mkdocs.yml and docs/
+      - name: Change directory
+        run: cd src/utilities/Blender/4.2.3/mkdocs
+
+      # Install MkDocs, ReadTheDocs theme, and PyMdown extensions
+      - run: pip install mkdocs mkdocs-readthedocs pymdown-extensions
+
+      # Build the documentation
+      - run: mkdocs build --site-dir ./site
+
+      # Deploy to GitHub Pages
+      - uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./src/utilities/Blender/4.2.3/mkdocs/site
