@@ -4,7 +4,7 @@ Material properties, such as cross-sections, density, and composition, are defin
 
 A material can be added or removed in the **World > Material Properties** panel, as shown in the following image:
 
-<img src="/images/materials.png" alt="Material Panels" width="300" style="display: block; margin: 0 auto"/>
+<img src="../../images/materials.png" alt="Material Panels" width="300" style="display: block; margin: 0 auto"/>
 
 In the image above, two materials **water** and **Bone** have been defined, corresponding to material indexes `1` and `2`, respectively. The material index is assigned according to the order in which materials appear in the panel, and the index `0` is reserved for **void** regions.
 

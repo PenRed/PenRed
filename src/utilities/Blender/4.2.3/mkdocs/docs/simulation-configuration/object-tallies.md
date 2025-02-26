@@ -4,7 +4,7 @@ Object tallies are defined in a spatial region within the geometry system. To de
 
 These tallies can be created and removed from the panel **object > Tally Properties**:
 
-<img src="/simulation-configuration/images/objectTallyProperties.png" alt="Object Tallies" width="300" style="display: block; margin: 0 auto"/>
+<img src="../../simulation-configuration/images/objectTallyProperties.png" alt="Object Tallies" width="300" style="display: block; margin: 0 auto"/>
 
 Regarding the naming of tallies, the final name is created according to the following pattern:
 

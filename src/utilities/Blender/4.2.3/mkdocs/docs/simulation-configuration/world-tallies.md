@@ -3,7 +3,7 @@
 
 World tallies are not associated with any object or spatial region of the geometry system. This tallies can be created and removed from the panel **world > Tallies Properties**:
 
-<img src="/simulation-configuration/images/worldTalliesProperties.png" alt="World Tallies" width="300" style="display: block; margin: 0 auto"/>
+<img src="../../simulation-configuration/images/worldTalliesProperties.png" alt="World Tallies" width="300" style="display: block; margin: 0 auto"/>
 
 The available tallies of this type are listed below and described in this section:
 

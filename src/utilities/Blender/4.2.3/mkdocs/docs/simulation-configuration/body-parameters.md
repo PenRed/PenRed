@@ -2,7 +2,7 @@
 
 This section covers the parameters used to define body properties in the configuration file. Note that body parameters related to geometry definition are covered in the [Geometry Construction](../geometry-construction/index.md) section. These parameters can be found in the **Object > Body Properties**:
 
-<img src="/simulation-configuration/images/bodyParameters.png" alt="Body Properties" width="300" style="display: block; margin: 0 auto"/>
+<img src="../../simulation-configuration/images/bodyParameters.png" alt="Body Properties" width="300" style="display: block; margin: 0 auto"/>
 
 The behavior of each body in the geometry can be configured with the following parameters:
 

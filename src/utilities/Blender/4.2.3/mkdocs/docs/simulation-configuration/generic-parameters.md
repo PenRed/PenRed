@@ -2,7 +2,7 @@
 
 Simulation parameters are specific to the main configuration of the simulation, unlike source, tally, geometry, or material configurations. This section describes the available parameters for the `pen_main` program, which control the overall behavior and execution of the simulation. This parameters can be found in the `Simulation properties` world tag.
 
-<img src="/simulation-configuration/images/worldPropertiesSimParameters.png" alt="Simulation properties tag" width="400" style="display: block; margin: 0 auto"/>
+<img src="../../simulation-configuration/images/worldPropertiesSimParameters.png" alt="Simulation properties tag" width="400" style="display: block; margin: 0 auto"/>
 
 ### Dumps and Results Control
 

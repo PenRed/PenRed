@@ -6,7 +6,7 @@ For tally types that affect a limited spatial region (instead of the entire dete
 
 Like object-based tallies, these tallies can be created and removed from the panel **object > Tally Properties**:
 
-<img src="/simulation-configuration/images/detectorTallyProperties.png" alt="Detector Tallies" width="300" style="display: block; margin: 0 auto"/>
+<img src="../../simulation-configuration/images/detectorTallyProperties.png" alt="Detector Tallies" width="300" style="display: block; margin: 0 auto"/>
 
 Regarding the naming of tallies, the final name is created according to the following pattern:
 

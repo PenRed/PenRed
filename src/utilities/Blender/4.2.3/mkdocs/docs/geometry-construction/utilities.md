@@ -8,7 +8,7 @@ This plugin provides some utilities to streamline the geometry construction.
 
 Focusing on relative object posicioning, specially in [Quadric Surfaces](quadric-surfaces.md) based geometries, stacking objects is a common operation needed to construct complex devices. To simplify this process, a set of utilities have been added to object transforms:
 
-<img src="/images/utilitiesTransform.png" alt="Position Utilities" width="500" style="display: block; margin: 0 auto"/>
+<img src="../../images/utilitiesTransform.png" alt="Position Utilities" width="500" style="display: block; margin: 0 auto"/>
 
 This operations are applied along the *Z* axis, regardless the object rotations, and take into account the objects bounding box to determine the final object position. The operations are described following:
 

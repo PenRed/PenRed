@@ -2,7 +2,7 @@
 
 Any Blender object can be defined as a particle source, even if it is not a mesh object. To enable a particle source for an object, the **Source** flag must be enabled in the **Object > Source Properties**:
 
-<img src="/simulation-configuration/images/sourceProperties.png" alt="Source Properties" width="300" style="display: block; margin: 0 auto"/>
+<img src="../../simulation-configuration/images/sourceProperties.png" alt="Source Properties" width="300" style="display: block; margin: 0 auto"/>
 
 The source can be configured with several options, which are described in this section. The first two parameters to define are:
 
