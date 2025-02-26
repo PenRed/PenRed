@@ -15,15 +15,12 @@ jobs:
         with:
           python-version: 3.x
 
-      # Navigate to the directory containing mkdocs.yml and docs/
-      - name: Change directory
-        run: cd src/utilities/Blender/4.2.3/mkdocs
-
       # Install MkDocs, ReadTheDocs theme, and PyMdown extensions
       - run: pip install mkdocs mkdocs-material pymdown-extensions
 
+      # Navigate to the directory containing mkdocs.yml and docs/
       # Build the documentation
-      - run: mkdocs build --site-dir ./site
+      - run: cd src/utilities/Blender/4.2.3/mkdocs && ls && mkdocs build --site-dir ./site
 
       # Deploy to GitHub Pages
       - uses: peaceiris/actions-gh-pages@v3
