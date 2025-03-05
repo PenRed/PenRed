@@ -562,8 +562,62 @@ quadricTransformClasses = (
     QUADRIC_OT_transform_putinsidecentered
 )
 
-# Object remesh operator
+# Object operators
 ##########################
+# Add Cylindrical dose
+class VR_OT_addIF(bpy.types.Operator):
+    bl_idname = "vr_if.add_item"
+    bl_label = "Add Item"
+    bl_description = "Add a interaction forcing"
+
+    def execute(self, context):
+        obj = context.object
+        if obj and obj.penred_settings:
+            obj.penred_settings.interactionForcing.add()
+        return {"FINISHED"}
+
+# Remove Cylindrical dose
+class VR_OT_removeIF(bpy.types.Operator):
+    bl_idname = "vr_if.remove_item"
+    bl_label = "Remove Item"
+    bl_description = "Remove the interaction forcing"
+
+    index: bpy.props.IntProperty()  # Index of the item to remove
+
+    def execute(self, context):
+        obj = context.object
+        if obj and obj.penred_settings:
+            obj.penred_settings.interactionForcing.remove(self.index)
+        return {"FINISHED"}
+
+class OBJECT_OT_cut_select_operator(Operator):
+    bl_idname = 'cut.select_operator'
+    bl_label = 'Select Cut'
+    bl_description = 'Select a cut plane'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    cutName: bpy.props.StringProperty(name = "Cut Plane Name", default="")    
+    
+    def execute(self, context):
+        obj = context.object
+        if obj and obj.penred_settings and self.cutName:
+            plane = None
+            for child in obj.children:
+                if child.name == self.cutName:
+                    plane = child
+                    break
+
+            if plane and plane.penred_settings and plane.penred_settings.quadricType == "CUT_PLANE":
+                # Resize cutting plane according to parents bounding box size
+                x,y,z,dx,dy,dz,sx,sy,sz,omega,theta,phi,name,boxSize = utils.getObjInfo(obj)
+                maxSize = Vector(boxSize).length
+                plane.scale = Vector((1.01*maxSize,1.01*maxSize,1.0))
+
+                # Set the plane as active object
+                bpy.ops.object.select_all(action='DESELECT')
+                bpy.context.view_layer.objects.active = plane
+        return {'FINISHED'}
+
 class REMESH_OT_remesh_operator(Operator):
     bl_idname = 'remesh.remesh_operator'
     bl_label = 'Remesh'
@@ -572,7 +626,7 @@ class REMESH_OT_remesh_operator(Operator):
  
     def execute(self, context):
         obj = context.object
-        if obj.penred_settings.quadricType == "CONE" or obj.penred_settings.quadricType == "CONE_SHELL":
+        if obj.penred_settings.quadricType == "CONE":
             
             #Get height
             h = obj.dimensions.z
@@ -582,12 +636,7 @@ class REMESH_OT_remesh_operator(Operator):
             
             r1 = max(1.0e-5,r1)
             r2 = max(1.0e-5,r2)
-            
-            #Set scale to identity
-            obj.scale[0] = 1.0
-            obj.scale[1] = 1.0
-            obj.scale[2] = 1.0
-            
+                        
             ### Create an empty mesh
             mesh = bpy.data.meshes.new(name=obj.data.name)
             
@@ -614,6 +663,13 @@ class REMESH_OT_remesh_operator(Operator):
                 bpy.data.meshes.remove(oldMesh)
             
         return {'FINISHED'}
+
+objectOperatorsClasses = (
+    VR_OT_addIF,
+    VR_OT_removeIF,
+    OBJECT_OT_cut_select_operator,
+    REMESH_OT_remesh_operator,
+)
 
 # Object add operators
 ##########################
@@ -708,24 +764,6 @@ class QUADRIC_OT_add_plane(Operator, AddObjectHelper):
         utils.add_object(self, context, "Plane", "PLANE")
         return {'FINISHED'}
 
-# TUBE
-class QUADRIC_OT_add_tube(Operator, AddObjectHelper):
-    """Create a new Tube Quadric"""
-    bl_idname = "mesh.add_tube_quadric"
-    bl_label = "Add Tube Quadric"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    scale: FloatVectorProperty(
-        name="scale",
-        default=(1.0, 1.0, 1.0),
-        subtype='TRANSLATION',
-        description="scaling",
-    )
-
-    def execute(self, context):
-        utils.add_object(self, context, "Tube", "TUBE")
-        return {'FINISHED'}
-
 # SEMI_SPHERE
 class QUADRIC_OT_add_semiSphere(Operator, AddObjectHelper):
     """Create a new Tube Quadric"""
@@ -744,40 +782,79 @@ class QUADRIC_OT_add_semiSphere(Operator, AddObjectHelper):
         utils.add_object(self, context, "SemiSphere", "SEMI_SPHERE")
         return {'FINISHED'}
 
-# SEMI_SPHERE_SHELL
-class QUADRIC_OT_add_semiSphereShell(Operator, AddObjectHelper):
-    """Create a new Tube Quadric"""
-    bl_idname = "mesh.add_semisphereshell_quadric"
-    bl_label = "Add SemiSphere Shell Quadric"
+# CUT PLANE
+class QUADRIC_OT_add_cutplane(Operator, AddObjectHelper):
+    """Create a new Cutting Plane Quadric"""
+    bl_idname = "mesh.add_cut_plane_quadric"
+    bl_label = "Add Cutting Plane Quadric"
     bl_options = {'REGISTER', 'UNDO'}
 
-    scale: FloatVectorProperty(
-        name="scale",
-        default=(1.0, 1.0, 1.0),
-        subtype='TRANSLATION',
-        description="scaling",
-    )
-
     def execute(self, context):
-        utils.add_object(self, context, "SemiSphere Shell", "SEMI_SPHERE_SHELL")
+
+        parent = context.object
+        if parent and parent.penred_settings:
+        
+            # Create the cutting plane
+            cutPlane = utils.add_object(self, context, "Plane", "CUT_PLANE")
+            cutPlane.name = "Cut Plane"
+
+            # Save the cut plane transform
+            matrixWorld = cutPlane.matrix_world.copy()
+            
+            # Set parent
+            cutPlane.parent = parent
+
+            # Apply the parent's inverse transform
+            cutPlane.matrix_parent_inverse = parent.matrix_world.inverted()
+            
+            # Restore the cut plane world transform
+            cutPlane.matrix_world = matrixWorld
+
+            # Add boolean modifier to the parent object
+            mod = parent.modifiers.new(name="boolean", type="BOOLEAN")
+            mod.operation = "DIFFERENCE"
+            mod.object = cutPlane
+
+            # Resize cutting plane according to parents bounding box size
+            x,y,z,dx,dy,dz,sx,sy,sz,omega,theta,phi,name,boxSize = utils.getObjInfo(parent)
+            maxSize = Vector(boxSize).length
+            cutPlane.scale = Vector((1.01*maxSize,1.01*maxSize,1.0))
+            cutPlane.location = Vector((x,y,z))
+
+            # Set the plane as active object
+            bpy.ops.object.select_all(action='DESELECT')
+            cutPlane.select_set(True)
+            bpy.context.view_layer.objects.active = cutPlane
+                
         return {'FINISHED'}
 
-# CONE_SHELL
-class QUADRIC_OT_add_coneShell(Operator, AddObjectHelper):
-    """Create a new Cone Quadric"""
-    bl_idname = "mesh.add_coneshell_quadric"
-    bl_label = "Add Cone Shell Quadric"
+class QUADRIC_OT_remove_cutplane(Operator):
+    """Remove the Cutting Plane Quadric"""
+    bl_idname = "quadric.remove_cut_plane"
+    bl_label = "Remove Cutting Plane Quadric"
     bl_options = {'REGISTER', 'UNDO'}
 
-    scale: FloatVectorProperty(
-        name="scale",
-        default=(1.0, 1.0, 1.0),
-        subtype='TRANSLATION',
-        description="scaling",
-    )
+    modName: bpy.props.StringProperty(name = "Modifier Name", default="")
 
     def execute(self, context):
-        utils.add_object(self, context, "Cone Shell", "CONE_SHELL")
+
+        parent = context.object
+        if parent and parent.penred_settings and self.modName and parent.modifiers:
+
+            modifier = parent.modifiers.get(self.modName)
+
+            if modifier and modifier.type == "BOOLEAN":
+
+                # Get modifier object and remoth both, the modifier and the object
+                bolObj = modifier.object
+
+                # Remove modifier
+                parent.modifiers.remove(modifier)
+
+                # Remove object
+                if bolObj:
+                    bpy.data.objects.remove(bolObj)
+
         return {'FINISHED'}
 
 quadricObjectAddOperators = (
@@ -786,10 +863,9 @@ quadricObjectAddOperators = (
     QUADRIC_OT_add_cone,
     QUADRIC_OT_add_cylinder,
     QUADRIC_OT_add_plane,
-    QUADRIC_OT_add_tube,
     QUADRIC_OT_add_semiSphere,
-    QUADRIC_OT_add_semiSphereShell,
-    QUADRIC_OT_add_coneShell,
+    QUADRIC_OT_add_cutplane,
+    QUADRIC_OT_remove_cutplane,
 )
 
 # Export operator
@@ -809,7 +885,9 @@ class export_penred(Operator, ExportHelper):
     toRound: bpy.props.IntProperty(
         name="Rounding decimal",
         description="Decimal limit to round the export values (position, dimensions, etc)",
-        default=6,
+        default=5,
+        min=3,
+        max=10
         )
 
     
@@ -867,10 +945,16 @@ class export_penred(Operator, ExportHelper):
                 #Skip it
                 return
 
-        # Set detector
-        if fconf and obj.penred_settings.isDetector:
-            fconf.write(f"geometry/kdet/{obj.name} {obj.penred_settings.detector}\n")
+        # Set object specific parameters
+        if fconf:
+            if obj.penred_settings.isDetector:
+                fconf.write(f"geometry/kdet/{obj.name} {obj.penred_settings.detector}\n")
+            if obj.penred_settings.dsmaxEnabled:
+                fconf.write(f"geometry/dsmax/{obj.name} {obj.penred_settings.dsmax:.5e}\n")
 
+            # Create variance reduction
+            conf.createVR(obj, obj.name, fconf)
+                
         #Get name
         name = obj.name
         name.replace(" ","_")
@@ -951,6 +1035,10 @@ class export_penred(Operator, ExportHelper):
         if obj.penred_settings.quadricType == "unknown" and obj.type != "EMPTY": 
             return [], nSurf, nObj
 
+        # Avoid cut planes
+        if obj.penred_settings.quadricType == "CUT_PLANE":
+            return [], nSurf, nObj
+
         #Check if hide objects must be avoided
         if avoidHide:
             if obj.hide_get():
@@ -978,7 +1066,7 @@ class export_penred(Operator, ExportHelper):
         quadType = obj.penred_settings.quadricType
                     
         #Get object properties
-        x,y,z,dx,dy,dz,sx,sy,sz,omega,theta,phi,name,boxSize = utils.getObjInfo(context,obj)
+        x,y,z,dx,dy,dz,sx,sy,sz,omega,theta,phi,name,boxSize = utils.getObjInfo(obj)
                          
         #Save init surface
         initSurf = nSurf
@@ -996,70 +1084,44 @@ class export_penred(Operator, ExportHelper):
             if r1 == r2:
                 nSurf = surfaces.createCylinderSurfaces(f,x,y,z, dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
             else:
-                nSurf, shell = surfaces.createConeSurfaces(f,x,y,z,r1,r2,dz,sx,sy,omega,theta,phi,nSurf,name,-1.0,toRound)
+                nSurf = surfaces.createConeSurfaces(f,x,y,z,r1,r2,dz,sx,sy,omega,theta,phi,nSurf,name,toRound)
         elif quadType == "PLANE":
             nSurf = surfaces.createPlaneSurfaces(f,x,y,z,omega,theta,phi,nSurf,name,toRound)
-        elif quadType == "TUBE":
-            innerCreated = False
-            #Construct outer cylinder
-            nSurf = surfaces.createCylinderSurfaces(f,x,y,z, dx,dy,dz,omega,theta,phi,nSurf,name,toRound)            
-            #Check if the object has the boolean modifier
-            if "Boolean" in obj.modifiers:
-                #Get limiting cylinder
-                innerCyl = obj.modifiers['Boolean'].object
-                x,y,z,dx,dy,dz,sx,sy,sz,omega,theta,phi,name2,boxSize = utils.getObjInfo(context,innerCyl)
-                #Construct inner cylinder
-                nSurf = surfaces.printCylinderQuad(f,x,y,z,dx/2.0,dy/2.0,omega,theta,phi,nSurf,name2,toRound)
-                #Flag inner quad
-                innerCreated = True
         elif quadType == "SEMI_SPHERE":
             #Construct sphere. Take into account that the Z dimension
             #must not be multiplied by two to comepnsate the cut, because
             #we added an artificial vertex
             nSurf = surfaces.createSphereSurfaces(f,x,y,z,dx,dy,dz,nSurf,name,toRound)
             #Create limiting plane
-            nSurf = surfaces.createPlaneSurfaces(f,x,y,z,omega,theta,phi,nSurf,name,toRound)            
-        elif quadType == "SEMI_SPHERE_SHELL":
-            #Construct sphere. Take into account that the Z dimension
-            #must be multiplied by two to comepnsate the cut, because
-            #the modifier remove the effect of artificial vertex
-            innerCreated = False
-            nSurf = surfaces.createSphereSurfaces(f,x,y,z,dx,dy,2.0*dz,nSurf,name,toRound)
-            #Get solidify modifier information
-            if "Solidify" in obj.modifiers:
-                #thickness
-                thickness = obj.modifiers['Solidify'].thickness
-                t2 = 2.0*thickness
-                if t2 < dx and t2 < dy and t2 < dz:
-                    nameInt = "Internal " + name
-                    nSurf = surfaces.createSphereSurfaces(f,x,y,z,dx-t2,dy-t2,2.0*dz-t2,nSurf,nameInt,toRound)
-                    innerCreated = True
-            #Create limiting planen
-            nSurf = surfaces.createPlaneSurfaces(f,x,y,z,omega,theta,phi,nSurf,name,toRound)            
-        elif quadType == "CONE_SHELL":
-            innerCreated = False
-            r1 = obj.penred_settings.r3
-            r2 = obj.penred_settings.r4
-            #Get solidify modifier information
-            if "Solidify" in obj.modifiers:
-                #thickness
-                thickness = obj.modifiers['Solidify'].thickness
-            else:
-                thickness = -1.0
-            
-            if r1 == r2:
-                nSurf = surfaces.createCylinderSurfaces(f,x,y,z, dx,dy,dz,omega,theta,phi,nSurf,name,toRound)               
-                shell = False
-            else:
-                nSurf, shell = surfaces.createConeSurfaces(f,x,y,z,r1,r2,dz,sx,sy,omega,theta,phi,nSurf,name,thickness,toRound)
+            nSurf = surfaces.createPlaneSurfaces(f,x,y,z,omega,theta,phi,nSurf,name,toRound)
+
+        # Create cutting plane surfaces, if defined
+        nCuttingPlanes = 0
+        for mod in obj.modifiers:
+            if mod.type == "BOOLEAN":
+                bolObj = mod.object
+                if bolObj and hasattr(bolObj, "penred_settings"):
+                    if bolObj.penred_settings.quadricType == "CUT_PLANE":
+                        # Is a cutting plane, get its properties
+                        xCut,yCut,zCut,_,_,_,_,_,_,omegaCut,thetaCut,phiCut,nameCut,_ = utils.getObjInfo(bolObj)
+                        
+                        nSurf = surfaces.createPlaneSurfaces(f,xCut,yCut,zCut,omegaCut,thetaCut,phiCut,nSurf,nameCut,toRound)
+                        nCuttingPlanes = nCuttingPlanes+1
             
         ### Init body
         surfaces.initBody(f,nObj,name,obj.penred_settings.material,obj.penred_settings.module)
 
-        # Set detector
-        if fconf and obj.penred_settings.isDetector:
-            fconf.write(f"geometry/kdet/{nObj} {obj.penred_settings.detector}\n")
-        
+        # Set object specific parameters
+        if fconf:
+            if obj.penred_settings.isDetector:
+                fconf.write(f"geometry/kdet/{nObj} {obj.penred_settings.detector}\n")
+            if obj.penred_settings.dsmaxEnabled:
+                fconf.write(f"geometry/dsmax/{nObj} {obj.penred_settings.dsmax:.5e}\n")
+
+            # Create variance reduction
+            conf.createVR(obj, nObj, fconf)
+                
+                
         ### Set object surfaces
         if quadType == "CUBE":
             initSurf = surfaces.setCubeSurfaces(f,initSurf, 1)
@@ -1069,25 +1131,13 @@ class export_penred(Operator, ExportHelper):
             initSurf = surfaces.setCylinderConeSurfaces(f,initSurf, 1)
         elif quadType == "PLANE":
             initSurf = surfaces.setPlaneSurfaces(f,initSurf, 1)
-        elif quadType == "TUBE":
-            #Set cylinder surface
-            initSurf = surfaces.setCylinderConeSurfaces(f,initSurf, 1)
-            #Set inner surface
-            if innerCreated:
-                initSurf = surfaces.setSurface(f,initSurf, 1)            
         elif quadType == "SEMI_SPHERE":
             initSurf = surfaces.setSphereSurfaces(f,initSurf, 1)
             initSurf = surfaces.setPlaneSurfaces(f,initSurf, 1)
-        elif quadType == "SEMI_SPHERE_SHELL":
-            #External sphere
-            initSurf = surfaces.setSphereSurfaces(f,initSurf, 1)
-            if innerCreated:
-                #Internal sphere
-                initSurf = surfaces.setSurface(f,initSurf, 1)            
-            #Plane
-            initSurf = surfaces.setPlaneSurfaces(f,initSurf, 1)
-        elif quadType == "CONE_SHELL":
-            initSurf = surfaces.setCylinderConeSurfaces(f,initSurf, 1, shell)
+
+        # Set cutting planes surfaces
+        for i in range(nCuttingPlanes):
+            initSurf = surfaces.setPlaneSurfaces(f,initSurf, 1)            
             
         #Set childrens
         if len(tree) > 0:
@@ -1143,20 +1193,20 @@ class export_penred(Operator, ExportHelper):
             conf.createMaterials(context, fconf)
 
             # Create source configuration
-            conf.createSources(context, fconf)
+            conf.createSources(context, fconf, self.toRound)
 
             # Create tallies configuration
-            conf.createTallies(context, fconf)
+            conf.createTallies(context, fconf, self.toRound)
 
             # Create geometry configuration
-            fconf.write("\n# Geometry configuration\n")
+            fconf.write("\n## Geometry configuration ##\n")
             if self.exportType == 'QUADRICS':
                 fconf.write( "geometry/type \"PEN_QUADRIC\"\n")
-                fconf.write(f"geometry/input-file \"{os.path.splitext(self.filepath)[1]}\"\n")
+                fconf.write(f"geometry/input-file \"{self.filepath}\"\n")
                 fconf.write("geometry/processed-geo-file \"report.geo\"\n\n")
             else:
                 fconf.write( "geometry/type \"MESH_BODY\"\n")
-                fconf.write(f"geometry/input-file \"{os.path.splitext(self.filepath)[1]}\"\n")                                
+                fconf.write(f"geometry/input-file \"{self.filepath}\"\n")                
 
         if self.exportType == 'QUADRICS':
             #Create an array for object names
@@ -1219,8 +1269,9 @@ def register():
     for cls in quadricTransformClasses:
         bpy.utils.register_class(cls)
 
-    #Register remesh operator
-    bpy.utils.register_class(REMESH_OT_remesh_operator)
+    #Register object operators
+    for cls in objectOperatorsClasses:
+        bpy.utils.register_class(cls)
         
     #Register object add operators
     for cls in quadricObjectAddOperators:
@@ -1246,8 +1297,9 @@ def unregister():
     for cls in quadricTransformClasses:
         bpy.utils.unregister_class(cls)
 
-    #Unregister remesh operator
-    bpy.utils.unregister_class(REMESH_OT_remesh_operator)
+    #Unregister object operators
+    for cls in objectOperatorsClasses:
+        bpy.utils.unregister_class(cls)
     
     #Unregister object add operators
     for cls in quadricObjectAddOperators:

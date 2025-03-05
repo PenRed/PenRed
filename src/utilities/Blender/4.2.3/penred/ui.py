@@ -1,5 +1,7 @@
 
 import bpy
+from mathutils import Vector
+from mathutils import Color
 from . import addon_properties, utils
 
 # Export menu function
@@ -43,10 +45,7 @@ class OBJECT_MT_quadric_submenu(bpy.types.Menu):
         layout.operator("mesh.add_cone_quadric",text="Cone",icon='CONE')
         layout.operator("mesh.add_cylinder_quadric",text="Cylinder",icon='MESH_CYLINDER')
         layout.operator("mesh.add_plane_quadric",text="Plane",icon='MESH_PLANE')
-        layout.operator("mesh.add_tube_quadric",text="Tube",icon='MESH_TORUS')
         layout.operator("mesh.add_semisphere_quadric",text="Semi-Sphere",icon='SPHERE')
-        layout.operator("mesh.add_semisphereshell_quadric",text="Semi-Sphere Shell",icon='SPHERE')
-        layout.operator("mesh.add_coneshell_quadric",text="Cone Shell",icon='CONE')
 
 def menu_quadric_add_func(self, context):
     self.layout.menu("OBJECT_MT_quadric_submenu", text="Quadric", icon='CUBE')
@@ -64,7 +63,7 @@ class PenredBodyPropertiesPanel(bpy.types.Panel):
         layout = self.layout
         obj = context.object
 
-        if obj and obj.penred_settings and obj.type == "MESH":
+        if obj and obj.penred_settings and obj.type == "MESH" and obj.penred_settings.isMaterialObject:
 
             # Material
             row = layout.row()
@@ -81,9 +80,9 @@ class PenredBodyPropertiesPanel(bpy.types.Panel):
                 row.prop(obj.penred_settings, "detector", text="Index")
 
             box = layout.box()
-            box.label(text="Class II Advanced Parameters")
+            box.label(text="Advanced Parameters")
             row = box.row()
-            row.prop(obj.penred_settings, "dsmaxEnabled", text="Limit Distance")
+            row.prop(obj.penred_settings, "dsmaxEnabled", text="Class II Limit Distance")
             if obj.penred_settings.dsmaxEnabled:
                 row = box.row()
                 if obj.penred_settings.dsmaxEdit:
@@ -92,7 +91,84 @@ class PenredBodyPropertiesPanel(bpy.types.Panel):
                     row.label(text=f"DSMax :  {obj.penred_settings.dsmax:.3e} cm")
                     row.prop(obj.penred_settings, "dsmaxEdit",
                              text="", icon="GREASEPENCIL",
-                             toggle=True)                
+                             toggle=True)
+
+            # X-Ray splitting
+            ############################
+            vrbox = box.box()
+            vrbox.label(text="X-Ray Splitting")
+
+            row = vrbox.row()
+            row.prop(obj.penred_settings, "enableXRaySplitting", text="Enable")
+
+            row = vrbox.row()
+            row.enabled = obj.penred_settings.enableXRaySplitting
+            row.prop(obj.penred_settings, "xraySplitting", text="Factor")
+
+            # Bremss splitting
+            ############################
+            vrbox = box.box()
+            vrbox.label(text="Bremsstrahlung Splitting")
+
+            row = vrbox.row()
+            row.prop(obj.penred_settings, "enableBremssSplitting", text="Enable")
+
+            row = vrbox.row()
+            row.enabled = obj.penred_settings.enableBremssSplitting
+            row.prop(obj.penred_settings, "bremssSplitting", text="Factor")            
+                    
+            # Interaction Forcing
+            ############################
+            vrbox = box.box()
+            row = vrbox.row()
+            row.prop(obj.penred_settings, "showInteractionForcing",
+                     text="Interaction Forcing", emboss=True,
+                     icon="TRIA_DOWN" if obj.penred_settings.showInteractionForcing else "TRIA_RIGHT")
+            
+            row.operator("vr_if.add_item", text="", icon="ADD")
+                    
+            if obj.penred_settings.showInteractionForcing:
+                for i, item in enumerate(obj.penred_settings.interactionForcing):
+
+                    box = vrbox.box()
+                    row = box.row()
+                    row.prop(item, "show", text=item.name, emboss=True,
+                             icon="TRIA_DOWN" if item.show else "TRIA_RIGHT")
+                    row.operator("vr_if.remove_item", text="", icon="TRASH").index = i
+                    if not item.show:
+                        continue
+
+                    # Name
+                    row = box.row()
+                    row.prop(item, "name", text="Name")
+
+                    # Particle type
+                    row = box.row()
+                    row.prop(item, "particleType", text="Particle")
+
+                    # Interaction
+                    if item.particleType == "gamma":
+                        row = box.row()
+                        row.prop(item, "gammaInteraction", text="Interaction")
+                    elif item.particleType == "electron":
+                        row = box.row()
+                        row.prop(item, "electronInteraction", text="Interaction")
+                    elif item.particleType == "positron":
+                        row = box.row()
+                        row.prop(item, "positronInteraction", text="Interaction")
+
+                    # Factor type
+                    row = box.row()
+                    row.prop(item, "factorType", text="Factor Type")
+                    
+                    # Factor
+                    row = box.row()
+                    row.prop(item, "factor", text="Factor")
+
+                    # Factor
+                    row = box.row()
+                    row.prop(item, "weightWindow", text="Weight Window")
+            
 
             # Check if it is a quadric object
             if obj.penred_settings.quadricType != "unknown":
@@ -105,11 +181,28 @@ class PenredBodyPropertiesPanel(bpy.types.Panel):
                 row = box.row()
                 row.prop(obj.penred_settings, "module")
         
-                if obj.penred_settings.quadricType == "CONE" or obj.penred_settings.quadricType == "CONE_SHELL":
+                if obj.penred_settings.quadricType == "CONE":
                     row = box.row()
                     row.prop(obj.penred_settings, "r2", text="Top Radius")
                     row = box.row()
                     row.prop(obj.penred_settings, "r1", text="Bottom Radius")
+
+                # Add internal planes
+                pbox = box.box()
+                pbox.label(text="Cutting Planes")
+                for mod in obj.modifiers:
+                    if mod.type == "BOOLEAN":
+                        bolObj = mod.object
+                        if bolObj and hasattr(bolObj, "penred_settings"):
+                            if bolObj.penred_settings.quadricType == "CUT_PLANE":
+                                row = pbox.row()
+                                row.operator("cut.select_operator", text=bolObj.name).cutName = bolObj.name
+                                row.operator("quadric.remove_cut_plane",
+                                             text="", icon="TRASH").modName = mod.name
+                row = pbox.row()
+                row.operator("mesh.add_cut_plane_quadric",
+                             text="Add Cutting Plane",
+                             icon="ADD")
 
 # Source properties menu
 ##########################
@@ -168,6 +261,17 @@ class PenredSourcePropertiesPanel(bpy.types.Panel):
                 row.prop(source, "psfWindow", text="")
 
             else:
+                # Spatial
+                spatialBox = layout.box()
+                spatialBox.label(text="Spatial")
+                spatialBox.active = senabled
+
+                row = spatialBox.row()
+                row.prop(source, "spatialType", text="Type")
+                if source.spatialType == "SPATIAL_CYL":
+                    row = spatialBox.row()
+                    row.prop(source, "spatialBBFit", text="Inside Bounding Box")
+                
                 # Energy
                 energyBox = layout.box()
                 energyBox.label(text="Energy")
@@ -1080,9 +1184,70 @@ def add_object_manual_map():
 def drawHintsHandler():
     context = bpy.context
     for obj in context.scene.objects:
-        if obj.penred_settings.source:
-            utils.draw_arrow(context, obj)
-            
+        if obj and obj.penred_settings:
+            penSett = obj.penred_settings
+            if penSett.quadricType == "CUT_PLANE":
+                if obj.parent:
+                    # Hide this objects if are not active
+                    if obj == bpy.context.view_layer.objects.active:
+                        if obj.hide_viewport:
+                            obj.hide_viewport = False
+                    elif not obj.hide_viewport:
+                        obj.hide_viewport = True
+                        
+                else:
+                    bpy.data.objects.remove(obj)
+                
+            if not obj.hide_get() and not obj.hide_viewport:
+
+                if penSett.source and penSett.source.enabled:
+                    source = penSett.source
+
+                    # Get the source direction
+                    direction = source.direction
+                    color = (1.0, 0.0, 0.0, 1.0)
+                    utils.draw_arrow(obj, direction, color)
+
+                    if source.spatialType == "SPATIAL_BOX":
+                        color = (1.0, 0.2, 0.2, 0.2)
+                        utils.draw_bbox(obj, color)
+                    elif source.spatialType == "SPATIAL_CYL":
+                        color = (1.0, 0.2, 0.2, 0.2)
+                        utils.draw_zcyl(obj, source.spatialBBFit, color)
+
+                # Tallies
+                tallyColor = (0.2, 0.2, 1.0, 0.2)
+
+                # Check kerma tallies
+                kermaCart = False
+                kermaCyl = False
+                kermaSph = False
+                for t in penSett.talliesKerma:
+                    if t.meshType == "MESH_CART":
+                        kermaCart = True
+                    if t.meshType == "MESH_CYL":
+                        kermaCyl = True
+                    if t.meshType == "MESH_SPH":
+                        kermaSph = True
+                
+                if kermaCyl or len(penSett.talliesCylDose) > 0:
+                    utils.draw_zcyl(obj, False, tallyColor)
+                if kermaCart or len(penSett.talliesSpatialDoseDistrib) + len(penSett.talliesSpatialDistrib) > 0:
+                    utils.draw_bbox(obj, tallyColor)
+                if kermaSph or len(penSett.talliesSphericalDoseDistrib) > 0:
+                    utils.draw_sphere(obj, tallyColor)
+
+                # Planes
+                if penSett.quadricType == "PLANE" or penSett.quadricType == "CUT_PLANE":
+                    # Get the object's local rotation matrix
+                    rotationMatrix = obj.matrix_world.to_3x3()
+
+                    localZ = Vector((0,0,1))
+                    worldZ = rotationMatrix @ localZ
+
+                    color = (0.0, 0.0, 0.0, 1.0)
+                    utils.draw_arrow(obj, worldZ, color)
+
 # Register functions
 def register():    
     bpy.types.TOPBAR_MT_file_export.append(menu_func_penred_export)

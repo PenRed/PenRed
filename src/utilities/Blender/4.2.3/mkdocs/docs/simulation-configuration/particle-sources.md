@@ -4,7 +4,7 @@ Any Blender object can be defined as a particle source, even if it is not a mesh
 
 <img src="../../simulation-configuration/images/sourceProperties.png" alt="Source Properties" width="300" style="display: block; margin: 0 auto"/>
 
-The source can be configured with several options, which are described in this section. The first two parameters to define are:
+Once enabled, the **sampling region and direction of sources** are displayed in **red** within the 3D viewport. The source can be configured using a variety of options, which are described in this section. The first two parameters to define are:
 
 
 - **`Histories`**  
@@ -13,9 +13,22 @@ The source can be configured with several options, which are described in this s
 - **`Type`**  
   Specifies whether all sampled particles are of a specific type (e.g., Gammas, Electrons, or Positrons) or if a Phase Space File (PSF) will be used to read the particles states. A PSF includes the type, energy, position, and direction information for each particle to be simulated. This PSF files can be created using a [PSF tally](detector-tallies.md#psf).
   
-### Single Particle Type Sampling
+### Generic Particle Sampling
 
   If no PSF is used, the methods to sample the particle state must be specified. These include sampling its **energy**, **position**, **direction**, and **time** (if needed).
+
+#### Spatial
+
+These parameters define how the initial particle locations are sampled. The available options are:
+
+- **`Point`**  
+  The particle location is set to the center of the object's bounding box.
+- **`Box`**  
+  The particle location is sampled uniformly inside the object's bounding box.
+- **`Cylinder`**  
+  The particle location is sampled uniformly inside a cylinder shape oriented along the Z-axis. The cylinder size can be defined in two ways:
+    - **Fit inside the bounding box**: Enable the **`Inside Bounding Box`** option to constrain the cylinder within the object's bounding box.
+    - **Enclose the bounding box**: Disable the **`Inside Bounding Box`** option to ensure the cylinder fully encloses the bounding box.
   
 #### Energy
 

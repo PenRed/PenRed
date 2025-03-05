@@ -12,30 +12,30 @@ def createMaterial(f, name, index,
     
     # Gamma
     if gammaCutoffType == "CUTOFF_EABS":
-        f.write(f"materials/{name}/eabs/gamma {gammaCutoffValue}\n")
+        f.write(f"materials/{name}/eabs/gamma {gammaCutoffValue:.3e}\n")
     else:
-        f.write(f"materials/{name}/range/gamma {gammaCutoffValue}\n")
+        f.write(f"materials/{name}/range/gamma {gammaCutoffValue:.3e}\n")
 
     # Electron
     if electronCutoffType == "CUTOFF_EABS":
-        f.write(f"materials/{name}/eabs/electron {electronCutoffValue}\n")
+        f.write(f"materials/{name}/eabs/electron {electronCutoffValue:.3e}\n")
     else:
-        f.write(f"materials/{name}/range/electron {electronCutoffValue}\n")
+        f.write(f"materials/{name}/range/electron {electronCutoffValue:.3e}\n")
 
     # Positron
     if positronCutoffType == "CUTOFF_EABS":
-        f.write(f"materials/{name}/eabs/positron {positronCutoffValue}\n")
+        f.write(f"materials/{name}/eabs/positron {positronCutoffValue:.3e}\n")
     else:
-        f.write(f"materials/{name}/range/positron {positronCutoffValue}\n")
+        f.write(f"materials/{name}/range/positron {positronCutoffValue:.3e}\n")
 
     if advanced:
-        f.write(f"materials/{name}/C1 {C1}\n")
-        f.write(f"materials/{name}/C2 {C2}\n")
-        f.write(f"materials/{name}/WCC {WCC}\n")
-        f.write(f"materials/{name}/WCR {WCR}\n")
+        f.write(f"materials/{name}/C1 {C1:.2f}\n")
+        f.write(f"materials/{name}/C2 {C2:.2f}\n")
+        f.write(f"materials/{name}/WCC {WCC:.3e}\n")
+        f.write(f"materials/{name}/WCR {WCR:.3e}\n")
 
         
-    f.write(f"materials/{name}/density {density}\n")
+    f.write(f"materials/{name}/density {density:.4e}\n")
     for e in composition:
-        f.write(f"materials/{name}/elements/{e[0]} {e[1]}\n")
+        f.write(f"materials/{name}/elements/{e[0]} {e[1]:.4e}\n")
     f.write("\n")

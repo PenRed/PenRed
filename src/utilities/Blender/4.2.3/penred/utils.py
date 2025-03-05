@@ -11,17 +11,11 @@ from mathutils import Vector
 from mathutils import Color
 from math import cos, acos, sin, asin, tan, atan2, sqrt, pi
 
-def getObjInfo(context,obj):
-    #Set object origin to origin geometry
-    context.view_layer.objects.active = obj
-    #bpy.ops.object.origin_set( type = 'ORIGIN_GEOMETRY' )
+def getObjPosSize(obj):
 
-    #Get name
-    name = obj.name
-        
     #Get scale
     sx,sy,sz = obj.matrix_world.to_scale()
-        
+    
     if obj.type == 'MESH':
 
         # Get the bounding box corners in world coordinates
@@ -53,6 +47,18 @@ def getObjInfo(context,obj):
         dx = 1.0
         dy = 1.0
         dz = 1.0
+
+    return center,dx,dy,dz,sx,sy,sz,size
+    
+def getObjInfo(obj):
+    #Set object origin to origin geometry
+    #context.view_layer.objects.active = obj
+    #bpy.ops.object.origin_set( type = 'ORIGIN_GEOMETRY' )
+
+    #Get name
+    name = obj.name
+        
+    center,dx,dy,dz,sx,sy,sz,size = getObjPosSize(obj)
                             
     #Get rotation in "ZYZ" euler angles
     rotMatrix = obj.matrix_world.to_quaternion().to_matrix()
@@ -99,19 +105,192 @@ def overlappingMats(sourceObj):
             mats.add(obj.penred_settings.material)
     return mats
 
-# Draw an arrow
-def draw_arrow(context, obj):
-    if not obj.penred_settings.source or not obj.penred_settings.source.enabled:
-        return  # Skip drawing if the source flag is disabled
+# Draw a object bounding box
+def draw_bbox(obj, color):
 
-    source = obj.penred_settings.source
+    # Get object spatial properties
+    center,dx,dy,dz,sx,sy,sz,bsize = getObjPosSize(obj)
+
+    width05 = bsize[0]/2.0
+    height05 = bsize[1]/2.0
+    depth05 = bsize[2]/2.0
+
+    xmin = center[0] - width05
+    xmax = center[0] + width05
+
+    ymin = center[1] - height05
+    ymax = center[1] + height05
+
+    zmin = center[2] - depth05
+    zmax = center[2] + depth05
     
-    # Get the object's location and direction
-    location = obj.location
-    direction = Vector(source.direction).normalized()
+    # Define the 8 vertices of the box
+    vertices = [
+        Vector(( xmin, ymin, zmin)),
+        Vector(( xmax, ymin, zmin)),
+        Vector(( xmax, ymax, zmin)),
+        Vector(( xmin, ymax, zmin)),
+        Vector(( xmin, ymin, zmax)),
+        Vector(( xmax, ymin, zmax)),
+        Vector(( xmax, ymax, zmax)),
+        Vector(( xmin, ymax, zmax)),
+    ]
+
+    # Define the 12 edges (lines) of the box
+    indices = [
+        # Bottom face
+        (0, 1), (1, 2), (2, 3), (3, 0),
+        # Top face
+        (4, 5), (5, 6), (6, 7), (7, 4),
+        # Vertical edges
+        (0, 4), (1, 5), (2, 6), (3, 7),
+    ]
+
+    # Create a shader for 3D drawing
+    shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+    batch = batch_for_shader(shader, 'LINES', {"pos": vertices}, indices=indices)
+
+    # Set the color
+    shader.bind()
+    shader.uniform_float("color", color)
+
+    # Draw the box as lines
+    batch.draw(shader)    
+
+# Draw a sphere
+def draw_sphere(obj, color, segments=16, rings=16):
+
+    # Get object spatial properties
+    center,dx,dy,dz,sx,sy,sz,bsize = getObjPosSize(obj)
+    
+    vertices = []
+    indices = []
+
+    radius = sqrt(bsize[0]*bsize[0] + bsize[1]*bsize[1] + bsize[2]*bsize[2])/2.0
+
+    # Generate vertices for the sphere
+    for i in range(rings + 1):
+        theta = i * pi / rings  # Polar angle (0 to π)
+        for j in range(segments):
+            phi = j * 2 * pi / segments  # Azimuthal angle (0 to 2π)
+            x = center[0] + radius * sin(theta) * cos(phi)
+            y = center[1] + radius * sin(theta) * sin(phi)
+            z = center[2] + radius * cos(theta)
+            vertices.append(Vector((x, y, z)))
+
+    # Generate indices for the sphere's wireframe
+    for i in range(rings):
+        for j in range(segments):
+            # Horizontal lines (rings)
+            indices.append((i * segments + j, i * segments + (j + 1) % segments))
+            # Vertical lines (segments)
+            indices.append((i * segments + j, (i + 1) * segments + j))
+
+
+    # Create a shader for 3D drawing
+    shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+    batch = batch_for_shader(shader, 'LINES', {"pos": vertices}, indices=indices)
+
+    # Set the color
+    shader.bind()
+    shader.uniform_float("color", color)
+
+    # Draw the sphere as lines
+    batch.draw(shader)            
+    
+# Draw a cylinder along Z axis
+def draw_zcyl(obj, inbox, color, segments = 32):
+
+    # Get object spatial properties
+    center,dx,dy,dz,sx,sy,sz,bsize = getObjPosSize(obj)
+
+    if inbox:
+        radius = min((bsize[0], bsize[1]))/2.0
+    else:
+        radius = sqrt(bsize[0]*bsize[0] + bsize[1]*bsize[1])/2.0
+
+    height05 = bsize[2]/2.0
+
+    vertices = []
+    indices = []
+
+    # Create the top and bottom circles
+    angleStep = (2 * pi ) / segments
+    for i in range(segments):
+        angle = angleStep * i
+        x = center[0] + radius * cos(angle)
+        y = center[1] + radius * sin(angle)
+
+        # Bottom circle
+        vertices.append((x, y, center[2]-height05))
+        # Top circle
+        vertices.append((x, y, center[2]+height05))
+
+    # Create indices to connect the circles
+    for i in range(segments):
+        next_i = (i + 1) % segments
+        # Tris index
+        # Bottom face (TRIS)
+        #indices.append((2 * i, 2 * next_i, 2 * i + 1))
+        #indices.append((2 * next_i, 2 * next_i + 1, 2 * i + 1))
+        # Side faces (TRIS)
+        #indices.append((2 * i, 2 * next_i, 2 * i + 1))
+        #indices.append((2 * next_i, 2 * next_i + 1, 2 * i + 1))
+
+        # Lines index
+        # Caps (LINES)
+        indices.append((2 * i, 2 * next_i))
+        indices.append((2 * next_i, 2 * next_i + 1))
+        # Side faces (LINES)
+        indices.append((2 * i, 2 * i + 1))
+        
+    # Add vertices for the center of the top and bottom caps
+    bottom_center = len(vertices)
+    vertices.append((center[0], center[1], center[2]-height05))  # Bottom center
+    top_center = len(vertices)
+    vertices.append((center[0], center[1], center[2]+height05))  # Top center
+
+    # Create indices for the bottom cap
+    for i in range(segments):
+        next_i = (i + 1) % segments
+        # TRIS
+        #indices.append((2 * i, 2 * next_i, bottom_center))
+        # LINES
+        indices.append((2 * i, bottom_center))
+
+    # Create indices for the top cap
+    for i in range(segments):
+        next_i = (i + 1) % segments
+        # TRIS
+        #indices.append((2 * i + 1, 2 * next_i + 1, top_center))
+        # LINES
+        indices.append((2 * i + 1, top_center))
+        
+    # Create a shader for 3D drawing
+    shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+    batch = batch_for_shader(shader, 'LINES', {"pos": vertices}, indices=indices)
+
+    # Set the color
+    shader.bind()
+    shader.uniform_float("color", color)
+
+    # Draw the cylinder
+    batch.draw(shader)
+
+# Draw an arrow
+def draw_arrow(obj, direction, color):
+
+    # Get object spatial properties
+    center,dx,dy,dz,sx,sy,sz,bsize = getObjPosSize(obj)
+
+    # Normalize the direction
+    direction = Vector(direction)
+    direction = direction.normalized()
+
+    location = Vector(center)
 
     # Define the arrow geometry
-    arrow_length = 1.0 + obj.dimensions.length
+    arrow_length = 1.0 + max(bsize)*1.5
     arrow_tip_length = arrow_length/4.0
     arrow_tip_width = arrow_length/10.0
 
@@ -135,7 +314,7 @@ def draw_arrow(context, obj):
 
     # Draw the arrow
     shader.bind()
-    shader.uniform_float("color", (1.0, 0.0, 0.0, 1.0))  # Red color
+    shader.uniform_float("color", color)  # Red color
     batch.draw(shader)
 
 def getLocalZdir(obj):
@@ -153,9 +332,6 @@ def add_object(self, context, meshType, quadType):
     coneDefaultR1 = 1.0
     coneDefaultR2 = 1.0e-5
 
-    coneShellDefaultR1 = 1.0
-    coneShellDefaultR2 = 0.8
-
     ### Create an empty mesh
     mesh = bpy.data.meshes.new(name=meshType)
 
@@ -163,99 +339,40 @@ def add_object(self, context, meshType, quadType):
     bm = bmesh.new()
     # Notice that, although blender parameters are named "diameter",
     # blender uses radius instead of diameter (bug?) OLD VERSIONS
-    if(quadType == "CUBE"):
+    if quadType == "CUBE":
         bmesh.ops.create_cube(bm, size=2.0)
-    elif(quadType == "SPHERE"):
+    elif quadType == "SPHERE":
         bmesh.ops.create_uvsphere(bm, u_segments=32, v_segments=16, radius=0.5)
-    elif(quadType == "CONE"):
+    elif quadType == "CONE":
         bmesh.ops.create_cone(bm, cap_ends=True, segments=32, radius1=coneDefaultR1, radius2=coneDefaultR2, depth = 1.0)
-    elif(quadType == "CYLINDER"):
+    elif quadType == "CYLINDER":
         bmesh.ops.create_cone(bm, cap_ends=True, segments=32, radius1=1.0, radius2=1.0, depth = 2.0)
-    elif(quadType == "PLANE"):
+    elif quadType == "PLANE":
         bmesh.ops.create_circle(bm, cap_ends=True, segments=32, radius=1.0)
-    elif(quadType == "TUBE"):
-        #Create outer cylinder
-        bmesh.ops.create_cone(bm, cap_ends=True, segments=32, radius1=1.0, radius2=1.0, depth = 2.0)
-    elif(quadType == "SEMI_SPHERE" or quadType == "SEMI_SPHERE_SHELL"):
+    elif quadType == "CUT_PLANE":
+        bmesh.ops.create_circle(bm, cap_ends=True, segments=32, radius=1.0)
+    elif quadType == "SEMI_SPHERE":
         bmesh.ops.create_uvsphere(bm, u_segments=32, v_segments=16, radius=0.5)
 
         elementsBot = [e for e in bm.edges if e.verts[1].co[2] < -1.0e-3]
         bmesh.ops.delete(bm,geom=elementsBot,context="EDGES_FACES")
         
-        if quadType == "SEMI_SPHERE":
-            verts = [v for v in bm.verts if v.co[2] < 1.0e-3 and v.co[2] > -1.0e-3]
-            bm.faces.new(verts)
-    elif(quadType == "CONE_SHELL"):
-        bmesh.ops.create_cone(bm, cap_ends=False, segments=32, radius1=coneShellDefaultR1, radius2=coneShellDefaultR2, depth = 1.0)        
-            
+        verts = [v for v in bm.verts if v.co[2] < 1.0e-3 and v.co[2] > -1.0e-3]
+        bm.faces.new(verts)
         
     bm.to_mesh(mesh)
     bm.free()
 
     ### Create the base object
-    object_data_add(context, mesh, operator=self)
-    context.object.penred_settings.quadricType=quadType
+    obj = object_data_add(context, mesh, operator=self)
+    obj.penred_settings.quadricType=quadType
 
-    ### Create secondary objects, if required
-    if(quadType == "TUBE"):
-        #Create inner cylinder to create the hole
-        innerMesh = bpy.data.meshes.new(name="Inner")
-        bmInner = bmesh.new()
-        bmesh.ops.create_cone(bmInner, cap_ends=True, segments=32, radius1=0.7, radius2=0.7, depth = 2.1)
-        bmInner.to_mesh(innerMesh)
-        bmInner.free()
-        
-        innerObj=bpy.data.objects.new(name="Inner", object_data=innerMesh)
-        #Set the object in the scene
-        bpy.context.collection.objects.link(innerObj)        
-        #Set the hole as child of tube object
-        innerObj.parent = context.object
-        #Make hole invisible
-        innerObj.hide_set(1)
-        innerObj.show_instancer_for_render = 0
-        innerObj.show_instancer_for_viewport = 0
-        
-        #As active object is the being created (New "TUBE" object), add a boolean modifier
-        bpy.ops.object.modifier_add(type="BOOLEAN")
-        #Set the operation to "Difference"
-        bpy.context.object.modifiers["Boolean"].operation = "DIFFERENCE"
-        #Set the "inner" object to do the operation 
-        bpy.context.object.modifiers["Boolean"].object = innerObj
-        
-    elif(quadType == "PLANE"):
-        #Add normal line
-        normalMesh = bpy.data.meshes.new(name="Normal")
-        bmNormal = bmesh.new()
-        
-        v0 = bmNormal.verts.new((0,0,0))
-        v1 = bmNormal.verts.new((0,0,1))
-        
-        bmNormal.edges.new((v0,v1))
-        bmNormal.to_mesh(normalMesh)
-        bmNormal.free()
-        
-        normalObj=bpy.data.objects.new(name="Normal", object_data=normalMesh)
-        #Set the normal in the scene
-        bpy.context.collection.objects.link(normalObj)        
-        #Set the normal object as child of plane object
-        normalObj.parent = context.object
-    elif(quadType == "CONE"):
+    ### Set other parameters, if needed        
+    if quadType == "CONE":
         #Add defualt radius
-        context.object.penred_settings.r1 = coneDefaultR1
-        context.object.penred_settings.r2 = coneDefaultR2
-        context.object.penred_settings.r3 = coneDefaultR1
-        context.object.penred_settings.r4 = coneDefaultR2
-    elif quadType == "SEMI_SPHERE_SHELL" or quadType == "CONE_SHELL":
-        #Add solidify modifier
-        bpy.ops.object.modifier_add(type="SOLIDIFY")
-        #Set the operation to "Difference"
-        bpy.context.object.modifiers['Solidify'].solidify_mode = "NON_MANIFOLD"
-        bpy.context.object.modifiers['Solidify'].nonmanifold_boundary_mode = "FLAT"
-        bpy.context.object.modifiers['Solidify'].thickness = 0.3
-        
-        if quadType == "CONE_SHELL":
-            #Add defualt radius
-            context.object.penred_settings.r1 = coneShellDefaultR1
-            context.object.penred_settings.r2 = coneShellDefaultR2
-            context.object.penred_settings.r3 = coneShellDefaultR1
-            context.object.penred_settings.r4 = coneShellDefaultR2
+        obj.penred_settings.r1 = coneDefaultR1
+        obj.penred_settings.r2 = coneDefaultR2
+    elif quadType == "CUT_PLANE":
+        obj.penred_settings.isMaterialObject = False
+
+    return obj

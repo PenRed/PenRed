@@ -1,9 +1,11 @@
 import bpy
 
-from . import sources, utils, tallies, materials
+from . import sources, utils, tallies, materials, vr
 from math import sqrt
 
 def createSim(context, f):
+    
+    f.write("## Simulation Configuration ##\n\n")
     
     # World
     world = context.scene.world
@@ -14,7 +16,7 @@ def createSim(context, f):
 
         f.write(f"# Simulation configuration\n")
         if simSett.enableDumps:
-            f.write(f"simulation/dump-interval {simSett.dumpInterval}\n")
+            f.write(f"simulation/dump-interval {simSett.dumpInterval:.2f}\n")
             f.write(f"simulation/dump2write \"{simSett.dumpWriteFile}\"\n")
 
         if simSett.readDumps:
@@ -40,11 +42,13 @@ def createSim(context, f):
         f.write(f"simulation/seedPair {simSett.seedPair}\n")
 
         if simSett.limitSimTime:
-            f.write(f"simulation/max-time {simSett.maxSimTime}\n")
+            f.write(f"simulation/max-time {simSett.maxSimTime:.2f}\n")
         
         f.write("\n")
 
 def createMaterials(context, f):
+
+    f.write("## Materials ##\n\n")
 
     # World tallies
     world = context.scene.world
@@ -74,7 +78,7 @@ def createMaterials(context, f):
             for e in item.composition:
                 compo.append([e.z, e.wFraction])
 
-            materials.createMaterial(f, item.name, i,
+            materials.createMaterial(f, item.name, i+1,
                                      item.gammaCutoffType, gCutoff,
                                      item.electronCutoffType, eCutoff,
                                      item.positronCutoffType, pCutoff,
@@ -83,7 +87,9 @@ def createMaterials(context, f):
                                      item.C1, item.C2, item.WCC, item.WCR)
 
 
-def createSources(context, f):
+def createSources(context, f, toRound):
+
+    f.write("## Sources ##\n\n")
     
     for obj in context.scene.objects:
         if hasattr(obj, "penred_settings"):
@@ -91,30 +97,42 @@ def createSources(context, f):
             if source.enabled:
 
                 # Get object properties
-                x,y,z,dx,dy,dz,sx,sy,sz,omega,theta,phi,name,bsize = utils.getObjInfo(context,obj)
+                x,y,z,dx,dy,dz,sx,sy,sz,omega,theta,phi,name,bsize = utils.getObjInfo(obj)
                 
                 if source.particleType == "PART_PSF":
 
                     # Create the PSF source
                     sources.createPSF(f, name, source.nHists,
-                              source.sourcePSF, source.psfMaxE,
-                              source.split, source.psfWindow,
-                              (x,y,z), (omega, theta, phi))                    
+                                      source.sourcePSF, source.psfMaxE,
+                                      source.split, source.psfWindow,
+                                      (x,y,z), (omega, theta, phi), toRound)
                 else:
+                    if source.spatialType == "SPATIAL_CYL":
+                        if source.spatialBBFit:
+                            radius = min((bsize[0], bsize[1]))/2.0
+                        else:
+                            radius = sqrt(bsize[0]*bsize[0] + bsize[1]*bsize[1])/2.0
+                                         
+                        spatialSize = (0.0, radius, 0.0, bsize[2])
+                    else:
+                        spatialSize = bsize
                     sources.createGeneric(f, name, source.nHists,
                                           source.particleType,
                                           source.energyType,
                                           source.energy, source.spcFile,
                                           source.aperture, source.direction,
-                                          (x,y,z), bsize)
+                                          source.spatialType, (x,y,z), spatialSize,
+                                          toRound)
 
                 # Check time sampling
                 if source.timeRecord:
                     sources.createTime(f, name, source.timeType,
                                        source.decayHalf, source.timeWindow)
 
-def createTallies(context, f):
+def createTallies(context, f, toRound):
 
+    f.write("## Tallies ##\n\n")
+    
     # World tallies
     world = context.scene.world
     
@@ -144,7 +162,7 @@ def createTallies(context, f):
         if hasattr(obj, "penred_settings"):
 
             # Get object properties
-            x,y,z,dx,dy,dz,sx,sy,sz,omega,theta,phi,name,bsize = utils.getObjInfo(context,obj)
+            x,y,z,dx,dy,dz,sx,sy,sz,omega,theta,phi,name,bsize = utils.getObjInfo(obj)
 
             xmin = x-bsize[0]/2.0
             xmax = x+bsize[0]/2.0
@@ -155,8 +173,8 @@ def createTallies(context, f):
             zmin = z-bsize[2]/2.0
             zmax = z+bsize[2]/2.0
             
-            rcyl = sqrt(bsize[0]*bsize[0] + bsize[1]*bsize[1] + bsize[2]*bsize[2])
-            rsph = sqrt(bsize[0]*bsize[0] + bsize[1]*bsize[1] + bsize[2]*bsize[2])
+            rcyl = sqrt(bsize[0]*bsize[0] + bsize[1]*bsize[1])/2.0
+            rsph = sqrt(bsize[0]*bsize[0] + bsize[1]*bsize[1] + bsize[2]*bsize[2])/2.0
             
             # Cylindrical dose tallies
             for i, item in enumerate(obj.penred_settings.talliesCylDose):
@@ -164,7 +182,8 @@ def createTallies(context, f):
                 tallies.createTallyCylDoseDistrib(f, tallyName, outputPrefix,
                                                   rcyl, item.nr,
                                                   zmin, zmax,
-                                                  item.nz, item.nphi)
+                                                  item.nz, item.nPhi,
+                                                  toRound)
 
             # Spatial Dose Distribution
             for i, item in enumerate(obj.penred_settings.talliesSpatialDoseDistrib):
@@ -173,14 +192,16 @@ def createTallies(context, f):
                                                       item.nx, item.ny, item.nz,
                                                       xmin, xmax,
                                                       ymin, ymax,
-                                                      zmin, zmax)
+                                                      zmin, zmax,
+                                                      toRound)
 
             # Spherical dose distribution
             for i, item in enumerate(obj.penred_settings.talliesSphericalDoseDistrib):
                 tallyName = f"{obj.name}_{i}_{item.name}"
                 tallies.createTallySphericalDoseDistrib(f, tallyName, outputPrefix,
                                                         rsph,
-                                                        item.nr, item.ntheta, item.nphi)
+                                                        item.nr, item.ntheta, item.nphi,
+                                                        toRound)
 
             # Kerma
             if len(obj.penred_settings.talliesKerma) > 0:
@@ -191,7 +212,11 @@ def createTallies(context, f):
                 matsIndex = utils.overlappingMats(obj)
                 matPairs = []
                 for m in matsIndex:
-                    matPairs.append([m, world.penred_settings.materials[m-1].name])
+                    if len(world.penred_settings.materials) >= m:
+                        matName = world.penred_settings.materials[m-1].name
+                    else:
+                        matName = f"mat{m}"
+                    matPairs.append([m, matName])
             
             for i, item in enumerate(obj.penred_settings.talliesKerma):
                 tallyName = f"{obj.name}_{i}_{item.name}"
@@ -251,18 +276,19 @@ def createTallies(context, f):
                                          meshType,
                                          n1, n2, n3,
                                          min1, min2, min3,
-                                         max1, max2, max3)
+                                         max1, max2, max3,
+                                         toRound)
 
             # Detector based tallies
 
             if not obj.penred_settings.isDetector:
-                return
+                continue
 
             # Get detector index
             det = obj.penred_settings.detector
                 
             # Impact detector tallies
-            for i, item in enumerate(obj.penred_settings.talliesCylDose):
+            for i, item in enumerate(obj.penred_settings.talliesImpactDetector):
                 tallyName = f"{obj.name}_{i}_{item.name}"
                 tallies.createTallyImpactDetector(f, tallyName, outputPrefix, det,
                                                   item.emin, item.emax, item.ebins,
@@ -291,7 +317,7 @@ def createTallies(context, f):
                                                   item.ebins, item.emin, item.emax,
                                                   particle,
                                                   item.printCoordinates,
-                                                  item.printBins)                
+                                                  item.printBins, toRound)                
 
             # PSF
             for i, item in enumerate(obj.penred_settings.talliesPSF):
@@ -307,4 +333,36 @@ def createTallies(context, f):
                                               item.emin, item.emax, item.ebins,
                                               item.theta1, item.theta2,
                                               item.phi1, item.phi2,
-                                              item.logSale)
+                                              item.logScale)
+
+def createVR(obj, simBodyName, f):
+
+    if hasattr(obj, "penred_settings"):
+        f.write(f"\n## Variance Reduction for body {simBodyName} (Blender Name: {obj.name}) ##\n\n")
+        # Bremsstrahlung splitting
+        if obj.penred_settings.enableBremssSplitting:
+            bremssName = f"{obj.name}_bremss_splitting"
+            vr.createBremssSplitting(f, bremssName,
+                                     obj.penred_settings.bremssSplitting, (simBodyName,))
+
+        # X-Ray splitting
+        if obj.penred_settings.enableXRaySplitting:
+            xrayName = f"{obj.name}_xray_splitting"
+            vr.createXRaySplitting(f, xrayName,
+                                   ((simBodyName, obj.penred_settings.xraySplitting),))
+            
+        # Interaction forcing
+        for i, item in enumerate(obj.penred_settings.interactionForcing):
+            IFName = f"{obj.name}_{i}_{item.name}"
+
+            interaction = 0
+            if item.particleType == "electron":
+                interaction = int(item.electronInteraction)
+            elif item.particleType == "gamma":
+                interaction = int(item.gammaInteraction)
+            elif item.particleType == "positron":
+                interaction = int(item.positronInteraction)
+                
+            vr.createInteractionForcing(f, IFName, item.particleType, interaction,
+                                        item.factorType, item.factor,
+                                        item.weightWindow, (simBodyName,))

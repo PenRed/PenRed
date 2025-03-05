@@ -9,3 +9,5 @@ Tallies are the components responsible for extracting information from the simul
 All tallies have a **Name** parameter to identify them. Depending on the type, some prefixes will be added to the user specified name.
 
 In addition to the tallies defined by the user, all generated configurations includes the tallies to score the energy deposition in each material and body in the system.
+
+Some tallies score magnitudes in a spacial ragion. Those regions are displayed in blue within the 3D viewport.

@@ -331,9 +331,8 @@ def printConeQuad(f,x,y,z,dz,r,h,s1,s2,omega,theta,phi,nSurf,name,toRound):
     nSurf += 1
     return nSurf
 
-def createConeSurfaces(f, x, y, z, r1, r2, h, s1, s2, omega, theta, phi, nSurf, name, skinSize, toRound):
+def createConeSurfaces(f, x, y, z, r1, r2, h, s1, s2, omega, theta, phi, nSurf, name, toRound):
 
-    shell = False
     if r1 > r2: #Top radius larger than bottom
         # Calculate the distance between the cone
         # quadric center and the closest plane
@@ -350,12 +349,7 @@ def createConeSurfaces(f, x, y, z, r1, r2, h, s1, s2, omega, theta, phi, nSurf, 
             yRot=(h/2.0+dz)*sin(theta)*sin(phi)+y
             zRot=(h/2.0+dz)*cos(theta)+z
         
-        nSurf = printConeQuad(f,xRot,yRot,zRot,dz,r1,h,s1,s2,omega,theta,phi,nSurf,name,toRound)
-        
-        if skinSize > 0.0 and skinSize < r2:
-            #Print the inner cone to create the shell 
-            nSurf = printConeQuad(f,xRot,yRot,zRot,dz,r1-skinSize,h,s1,s2,omega,theta,phi,nSurf,name,toRound)
-            shell = True
+        nSurf = printConeQuad(f,xRot,yRot,zRot,dz,r1,h,s1,s2,omega,theta,phi,nSurf,name,toRound)        
         
     else: #Bottom radius larger than top
         # Calculate the distance between the cone
@@ -375,11 +369,6 @@ def createConeSurfaces(f, x, y, z, r1, r2, h, s1, s2, omega, theta, phi, nSurf, 
             zRot=(-h/2.0-dz)*cos(theta)+z;
 
         nSurf = printConeQuad(f,xRot,yRot,zRot,dz,r2,h,s1,s2,omega,theta,phi,nSurf,name,toRound)
-
-        if skinSize > 0.0 and skinSize < r1:
-            #Print the inner cone to create the shell 
-            nSurf = printConeQuad(f,xRot,yRot,zRot,dz,r2-skinSize,h,s1,s2,omega,theta,phi,nSurf,name,toRound)
-            shell = True    
             
     ### bottom Z plane
 
@@ -429,17 +418,13 @@ def createConeSurfaces(f, x, y, z, r1, r2, h, s1, s2, omega, theta, phi, nSurf, 
     #Increment surface number
     nSurf += 1
         
-    return nSurf, shell
+    return nSurf
 
-def setCylinderConeSurfaces(f, initSurf, sign, shell = False): 
+def setCylinderConeSurfaces(f, initSurf, sign): 
     
     ###  Set cylinder/cone surface
     f.write("SURFACE (%4i), SIDE POINTER=(%+2i)\n" % (initSurf,-sign))
     initSurf += 1
-
-    if shell:
-        f.write("SURFACE (%4i), SIDE POINTER=(%+2i)\n" % (initSurf,sign))
-        initSurf += 1        
 
     ###  Set -Z plane surface
     f.write("SURFACE (%4i), SIDE POINTER=(%+2i)\n" % (initSurf,sign))

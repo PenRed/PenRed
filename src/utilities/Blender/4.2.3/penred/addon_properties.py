@@ -358,7 +358,10 @@ class sourceProperties(bpy.types.PropertyGroup):
         description="PSF weight window. Russian Roulette is applied to particles below the minimum weight. Splitting is applied to particles over the maximum weight",
         size=2,
         default=(0.1, 0.5),
-        update=lambda self, context: setattr(self, "psfWindow", (psfWindow[0], max(self.psfWindow[0], self.psfWindow[1])))
+        update=lambda self, context: self.__setitem__(
+            "psfWindow",
+            (self.psfWindow[0], max(self.psfWindow[0], self.psfWindow[1]))
+        )
     )
 
 
@@ -370,6 +373,22 @@ class sourceProperties(bpy.types.PropertyGroup):
         default = 1.0e6,
         update=lambda self, context: setattr(self, "nHistsEdit", False))
     nHistsEdit : bpy.props.BoolProperty(name = "History Number Edit", default = False)
+
+    # Spatial parameters
+    spatialType : bpy.props.EnumProperty(
+        name = "Spatial Type",
+        description = "Choose the source energy type",
+        items = [
+            ("SPATIAL_POINT" , "Point", "Point source"),
+            ("SPATIAL_BOX", "Box", "Sampled inside bounding box"),
+            ("SPATIAL_CYL", "Cylinder", "Sampled inside a cylindrical shape oriented in Z axis"),
+        ],
+        default = "SPATIAL_BOX"
+    )
+    spatialBBFit : bpy.props.BoolProperty(
+        name = "Spatial Bounding Box Fit",
+        description = "When enabled, the spatial source will be sized to fit inside the object bounding box. If disabled, the source size is enlarged to include the entire bounding box",
+        default = False)
     
     # Energy parameters
     energyType : bpy.props.EnumProperty(
@@ -429,15 +448,105 @@ class sourceProperties(bpy.types.PropertyGroup):
         description="Particle time will be sampled inside this time window, specified in seconds",
         size=2,
         default=(0.0, 30.0),
-        update=lambda self, context: setattr(self, "timeWindow", (timeWindow[0], max(self.timeWindow[0], self.timeWindow[1])))
+        update=lambda self, context: self.__setitem__(
+            "timeWindow",
+            (self.timeWindow[0], max(self.timeWindow[0], self.timeWindow[1]))
+        )
+    )
+
+# VR properties
+####################    
+class interactionForcingProperties(bpy.types.PropertyGroup):
+    
+    name : bpy.props.StringProperty(name = "Interaction Forcing Name", default = "IF")
+    show : bpy.props.BoolProperty(name = "Show Interaction Forcing Properties",
+                                  default = False)
+    particleType : bpy.props.EnumProperty(
+        name = "Particle Type",
+        description = "Choose the particle to apply interaction forcing",
+        items = [
+            ("gamma" , "Gamma", "Gamma"),
+            ("electron", "Electron", "Electron"),
+            ("positron", "Positron", "Positron"),
+        ],
+        default = "electron"
+    )
+
+    electronInteraction : bpy.props.EnumProperty(
+        name = "Electron Interaction",
+        description = "Choose the electron interaction to force",
+        items = [
+            ("1" , "Inelastic", "Inelastic"),
+            ("2", "Bremsstrahlung", "Bremsstrahlung"),
+            ("3", "Inner Shell", "Inner Shell"),
+        ],
+        default = "2"
     )
     
+    gammaInteraction : bpy.props.EnumProperty(
+        name = "Gamma Interactions",
+        description = "Choose the gamma interaction to force",
+        items = [
+            ("1", "Compton", "Compton"),
+            ("2", "Photoelectric", "Photoelectric"),
+            ("3", "Pair Production", "Pair Production"),
+        ],
+        default = "2"
+    )
+
+    positronInteraction : bpy.props.EnumProperty(
+        name = "Positron Interaction",
+        description = "Choose the positron interaction to force",
+        items = [
+            ("1" , "Inelastic", "Inelastic"),
+            ("2", "Bremsstrahlung", "Bremsstrahlung"),
+            ("3", "Inner Shell", "Inner Shell"),
+        ],
+        default = "2"
+    )
+
+    factorType : bpy.props.EnumProperty(
+        name = "Factor Type",
+        description = "Choose how to specify the amplification factor",
+        items = [
+            ("MULTIPLY" , "Multiply", "The interaction probability is multiplied by the factor"),
+            ("AVERAGE" , "Average", "The factoris interpreted as the average number of interactions, of a particle with the maximum available energy, until rest (electrons and positrons) or across a mean free path (gammas)."),
+        ],
+        default = "MULTIPLY"
+    )
+
+    factor : bpy.props.IntProperty(
+        name = "Factor",
+        description="Defines the amplification factor for interaction forcing.",
+        default=10,
+        min = 1,
+    )
+
+    weightWindow : bpy.props.FloatVectorProperty(
+        name="Weight Window",
+        description="This interaction forcing will be applied only to those particles with a weight value inside the specified window.",
+        size=2,
+        default=(0.2, 2.0),
+        update=lambda self, context: self.__setitem__(
+            "weightWindow",
+            (self.weightWindow[0], max(self.weightWindow[0], self.weightWindow[1]))
+        )
+    )
+    
+VRPropsClasses = (
+    interactionForcingProperties,
+)
     
 # Object Properties group
 ###########################
 class objectProperties(bpy.types.PropertyGroup):
 
     ## Generic object properties ##
+    isMaterialObject : bpy.props.BoolProperty(
+        name = "Flags if the object is a material object",
+        description = "Sets this object as a detector",
+        default = True)
+    
     material : bpy.props.IntProperty(name = "Material Index",
                                      min = 0,
                                      max = maxMaterial,
@@ -470,6 +579,34 @@ class objectProperties(bpy.types.PropertyGroup):
         description=
         "Limiting distance, in cm, for Class II scheme",
         default = False)
+
+    showInteractionForcing : bpy.props.BoolProperty(name = "Show Interaction Forcing",
+                                                    default = False)
+    interactionForcing: bpy.props.CollectionProperty(type=interactionForcingProperties)
+
+    enableBremssSplitting : bpy.props.BoolProperty(
+        name = "Bremsstrahlung Splitting Toggle",
+        description = "Enables/disables splitting of generated Bremsstrahlung photons",
+        default = False
+    )
+    bremssSplitting : bpy.props.IntProperty(
+        name = "Bremsstrahlung Splitting",
+        min = 2,
+        description = "Times a Bremsstrahlung photon is splitted",
+        default = 2
+    )
+    
+    enableXRaySplitting : bpy.props.BoolProperty(
+        name = "X-Ray Splitting Toggle",
+        description = "Enables/disables splitting of generated x-ray",
+        default = False
+    )
+    xraySplitting : bpy.props.IntProperty(
+        name = "X-Ray Splitting",
+        min = 2,
+        description = "Times a x-ray is splitted",
+        default = 2
+    )
     
     ## Quadric object properties ##
     quadricType : bpy.props.StringProperty(name = "Quadric Type", default = "unknown")
@@ -514,7 +651,7 @@ class objectProperties(bpy.types.PropertyGroup):
 #############################
 class elementProperties(bpy.types.PropertyGroup):
     z : bpy.props.IntProperty(name = "Z", min = 1, max = 99, default = 1)
-    wFraction : bpy.props.FloatProperty(name = "Weight Factor", min = 0.0, default = 1.0)    
+    wFraction : bpy.props.FloatProperty(name = "Weight Factor", min = 0.0, default = 1.0)
 
 class materialProperties(bpy.types.PropertyGroup):
     name : bpy.props.StringProperty(name = "Material Name", default = "material")
@@ -783,6 +920,10 @@ def register():
     for cls in talliesPropsClasses:
         bpy.utils.register_class(cls)
 
+    # Register VR properties
+    for cls in VRPropsClasses:
+        bpy.utils.register_class(cls)
+        
     # Register globa properties
     bpy.utils.register_class(objectProperties)
 
@@ -809,8 +950,13 @@ def unregister():
     # Unregister source properties
     bpy.utils.unregister_class(sourceProperties)
     
+    # Unregister tally properties
     for cls in talliesPropsClasses:
         bpy.utils.unregister_class(cls)
+
+    # Unregister VR properties
+    for cls in VRPropsClasses:
+        bpy.utils.unregister_class(cls)        
 
     # Unregister element properties
     bpy.utils.unregister_class(elementProperties)

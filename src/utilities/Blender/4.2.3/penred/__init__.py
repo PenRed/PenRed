@@ -31,11 +31,11 @@ bl_info = {
     "author": "PenRed colaboration",
     "version": (2, 0),
     "blender": (4, 2, 3),
-    "location": "View3D",
+    "location": "File > Export",
     "description": "Adds geometry construction capabilities and simulation configuration for PenRed simulations",
     "warning": "",
-    "doc_url": "https://github.com/PenRed/PenRed/tree/master/doc",
-    "category": "Add Mesh",
+    "doc_url": "https://penred.github.io/PenRed/",
+    "category": "Import-Export",
 }
 
 import bpy
