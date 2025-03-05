@@ -48,6 +48,10 @@ Editing the corresponding script, allows the user to enable/disable the followin
 
 These options, except for multi-threading capabilities which are included in the C++ standard, require some external libraries. These libraries are typically available in most Linux and Unix package repositories, or they must be downloaded separately for Windows. Additionally, PenRed offers several compilation options for specific tools and bindings. These options can be configured using CMake utilities, as explained in the documentation.
 
+### GUI
+
+To provide a user-friendly environment for creating geometries and configuring simulations, a plugin has been developed to integrate PenRed's simulation capabilities into Blender. This plugin enables users to construct geometries, configure simulations, and export all necessary files in the PenRed format—entirely within the Blender environment. The plugin includes online available [documentation](https://penred.github.io/PenRed/).
+
 ### Basic usage
 
 To execute the main program, the user needs a configuration file and, likely, the required database files, such as material and geometry files. Their paths should be specified in the configuration file, leaving the configuration file path as the only program argument. All details regarding the simulation configuration can be found in the documentation section *Framework Usage*. Additionally, the *examples* folder contains several configuration file examples with the corresponding material and geometry files ready to be executed. These ones are described in the documentation *Examples* section. To execute the program, the user must use the command line instruction:
