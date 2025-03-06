@@ -21,15 +21,18 @@ For more details, see the [Geometry Construction](geometry-construction/index.md
 
 ### **Simulation Configuration**
 Configure the entire simulation within Blender, including:
+
+- **Simulation Parameters**: Define the hardware resources used by the simulation and how the results are stored.
+
 - **Particle Sources**: Define particle sources with customizable energy, direction, and time sampling.
 
 - **Tallies**: Set up detectors and scoring regions to extract simulation data.
 
-  - **Object Tallies**: Measure quantities within specific spatial regions.
+    - **Object Tallies**: Measure quantities within specific spatial regions.
   
-  - **Detector Tallies**: Record particle interactions in detector bodies.
+    - **Detector Tallies**: Record particle interactions in detector bodies.
   
-  - **World Tallies**: Capture global simulation data.
+    - **World Tallies**: Capture global simulation data.
   
 - **Materials**: Define material properties and assign them to geometry bodies.
 

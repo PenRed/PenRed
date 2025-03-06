@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2024 Universitat de València - UV
-//    Copyright (C) 2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024-2025 Universitat de València - UV
+//    Copyright (C) 2024-2025 Universitat Politècnica de València - UPV
 //    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
@@ -687,7 +687,7 @@ namespace penred{
       static std::string versionMessage(){
 
 	return std::string("***************************************************************\n"
-			   " PenRed version: 1.12.1 (1-December-2024) \n"
+			   " PenRed version: 1.13.0 (6-March-2024) \n"
 			   " Copyright (c) 2019-2024 Universitat Politecnica de Valencia\n"
 			   " Copyright (c) 2019-2024 Universitat de Valencia\n"
 			   " Copyright (c) 2024-2025 Vicent Giménez Alventosa\n"
@@ -1064,15 +1064,17 @@ namespace penred{
 	int nseedPairAux;
 	path = prefixSimConfig + "/seedPair"; 
 	if(config.read(path,nseedPairAux) == INTDATA_SUCCESS){
-	  if(setSeedPair(nseedPairAux) != errors::SUCCESS){
+
+	  if(nseedPairAux < 0 || nseedPairAux > 1000){
 	    if(verbose > 0){
 	      cout << "Invalid initial seed pair number " << nseedPairAux << std::endl;
 	      cout << "Available seed pair range is [0,1000]" << std::endl;
 	      cout << "Seed pair will be unchanged. " << std::endl;
 	    }
-	  }
-	  else if(verbose > 2){
-	    cout << "Selected rand0 seed pair number: " << nSeedPair << std::endl;
+	  }else{
+	    nSeedPair = nseedPairAux;
+	    if(verbose > 2)
+	      cout << "Selected rand0 seed pair number: " << nSeedPair << std::endl;
 	  }
 	}else{
 	  nSeedPair = -1;

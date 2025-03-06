@@ -323,8 +323,61 @@ class sourceProperties(bpy.types.PropertyGroup):
     enabled : bpy.props.BoolProperty(name = "Source",
                                      description = "Flag this object as particle source",
                                      default = False)
+
+    # CT source
+    ctEnable : bpy.props.BoolProperty(
+        name = "CT Like Source",
+        description = "Enables CT like source oriented on the Z axis. This source type moves arround the object, according to the specified parameters, drawing a circle on the XY plane.",
+        default = False)
     
-    # Generic source parameters
+    ctSecondaries : bpy.props.IntProperty(
+        name = "CT Generated Secondaries",
+        min = 1,
+        description = "On CT like sources, if no PSF is used, this value specify the sampled particles per history",
+        default = 10)
+
+    ctRad : bpy.props.FloatProperty(
+        name = "CT Radius",
+        default = 10.0,
+        min = 0.0,
+        description= "CT like source radius, in cm"
+    )
+
+    ctPhiInterval : bpy.props.FloatVectorProperty(
+        name="CT Angular Interval",
+        description="2D Vector with the initial and final azimuthal angle for the CT rotation, in degrees. A 0º angle coincides with the X axis.",
+        size=2,
+        default=(0.0, 360),
+        update=lambda self, context: self.__setitem__(
+            "ctPhiInterval",
+            (self.ctPhiInterval[0], max(self.ctPhiInterval[0],
+                                        min(self.ctPhiInterval[1],
+                                            self.ctPhiInterval[0] + 360.0)))
+        )
+    )
+    
+    ctPhiStep : bpy.props.FloatProperty(
+        name = "CT Angular Step",
+        default = 10.0,
+        min = 0.1,
+        description= "CT projections angular step, in degrees"
+    )
+    
+    ctTStart : bpy.props.FloatProperty(
+        name = "CT Start Time",
+        default = 0.0,
+        min = 0.0,
+        description= "Starting time for the first CT like source projection, in seconds"
+    )
+
+    ctDT : bpy.props.FloatProperty(
+        name = "CT Time Between Projections",
+        default = 10.0,
+        min = 0.0,
+        description= "Time interval between projections of the CT like source, in seconds"
+    )
+    
+    # Generic source parameters #
     particleType : bpy.props.EnumProperty(
         name = "Source Type",
         description = "Choose the source particle type",

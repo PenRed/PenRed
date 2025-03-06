@@ -66,7 +66,7 @@ def createGeneric(f, name, nhist, particleType,
     f.write(f"{prefix}/direction/v {direction[1]:.3f}\n")
     f.write(f"{prefix}/direction/w {direction[2]:.3f}\n\n")
 
-    f.write(f"{prefix}/direction/theta0 {-aperture/2.0:.3f}\n")
+    f.write(f"{prefix}/direction/theta0 0.0\n")
     f.write(f"{prefix}/direction/theta1 { aperture/2.0:.3f}\n\n")
     
     f.write(f"{prefix}/direction/phi0 0.0\n")

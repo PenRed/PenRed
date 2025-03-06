@@ -106,10 +106,13 @@ def overlappingMats(sourceObj):
     return mats
 
 # Draw a object bounding box
-def draw_bbox(obj, color):
+def draw_bbox(obj, color, shift=(0.0,0.0,0.0)):
 
     # Get object spatial properties
     center,dx,dy,dz,sx,sy,sz,bsize = getObjPosSize(obj)
+    center[0] += shift[0]
+    center[1] += shift[1]
+    center[2] += shift[2]
 
     width05 = bsize[0]/2.0
     height05 = bsize[1]/2.0
@@ -199,10 +202,13 @@ def draw_sphere(obj, color, segments=16, rings=16):
     batch.draw(shader)            
     
 # Draw a cylinder along Z axis
-def draw_zcyl(obj, inbox, color, segments = 32):
+def draw_zcyl(obj, inbox, color, segments = 32, shift=(0.0,0.0,0.0)):
 
     # Get object spatial properties
     center,dx,dy,dz,sx,sy,sz,bsize = getObjPosSize(obj)
+    center[0] += shift[0]
+    center[1] += shift[1]
+    center[2] += shift[2]
 
     if inbox:
         radius = min((bsize[0], bsize[1]))/2.0
@@ -277,11 +283,48 @@ def draw_zcyl(obj, inbox, color, segments = 32):
     # Draw the cylinder
     batch.draw(shader)
 
-# Draw an arrow
-def draw_arrow(obj, direction, color):
+# Draw a circle section along Z axis
+def draw_zcircle(obj, rad, phi0, phi1, color, segments = 32):
 
     # Get object spatial properties
     center,dx,dy,dz,sx,sy,sz,bsize = getObjPosSize(obj)
+
+    vertices = []
+    indices = []
+
+    # Create the circles
+    angleStep = (phi1-phi0) / (segments-1)
+    for i in range(segments):
+        angle = phi0 + angleStep * i
+        x = center[0] + rad * cos(angle)
+        y = center[1] + rad * sin(angle)
+
+        # Bottom circle
+        vertices.append((x, y, center[2]))
+
+    # Create indices to connect the circles
+    for i in range(segments-1):
+        indices.append((i, i+1))
+                
+    # Create a shader for 3D drawing
+    shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+    batch = batch_for_shader(shader, 'LINES', {"pos": vertices}, indices=indices)
+
+    # Set the color
+    shader.bind()
+    shader.uniform_float("color", color)
+
+    # Draw the cylinder
+    batch.draw(shader)
+    
+# Draw an arrow
+def draw_arrow(obj, direction, color, shift=(0.0,0.0,0.0)):
+
+    # Get object spatial properties
+    center,dx,dy,dz,sx,sy,sz,bsize = getObjPosSize(obj)
+    center[0] += shift[0]
+    center[1] += shift[1]
+    center[2] += shift[2]
 
     # Normalize the direction
     direction = Vector(direction)

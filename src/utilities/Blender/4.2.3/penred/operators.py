@@ -1079,8 +1079,8 @@ class export_penred(Operator, ExportHelper):
         elif quadType == "CYLINDER":
             nSurf = surfaces.createCylinderSurfaces(f,x,y,z, dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
         elif quadType == "CONE":
-            r1 = obj.penred_settings.r3
-            r2 = obj.penred_settings.r4
+            r1 = obj.penred_settings.r1
+            r2 = obj.penred_settings.r2
             if r1 == r2:
                 nSurf = surfaces.createCylinderSurfaces(f,x,y,z, dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
             else:

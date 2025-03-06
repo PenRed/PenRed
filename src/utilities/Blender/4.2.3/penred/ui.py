@@ -3,6 +3,7 @@ import bpy
 from mathutils import Vector
 from mathutils import Color
 from . import addon_properties, utils
+from math import pi, cos, sin
 
 # Export menu function
 def menu_func_penred_export(self, context):
@@ -233,6 +234,44 @@ class PenredSourcePropertiesPanel(bpy.types.Panel):
                 row.label(text=f"Histories :  {source.nHists:.5e}")
                 row.prop(source, "nHistsEdit", text="", icon="GREASEPENCIL", toggle=True)
 
+            # CT-like source
+            if obj.type == "EMPTY":
+                ctbox = layout.box()
+                ctbox.enabled = senabled
+                ctbox.label(text="CT-Like")
+                row = ctbox.row()
+                row.prop(source, "ctEnable", text="Enable")
+                if source.ctEnable:
+                    if source.particleType != "PART_PSF":
+                        row = ctbox.row()
+                        row.prop(source, "ctSecondaries", text="Secondaries to Sample")
+
+                    row = ctbox.row()
+                    row.label(text="Radius")
+                    row.prop(source, "ctRad", text="")
+                    row.label(text="cm")
+
+                    row = ctbox.row()
+                    row.label(text="Rotation Interval")
+                    row = ctbox.row()
+                    row.prop(source, "ctPhiInterval", text="")
+                    row.label(text="Deg")
+
+                    row = ctbox.row()
+                    row.label(text="Projection Step")                
+                    row.prop(source, "ctPhiStep", text="")
+                    row.label(text="Deg")
+
+                    row = ctbox.row()
+                    row.label(text="Start Time")
+                    row.prop(source, "ctTStart", text="")
+                    row.label(text="s")
+
+                    row = ctbox.row()
+                    row.label(text="Projection Time")
+                    row.prop(source, "ctDT", text="")
+                    row.label(text="s")
+                
             row = layout.row()
             row.enabled = senabled
             row.prop(source, "particleType", text="Type")
@@ -312,7 +351,7 @@ class PenredSourcePropertiesPanel(bpy.types.Panel):
             row = timeBox.row()
             row.prop(source, "timeRecord", text="Record time")
 
-            if source.particleType != "PART_PSF":
+            if source.particleType != "PART_PSF" and not source.ctEnable:
         
                 row = timeBox.row()
                 row.prop(source, "timeType", text="Time initialization")
@@ -1182,6 +1221,11 @@ def add_object_manual_map():
 
 # Hints draw handler
 def drawHintsHandler():
+
+    # Define colors
+    sourceColor = (1.0, 0.2, 0.2, 0.2)
+    tallyColor = (0.2, 0.2, 1.0, 0.2)
+    
     context = bpy.context
     for obj in context.scene.objects:
         if obj and obj.penred_settings:
@@ -1203,20 +1247,82 @@ def drawHintsHandler():
                 if penSett.source and penSett.source.enabled:
                     source = penSett.source
 
-                    # Get the source direction
-                    direction = source.direction
-                    color = (1.0, 0.0, 0.0, 1.0)
-                    utils.draw_arrow(obj, direction, color)
+                    # Print source direction
+                    if source.particleType == "PART_PSF":
+                        rotationMatrix = obj.matrix_world.to_3x3()
+                        
+                        localZ = Vector((0,0,1))
+                        worldZ = rotationMatrix @ localZ
 
-                    if source.spatialType == "SPATIAL_BOX":
-                        color = (1.0, 0.2, 0.2, 0.2)
-                        utils.draw_bbox(obj, color)
-                    elif source.spatialType == "SPATIAL_CYL":
-                        color = (1.0, 0.2, 0.2, 0.2)
-                        utils.draw_zcyl(obj, source.spatialBBFit, color)
+                        if source.ctEnable:
+                            startPhi = source.ctPhiInterval[0]*pi/180.0
+                            endPhi   = source.ctPhiInterval[1]*pi/180.0
+                            dangle = source.ctPhiStep*pi/180.0
+                            nProj = int((endPhi-startPhi)/dangle)+1
 
-                # Tallies
-                tallyColor = (0.2, 0.2, 1.0, 0.2)
+                            # Draw CT circle
+                            utils.draw_zcircle(obj, source.ctRad,
+                                               startPhi, endPhi,
+                                               sourceColor)
+
+                            #Draw projection arrows
+                            iangle = 0
+                            while iangle < nProj:
+                                angle = startPhi + iangle*dangle
+                                cAngle = cos(angle)
+                                sAngle = sin(angle)
+                                aux = (
+                                    cAngle*worldZ[0] - sAngle*worldZ[1],
+                                    sAngle*worldZ[0] - cAngle*worldZ[1],
+                                    worldZ[2]
+                                )
+                                utils.draw_arrow(obj, aux, sourceColor,
+                                                 (source.ctRad*cAngle,
+                                                  source.ctRad*sAngle,
+                                                  0.0))
+                                iangle = iangle + 1
+                                
+                        else:                        
+                            utils.draw_arrow(obj, worldZ, sourceColor)
+                    else:
+                        # Get the source direction
+                        direction = source.direction
+
+                        if source.ctEnable:
+                            startPhi = source.ctPhiInterval[0]*pi/180.0
+                            endPhi   = source.ctPhiInterval[1]*pi/180.0
+                            dangle = source.ctPhiStep*pi/180.0
+                            nProj = int((endPhi-startPhi)/dangle)+1
+
+                            # Draw CT circle
+                            utils.draw_zcircle(obj, source.ctRad,
+                                               startPhi, endPhi,
+                                               sourceColor)
+
+                            #Draw projection arrows
+                            iangle = 0
+                            while iangle < nProj:
+                                angle = startPhi + iangle*dangle
+                                cAngle = cos(angle)
+                                sAngle = sin(angle)
+                                shift = (source.ctRad*cAngle, source.ctRad*sAngle, 0.0)
+                                aux = (
+                                    cAngle*direction[0] - sAngle*direction[1],
+                                    sAngle*direction[0] - cAngle*direction[1],
+                                    direction[2]
+                                )
+                                utils.draw_arrow(obj, aux, sourceColor, shift)
+                                iangle = iangle + 1
+
+                        else:
+                            utils.draw_arrow(obj, direction, sourceColor)
+
+                        if source.spatialType == "SPATIAL_BOX":
+                            utils.draw_bbox(obj, sourceColor)
+                        elif source.spatialType == "SPATIAL_CYL":
+                            utils.draw_zcyl(obj, source.spatialBBFit, sourceColor)
+
+                ## Tallies ##
 
                 # Check kerma tallies
                 kermaCart = False
