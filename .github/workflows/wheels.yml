@@ -69,15 +69,13 @@ jobs:
 
       - name: Build wheels
         run: |
-          pwd
-          ls
+          cd ${{ github.workspace }}/src/bindings/python/pyPenred
           python -m cibuildwheel --output-dir wheelhouse
-          working-directory: ${{ github.workspace }}/src/bindings/python/pyPenred
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          path: src/bindings/python/pyPenred/wheelhouse/*.whl
+          path: ${{ github.workspace }}/src/bindings/python/pyPenred/wheelhouse/*.whl
 
   upload_pypi:
     runs-on: ubuntu-latest
