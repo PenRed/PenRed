@@ -18,7 +18,6 @@ jobs:
         os:
           - { runner: ubuntu-latest, container: '', name: ubuntu }
           - { runner: windows-latest, container: '', name: windows }
-          - { runner: macos-latest, container: '', name: macos }
         python-version: ['3.11', '3.12', '3.13']
     container: ${{ matrix.os.container }}
     steps:
