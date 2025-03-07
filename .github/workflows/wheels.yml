@@ -69,6 +69,8 @@ jobs:
 
       - name: Build wheels
         run: |
+          pwd
+          ls
           python -m cibuildwheel --output-dir wheelhouse
           working-directory: ${{ github.workspace }}/src/bindings/python/pyPenred
 
