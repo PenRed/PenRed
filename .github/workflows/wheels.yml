@@ -28,6 +28,7 @@ jobs:
 
       - name: Extract version from release tag or manual input
         id: version
+        shell: bash
         run: |
           # If triggered by a release, extract version from the tag
           if [[ "$GITHUB_EVENT_NAME" == "release" ]]; then
@@ -45,6 +46,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install system dependencies
+        shell: bash
         run: |
           if [[ "${{ matrix.os.name }}" == "manylinux2014" ]]; then
             yum install -y cmake git gcc-c++
@@ -58,7 +60,7 @@ jobs:
         env:
           PENRED_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          mkdir -p ${{ github.workspace }}/src/build
+          mkdir ${{ github.workspace }}/src/build
           cd ${{ github.workspace }}/src/build
           cmake .. \
             -DBUILD_TESTS=OFF \
@@ -94,6 +96,7 @@ jobs:
 
       - name: Determine PyPI repository
         id: pypi_repo
+        shell: bash
         run: |
           if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
             echo "Using TestPyPI"
