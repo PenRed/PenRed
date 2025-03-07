@@ -1,13 +1,21 @@
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
 import os
 
 # Read the version from an environment variable or use the default
 VERSION = os.getenv("PENRED_VERSION", "1.13.0")
 
+ext_modules = [
+    Extension(
+        name="pyPenred.simulation",
+        sources=[],  # Empty because the .so file is pre-built
+    ),
+]
+
 setup(
     name='pyPenred',
     version=VERSION,
     packages=find_packages(),
+    ext_modules=ext_modules,
     include_package_data=True,
     description='Python interface for penRed framework',
     long_description=open('README.md').read(),
