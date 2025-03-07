@@ -1,10 +1,12 @@
 from setuptools import setup, find_packages
 import os
 
-# Inclou el fitxer .so en el paquet
+# Read the version from an environment variable or use the default
+VERSION = os.getenv("PENRED_VERSION", "1.13.0")
+
 setup(
     name='pyPenred',
-    version='0.1',
+    version=VERSION,
     packages=find_packages(),
     include_package_data=True,
     description='Python interface for penRed framework',
