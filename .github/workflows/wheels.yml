@@ -61,14 +61,7 @@ jobs:
         run: |
           mkdir ${{ github.workspace }}/src/build
           cd ${{ github.workspace }}/src/build
-          cmake .. \
-            -DBUILD_TESTS=OFF \
-            -DBUILD_UTILITIES=OFF \
-            -DBUILD_PYTHON_MODULES=ON \
-            -DWITH_DICOM=ON \
-            -DWITH_MULTI_THREADING=ON \
-            -DWITH_MPI=OFF \
-            -DWITH_LB=OFF
+          cmake -DBUILD_TESTS=OFF -DBUILD_UTILITIES=OFF -DBUILD_PYTHON_MODULES=ON -DWITH_DICOM=ON -DWITH_MULTI_THREADING=ON ../
           cmake --build . --config Release --target install -j 4
 
       - name: Install cibuildwheel
