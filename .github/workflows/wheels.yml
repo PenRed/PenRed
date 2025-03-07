@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         os:
-          - { runner: ubuntu-latest, container: quay.io/pypa/manylinux2014_x86_64, name: manylinux2014 }
+          - { runner: ubuntu-latest, container: quay.io/pypa/manylinux_2_24_x86_64, name: manylinux_2_24 }
           - { runner: ubuntu-latest, container: '', name: ubuntu }
           - { runner: windows-latest, container: '', name: windows }
           - { runner: macos-latest, container: '', name: macos }
@@ -48,7 +48,7 @@ jobs:
       - name: Install system dependencies
         shell: bash
         run: |
-          if [[ "${{ matrix.os.name }}" == "manylinux2014" ]]; then
+          if [[ "${{ matrix.os.name }}" == "manylinux_2_24" ]]; then
             yum install -y cmake git gcc-c++
           elif [[ "${{ matrix.os.name }}" == "windows" ]]; then
             choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
