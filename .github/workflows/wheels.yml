@@ -1,0 +1,113 @@
+name: Build and Publish Binary Wheels
+
+on:
+  release:
+    types: [published]  # Trigger when a release is published
+  workflow_dispatch:    # Allow manual triggering
+    inputs:
+      version:
+        description: 'Version to use for manual triggering (e.g., 1.0.0)'
+        required: true
+        default: '0.0.1-dev'
+
+jobs:
+  build_wheels:
+    runs-on: ${{ matrix.os.runner }}
+    strategy:
+      matrix:
+        os:
+          - { runner: ubuntu-latest, container: quay.io/pypa/manylinux2014_x86_64, name: manylinux2014 }
+          - { runner: ubuntu-latest, container: '', name: ubuntu }
+          - { runner: windows-latest, container: '', name: windows }
+          - { runner: macos-latest, container: '', name: macos }
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
+    container: ${{ matrix.os.container }}
+    steps:
+      - name: Checkout PenRed repository
+        uses: actions/checkout@v2
+
+      - name: Extract version from release tag or manual input
+        id: version
+        run: |
+          # If triggered by a release, extract version from the tag
+          if [[ "$GITHUB_EVENT_NAME" == "release" ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            # For manual triggers, use the provided input
+            VERSION=${{ github.event.inputs.version }}
+          fi
+          echo "Extracted version: $VERSION"
+          echo "::set-output name=version::$VERSION"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install system dependencies
+        run: |
+          if [[ "${{ matrix.os.name }}" == "manylinux2014" ]]; then
+            yum install -y cmake git gcc-c++
+          elif [[ "${{ matrix.os.name }}" == "windows" ]]; then
+            choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+          elif [[ "${{ matrix.os.name }}" == "macos" ]]; then
+            brew install cmake
+          fi
+
+      - name: Build PenRed and Python bindings
+        env:
+          PENRED_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p ${{ github.workspace }}/src/build
+          cd ${{ github.workspace }}/src/build
+          cmake .. \
+            -DBUILD_TESTS=OFF \
+            -DBUILD_UTILITIES=OFF \
+            -DBUILD_PYTHON_MODULES=ON \
+            -DWITH_DICOM=ON \
+            -DWITH_MULTI_THREADING=ON \
+            -DWITH_MPI=OFF \
+            -DWITH_LB=OFF
+          cmake --build . --config Release --target install -j 4
+
+      - name: Install cibuildwheel
+        run: |
+          python -m pip install cibuildwheel
+
+      - name: Build wheels
+        run: |
+          python -m cibuildwheel --output-dir wheelhouse
+          working-directory: ${{ github.workspace }}/src/bindings/python/pyPenred
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v2
+        with:
+          path: src/bindings/python/pyPenred/wheelhouse/*.whl
+
+  upload_pypi:
+    runs-on: ubuntu-latest
+    needs: build_wheels
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          path: wheelhouse
+
+      - name: Determine PyPI repository
+        id: pypi_repo
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "Using TestPyPI"
+            echo "::set-output name=repository::testpypi"
+          else
+            echo "Using PyPI"
+            echo "::set-output name=repository::pypi"
+          fi
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ steps.pypi_repo.outputs.repository == 'testpypi' && secrets.TEST_PYPI_API_TOKEN || secrets.PYPI_API_TOKEN }}
+          repository_url: ${{ steps.pypi_repo.outputs.repository == 'testpypi' && 'https://test.pypi.org/legacy/' || 'https://upload.pypi.org/legacy/' }}
+          packages_dir: wheelhouse
+          skip_existing: true  # Skip if the version already exists
