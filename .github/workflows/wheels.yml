@@ -72,7 +72,7 @@ jobs:
           cd ${{ github.workspace }}/src/bindings/python/pyPenred
           ls
           ls pyPenred
-          python -m cibuildwheel --output-dir wheelhouse
+          pip wheel . --wheel-dir wheelhouse
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
