@@ -59,8 +59,8 @@ jobs:
         env:
           PENRED_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          mkdir ${{ github.workspace }}/src/build
-          cd ${{ github.workspace }}/src/build
+          mkdir src/build
+          cd src/build
           cmake -DBUILD_TESTS=OFF -DBUILD_UTILITIES=OFF -DBUILD_PYTHON_MODULES=ON -DWITH_DICOM=ON -DWITH_MULTI_THREADING=ON ../
           cmake --build . --config Release --target install -j 4
 
@@ -72,7 +72,7 @@ jobs:
         env:
           PENRED_VERSION: ${{ steps.version.outputs.version }}      
         run: |
-          cd ${{ github.workspace }}/src/bindings/python/pyPenred
+          cd src/bindings/python/pyPenred
           pip wheel . --wheel-dir wheelhouse
           rm wheelhouse/PyYAML-*.whl
 
@@ -80,7 +80,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os.name }}-${{ matrix.python-version }}
-          path: ${{ github.workspace }}/src/bindings/python/pyPenred/wheelhouse/*.whl
+          path: src/bindings/python/pyPenred/wheelhouse/*.whl
 
   upload_pypi:
     runs-on: ubuntu-latest
