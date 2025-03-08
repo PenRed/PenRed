@@ -43,16 +43,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install system dependencies
-        shell: bash
-        run: |
-          if [[ "${{ matrix.os.name }}" == "manylinux" ]]; then
-            apt-get update
-            apt-get install -y cmake git g++
-          elif [[ "${{ matrix.os.name }}" == "windows" ]]; then
-            choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
-          fi
-
       - name: Build PenRed and Python bindings
         env:
           PENRED_VERSION: ${{ steps.version.outputs.version }}
