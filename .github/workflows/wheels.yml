@@ -16,6 +16,7 @@ jobs:
     strategy:
       matrix:
         os:
+          - { runner: ubuntu-latest, container: 'quay.io/pypa/manylinux_2_28_x86_64', name: manylinux }
           - { runner: ubuntu-latest, container: '', name: ubuntu }
           - { runner: windows-latest, container: '', name: windows }
         python-version: ['3.11', '3.12', '3.13']
@@ -68,24 +69,32 @@ jobs:
           python -m pip install cibuildwheel
 
       - name: Build wheels
+        env:
+          PENRED_VERSION: ${{ steps.version.outputs.version }}      
         run: |
           cd ${{ github.workspace }}/src/bindings/python/pyPenred
-          ls
-          ls pyPenred
           pip wheel . --wheel-dir wheelhouse
+          rm wheelhouse/PyYAML-*.whl
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
+          name: wheels-${{ matrix.os.name }}-${{ matrix.python-version }}
           path: ${{ github.workspace }}/src/bindings/python/pyPenred/wheelhouse/*.whl
 
   upload_pypi:
     runs-on: ubuntu-latest
     needs: build_wheels
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
         with:
           path: wheelhouse
+
+      - name: Combine wheels into a single directory
+        run: |
+          mkdir -p combined_wheels
+          cp wheelhouse/*/*.whl combined_wheels/
 
       - name: Determine PyPI repository
         id: pypi_repo
@@ -105,5 +114,5 @@ jobs:
           user: __token__
           password: ${{ steps.pypi_repo.outputs.repository == 'testpypi' && secrets.TEST_PYPI_API_TOKEN || secrets.PYPI_API_TOKEN }}
           repository_url: ${{ steps.pypi_repo.outputs.repository == 'testpypi' && 'https://test.pypi.org/legacy/' || 'https://upload.pypi.org/legacy/' }}
-          packages_dir: wheelhouse
+          packages_dir: combined_wheels
           skip_existing: true  # Skip if the version already exists
