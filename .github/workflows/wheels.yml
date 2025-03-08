@@ -90,6 +90,8 @@ jobs:
           cd src/bindings/python/pyPenred/wheelhouse
           /opt/python/cp${PYTHON_VERSION}-cp${PYTHON_VERSION}/bin/python -m pip install auditwheel
           /opt/python/cp${PYTHON_VERSION}-cp${PYTHON_VERSION}/bin/python -m auditwheel repair *.whl --plat manylinux_2_28_x86_64 -w .
+          # Remove the original wheel
+          rm pypenred-*-linux_x86_64.whl          
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
