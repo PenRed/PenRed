@@ -60,12 +60,7 @@ jobs:
           fi
           
           cmake -DBUILD_TESTS=OFF -DBUILD_UTILITIES=OFF -DBUILD_PYTHON_MODULES=ON -DWITH_DICOM=ON -DWITH_MULTI_THREADING=ON -DPython3_EXECUTABLE=$PYTHON_EXECUTABLE ../
-
-          if [[ "${{ matrix.os.name }}" == "windows" ]]; then
-            cmake --build . --config Release --target install -j 4 -- /m:4
-          else
-            cmake --build . --config Release --target install -j 4
-          fi
+          cmake --build . --config Release --target install -j 4
 
       - name: Build wheels
         env:
