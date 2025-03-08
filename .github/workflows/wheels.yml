@@ -48,11 +48,13 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ matrix.os.name }}" == "manylinux_2_24" ]]; then
-            yum install -y cmake git gcc-c++
+            apt-get update
+            apt-get install -y cmake git g++
           elif [[ "${{ matrix.os.name }}" == "windows" ]]; then
             choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
-          elif [[ "${{ matrix.os.name }}" == "macos" ]]; then
-            brew install cmake
+          elif [[ "${{ matrix.os.name }}" == "ubuntu" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y cmake git g++
           fi
 
       - name: Build PenRed and Python bindings
@@ -69,7 +71,15 @@ jobs:
           PENRED_VERSION: ${{ steps.version.outputs.version }}      
         run: |
           cd src/bindings/python/pyPenred
-          pip wheel . --wheel-dir wheelhouse
+          if [[ "${{ matrix.os.name }}" == "manylinux" ]]; then
+            # Use the container's Python interpreter for manylinux
+            /opt/python/cp${{ matrix.python-version }}-cp${{ matrix.python-version }}/bin/python -m pip install --upgrade pip
+            /opt/python/cp${{ matrix.python-version }}-cp${{ matrix.python-version }}/bin/python -m pip wheel . --wheel-dir wheelhouse
+          else
+            # Use the host's Python interpreter for non-container jobs
+            python -m pip install --upgrade pip
+            python -m pip wheel . --wheel-dir wheelhouse
+          fi
           rm wheelhouse/PyYAML-*.whl
 
       - name: Upload wheels
