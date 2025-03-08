@@ -64,10 +64,6 @@ jobs:
           cmake -DBUILD_TESTS=OFF -DBUILD_UTILITIES=OFF -DBUILD_PYTHON_MODULES=ON -DWITH_DICOM=ON -DWITH_MULTI_THREADING=ON ../
           cmake --build . --config Release --target install -j 4
 
-      - name: Install cibuildwheel
-        run: |
-          python -m pip install cibuildwheel
-
       - name: Build wheels
         env:
           PENRED_VERSION: ${{ steps.version.outputs.version }}      
