@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -94,6 +95,7 @@ enum dumpState{
   PEN_DUMP_UNABLE_TO_READ_CHAR_ARRAYS,
   PEN_DUMP_UNABLE_TO_READ_FILES,
   PEN_DUMP_UNABLE_TO_OPEN_FILE,
+  PEN_DUMP_UNABLE_TO_FILENAME_MISMATCH,
   PEN_DUMP_INTEGER_LARGER_THAN_MAXIMUM,
   PEN_DUMP_INVALID_TYPE,
   PEN_DUMP_CHAR_BITS_MISMATCH,
@@ -593,21 +595,16 @@ struct fileDump{
   
 private:
   std::string* path;
-    
-  size_t dumpBits;
 public:
 
   static const size_t charMem = sizeof(unsigned char);  
   static const uint16_t charBits = CHAR_BIT;
   
-  fileDump(std::string& pathIn) : path(&pathIn) {
-    dumpBits = path->size()*charBits;
-  }
+  fileDump(std::string& pathIn) : path(&pathIn) {}
 
   inline const std::string& getPath() const { return *path; }
-  inline void setPath(const std::string& newPath) {
-    path->assign(newPath);
-    dumpBits = path->size()*charBits;
+  inline size_t dumpBits() const{
+    return path->size()*charBits;
   }
 
   inline bool isStored(const std::string& pathIn) const {
@@ -682,13 +679,26 @@ public:
   }
 
   inline size_t memory() const {
-    size_t mem = dataBits/charBits;
+    size_t mem = dataBits;
+
+    //Add filenames length
+    for(const fileDump& f : pfiles){
+      mem += f.dumpBits();
+    }
+    mem /= charBits;
+    
     for(const pen_dump* p : subDumps)
       mem += p->memory();
     return mem;
   }
   inline size_t bits() const {
     size_t b = dataBits;
+
+    //Add filenames length
+    for(const fileDump& f : pfiles){
+      b += f.dumpBits();
+    }
+    
     for(const pen_dump* p : subDumps)
       b += p->bits();
     return b;

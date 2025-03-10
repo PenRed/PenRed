@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -117,14 +118,12 @@ int pen_dump::toDumpFile(std::string& filePath){
       }
   }
 
-  //Add new element to unsigned integer array 
+  //Add new element to files array 
   pfiles.emplace_back(filePath);
 
-  fileDump* plast = &(pfiles.back());
+  //Add required memory to store the number of elements
+  dataBits += metadataNelem;
   
-  //Add required memory for all elements
-  dataBits += plast->dumpBits;
-
   return PEN_DUMP_SUCCESS;
 }
 
@@ -171,7 +170,6 @@ int pen_dump::removeFile(const std::string& path){
   for(it = pfiles.begin(); it != pfiles.end(); ++it){
   
     if(it->isStored(path)){
-      dataBits -= it->dumpBits;
       pfiles.erase(it);
       return PEN_DUMP_SUCCESS;      
     }
@@ -837,13 +835,23 @@ int pen_dump::readFiles(const unsigned char* const pin,
     if(nElements > 0){
 
       //Get filename
-      std::vector<char> v(nElements);
+      std::vector<char> v(nElements+1);
       memcpy(v.data(),&pin[pos],nElements);
       pos += nElements;
+      v[nElements] = '\0';
 
-      //Save filename
-      pfiles[i].setPath(v.data());
-
+      //Check if expected and read filename match
+      if(pfiles[i].getPath().compare(v.data()) != 0){
+	if(verbose > 0){
+	  printf("pen_dump:readFiles: Error: File names mismatch.\n"
+		 "                   Expected: %s\n"
+		 "                   Read    : %s\n",
+		 pfiles[i].getPath().c_str(),
+		 v.data());
+	}
+	return PEN_DUMP_UNABLE_TO_FILENAME_MISMATCH;
+      }
+      
       //Check if the file is accessible
       FILE* ftest = fopen(pfiles[i].getPath().c_str(), "r");
       if(ftest == nullptr){
@@ -856,8 +864,13 @@ int pen_dump::readFiles(const unsigned char* const pin,
       }
       fclose(ftest);
     }
-    else{
-      pfiles[i].setPath("");
+    else if(!pfiles[i].getPath().empty()){
+      if(verbose > 0){
+	printf("pen_dump:readFiles: Error: Unexpected empty filename.\n"
+	       "                   Expected: %s\n",
+	       pfiles[i].getPath().c_str());
+      }
+      return PEN_DUMP_UNABLE_TO_FILENAME_MISMATCH;
     }
   }
   return PEN_DUMP_SUCCESS;
