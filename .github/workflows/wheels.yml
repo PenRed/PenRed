@@ -9,6 +9,14 @@ on:
         description: 'Version to use for manual triggering (e.g., 1.0.0)'
         required: true
         default: '0.0.1-dev'
+      pypi_repo:
+        description: 'PyPI repository to upload to (pypi or testpypi)'
+        required: true
+        default: 'testpypi'
+        type: choice
+        options:
+          - pypi
+          - testpypi
 
 jobs:
   build_wheels:
@@ -36,7 +44,7 @@ jobs:
             VERSION=${{ github.event.inputs.version }}
           fi
           echo "Extracted version: $VERSION"
-          echo "::set-output name=version::$VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
@@ -59,7 +67,7 @@ jobs:
             PYTHON_EXECUTABLE=$(which python3 || which python)
           fi
           
-          cmake -DBUILD_TESTS=OFF -DBUILD_UTILITIES=OFF -DBUILD_PYTHON_MODULES=ON -DWITH_DICOM=ON -DWITH_MULTI_THREADING=ON -DPython3_EXECUTABLE=$PYTHON_EXECUTABLE ../
+          cmake -DWITH_NATIVE="OFF" -DBUILD_TESTS=OFF -DBUILD_UTILITIES=OFF -DBUILD_PYTHON_MODULES=ON -DWITH_DICOM=ON -DWITH_MULTI_THREADING=ON -DPython3_EXECUTABLE=$PYTHON_EXECUTABLE ../
           cmake --build . --config Release --target install -j 4
 
       - name: Build wheels
@@ -113,24 +121,12 @@ jobs:
           mkdir -p combined_wheels
           cp wheelhouse/*/*.whl combined_wheels/
 
-      - name: Determine PyPI repository
-        id: pypi_repo
-        shell: bash
-        run: |
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            echo "Using TestPyPI"
-            echo "::set-output name=repository::testpypi"
-          else
-            echo "Using PyPI"
-            echo "::set-output name=repository::pypi"
-          fi
-
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
-          password: ${{ steps.pypi_repo.outputs.repository == 'testpypi' && secrets.TEST_PYPI_API_TOKEN || secrets.PYPI_API_TOKEN }}
-          repository_url: ${{ steps.pypi_repo.outputs.repository == 'testpypi' && 'https://test.pypi.org/legacy/' || 'https://upload.pypi.org/legacy/' }}
+          password: ${{ github.event.inputs.pypi_repo == 'pypi' && secrets.PYPI_API_TOKEN || secrets.TEST_PYPI_API_TOKEN }}
+          repository_url: ${{ github.event.inputs.pypi_repo == 'pypi' && 'https://upload.pypi.org/legacy/' || 'https://test.pypi.org/legacy/' }}
           packages_dir: combined_wheels
           verbose: true  # Enable verbose logging
           skip_existing: true  # Skip if the version already exists
