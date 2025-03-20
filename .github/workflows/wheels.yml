@@ -26,7 +26,8 @@ jobs:
         os:
           - { runner: ubuntu-latest, container: 'quay.io/pypa/manylinux_2_28_x86_64', name: manylinux }
           - { runner: windows-latest, container: '', name: windows }
-          - { runner: macos-latest, container: '', name: macos }
+          - { runner: macos-latest, container: '', name: macos, arch: x86_64 }
+          - { runner: macos-latest, container: '', name: macos, arch: arm64 }
         python-version: ['3.11', '3.12', '3.13']
     container: ${{ matrix.os.container }}
     steps:
@@ -67,8 +68,15 @@ jobs:
             # Use the host's Python interpreter for non-container jobs
             PYTHON_EXECUTABLE=$(which python3 || which python)
           fi
+
+          # Set architecture-specific flags for macOS
+          if [[ "${{ matrix.os.name }}" == "macos" ]]; then
+            ARCH_FLAGS="-DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}"
+          else
+            ARCH_FLAGS=""
+          fi          
           
-          cmake -DWITH_NATIVE="OFF" -DBUILD_TESTS=OFF -DBUILD_UTILITIES=OFF -DBUILD_PYTHON_MODULES=ON -DWITH_DICOM=ON -DWITH_MULTI_THREADING=ON -DPython3_EXECUTABLE=$PYTHON_EXECUTABLE ../
+          cmake $ARCH_FLAGS -DWITH_NATIVE="OFF" -DBUILD_TESTS=OFF -DBUILD_UTILITIES=OFF -DBUILD_PYTHON_MODULES=ON -DWITH_DICOM=ON -DWITH_MULTI_THREADING=ON -DPython3_EXECUTABLE=$PYTHON_EXECUTABLE ../
           cmake --build . --config Release --target install -j 4
 
       - name: Build wheels
