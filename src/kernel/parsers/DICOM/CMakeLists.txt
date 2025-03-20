@@ -155,8 +155,7 @@ if(FORCE_DICOM_DOWNLOAD OR NOT DCMTK_FOUND)
     # macOS-specific configuration
     if (APPLE)
         list(APPEND DCMTK_CMAKE_COMMON_ARGS
-            -DCMAKE_CXX_FLAGS:STRING=-stdlib=libc++  # Ensure libc++ is used on macOS
-            -DCMAKE_EXE_LINKER_FLAGS:STRING=-liconv  # Link iconv on macOS
+            -DDCMTK_WITH_ICONV:BOOL=OFF # Use built-in iconv
         )
     endif()
 
