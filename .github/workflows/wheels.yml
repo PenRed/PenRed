@@ -53,10 +53,13 @@ jobs:
         id: detect_macos_version
         shell: bash
         run: |
-          # Get the macOS version (e.g., "14.0")
+          # Get the macOS version (e.g., "14.7.4")
           MACOS_VERSION=$(sw_vers -productVersion)
+          # Extract the major version (e.g., "14_0")
+          MACOS_VERSION_SIMPLE=$(echo "$MACOS_VERSION" | awk -F. '{print $1"_0"}')
           echo "Detected macOS version: $MACOS_VERSION"
-          echo "macos_version=${MACOS_VERSION}" >> $GITHUB_OUTPUT
+          echo "Simplified macOS version: $MACOS_VERSION_SIMPLE"
+          echo "macos_version=${MACOS_VERSION_SIMPLE}" >> $GITHUB_OUTPUT
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
@@ -81,7 +84,8 @@ jobs:
 
           # Set architecture-specific flags for macOS
           if [[ "${{ matrix.os.name }}" == "macos" ]]; then
-            ARCH_FLAGS="-DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}"
+            echo "Building for macosx arch ${{ matrix.os.arch }}"
+            ARCH_FLAGS="-DCMAKE_OSX_ARCHITECTURES=${{ matrix.os.arch }}"
           else
             ARCH_FLAGS=""
           fi          
@@ -105,13 +109,7 @@ jobs:
           else
             # Use the host's Python interpreter for non-container jobs
             python -m pip install --upgrade pip
-            if [[ "${{ matrix.os.name }}" == "macos" ]]; then
-              # Use the detected macOS version in the platform tag
-              python -m pip wheel . --wheel-dir wheelhouse --plat-name macosx_${{ steps.detect_macos_version.outputs.macos_version }}_${{ matrix.arch }}
-            else
-              # For Windows, let pip automatically set the platform tag
-              python -m pip wheel . --wheel-dir wheelhouse
-            fi
+            python -m pip wheel . --wheel-dir wheelhouse
           fi
           rm wheelhouse/PyYAML-*.whl
 
