@@ -593,7 +593,7 @@ void pen_Singles::orderDetectorData(const unsigned idet, FILE* fout) const {
   FILE* dataFile = ::fopen(fDataPaths[det].c_str(), "rb");
   if(dataFile == nullptr){
     printf("Error: Unable to open data file '%s'\n",
-	   fDataPaths[det]);
+	   fDataPaths[det].c_str());
     return;
   }
 
@@ -633,7 +633,7 @@ void pen_Singles::orderDetectorData(const unsigned idet, FILE* fout) const {
     //Load another single from first single file
     if(!toProcess[firstSChunk].read(dataFile, chunksInfo[firstSChunk].first)){
       printf("Error: Unexpected end of file '%s' replacing opening single\n",
-	     fDataPaths[det]);
+	     fDataPaths[det].c_str());
       fflush(stdout);
       //Remove this chunk data
       chunksInfo.erase(chunksInfo.begin() + firstSChunk);
@@ -658,7 +658,7 @@ void pen_Singles::orderDetectorData(const unsigned idet, FILE* fout) const {
 	//Read the next single in the file
 	if(!nextSingle.read(dataFile, chunksInfo[iChunk].first)){
 	  printf("Error: Unexpected end of file '%s' searching singles in window\n",
-		 fDataPaths[det]);
+		 fDataPaths[det].c_str());
 	  fflush(stdout);
 	  //Remove this chunk data
 	  chunksInfo.erase(chunksInfo.begin() + iChunk);
