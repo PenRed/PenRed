@@ -136,26 +136,37 @@ if(FORCE_DICOM_DOWNLOAD OR NOT DCMTK_FOUND)
         set(PARALLEL_FLAG -j${CMAKE_BUILD_PARALLEL_LEVEL})
     endif()
 
+    set(DCMTK_CMAKE_COMMON_ARGS
+        -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=${CMAKE_POSITION_INDEPENDENT_CODE} # To handle python modules and normal compilations
+        -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}       # Match the project's build type
+        -DCMAKE_INSTALL_PREFIX:PATH=${DCMTK_INSTALL_DIR}
+        -DDCMTK_MODULES:STRING=${DCMTK_MODULES}
+        -DZLIB_INCLUDE_DIR:PATH=${ZLIB_INCLUDE_DIR}
+        -DZLIB_LIBRARY:FILEPATH=${ZLIB_LIBRARY}
+        -DBUILD_SHARED_LIBS:BOOL=OFF                             # Build static libraries
+        -DBUILD_APPS:BOOL=OFF                                    # Disable apps build
+        -DDCMTK_WITH_ZLIB:BOOL=ON
+        -DDCMTK_WITH_ICU:BOOL=OFF
+        -DDCMTK_WITH_OPENJPEG:BOOL=OFF
+        -DDCMTK_WITH_OPENSSL:BOOL=OFF
+        -DDCMTK_ENABLE_STL:BOOL=ON
+    )
+
+    # macOS-specific configuration
+    if (APPLE)
+        list(APPEND DCMTK_CMAKE_COMMON_ARGS
+            -DCMAKE_CXX_FLAGS:STRING=-stdlib=libc++  # Ensure libc++ is used on macOS
+            -DCMAKE_EXE_LINKER_FLAGS:STRING=-liconv  # Link iconv on macOS
+        )
+    endif()
+
     # Add DCMTK as an external project
     ExternalProject_Add(
         dcmtk
         GIT_REPOSITORY https://github.com/DCMTK/dcmtk.git
         GIT_TAG        DCMTK-3.6.7  # DCMTK version
         INSTALL_DIR "${DCMTK_INSTALL_DIR}"                 # Installation directory
-        CMAKE_CACHE_ARGS
-            -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=${CMAKE_POSITION_INDEPENDENT_CODE} # To handle python modules and normal compilations
-            -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}       # Match the project's build type
-            -DCMAKE_INSTALL_PREFIX:PATH=${DCMTK_INSTALL_DIR}
-            -DDCMTK_MODULES:STRING=${DCMTK_MODULES}
-            -DZLIB_INCLUDE_DIR:PATH=${ZLIB_INCLUDE_DIR}
-            -DZLIB_LIBRARY:FILEPATH=${ZLIB_LIBRARY}
-            -DBUILD_SHARED_LIBS:BOOL=OFF                             # Build static libraries
-            -DBUILD_APPS:BOOL=OFF                                    # Disable apps build
-            -DDCMTK_WITH_ZLIB:BOOL=ON
-            -DDCMTK_WITH_ICU:BOOL=OFF
-            -DDCMTK_WITH_OPENJPEG:BOOL=OFF
-            -DDCMTK_WITH_OPENSSL:BOOL=OFF
-            -DDCMTK_ENABLE_STL:BOOL=ON
+        CMAKE_CACHE_ARGS ${DCMTK_CMAKE_COMMON_ARGS}
         BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> -- ${PARALLEL_FLAG}
     )
 
