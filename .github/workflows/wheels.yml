@@ -109,7 +109,13 @@ jobs:
           else
             # Use the host's Python interpreter for non-container jobs
             python -m pip install --upgrade pip
-            python -m pip wheel . --wheel-dir wheelhouse
+            if [[ "${{ matrix.os.name }}" == "macos" ]]; then
+              # Use the detected macOS version in the platform tag
+              python -m pip wheel . --wheel-dir wheelhouse --plat-name macosx_${{ steps.detect_macos_version.outputs.macos_version }}_${{ matrix.os.arch }}
+            else
+              # For Windows, let pip automatically set the platform tag
+              python -m pip wheel . --wheel-dir wheelhouse
+            fi
           fi
           rm wheelhouse/PyYAML-*.whl
 
