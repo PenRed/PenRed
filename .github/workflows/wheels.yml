@@ -48,6 +48,16 @@ jobs:
           echo "Extracted version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Detect macOS version
+        if: matrix.os.name == 'macos'
+        id: detect_macos_version
+        shell: bash
+        run: |
+          # Get the macOS version (e.g., "14.0")
+          MACOS_VERSION=$(sw_vers -productVersion)
+          echo "Detected macOS version: $MACOS_VERSION"
+          echo "macos_version=${MACOS_VERSION}" >> $GITHUB_OUTPUT
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
@@ -95,7 +105,13 @@ jobs:
           else
             # Use the host's Python interpreter for non-container jobs
             python -m pip install --upgrade pip
-            python -m pip wheel . --wheel-dir wheelhouse
+            if [[ "${{ matrix.os.name }}" == "macos" ]]; then
+              # Use the detected macOS version in the platform tag
+              python -m pip wheel . --wheel-dir wheelhouse --plat-name macosx_${{ steps.detect_macos_version.outputs.macos_version }}_${{ matrix.arch }}
+            else
+              # For Windows, let pip automatically set the platform tag
+              python -m pip wheel . --wheel-dir wheelhouse
+            fi
           fi
           rm wheelhouse/PyYAML-*.whl
 
