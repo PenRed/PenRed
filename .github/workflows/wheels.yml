@@ -110,9 +110,18 @@ jobs:
             # Use the host's Python interpreter for non-container jobs
             python -m pip install --upgrade pip
             if [[ "${{ matrix.os.name }}" == "macos" ]]; then
-              # Use the detected macOS version in the platform tag              
-              python -m pip install --upgrade pip setuptools
-              python setup.py bdist_wheel --dist-dir wheelhouse --plat-name macosx_${{ steps.detect_macos_version.outputs.macos_version }}_${{ matrix.os.arch }}
+              # For macosx, change the wheel name to specify the architecture
+              python -m pip wheel . --wheel-dir wheelhouse
+              
+              for wheel in wheelhouse/*.whl; do
+                NEW_NAME=$(echo "$wheel" | sed "s/-universal2/-${{ matrix.os.arch }}/")
+                mv "$wheel" "$NEW_NAME"
+              done
+
+              # Fix wheels with delocate
+              python -m pip install delocate          
+              delocate-wheel -w wheelhouse -v wheelhouse/*.whl
+              
             else
               # For Windows, let pip automatically set the platform tag
               python -m pip wheel . --wheel-dir wheelhouse
