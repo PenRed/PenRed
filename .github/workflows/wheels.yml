@@ -114,7 +114,8 @@ jobs:
               python -m pip wheel . --wheel-dir wheelhouse
               
               for wheel in wheelhouse/*.whl; do
-                NEW_NAME=$(echo "$wheel" | sed "s/-universal2/-${{ matrix.os.arch }}/")
+                NEW_NAME=$(echo "$wheel" | sed "s/universal2/${{ matrix.os.arch }}/")
+                echo "Renaming $wheel to $NEW_NAME"
                 mv "$wheel" "$NEW_NAME"
               done
 
