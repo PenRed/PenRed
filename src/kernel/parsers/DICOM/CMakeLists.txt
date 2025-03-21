@@ -3,7 +3,7 @@
 #
 #    Copyright (C) 2019 Universitat de València - UV
 #    Copyright (C) 2019 Universitat Politècnica de València - UPV
-#    Copyright (C) 2024 Vicent Giménez Alventosa
+#    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -52,17 +52,32 @@ if(FORCE_DICOM_DOWNLOAD OR NOT ZLIB_FOUND)
 
     # Define installation directories for ZLib
     set(ZLIB_INSTALL_DIR "${CMAKE_BINARY_DIR}/zlib_install")
+    
+    # Set CMake comon arguments
+    set(ZLIB_CMAKE_COMMON_ARGS
+        -DCMAKE_INSTALL_PREFIX:PATH=${ZLIB_INSTALL_DIR}   # Install location
+        -DBUILD_SHARED_LIBS:BOOL=OFF                        # Build static library
+        -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}       # Match the project's build type
+        -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=${CMAKE_POSITION_INDEPENDENT_CODE} # To handle python modules and normal compilations
+    )
+    
+    # macOS-specific configuration
+    if (APPLE)
+        if (DEFINED CMAKE_OSX_ARCHITECTURES AND NOT CMAKE_OSX_ARCHITECTURES STREQUAL "")
+            list(APPEND ZLIB_CMAKE_COMMON_ARGS
+                -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES}
+            )
+        endif()
+    endif()
+    
+
     # External project for ZLib
     ExternalProject_Add(
         zlib
         GIT_REPOSITORY https://github.com/madler/zlib.git
         GIT_TAG v1.3.1  # You can specify a version tag
         INSTALL_DIR "${ZLIB_INSTALL_DIR}"                # Installation directory
-        CMAKE_CACHE_ARGS                                        # Arguments passed to the CMake configuration step
-            -DCMAKE_INSTALL_PREFIX:PATH=${ZLIB_INSTALL_DIR}   # Install location
-            -DBUILD_SHARED_LIBS:BOOL=OFF                        # Build static library
-            -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}       # Match the project's build type
-            -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=${CMAKE_POSITION_INDEPENDENT_CODE} # To handle python modules and normal compilations
+        CMAKE_CACHE_ARGS ${ZLIB_CMAKE_COMMON_ARGS}       # Arguments passed to the CMake configuration step
     )
 
     # Get the ZLib include and library paths for later use
@@ -157,6 +172,11 @@ if(FORCE_DICOM_DOWNLOAD OR NOT DCMTK_FOUND)
         list(APPEND DCMTK_CMAKE_COMMON_ARGS
             -DDCMTK_WITH_ICONV:BOOL=OFF # Use built-in iconv
         )
+        if (DEFINED CMAKE_OSX_ARCHITECTURES AND NOT CMAKE_OSX_ARCHITECTURES STREQUAL "")
+            list(APPEND DCMTK_CMAKE_COMMON_ARGS
+                -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES}
+            )
+        endif()
     endif()
 
     # Add DCMTK as an external project
