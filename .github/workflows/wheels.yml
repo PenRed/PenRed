@@ -26,7 +26,6 @@ jobs:
         os:
           - { runner: ubuntu-latest, container: 'quay.io/pypa/manylinux_2_28_x86_64', name: manylinux }
           - { runner: windows-latest, container: '', name: windows }
-          - { runner: windows-2019, container: '', name: windows }
           - { runner: macos-latest, container: '', name: macos}
           - { runner: macos-13, container: '', name: macos}
         python-version: ['3.10', '3.11', '3.12', '3.13']
