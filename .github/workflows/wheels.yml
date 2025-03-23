@@ -24,11 +24,12 @@ jobs:
     strategy:
       matrix:
         os:
-          - { runner: ubuntu-latest, container: 'quay.io/pypa/manylinux_2_28_x86_64', name: manylinux }
-          - { runner: windows-latest, container: '', name: windows }
+          #- { runner: ubuntu-latest, container: 'quay.io/pypa/manylinux_2_28_x86_64', name: manylinux }
+          #- { runner: windows-latest, container: '', name: windows }
           - { runner: macos-latest, container: '', name: macos}
           - { runner: macos-13, container: '', name: macos}
-        python-version: ['3.10', '3.11', '3.12', '3.13']
+        #python-version: ['3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.13']
     container: ${{ matrix.os.container }}
     steps:
       - name: Checkout PenRed repository
@@ -115,7 +116,10 @@ jobs:
         shell: bash
         run: |
           # Install delocate
-          python -m pip install delocate          
+          python -m pip install delocate
+
+          # Go to python package folder          
+          cd src/bindings/python/pyPenred
           
           # Fix wheels with delocate
           delocate-wheel -w wheelhouse -v wheelhouse/*.whl
@@ -138,6 +142,9 @@ jobs:
             echo "Verifying dependencies for: $new_name"
             delocate-listdeps $new_name            
           done
+          
+          # Remove the original universal2 wheel
+          rm wheelhouse/*universal2*
 
           # Check dependencies
           for wheel in wheelhouse/*.whl; do
