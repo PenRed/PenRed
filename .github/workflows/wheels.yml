@@ -72,7 +72,7 @@ jobs:
 
           # Set architecture-specific flags for macOS
           if [[ "${{ matrix.os.name }}" == "macos" ]]; then
-            ARCH_FLAGS="-DCMAKE_OSX_ARCHITECTURES=\"x86_64;arm64\""
+            ARCH_FLAGS="-DCMAKE_OSX_ARCHITECTURES=x86_64;arm64"
           else
             ARCH_FLAGS=""
           fi          
