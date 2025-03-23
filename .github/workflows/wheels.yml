@@ -96,7 +96,55 @@ jobs:
           else
             # Use the host's Python interpreter for non-container jobs
             python -m pip install --upgrade pip
-            python -m pip wheel . --wheel-dir wheelhouse
+            if [[ "${{ matrix.os.name }}" == "macos" ]]; then
+
+              # Copy original universal libraries
+              cp -r pyPenred ../
+
+              ## Create x86_64 wheel
+              rm pyPenred/*.os
+              rm pyPenred/*.dylib
+              echo "Creating x86_64 wheel"
+              for lib in ../pyPenred/*.{so,dylib}; do
+                filename=$(basename "$lib")
+                echo "lib: $filename"
+                if [ -f "$lib" ]; then
+                  lipo -extract x86_64 $lib -output pyPenred/$filename
+                fi
+              done
+              ARCH=x86_64 python -m pip wheel . --wheel-dir wheelhouse
+
+              # Rename wheel
+              for wheel in wheelhouse/*universal2.whl; do
+                # Rename wheel
+                new_name=$(echo $wheel | sed 's/universal2/x86_64/')
+                mv $wheel $new_name
+              done
+          
+              # Create arm64 wheel
+              rm pyPenred/*.os
+              rm pyPenred/*.dylib
+              echo "Creating arm64 wheel"
+              for lib in ../pyPenred/*.{so,dylib}; do
+                filename=$(basename "$lib")
+                echo "lib: $filename"
+                if [ -f "$lib" ]; then
+                  lipo -extract arm64 $lib -output pyPenred/$filename
+                fi
+              done              
+              ARCH=arm64 python -m pip wheel . --wheel-dir wheelhouse
+
+              # Rename wheel
+              for wheel in wheelhouse/*universal2.whl; do
+                # Rename wheel
+                new_name=$(echo $wheel | sed 's/universal2/arm64/')
+                mv $wheel $new_name
+              done
+              
+            else
+              # For windows, create a single wheel
+              python -m pip wheel . --wheel-dir wheelhouse
+            fi
           fi
           rm wheelhouse/PyYAML-*.whl
 
@@ -111,7 +159,7 @@ jobs:
           # Remove the original wheel
           rm pypenred-*-linux_x86_64.whl          
       
-      - name: Repair and split universal2 wheels (macOS only)
+      - name: Repair wheels with delocate (macOS only)
         if: matrix.os.name == 'macos'
         shell: bash
         run: |
@@ -123,35 +171,6 @@ jobs:
           
           # Fix wheels with delocate
           delocate-wheel -w wheelhouse -v wheelhouse/*.whl
-
-          # Split universal2 wheels
-          # Verify delocate-split-wheels is available
-          if ! command -v delocate-split-wheels &> /dev/null; then
-            echo "delocate-split-wheels not found. Using full path..."
-            DELOCATE_SPLIT_WHEELS=$(python -c "import os, delocate; print(os.path.join(os.path.dirname(delocate.__file__), '..', 'bin', 'delocate-split-wheels'))")
-            $DELOCATE_SPLIT_WHEELS wheelhouse/*.whl
-          else
-            delocate-split-wheels wheelhouse/*.whl
-          fi
-          
-          # Rename the split wheels
-          # x86_64
-          for wheel in wheelhouse/*-x86_64.whl; do
-            # Rename wheel
-            new_name=$(echo $wheel | sed 's/universal2-x86_64/x86_64/')
-            mv $wheel $new_name            
-          done
-
-          # arm64
-          for wheel in wheelhouse/*-arm64.whl; do
-            new_name=$(echo $wheel | sed 's/universal2-arm64/arm64/')
-            mv $wheel $new_name
-            echo "Verifying dependencies for: $new_name"
-            delocate-listdeps $new_name            
-          done
-          
-          # Remove the original universal2 wheel
-          rm wheelhouse/*universal2*
 
           # Check dependencies
           for wheel in wheelhouse/*.whl; do
