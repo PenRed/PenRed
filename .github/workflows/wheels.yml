@@ -177,24 +177,6 @@ jobs:
             echo "Verifying dependencies for: $wheel"
             delocate-listdeps $wheel
           done
-
-          # Check architecture
-          for wheel in wheelhouse/*.whl; do
-            echo "Verifying architecture for: $wheel"
-            
-            # Extract .so and .dylib files from the wheel
-            unzip -q -j "$wheel" "pyPenred/*.so" "pyPenred/*.dylib" -d temp_libs
-            
-            # Run lipo -info on the extracted libraries
-            for lib in temp_libs/*.{so,dylib}; do
-              if [ -f "$lib" ]; then
-                lipo -info "$lib"
-              fi
-            done
-            
-            # Clean up extracted files
-            rm -rf temp_libs
-          done
           
       - name: Upload wheels
         uses: actions/upload-artifact@v4
