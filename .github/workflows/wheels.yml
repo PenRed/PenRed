@@ -125,7 +125,14 @@ jobs:
           delocate-wheel -w wheelhouse -v wheelhouse/*.whl
 
           # Split universal2 wheels
-          delocate-split-wheels wheelhouse/*.whl
+          # Verify delocate-split-wheels is available
+          if ! command -v delocate-split-wheels &> /dev/null; then
+            echo "delocate-split-wheels not found. Using full path..."
+            DELOCATE_SPLIT_WHEELS=$(python -c "import os, delocate; print(os.path.join(os.path.dirname(delocate.__file__), '..', 'bin', 'delocate-split-wheels'))")
+            $DELOCATE_SPLIT_WHEELS wheelhouse/*.whl
+          else
+            delocate-split-wheels wheelhouse/*.whl
+          fi
           
           # Rename the split wheels
           # x86_64
