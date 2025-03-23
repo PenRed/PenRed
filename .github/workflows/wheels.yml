@@ -27,10 +27,8 @@ jobs:
           - { runner: ubuntu-latest, container: 'quay.io/pypa/manylinux_2_28_x86_64', name: manylinux }
           - { runner: windows-latest, container: '', name: windows }
           - { runner: windows-2019, container: '', name: windows }
-          - { runner: macos-latest, container: '', name: macos, arch: x86_64 }
-          - { runner: macos-latest, container: '', name: macos, arch: arm64 }
-          - { runner: macos-13, container: '', name: macos, arch: x86_64 }
-          - { runner: macos-13, container: '', name: macos, arch: arm64 }
+          - { runner: macos-latest, container: '', name: macos}
+          - { runner: macos-13, container: '', name: macos}
         python-version: ['3.10', '3.11', '3.12', '3.13']
     container: ${{ matrix.os.container }}
     steps:
@@ -50,19 +48,6 @@ jobs:
           fi
           echo "Extracted version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Detect macOS version
-        if: matrix.os.name == 'macos'
-        id: detect_macos_version
-        shell: bash
-        run: |
-          # Get the macOS version (e.g., "14.7.4")
-          MACOS_VERSION=$(sw_vers -productVersion)
-          # Extract the major version (e.g., "14_0")
-          MACOS_VERSION_SIMPLE=$(echo "$MACOS_VERSION" | awk -F. '{print $1"_0"}')
-          echo "Detected macOS version: $MACOS_VERSION"
-          echo "Simplified macOS version: $MACOS_VERSION_SIMPLE"
-          echo "macos_version=${MACOS_VERSION_SIMPLE}" >> $GITHUB_OUTPUT
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
@@ -87,8 +72,7 @@ jobs:
 
           # Set architecture-specific flags for macOS
           if [[ "${{ matrix.os.name }}" == "macos" ]]; then
-            echo "Building for macosx arch ${{ matrix.os.arch }}"
-            ARCH_FLAGS="-DCMAKE_OSX_ARCHITECTURES=${{ matrix.os.arch }}"
+            ARCH_FLAGS="-DCMAKE_OSX_ARCHITECTURES=\"x86_64;arm64\""
           else
             ARCH_FLAGS=""
           fi          
@@ -113,17 +97,13 @@ jobs:
             # Use the host's Python interpreter for non-container jobs
             python -m pip install --upgrade pip
             if [[ "${{ matrix.os.name }}" == "macos" ]]; then
-              # For macosx, change the wheel name to specify the architecture
+              # For macosx, the wheel should be fixed with delocate
+              python -m pip install delocate          
+
+              # Create the wheel
               python -m pip wheel . --wheel-dir wheelhouse
-              
-              for wheel in wheelhouse/*.whl; do
-                NEW_NAME=$(echo "$wheel" | sed "s/universal2/${{ matrix.os.arch }}/")
-                echo "Renaming $wheel to $NEW_NAME"
-                mv "$wheel" "$NEW_NAME"
-              done
 
               # Fix wheels with delocate
-              python -m pip install delocate          
               delocate-wheel -w wheelhouse -v wheelhouse/*.whl
               
             else
@@ -147,7 +127,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.os.name }}-${{ matrix.python-version }}-${{ matrix.os.arch }}
+          name: wheels-${{ matrix.os.name }}-${{ matrix.python-version }}
           path: src/bindings/python/pyPenred/wheelhouse/*.whl
 
   upload_pypi:
