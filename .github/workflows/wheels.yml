@@ -24,11 +24,11 @@ jobs:
     strategy:
       matrix:
         os:
-          - { runner: ubuntu-latest, container: 'quay.io/pypa/manylinux_2_28_x86_64', name: manylinux }
-          - { runner: windows-latest, container: '', name: windows }
+          #- { runner: ubuntu-latest, container: 'quay.io/pypa/manylinux_2_28_x86_64', name: manylinux }
+          #- { runner: windows-latest, container: '', name: windows }
           - { runner: macos-latest, container: '', name: macos}
           - { runner: macos-13, container: '', name: macos}
-        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.10', '3.11', '3.12', '3.13']
     container: ${{ matrix.os.container }}
     steps:
       - name: Checkout PenRed repository
@@ -181,6 +181,13 @@ jobs:
           for wheel in wheelhouse/*.whl; do
             echo "Verifying dependencies for: $wheel"
             delocate-listdeps $wheel
+
+            # Unpack the wheel and check binaries
+            unzip $wheel -d tmp_wheel
+            find tmp_wheel -name "*.so" -o -name "*.dylib" | xargs -I {} lipo -info {}
+
+            # remove tmp folder
+            rm -fr tmp_wheel
           done
           
       - name: Upload wheels
