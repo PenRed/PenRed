@@ -123,7 +123,7 @@ jobs:
                   filename=$(basename "$wheel")
                   
                   # Create the new wheel name
-                  new_name=$(echo $filename | sed 's/(universal2|arm64)/x86_64/')
+                  new_name=$(echo $filename | sed -E 's/(universal2|arm64)/x86_64/')
 
                   echo "Renaming $wheel to wheelhouse/$new_name"
                   mv "$wheel" "wheelhouse/$new_name"
@@ -153,7 +153,7 @@ jobs:
                   filename=$(basename "$wheel")
                 
                   # Create the new wheel name
-                  new_name=$(echo $filename | sed 's/(universal2|x86_64)/arm64/')
+                  new_name=$(echo $filename | sed -E 's/(universal2|x86_64)/arm64/')
 
                   echo "Renaming $wheel to wheelhouse/$new_name"
                   mv "$wheel" "wheelhouse/$new_name"
