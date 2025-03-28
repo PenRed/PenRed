@@ -165,6 +165,7 @@ if(FORCE_DICOM_DOWNLOAD OR NOT DCMTK_FOUND)
         -DDCMTK_WITH_OPENJPEG:BOOL=OFF
         -DDCMTK_WITH_OPENSSL:BOOL=OFF
         -DDCMTK_ENABLE_STL:BOOL=ON
+        -DDCMTK_DEFAULT_DICT:STRING=builtin                      # Embedded dictionary        
     )
 
     # macOS-specific configuration
