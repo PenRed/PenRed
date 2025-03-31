@@ -10,4 +10,6 @@ All tallies have a **Name** parameter to identify them. Depending on the type, s
 
 In addition to the tallies defined by the user, all generated configurations includes the tallies to score the energy deposition in each material and body in the system.
 
-Some tallies score magnitudes in a spacial ragion. Those regions are displayed in blue within the 3D viewport.
+Some tallies score magnitudes in a spacial ragion. Those regions are displayed in blue within the 3D viewport:
+
+<img src="../../simulation-configuration/images/talliesWireframe.png" alt="Tallies Wireframe" width="400" style="display: block; margin: 0 auto"/>

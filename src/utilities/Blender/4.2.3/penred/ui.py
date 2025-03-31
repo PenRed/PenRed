@@ -306,6 +306,12 @@ class PenredSourcePropertiesPanel(bpy.types.Panel):
                 spatialBox.active = senabled
 
                 row = spatialBox.row()
+                row.prop(source, "enableSourceMat", text="Restrict Sampling")
+                if source.enableSourceMat:
+                    row = spatialBox.row()
+                    row.prop(source, "sourceMat", text="Source Material")
+
+                row = spatialBox.row()
                 row.prop(source, "spatialType", text="Type")
                 if source.spatialType == "SPATIAL_CYL":
                     row = spatialBox.row()
@@ -406,6 +412,10 @@ class PenredTallyPropertiesPanel(bpy.types.Panel):
                     row = box.row()
                     row.prop(item, "name", text="Name")
 
+                    # Mesh inside bounding box
+                    row = box.row()
+                    row.prop(item, "spatialBBFit", text="Inside Bounding Box")                    
+
                     box.prop(item, "nr", text="Radial Bins")
                     box.prop(item, "nz", text="Z Bins")
                     box.prop(item, "nPhi", text="Angular Bins")
@@ -471,6 +481,10 @@ class PenredTallyPropertiesPanel(bpy.types.Panel):
                     # Name
                     row = box.row()
                     row.prop(item, "name", text="Name")
+
+                    # Mesh inside bounding box
+                    row = box.row()
+                    row.prop(item, "spatialBBFit", text="Inside Bounding Box")                    
 
                     # R bins
                     row = box.row()
@@ -541,6 +555,11 @@ class PenredTallyPropertiesPanel(bpy.types.Panel):
                         row = sbox.row()
                         row.prop(item, "nz", text="Z Bins")
                     elif item.meshType == "MESH_CYL":
+                        
+                        # Mesh inside bounding box
+                        row = sbox.row()
+                        row.prop(item, "spatialBBFit", text="Inside Bounding Box")                    
+                        
                         row = sbox.row()
                         row.prop(item, "nr", text="Radial Bins")
                         row = sbox.row()
@@ -548,6 +567,11 @@ class PenredTallyPropertiesPanel(bpy.types.Panel):
                         row = sbox.row()
                         row.prop(item, "nz", text="Z Bins")
                     elif item.meshType == "MESH_SPH":
+
+                        # Mesh inside bounding box
+                        row = sbox.row()
+                        row.prop(item, "spatialBBFit", text="Inside Bounding Box")                    
+                        
                         row = sbox.row()
                         row.prop(item, "nr", text="Radial Bins")
                         row = sbox.row()
@@ -961,6 +985,12 @@ class PenredWorldSimulationPanel(bpy.types.Panel):
             row.label(text="Limit")
             row.prop(simulation, "maxSimTime", text="")            
             row.label(text="s")
+
+            row = layout.row()
+            if world.penred_settings.simulation.simulationState == "RUNNING":
+                row.operator("world.cancel_penred_simulation", text="Cancel Simulation")
+            else:
+                row.operator("world.simulate_penred", text="Simulate")
             
 ## World tallies
 class PenredWorldTalliesPanel(bpy.types.Panel):
@@ -1220,6 +1250,7 @@ def add_object_manual_map():
     return url_manual_prefix, url_manual_mapping
 
 # Hints draw handler
+drawHintsHandlerRef = None
 def drawHintsHandler():
 
     # Define colors
@@ -1324,24 +1355,58 @@ def drawHintsHandler():
 
                 ## Tallies ##
 
-                # Check kerma tallies
-                kermaCart = False
-                kermaCyl = False
-                kermaSph = False
+                # Save if inner and/or outer cylinders must be drawn
+                cylIn  = False
+                cylOut = False
+
+                # Save if inner and/or outer spheres must be drawn
+                sphIn  = False
+                sphOut = False
+
+                # Save if cartesian mesh must be drawn
+                cart = False
+                
                 for t in penSett.talliesKerma:
                     if t.meshType == "MESH_CART":
-                        kermaCart = True
+                        cart = True
                     if t.meshType == "MESH_CYL":
-                        kermaCyl = True
+                        if t.spatialBBFit:
+                            cylIn = True
+                        else:
+                            cylOut = True
                     if t.meshType == "MESH_SPH":
-                        kermaSph = True
+                        if t.spatialBBFit:
+                            sphIn = True
+                        else:
+                            sphOut = True
+
+                # Check cylindrical mesh based tallies
+                for t in penSett.talliesCylDose:
+                    if t.spatialBBFit:
+                        cylIn = True
+                    else:
+                        cylOut = True
                 
-                if kermaCyl or len(penSett.talliesCylDose) > 0:
-                    utils.draw_zcyl(obj, False, tallyColor)
-                if kermaCart or len(penSett.talliesSpatialDoseDistrib) + len(penSett.talliesSpatialDistrib) > 0:
+                # Check spherical mesh based tallies
+                for t in penSett.talliesSphericalDoseDistrib:
+                    if t.spatialBBFit:
+                        sphIn = True
+                    else:
+                        sphOut = True
+
+                        
+                # Check cartesian mesh based tallies and draw required meshes
+                if cart or len(penSett.talliesSpatialDoseDistrib) + len(penSett.talliesSpatialDistrib) > 0:
                     utils.draw_bbox(obj, tallyColor)
-                if kermaSph or len(penSett.talliesSphericalDoseDistrib) > 0:
-                    utils.draw_sphere(obj, tallyColor)
+
+                if cylIn:
+                    utils.draw_zcyl(obj, True, tallyColor)
+                if cylOut:
+                    utils.draw_zcyl(obj, False, tallyColor)
+                if sphIn:
+                    utils.draw_sphere(obj, True, tallyColor)
+                if sphOut:
+                    utils.draw_sphere(obj, False, tallyColor)
 
                 # Planes
                 if penSett.quadricType == "PLANE" or penSett.quadricType == "CUT_PLANE":
@@ -1389,7 +1454,9 @@ def register():
     bpy.utils.register_manual_map(add_object_manual_map)
 
     #Register hints draw handler
-    bpy.types.SpaceView3D.draw_handler_add(drawHintsHandler, (), 'WINDOW', 'POST_VIEW')
+    global drawHintsHandlerRef
+    drawHintsHandlerRef = bpy.types.SpaceView3D.draw_handler_add(
+        drawHintsHandler, (), 'WINDOW', 'POST_VIEW')
     
 def unregister():
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_penred_export)
@@ -1425,4 +1492,6 @@ def unregister():
     bpy.utils.unregister_manual_map(add_object_manual_map)    
 
     #Unregister hints draw handler
-    bpy.types.SpaceView3D.draw_handler_remove(drawHintsHandler, 'WINDOW')
+    global drawHintsHandlerRef
+    if drawHintsHandlerRef is not None:
+        bpy.types.SpaceView3D.draw_handler_remove(drawHintsHandlerRef, 'WINDOW')

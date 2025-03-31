@@ -116,13 +116,18 @@ def createSources(context, f, toRound):
                         spatialSize = (0.0, radius, 0.0, bsize[2])
                     else:
                         spatialSize = bsize
+
+                    if source.enableSourceMat:
+                        sourceMat = source.sourceMat
+                    else:
+                        sourceMat = -1
                     sources.createGeneric(f, name, source.nHists,
                                           source.particleType,
                                           source.energyType,
                                           source.energy, source.spcFile,
                                           source.aperture, source.direction,
                                           source.spatialType, (x,y,z), spatialSize,
-                                          toRound)
+                                          sourceMat, toRound)
 
                 # Check time sampling
                 if source.timeRecord:
@@ -151,7 +156,7 @@ def createTallies(context, f, toRound):
         # Track tally
         tracks = world.penred_settings.tracksTally
         if tracks.enable:
-            tallyName = f"track_{item.name}"
+            tallyName = "track"
             tallies.createTallyTrack(f, tallyName, outputPrefix, tracks.nHists)
 
     else:
@@ -173,14 +178,20 @@ def createTallies(context, f, toRound):
             zmin = z-bsize[2]/2.0
             zmax = z+bsize[2]/2.0
             
-            rcyl = sqrt(bsize[0]*bsize[0] + bsize[1]*bsize[1])/2.0
-            rsph = sqrt(bsize[0]*bsize[0] + bsize[1]*bsize[1] + bsize[2]*bsize[2])/2.0
+            rIn = min((bsize[0],bsize[1],bsize[2]))/2.0
+            rcylOut = sqrt(bsize[0]*bsize[0] + bsize[1]*bsize[1])/2.0
+            rsphOut = sqrt(bsize[0]*bsize[0] + bsize[1]*bsize[1] + bsize[2]*bsize[2])/2.0
             
             # Cylindrical dose tallies
             for i, item in enumerate(obj.penred_settings.talliesCylDose):
                 tallyName = f"{obj.name}_{i}_{item.name}"
+                if item.spatialBBFit:
+                    radius = rIn
+                else:
+                    radius = rcylOut
+                
                 tallies.createTallyCylDoseDistrib(f, tallyName, outputPrefix,
-                                                  rcyl, item.nr,
+                                                  radius, item.nr,
                                                   zmin, zmax,
                                                   item.nz, item.nPhi,
                                                   toRound)
@@ -198,8 +209,13 @@ def createTallies(context, f, toRound):
             # Spherical dose distribution
             for i, item in enumerate(obj.penred_settings.talliesSphericalDoseDistrib):
                 tallyName = f"{obj.name}_{i}_{item.name}"
+                if item.spatialBBFit:
+                    radius = rIn
+                else:
+                    radius = rsphOut
+                
                 tallies.createTallySphericalDoseDistrib(f, tallyName, outputPrefix,
-                                                        rsph,
+                                                        radius,
                                                         item.nr, item.ntheta, item.nphi,
                                                         toRound)
 
@@ -241,10 +257,15 @@ def createTallies(context, f, toRound):
                 elif item.meshType == "MESH_CYL":
                     
                     meshType = 1
+
+                    if item.spatialBBFit:
+                        radius = rIn
+                    else:
+                        radius = rcylOut
                     
                     n1 = item.nr
                     min1 = 0.0
-                    max1 = rcyl
+                    max1 = radius
                     
                     n2 = item.nphi
                     min2 = 0.0
@@ -258,9 +279,14 @@ def createTallies(context, f, toRound):
                     
                     meshType = 2
                     
+                    if item.spatialBBFit:
+                        radius = rIn
+                    else:
+                        radius = rsphOut
+                    
                     n1 = item.nr
                     min1 = 0.0
-                    max1 = rsph
+                    max1 = radius
                     
                     n2 = item.ntheta
                     min2 = 0.0

@@ -31,7 +31,7 @@ def createGeneric(f, name, nhist, particleType,
                   energyType, energy, spcFile,
                   aperture, direction,
                   spatialType, position, size,
-                  toRound):
+                  sourceMat, toRound):
     f.write(f"\n# Generic Source configuration for '{name}'\n")
 
     prefix = f"sources/generic/{name}"
@@ -48,6 +48,10 @@ def createGeneric(f, name, nhist, particleType,
         f.write(f"{prefix}/kpar \"positron\"\n")
     else:
         f.write(f"{prefix}/kpar \"unknown\"\n")
+
+    # Write source material
+    if sourceMat > 0:
+        f.write(f"{prefix}/source-material {sourceMat}\n")        
 
     # Energy
     f.write(f"\n# - Energy parameters\n")

@@ -4,7 +4,11 @@ Any Blender object can be defined as a particle source, even if it is not a mesh
 
 <img src="../../simulation-configuration/images/sourceProperties.png" alt="Source Properties" width="300" style="display: block; margin: 0 auto"/>
 
-Once enabled, the **sampling region and direction of sources** are displayed in **red** within the 3D viewport. The source can be configured using a variety of options, which are described in this section. The first two parameters to define are:
+Once enabled, the **sampling region and direction of sources** are displayed in **red** within the 3D viewport:
+
+<img src="../../simulation-configuration/images/sourceWireframe.png" alt="Source Wireframe" width="400" style="display: block; margin: 0 auto"/>
+
+The source can be configured using a variety of options, which are described in this section. The first two parameters to define are:
 
 
 - **`Histories`**  
@@ -27,8 +31,21 @@ These parameters define how the initial particle locations are sampled. The avai
   The particle location is sampled uniformly inside the object's bounding box.
 - **`Cylinder`**  
   The particle location is sampled uniformly inside a cylinder shape oriented along the Z-axis. The cylinder size can be defined in two ways:
-    - **Fit inside the bounding box**: Enable the **`Inside Bounding Box`** option to constrain the cylinder within the object's bounding box.
-    - **Enclose the bounding box**: Disable the **`Inside Bounding Box`** option to ensure the cylinder fully encloses the bounding box.
+    - **Fit inside the bounding box**: Enable the **`Inside Bounding Box`** option to constrain the cylinder within the object's bounding box. The radius is set as:
+    
+        $$
+        r = min\left(dx, dy\right)/2
+        $$
+
+        where \( dx \), and \( dy \) are the bounding box dimensions along the X, and Y axes, respectively.
+        
+    - **Enclose the bounding box**: Disable the **`Inside Bounding Box`** option to ensure the cylinder fully encloses the bounding box. In this case, the cylinder radius is calculated as:
+    
+        $$
+        r = \sqrt{\left(\frac{dx}{2}\right)^2 + \left(\frac{dy}{2}\right)^2}
+        $$
+
+        where \( dx \) and \( dy \) are the bounding box dimensions along the X and Y axes, respectively.
   
 #### Energy
 

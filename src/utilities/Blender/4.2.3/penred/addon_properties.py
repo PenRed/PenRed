@@ -27,6 +27,11 @@ class tallyCylDoseDistrib(bpy.types.PropertyGroup):
     nPhi : bpy.props.IntProperty(name = "Angular Bins", min = 1, default = 1,
                                  description="Number of angular bins")
 
+    spatialBBFit : bpy.props.BoolProperty(
+        name = "Spatial Bounding Box Fit",
+        description = "When enabled, the spatial tally mesh will be sized to fit inside the object bounding box. If disabled, the mesh size is enlarged to include the entire bounding box",
+        default = False)
+
 # Impact detector
 class tallyImpactDetector(bpy.types.PropertyGroup):
     name : bpy.props.StringProperty(name = "Tally Name", default = "Impact-Detector")
@@ -95,6 +100,11 @@ class tallySphericalDoseDistrib(bpy.types.PropertyGroup):
                                    description="Number of polar bins")
     nphi : bpy.props.IntProperty(name = "Azimuth Bins", min = 1, default = 1,
                                  description="Number of azimuth bins")
+
+    spatialBBFit : bpy.props.BoolProperty(
+        name = "Spatial Bounding Box Fit",
+        description = "When enabled, the spatial tally mesh will be sized to fit inside the object bounding box. If disabled, the mesh size is enlarged to include the entire bounding box",
+        default = False)
 
 # Phase Space File
 class tallyPSF(bpy.types.PropertyGroup):
@@ -171,6 +181,11 @@ class tallyKerma(bpy.types.PropertyGroup):
     dataPath : bpy.props.StringProperty(name = "Data Prefix", default = "",
                                         description = "Prefix of the mu-en data files."
                                         " If empty, the data files will be created in the simulation folder")
+
+    spatialBBFit : bpy.props.BoolProperty(
+        name = "Spatial Bounding Box Fit",
+        description = "When enabled, the spatial tally mesh will be sized to fit inside the object bounding box. If disabled, the mesh size is enlarged to include the entire bounding box",
+        default = False)    
 
 # Spatial distribution
 class tallySpatialDistrib(bpy.types.PropertyGroup):
@@ -506,6 +521,16 @@ class sourceProperties(bpy.types.PropertyGroup):
             (self.timeWindow[0], max(self.timeWindow[0], self.timeWindow[1]))
         )
     )
+
+    enableSourceMat : bpy.props.BoolProperty(
+        name = "Enable Source Material",
+        description = "Enable/disable restricted spatial sampling to a specified material",
+        default = False)
+    sourceMat : bpy.props.IntProperty(
+        name = "Source Material",
+        min = 1,
+        description = "Discards particles sampled outside the specified material",
+        default = 1)
 
 # VR properties
 ####################    
@@ -947,6 +972,24 @@ class simulationProperties(bpy.types.PropertyGroup):
         "Maximum simulation time in seconds"
     )
 
+    simulationState : bpy.props.EnumProperty(
+        name = "Thread Selection Type",
+        description = "Choose how the number of threads is selected",
+        items = [
+            ("NONE" , "None", "No simulation running or on configuration"),
+            ("EXPORTING" , "Exporting", "The simulation is exporting files"),
+            ("EXPORTED" , "Exported", "The simulation files have been exported"),
+            ("RUNNING", "Running", "Simulation is running"),
+            ("CANCELLED", "Running", "Simulation cancelled"),
+        ],
+        default = "NONE"
+    )
+
+    simulationConfigPath : bpy.props.StringProperty(
+        name = "Simulation Path",
+        description = "Path to the simulation folder",
+        default = "")
+
 # World properties group
 #############################
 class worldProperties(bpy.types.PropertyGroup):
@@ -1018,13 +1061,13 @@ def unregister():
     bpy.utils.unregister_class(materialProperties)
     
     # Unregister simulation properties
-    bpy.utils.register_class(simulationProperties)    
+    bpy.utils.unregister_class(simulationProperties)    
     
     del bpy.types.Object.penred_settings
     bpy.utils.unregister_class(objectProperties)    
 
     # Delete world penRed settings
-    del bpy.types.world.penred_settings
+    del bpy.types.World.penred_settings
 
     # Unregister world properties
     bpy.utils.unregister_class(worldProperties)

@@ -26,16 +26,27 @@ The following object tallies can be defined within the plugin:
 
 ### Cylindrical Dose Distribution
 
-This tally scores the absorbed dose in a cylindrical mesh oriented along the Z-axis. The cylindrical region is defined to include the entire object. For mesh objects, the entire bounding box is included within the cylinder, with its radius calculated as:
-
-$$
-r = \sqrt{\left(\frac{dx}{2}\right)^2 + \left(\frac{dy}{2}\right)^2}
-$$
-
-where:
-- \( dx \) and \( dy \) are the bounding box dimensions along the X and Y axes, respectively.
+This tally scores the absorbed dose in a cylindrical mesh oriented along the Z-axis. The cylindrical region radius depends on the object's bounding box and configuration parameters.
 
 The configuration parameters for this tally type are:
+
+- **`Inside Bounding Box`**  
+  Controls how the radius of the cylindrical volume is selected:
+    - **Fit inside the bounding box**: Enable the **`Inside Bounding Box`** option to constrain the cylinder within the object's bounding box. The radius is set as:
+    
+        $$
+        r = min\left(dx, dy\right)/2
+        $$
+
+        where \( dx \), and \( dy \) are the bounding box dimensions along the X, and Y axes, respectively.
+        
+    - **Enclose the bounding box**: Disable the **`Inside Bounding Box`** option to ensure the cylinder fully encloses the bounding box. In this case, the cylinder radius is calculated as:
+    
+        $$
+        r = \sqrt{\left(\frac{dx}{2}\right)^2 + \left(\frac{dy}{2}\right)^2}
+        $$
+
+        where \( dx \) and \( dy \) are the bounding box dimensions along the X and Y axes, respectively.
 
 - **`Radial Bins`**  
   The number of radial bins in the cylindrical region.
@@ -63,16 +74,27 @@ The configuration parameters for this tally type are:
 
 ### Spherical Dose Distribution
 
-This tally scores the absorbed dose in a spherical mesh. The sphere's radius is calculated as:
-
-$$
-r = \sqrt{\left(\frac{dx}{2}\right)^2 + \left(\frac{dy}{2}\right)^2 + \left(\frac{dz}{2}\right)^2}
-$$
-
-where:
-- \( dx \), \( dy \), and \( dz \) are the bounding box dimensions along the X, Y, and Z axes, respectively.
+This tally scores the absorbed dose in a spherical mesh. The sphere's radius depends on the object's bounding box and configuration parameters.
 
 The configuration parameters for this tally type are:
+
+- **`Inside Bounding Box`**  
+  Controls how the radius of the spherical volume is selected:
+    - **Fit inside the bounding box**: Enable the **`Inside Bounding Box`** option to constrain the sphere within the object's bounding box. The radius is set as:
+    
+        $$
+        r = min\left(dx, dy, dz\right)/2
+        $$
+
+        where \( dx \), \( dy \), and \( dz \) are the bounding box dimensions along the X, Y, and Z axes, respectively.
+    
+    - **Enclose the bounding box**: Disable the **`Inside Bounding Box`** option to ensure the sphere fully encloses the bounding box. The radius is calculated as:
+    
+        $$
+        r = \sqrt{\left(\frac{dx}{2}\right)^2 + \left(\frac{dy}{2}\right)^2 + \left(\frac{dz}{2}\right)^2}
+        $$
+
+        where: \( dx \), \( dy \), and \( dz \) are the bounding box dimensions along the X, Y, and Z axes, respectively.    
 
 - **`Radial Bins`**  
   The number of radial bins in the spherical region.

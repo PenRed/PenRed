@@ -161,7 +161,7 @@ def draw_bbox(obj, color, shift=(0.0,0.0,0.0)):
     batch.draw(shader)    
 
 # Draw a sphere
-def draw_sphere(obj, color, segments=16, rings=16):
+def draw_sphere(obj, inbox, color, segments=16, rings=16):
 
     # Get object spatial properties
     center,dx,dy,dz,sx,sy,sz,bsize = getObjPosSize(obj)
@@ -169,7 +169,11 @@ def draw_sphere(obj, color, segments=16, rings=16):
     vertices = []
     indices = []
 
-    radius = sqrt(bsize[0]*bsize[0] + bsize[1]*bsize[1] + bsize[2]*bsize[2])/2.0
+    if inbox:
+        radius = min((bsize[0], bsize[1], bsize[2]))/2.0
+    else:
+        radius = sqrt(bsize[0]*bsize[0] + bsize[1]*bsize[1] + bsize[2]*bsize[2])/2.0
+    
 
     # Generate vertices for the sphere
     for i in range(rings + 1):

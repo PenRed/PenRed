@@ -88,6 +88,7 @@ def createTallySpatialDoseDistrib(f, name, output,
 def createTallySphericalDoseDistrib(f, name, output, rmax, nr, ntheta, nphi, toRound):
     f.write(f"# Spherical dose distribution tally configuration for '{name}'\n")
     f.write(f"tallies/{name}/type \"SPHERICAL_DOSE_DISTRIB\"\n")
+    f.write(f"tallies/{name}/print-xyz true\n")
     f.write(f"tallies/{name}/rmin 0.0\n")
     f.write(f"tallies/{name}/rmax {round(rmax, toRound)}\n")
     f.write(f"tallies/{name}/nr {nr}\n")
