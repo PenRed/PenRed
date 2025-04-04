@@ -35,13 +35,7 @@ int tallyReader_Singles::storeElement(const std::string& pathInSection,
 				      const pen_parserData& element,
 				      const unsigned){
 
-  if(pathInSection.compare("energy/detection/min") == 0){
-    emin = element;
-  }
-  else if(pathInSection.compare("energy/detection/max") == 0){
-    emax = element;
-  }
-  else if(pathInSection.compare("energy/single/min") == 0){
+  if(pathInSection.compare("energy/single/min") == 0){
     singleEmin = element;
   }
   else if(pathInSection.compare("energy/single/max") == 0){
@@ -93,9 +87,7 @@ int tallyReader_Singles::storeArrayElement(const std::string& pathInSection,
   return errors::UNHANDLED;
 }
 
-void pen_Singles::flush(const unsigned actualKDet){
-
-  const unsigned det = detInternalIndex[actualKDet];
+void pen_Singles::flush(const unsigned det){
   
   //Get the buffer
   singlesBuffer& buffer = buffers[det];
@@ -122,10 +114,14 @@ void pen_Singles::flush(const unsigned actualKDet){
 
 void pen_Singles::flush(){
   
-  for(unsigned i = 0; i < kdets.size(); ++i){
-    if(kdets[i]){
-      flush(i);
-    }
+  for(unsigned i = 0; i < buffers.size(); ++i){
+
+    //Flush data
+    flush(i);
+
+    //Reset last history start position
+    lastHistStart[i] = 0;
+    
   }
 }
 
@@ -134,65 +130,40 @@ void pen_Singles::tally_localEdep(const unsigned long long nhist,
 				  const pen_KPAR /*kpar*/,
 				  const pen_particleState& state,
 				  const double dE){
+  //Energy deposited. Register it
+  count(dE, state.X, state.Y, state.Z, state.PAGE, state.WGHT, nhist);
+}
+
+void pen_Singles::tally_beginPart(const unsigned long long nhist,
+				  const unsigned kdet,
+				  const pen_KPAR /*kpar*/,
+				  const pen_particleState& state){
+
+  //A particle starts. Save kdet and register energy "extraction" from material
+  actualKdet = kdet;
+  toDetect = activeDet();
   
-  //Energy deposited. Register a single only if is caused by an interaction
-  if(knocked){
-
-    knocked = false;
-    
-    //Check detector
-    if(!toDetect)
-      return;
-
-    if(dE == 0.0)
-      return; //Nothing to register
-    
-    //Check time
-    if(state.PAGE < tmin || state.PAGE > tmax)
-      return;
-    
-
-    //It is due an interaction in a sensible detector.
-    //Remove energy of secondary created particles
-    
-    double secDE = 0.0;
-    for(unsigned i = 0; i < constants::nParTypes; ++i){
-      const abc_particleStack* stack = readStack(static_cast<pen_KPAR>(i));
-      for(unsigned int j = nInStack[i]; j < stack->getNSec(); ++j){
-	const pen_particleState secState = stack->readBaseState(j);
-	secDE += secState.E*secState.W/state.W;
-      }
-    }
-    
-    count(dE-secDE, state.X, state.Y, state.Z, state.PAGE, state.WGHT, nhist);
+  if(skipBeginPart){
+    skipBeginPart = false;
+  }
+  else{
+    count(-state.E, state.X, state.Y, state.Z, state.PAGE, state.WGHT, nhist);
   }
 }
 
-void pen_Singles::tally_beginPart(const unsigned long long /*nhist*/,
-				  const unsigned kdet,
-				  const pen_KPAR /*kpar*/,
-				  const pen_particleState& /*state*/){
-
-  //A particle starts. Save kdet and reset knock flag
+void pen_Singles::tally_sampledPart(const unsigned long long nhist,
+				    const unsigned long long /*dhist*/,
+				    const unsigned kdet,
+				    const pen_KPAR /*kpar*/,
+				    const pen_particleState& state){
   actualKdet = kdet;
   toDetect = activeDet();
-  knocked = false;
-}
-
-void pen_Singles::tally_jump(const unsigned long long /*nhist*/,
-			     const pen_KPAR /*kpar*/,
-			     const pen_particleState& /*state*/,
-			     const double /*ds*/){
-
-  //Check detector
-  if(!toDetect)
-    return;
   
-  //The particle is in an active detector.
-  //Update the number of particles in each stack
-  for(unsigned i = 0; i < constants::nParTypes; ++i){
-    const abc_particleStack* stack = readStack(static_cast<pen_KPAR>(i));
-    nInStack[i] = stack->getNSec();
+  //Add a pulse to compensate the substracted energy on beginPart call
+  if(state.MAT > 0){
+    //If the particle has been sampled in a non void region, prevent energy counting by beginPart call
+    //skipBeginPart = true;
+    count(state.E, state.X, state.Y, state.Z, state.PAGE, state.WGHT, nhist);
   }
 }
 
@@ -202,52 +173,27 @@ void pen_Singles::tally_step(const unsigned long long nhist,
 			     const tally_StepData& stepData){
 
   //Register singles due continuous energy deposition
-
-  //Check detector
-  if(!toDetect)
-    return;
-  
-  if(stepData.softDE == 0.0){return;}  //Nothing to deposit.
-
-  //Check time
-  if(state.PAGE < tmin || state.PAGE > tmax)
-    return;
-  
-  //Energy deposited, register single
   count(stepData.softDE, stepData.softX, stepData.softY, stepData.softZ,
 	state.PAGE, state.WGHT, nhist);
 }
 
+void pen_Singles::tally_move2geo(const unsigned long long nhist,
+				 const unsigned kdet,
+				 const pen_KPAR /*kpar*/,
+				 const pen_particleState& state,
+				 const double /*dsef*/,
+				 const double /*dstot*/){
 
-void pen_Singles::tally_knock(const unsigned long long /*nhist*/,
-			      const pen_KPAR /*kpar*/,
-			      const pen_particleState& /*state*/,
-			      const int /*icol*/){
-  //The particle suffered an interaction, flag it
-  knocked = true;
-}
+  actualKdet = kdet;
+  toDetect = activeDet();
 
-void pen_Singles::tally_endPart(const unsigned long long nhist,
-				const pen_KPAR /*kpar*/,
-				const pen_particleState& state){
-
-  //Register singles due absorption
-
-  //Check detector
-  if(!toDetect)
-    return;
-
-  if(state.MAT == 0){return;} //The particle escpaed from geometry system
   
-  if(state.E == 0.0){return;}  //Nothing to deposit.
-
-  //Check time
-  if(state.PAGE < tmin || state.PAGE > tmax)
-    return;
-
-  //Register the remaining kinetic energy from the particle
-  count(state.E, state.X, state.Y, state.Z, state.PAGE, state.WGHT, nhist);
-  
+  //Particle has been created at void volume. Check if the geomtry system is reached  
+  if(state.MAT > 0){
+    //Non void volume reached, prevent energy counting by beginPart call
+    //skipBeginPart = true;
+    count(state.E, state.X, state.Y, state.Z, state.PAGE, state.WGHT, nhist);
+  }
 }
 
 void pen_Singles::tally_interfCross(const unsigned long long /*nhist*/,
@@ -257,8 +203,26 @@ void pen_Singles::tally_interfCross(const unsigned long long /*nhist*/,
   //An interface is crossed. Update kdet
   actualKdet = kdet;
   toDetect = activeDet();
-  knocked = false;  
 }
+
+void pen_Singles::tally_endHist(const unsigned long long /*nhist*/){
+
+  for(unsigned i = 0; i < buffers.size(); ++i){
+
+    //Reduce last history singles
+    buffers[i].reduce(lastHistStart[i], joinTime, tmin, tmax);
+    //Update the last history start position after the reduce step
+    lastHistStart[i] = buffers[i].size();
+
+    //Flush buffer, if necessary
+    if(buffers[i].size() >= singlesBuffer::baseSize){
+      flush(i);
+      //Restart last history start position
+      lastHistStart[i] = 0;
+    }
+  }
+}
+
 
 int pen_Singles::configure(const wrapper_geometry& geometry,
 			   const abc_material* const /*materials*/[pen_geoconst::NB],
@@ -282,10 +246,6 @@ int pen_Singles::configure(const wrapper_geometry& geometry,
   joinTime = reader.tjoin;
 
   removeOnEnd = reader.removeOnEnd;
-
-  //Save energy limits
-  emin = reader.emin;
-  emax = reader.emax;
 
   singleEmin = reader.singleEmin;
   singleEmax = reader.singleEmax;
@@ -311,6 +271,7 @@ int pen_Singles::configure(const wrapper_geometry& geometry,
 
   //Create a buffer for each detector
   buffers.resize(idet);
+  lastHistStart.resize(idet,0);
 
   //Init offsets
   offsets.resize(idet, 0);
@@ -365,6 +326,8 @@ int pen_Singles::configure(const wrapper_geometry& geometry,
 	printf("    %lu\n",i);
     }
   }
+
+  skipBeginPart = false;
   
   return 0;
 }
@@ -653,8 +616,16 @@ void pen_Singles::orderDetectorData(const unsigned idet, FILE* fout) const {
       while(nextSingle.t - s.t <= joinTime){
 
 	//Add single
+	single aux = s;
 	s.add(nextSingle);
 
+	const vector3D<double> p = s.pos();
+	if(std::fabs(p.x) > 6.86){
+	  ::printf("CACA6 (%s -> %s): %E -> %E\n      %E %s\n",
+		   aux.pos().stringify().c_str(), p.stringify().c_str(), 
+		   aux.E, s.E, nextSingle.E, nextSingle.pos().stringify().c_str());	    
+	}
+	  
 	//Read the next single in the file
 	if(!nextSingle.read(dataFile, chunksInfo[iChunk].first)){
 	  printf("Error: Unexpected end of file '%s' searching singles in window\n",

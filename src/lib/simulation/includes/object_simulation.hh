@@ -108,12 +108,14 @@ namespace penred{
 
 	//Get particle ID
 	unsigned id = particleID(auxkpar.c_str());
-	if(!isKpar(id)){
+	if(isKpar(id)){
+	  source.kpar = static_cast<pen_KPAR>(id);	  
+	}
+	else if(!useSpecific){
 	  if(verbose > 0)
 	    cout << "\nInvalid selected particle type: " << auxkpar << std::endl;
 	  return -2;
 	}
-	source.kpar = static_cast<pen_KPAR>(id);
 
 	//Configure source
 	source.configure(config,nThreads,verbose);

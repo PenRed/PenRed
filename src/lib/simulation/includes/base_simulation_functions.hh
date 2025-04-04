@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2024 Universitat de València - UV
-//    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2025 Universitat de València - UV
+//    Copyright (C) 2019-2025 Universitat Politècnica de València - UPV
 //    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
@@ -1012,12 +1012,17 @@ namespace penred{
 
 	  double Eprod = particle.annihilationEDep;
 	  if(state.MAT > 0){
+	    //Set to the particle state the origin material and body
+	    state.IBODY = particle.lastBody();
+	    state.MAT = particle.lastMat();
+	    
 	    // run annihilation process
 	    particle.annihilate(randoms);
+	  }else{
+	    //Set to the particle state the origin material and body
+	    state.IBODY = particle.lastBody();
+	    state.MAT = particle.lastMat();
 	  }
-	  //Set to the particle state the origin material and body
-	  state.IBODY = particle.lastBody();
-	  state.MAT = particle.lastMat();
 
 	  //Set position to the end of dsef
 	  double XL,YL,ZL;
@@ -1180,12 +1185,17 @@ namespace penred{
 	if(state.E < lastEABS){
 
 	  if(state.MAT > 0){
+	    //Set to the particle state the origin material and body
+	    state.IBODY = particle.lastBody();
+	    state.MAT = particle.lastMat();
+	  
 	    // run annihilation process
 	    particle.annihilate(randoms);
+	  }else{
+	    //Set to the particle state the origin material and body
+	    state.IBODY = particle.lastBody();
+	    state.MAT = particle.lastMat();
 	  }
-	  //Set to the particle state the origin material and body
-	  state.IBODY = particle.lastBody();
-	  state.MAT = particle.lastMat();
 
 	  //Set position to the end of dsef
 	  double XL,YL,ZL;

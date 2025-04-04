@@ -1,8 +1,9 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2025 Universitat de València - UV
+//    Copyright (C) 2019-2025 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -22,19 +23,13 @@
 //    contact emails:
 //
 //        vicent.gimenez.alventosa@gmail.com
+//        sanolgi@upvnet.upv.es
 //        vicente.gimenez@uv.es
 //    
 //
 
 
 #include "tallyPhaseSpaceFile.hh"  
-
-std::vector<
-  std::pair<std::string,std::shared_ptr<pen_splittedFile>>
-  > pen_tallyPhaseSpaceFile::splittedFiles;
-
-std::mutex pen_tallyPhaseSpaceFile::SFlock;
-
 
 void pen_tallyPhaseSpaceFile::flush(){
 }
@@ -114,24 +109,8 @@ int pen_tallyPhaseSpaceFile::configure(const wrapper_geometry& /*geometry*/,
   //Clear phase space file
   psf.clear();
   
-  //Try to create a splitted file with this tally name
-
-  //First, lock splitted files vector
-  std::lock_guard<std::mutex> guard(SFlock);
-
-  //Next, check if a splitted file with our name exists
-  bool found = false;
-  size_t nSF = splittedFiles.size();
-  for(unsigned i = 0; i < nSF; i++){
-    if(splittedFiles[i].first.compare(readName()) == 0){
-      //This splitted file has already created. Get its pointer
-      pSF = splittedFiles[i].second;
-      found = true;
-      break;
-    }
-  }
-
-  if(!found){
+  //Create the splitted file in thread 0
+  if(getThread() == 0){
     //Create the required splitted file
 
     std::string filename = readName();
@@ -147,26 +126,19 @@ int pen_tallyPhaseSpaceFile::configure(const wrapper_geometry& /*geometry*/,
       std::string("-") + filename;
 #endif
   // ***************************** MPI END ********************************** //
-    
-    splittedFiles.push_back(std::make_pair(readName(),std::make_shared<
-					   pen_splittedFile>(filename.c_str(),
-							     true
-							     )
-					   )
-			    );
 
-    //Store a shared pointer
-    pSF = splittedFiles[nSF].second;
-  }
-  
-  //try to create a partition for our thread
-  err = pSF.get()->createPartition(getThread());
-  if(err != SPLITTED_FILE_SUCCESS){
-    if(verbose > 0){
-      printf("PhaseSpaceFile:configure: Error: Unable to create a partition for tally %s thread %u.\n",readName().c_str(),getThread());
-      printf("                 Error code: %d\n",err);
+    pSF = std::make_shared<pen_splittedFile>(filename.c_str(),true);
+    
+    //try to create a partition for thread 0
+    err = pSF.get()->createPartition(getThread());
+    if(err != SPLITTED_FILE_SUCCESS){
+      if(verbose > 0){
+	printf("PhaseSpaceFile:configure: Error: Unable to create a partition for "
+	       "tally %s thread 0.\n",readName().c_str());
+	printf("                 Error code: %d\n",err);
+      }
+      return -1;
     }
-    return -1;
   }
 
   
