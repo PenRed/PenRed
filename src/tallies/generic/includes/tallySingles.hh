@@ -368,7 +368,8 @@ public:
 				    USE_STEP |
 				    USE_MOVE2GEO |
 				    USE_INTERFCROSS |
-				    USE_ENDHIST)
+				    USE_ENDHIST |
+				    USE_ENDSIM)
   {}
 
   inline bool activeDet(){

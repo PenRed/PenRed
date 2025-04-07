@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
-//    Copyright (C) 2024 Vicent Giménez Alventosa
+//    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -468,17 +468,10 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 		      static_cast<unsigned>(dicom.getNZ())};
   double dvox[3] = {dicom.getDX(),dicom.getDY(),dicom.getDZ()};
 
-  unsigned* mats = nullptr;
-  double*   dens = nullptr;
-
   unsigned long tnvox = dicom.getNVox();
-  
-  mats = (unsigned*) malloc(sizeof(unsigned)*tnvox);
-  dens = (double*)   malloc(sizeof(double)*tnvox);
 
-  if(mats == nullptr || dens == nullptr){
-    throw std::bad_alloc();
-  }
+  std::vector<unsigned> mats(tnvox);
+  std::vector<double>   dens(tnvox);
 
   //Set materials and densities to default values
   for(unsigned long ivox = 0; ivox < tnvox; ivox++){mats[ivox] = defMat;}
@@ -835,7 +828,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   }
   
   //Create voxelized geometry
-  err = setVoxels(nvox,dvox,mats,dens,verbose);
+  err = setVoxels(nvox,dvox,mats.data(),dens.data(),verbose);
   if(err != 0){
     if(verbose > 0){
       printf("pen_dicomGeo:configure: Error: Unable to create voxel geometry from DICOM with provided configuration.\n");

@@ -856,7 +856,7 @@ void pen_ImpactDetector::saveData(const unsigned long long nhist) const{
   sprintf(filenameAGE, "age-impdet-%u.dat",idet);
   
   
-  double emiddle, invn;
+  double invn;
   double qFLU, sigmaFLU,
     qSPC, sigmaSPC,
     qEDEP, sigmaEDEP,

@@ -162,8 +162,8 @@ void pen_Singles::tally_sampledPart(const unsigned long long nhist,
   //Add a pulse to compensate the substracted energy on beginPart call
   if(state.MAT > 0){
     //If the particle has been sampled in a non void region, prevent energy counting by beginPart call
-    //skipBeginPart = true;
-    count(state.E, state.X, state.Y, state.Z, state.PAGE, state.WGHT, nhist);
+    skipBeginPart = true;
+    //count(state.E, state.X, state.Y, state.Z, state.PAGE, state.WGHT, nhist);
   }
 }
 
@@ -191,8 +191,8 @@ void pen_Singles::tally_move2geo(const unsigned long long nhist,
   //Particle has been created at void volume. Check if the geomtry system is reached  
   if(state.MAT > 0){
     //Non void volume reached, prevent energy counting by beginPart call
-    //skipBeginPart = true;
-    count(state.E, state.X, state.Y, state.Z, state.PAGE, state.WGHT, nhist);
+    skipBeginPart = true;
+    //count(state.E, state.X, state.Y, state.Z, state.PAGE, state.WGHT, nhist);
   }
 }
 

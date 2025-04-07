@@ -45,7 +45,7 @@ This tally is capable of measuring different magnitudes: fluence, particle energ
 Each magnitude can be enabled or disabled using the corresponding toggle in the tally panel. Additionally, a linear or logarithmic scale can be used for each case. To configure the recording histograms, the following parameters must be set:
 
 - **`Energy`**  
-  Energy parameters specify the energy range and bins for all energy-based magnitudes.
+  Energy parameters specify the energy range and bins for all energy-based magnitudes. Additionally, energy range limits also the particles to be recorded for age spectrum.
     - **`Min`**  
       Minimum energy to be recorded, in eV.
     - **`Max`**  

@@ -18,8 +18,8 @@ nav:
       - World: simulation-configuration/world-tallies.md
       - Object: simulation-configuration/object-tallies.md
       - Detector: simulation-configuration/detector-tallies.md
-
   - Export: export.md
+  - Simulate: simulate.md
 theme:
   name: readthedocs
   features:
