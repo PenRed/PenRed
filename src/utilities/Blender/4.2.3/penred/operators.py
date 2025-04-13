@@ -81,6 +81,7 @@ class TALLY_OT_addCylDoseTally(bpy.types.Operator):
         obj = context.object
         if obj and obj.penred_settings:
             obj.penred_settings.talliesCylDose.add()
+            utils.redrawView3D(context)
         return {"FINISHED"}
 
 # Remove Cylindrical dose
@@ -95,6 +96,7 @@ class TALLY_OT_removeCylDoseTally(bpy.types.Operator):
         obj = context.object
         if obj and obj.penred_settings:
             obj.penred_settings.talliesCylDose.remove(self.index)
+            utils.redrawView3D(context)
         return {"FINISHED"}
 
 # Add Impact Detector
@@ -107,6 +109,7 @@ class TALLY_OT_addImpactDetectorTally(bpy.types.Operator):
         obj = context.object
         if obj and obj.penred_settings:
             obj.penred_settings.talliesImpactDetector.add()
+            utils.redrawView3D(context)
         return {"FINISHED"}
 
 # Remove Impact Detector
@@ -121,6 +124,7 @@ class TALLY_OT_removeImpactDetectorTally(bpy.types.Operator):
         obj = context.object
         if obj and obj.penred_settings:
             obj.penred_settings.talliesImpactDetector.remove(self.index)
+            utils.redrawView3D(context)
         return {"FINISHED"}
 
 # Add Spatial dose
@@ -133,6 +137,7 @@ class TALLY_OT_addSpatialDoseTally(bpy.types.Operator):
         obj = context.object
         if obj and obj.penred_settings:
             obj.penred_settings.talliesSpatialDoseDistrib.add()
+            utils.redrawView3D(context)
         return {"FINISHED"}
 
 # Remove Spatial dose
@@ -147,6 +152,7 @@ class TALLY_OT_removeSpatialDoseTally(bpy.types.Operator):
         obj = context.object
         if obj and obj.penred_settings:
             obj.penred_settings.talliesSpatialDoseDistrib.remove(self.index)
+            utils.redrawView3D(context)
         return {"FINISHED"}
 
 # Add Spherical dose
@@ -159,6 +165,7 @@ class TALLY_OT_addSphDoseTally(bpy.types.Operator):
         obj = context.object
         if obj and obj.penred_settings:
             obj.penred_settings.talliesSphericalDoseDistrib.add()
+            utils.redrawView3D(context)
         return {"FINISHED"}
 
 # Remove Spherical dose
@@ -173,6 +180,7 @@ class TALLY_OT_removeSphDoseTally(bpy.types.Operator):
         obj = context.object
         if obj and obj.penred_settings:
             obj.penred_settings.talliesSphericalDoseDistrib.remove(self.index)
+            utils.redrawView3D(context)
         return {"FINISHED"}    
 
 # Add PSF
@@ -185,6 +193,7 @@ class TALLY_OT_addPSFTally(bpy.types.Operator):
         obj = context.object
         if obj and obj.penred_settings:
             obj.penred_settings.talliesPSF.add()
+            utils.redrawView3D(context)
         return {"FINISHED"}
 
 # Remove PSF
@@ -199,6 +208,7 @@ class TALLY_OT_removePSFTally(bpy.types.Operator):
         obj = context.object
         if obj and obj.penred_settings:
             obj.penred_settings.talliesPSF.remove(self.index)
+            utils.redrawView3D(context)
         return {"FINISHED"}
 
 # Add kerma tally
@@ -211,6 +221,7 @@ class TALLY_OT_addKermaTally(bpy.types.Operator):
         obj = context.object
         if obj and obj.penred_settings:
             obj.penred_settings.talliesKerma.add()
+            utils.redrawView3D(context)
         return {"FINISHED"}
 
 # Remove Kerma tally
@@ -225,6 +236,7 @@ class TALLY_OT_removeKermaTally(bpy.types.Operator):
         obj = context.object
         if obj and obj.penred_settings:
             obj.penred_settings.talliesKerma.remove(self.index)
+            utils.redrawView3D(context)
         return {"FINISHED"}
 
 # Add Spatial Distribution
@@ -237,6 +249,7 @@ class TALLY_OT_addSpatialDistribTally(bpy.types.Operator):
         obj = context.object
         if obj and obj.penred_settings:
             obj.penred_settings.talliesSpatialDistrib.add()
+            utils.redrawView3D(context)
         return {"FINISHED"}
 
 # Remove Spatial Distribution
@@ -251,6 +264,7 @@ class TALLY_OT_removeSpatialDistribTally(bpy.types.Operator):
         obj = context.object
         if obj and obj.penred_settings:
             obj.penred_settings.talliesSpatialDistrib.remove(self.index)
+            utils.redrawView3D(context)
         return {"FINISHED"}    
 
 # Add Angular detector
@@ -263,6 +277,7 @@ class TALLY_OT_addAngDetTally(bpy.types.Operator):
         obj = context.object
         if obj and obj.penred_settings:
             obj.penred_settings.talliesAngularDetector.add()
+            utils.redrawView3D(context)
         return {"FINISHED"}
 
 # Remove Angular detector
@@ -277,8 +292,37 @@ class TALLY_OT_removeAngDetTally(bpy.types.Operator):
         obj = context.object
         if obj and obj.penred_settings:
             obj.penred_settings.talliesAngularDetector.remove(self.index)
+            utils.redrawView3D(context)
         return {"FINISHED"}
 
+# Add CT tally
+class TALLY_OT_addCTTally(bpy.types.Operator):
+    bl_idname = "tallies_ct.add_item"
+    bl_label = "Add Item"
+    bl_description = "Add a CT tally"
+
+    def execute(self, context):
+        obj = context.object
+        if obj and obj.penred_settings:
+            obj.penred_settings.talliesCT.add()
+            utils.redrawView3D(context)
+        return {"FINISHED"}
+
+# Remove CT tally
+class TALLY_OT_removeCTTally(bpy.types.Operator):
+    bl_idname = "tallies_ct.remove_item"
+    bl_label = "Remove Item"
+    bl_description = "Remove the CT tally"
+
+    index: bpy.props.IntProperty()  # Index of the item to remove
+
+    def execute(self, context):
+        obj = context.object
+        if obj and obj.penred_settings:
+            obj.penred_settings.talliesCT.remove(self.index)
+            utils.redrawView3D(context)
+        return {"FINISHED"}
+    
 ## World based tallies ##
 
 # Add Cylindrical dose
@@ -291,6 +335,7 @@ class TALLY_OT_addEmergingParticleTally(bpy.types.Operator):
         world = context.scene.world
         if world and world.penred_settings:
             world.penred_settings.talliesEmergingParticle.add()
+            utils.redrawView3D(context)
         return {"FINISHED"}
 
 # Remove Cylindrical dose
@@ -305,6 +350,7 @@ class TALLY_OT_EmergingParticleTally(bpy.types.Operator):
         world = context.scene.world
         if world and world.penred_settings:
             world.penred_settings.talliesEmergingParticle.remove(self.index)
+            utils.redrawView3D(context)
         return {"FINISHED"}
     
 talliesOperatorClasses = (
@@ -324,6 +370,8 @@ talliesOperatorClasses = (
     TALLY_OT_removeSpatialDistribTally,
     TALLY_OT_addAngDetTally,
     TALLY_OT_removeAngDetTally,
+    TALLY_OT_addCTTally,
+    TALLY_OT_removeCTTally,
     TALLY_OT_addEmergingParticleTally,
     TALLY_OT_EmergingParticleTally,
 )
@@ -631,25 +679,23 @@ class REMESH_OT_remesh_operator(Operator):
         obj = context.object
         if obj.penred_settings.quadricType == "CONE":
             
-            #Get height
-            h = obj.dimensions.z
             #Get radius
             r1 = obj.penred_settings.r1
             r2 = obj.penred_settings.r2
             
             r1 = max(1.0e-5,r1)
             r2 = max(1.0e-5,r2)
+
+            # Move origin to geometry center
+            bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
                         
             ### Create an empty mesh
             mesh = bpy.data.meshes.new(name=obj.data.name)
             
             #Create the new mesh
             bm = bmesh.new()
-            #Despite the name, blender uses the diameter parameters as radius OLD
-            if obj.penred_settings.quadricType == "CONE":
-                bmesh.ops.create_cone(bm, cap_ends=True, segments=32, radius1=r1, radius2=r2, depth = h)
-            else:
-                bmesh.ops.create_cone(bm, cap_ends=False, segments=32, radius1=r1, radius2=r2, depth = h)
+            #Despite the name, blender uses the diameter parameters as radius
+            bmesh.ops.create_cone(bm, cap_ends=True, segments=32, radius1=r1, radius2=r2, depth = 1.0)
             
             bm.to_mesh(mesh)
             bm.free()
@@ -664,7 +710,56 @@ class REMESH_OT_remesh_operator(Operator):
             if oldMesh.users == 0:
                 oldMesh.user_clear()
                 bpy.data.meshes.remove(oldMesh)
+
+        elif obj.penred_settings.quadricType == "TRAPEZOID":
+
+            # Move origin to geometry center
+            bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
+
+            # Create the new mesh
+            mesh = bpy.data.meshes.new(name=obj.data.name)
+
+            # Create vertices and faces for the trapezoid
+            topSize05 = Vector(obj.penred_settings.topSize)/2.0
+            botSize05 = Vector(obj.penred_settings.botSize)/2.0
+            xTop = topSize05[0]
+            xBot = botSize05[0]
+            yTop = topSize05[1]
+            yBot = botSize05[1]
+            verts = [
+                (-xBot, -yBot, -1.0),  # 0
+                (-xTop, -yTop,  1.0),  # 1
+                (-xBot,  yBot, -1.0),  # 2
+                (-xTop,  yTop,  1.0),  # 3
+                ( xBot, -yBot, -1.0),  # 4
+                ( xTop, -yTop,  1.0),  # 5
+                ( xBot,  yBot, -1.0),  # 6
+                ( xTop,  yTop,  1.0),  # 7
+            ]
+
+            faces = [
+                (0, 1, 3, 2),  # Left face
+                (4, 6, 7, 5),  # Right face
+                (0, 2, 6, 4),  # Bottom face
+                (1, 5, 7, 3),  # Top face
+                (0, 4, 5, 1),  # Front face
+                (2, 3, 7, 6),  # Back face
+            ]
+
+            # Build the mesh
+            mesh.from_pydata(verts, [], faces)  # Edges auto-generated from faces
+
+            #Store old mesh
+            oldMesh = obj.data
             
+            #Assign new mesh
+            obj.data = mesh
+            
+            #Remove old mesh
+            if oldMesh.users == 0:
+                oldMesh.user_clear()
+                bpy.data.meshes.remove(oldMesh)            
+
         return {'FINISHED'}
 
 objectOperatorsClasses = (
@@ -695,6 +790,24 @@ class QUADRIC_OT_add_cube(Operator, AddObjectHelper):
         utils.add_object(self, context, "Cube", "CUBE")
         return {'FINISHED'}
 
+# TRAPEZOID
+class QUADRIC_OT_add_trapezoid(Operator, AddObjectHelper):
+    """Create a new Trapezoid Quadric"""
+    bl_idname = "mesh.add_trapezoid_quadric"
+    bl_label = "Add Trapezoid Quadric"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    scale: FloatVectorProperty(
+        name="scale",
+        default=(1.0, 1.0, 1.0),
+        subtype='TRANSLATION',
+        description="scaling",
+    )
+
+    def execute(self, context):
+        utils.add_object(self, context, "Trapezoid", "TRAPEZOID")
+        return {'FINISHED'}
+    
 # SPHERE
 class QUADRIC_OT_add_sphere(Operator, AddObjectHelper):
     """Create a new Spheric Quadric"""
@@ -862,6 +975,7 @@ class QUADRIC_OT_remove_cutplane(Operator):
 
 quadricObjectAddOperators = (
     QUADRIC_OT_add_cube,
+    QUADRIC_OT_add_trapezoid,
     QUADRIC_OT_add_sphere,
     QUADRIC_OT_add_cone,
     QUADRIC_OT_add_cylinder,
@@ -873,19 +987,19 @@ quadricObjectAddOperators = (
 
 # Simulation operators
 class SIMULATE_PENRED_OT_cancel(bpy.types.Operator):
-    bl_idname = "world.cancel_penred_simulation"
+    bl_idname = "scene.cancel_penred_simulation"
     bl_label = "Cancel PenRed simulation"
 
     def execute(self, context):
-        world = context.scene.world
-        if world and world.penred_settings:
-            if world.penred_settings.simulation.simulationState == "RUNNING":
-                world.penred_settings.simulation.simulationState = "CANCELLED"
+        scene = context.scene
+        if scene and scene.penred_settings:
+            if scene.penred_settings.simulationState == "RUNNING":
+                scene.penred_settings.simulationState = "CANCELLED"
         return {'FINISHED'}
 
 class SIMULATE_PENRED_OT_run(bpy.types.Operator):
     """Run a simulaiton using penred code"""
-    bl_idname = "world.simulate_penred"
+    bl_idname = "scene.simulate_penred"
     bl_label = "Run PenRed simulation"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1058,20 +1172,20 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
 
     def invoke(self, context, event):
 
-        world = context.scene.world            
-        if not (world and world.penred_settings):
-            self.report({'ERROR'}, "Missing PenRed settings in World")
+        scene = context.scene
+        if not (scene and scene.penred_settings):
+            self.report({'ERROR'}, "Missing PenRed settings in Scene")
             return {'CANCELLED'}
 
         # Check if a previous simulation is on configuration or running:
-        if world.penred_settings.simulation.simulationState != "NONE":
+        if scene.penred_settings.simulationState != "NONE":
             self.report({'WARNING'}, "PenRed simulation already on configuration or running")
             return {'CANCELLED'}
 
         self.cleanSimu(context)
         
         # Set simulation to exporting state
-        world.penred_settings.simulation.simulationState = "EXPORTING"
+        scene.penred_settings.simulationState = "EXPORTING"
 
         # Invoke penred export UI
         bpy.ops.export_penred.data('INVOKE_DEFAULT',
@@ -1086,24 +1200,24 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
     def modal(self, context, event):
 
         # Get simulation state
-        world = context.scene.world            
-        if not (world and world.penred_settings):
-            self.report({'ERROR'}, "Missing PenRed settings in World")
+        scene = context.scene            
+        if not (scene and scene.penred_settings):
+            self.report({'ERROR'}, "Missing PenRed settings in Scene")
             return self.cancel(context)
 
         # If no time is defined, the export is still running
         if not self._timer:
             
             # Check if export operator is still running
-            if world.penred_settings.simulation.simulationState == "EXPORTING":
+            if scene.penred_settings.simulationState == "EXPORTING":
                 # Still exporting
                 return {'PASS_THROUGH'}  # Let export operator handle events
 
-            elif world.penred_settings.simulation.simulationState == "CANCELLED":
+            elif scene.penred_settings.simulationState == "CANCELLED":
                 # Export cancelled
                 return self.cancel(context)
                 
-            elif world.penred_settings.simulation.simulationState == "EXPORTED":
+            elif scene.penred_settings.simulationState == "EXPORTED":
 
                 # Files exported, set a timer
                 self._timer = context.window_manager.event_timer_add(
@@ -1140,7 +1254,7 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
                     self._fade_in = True
 
             # Check if the simulation should be cancelled
-            if world.penred_settings.simulation.simulationState == "CANCELLED":
+            if scene.penred_settings.simulationState == "CANCELLED":
                 # simulation cancelled
                 return self.cancel(context)
 
@@ -1171,8 +1285,8 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
 
     def setup_simulation(self, context):
 
-        world = context.scene.world
-        if not (world and world.penred_settings):
+        scene = context.scene
+        if not (scene and scene.penred_settings):
             self.report({'ERROR'}, "Missing PenRed settings in World")
             return self.cancel(context)
 
@@ -1192,11 +1306,11 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
                 return self.cancel(context)        
         try:
             
-            paths = os.path.split(world.penred_settings.simulation.simulationConfigPath)
+            paths = os.path.split(scene.penred_settings.simulationConfigPath)
 
             # Verify export files
-            if not os.path.exists(world.penred_settings.simulation.simulationConfigPath):
-                self.report({'ERROR'}, f"Exported files ({world.penred_settings.simulation.simulationConfigPath}) not found!")
+            if not os.path.exists(scene.penred_settings.simulationConfigPath):
+                self.report({'ERROR'}, f"Exported files ({scene.penred_settings.simulationConfigPath}) not found!")
                 return self.cancel(context)
                 
             os.chdir(paths[0])
@@ -1214,7 +1328,8 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
                 return self.cancel(context)
 
             # Change the state to running
-            world.penred_settings.simulation.simulationState = "RUNNING"
+            scene.penred_settings.simulationState = "RUNNING"
+            utils.redrawView3D(context)
             
             return {'RUNNING_MODAL'}
                 
@@ -1248,9 +1363,9 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
             del self._simu
             _simu = None
 
-        world = context.scene.world            
-        if world and world.penred_settings:
-            world.penred_settings.simulation.simulationState = "NONE"
+        scene = context.scene            
+        if scene and scene.penred_settings:
+            scene.penred_settings.simulationState = "NONE"
 
         # Clean the popup
         if self._draw_handler:
@@ -1511,6 +1626,15 @@ class export_penred(Operator, ExportHelper):
         ### Create object surfaces
         if quadType == "CUBE":
             nSurf = surfaces.createCubeSurfaces(f,x,y,z,dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
+        if quadType == "TRAPEZOID":
+            topSize = obj.penred_settings.topSize
+            botSize = obj.penred_settings.botSize
+            
+            nSurf = surfaces.createTrapezoidSurfaces(f,x,y,z,
+                                                     sx*botSize[0], sy*botSize[1],
+                                                     sx*topSize[0], sy*topSize[1],
+                                                     dz,omega,theta,phi,
+                                                     nSurf,name,toRound)            
         elif quadType == "SPHERE":
             nSurf = surfaces.createSphereSurfaces(f,x,y,z,dx,dy,dz,nSurf,name,toRound)
         elif quadType == "CYLINDER":
@@ -1562,6 +1686,12 @@ class export_penred(Operator, ExportHelper):
         ### Set object surfaces
         if quadType == "CUBE":
             initSurf = surfaces.setCubeSurfaces(f,initSurf, 1)
+        elif quadType == "TRAPEZOID":
+            topSize = obj.penred_settings.topSize
+            botSize = obj.penred_settings.botSize
+            initSurf = surfaces.setTrapezoidSurfaces(f,sx*botSize[0], sy*botSize[1],
+                                                     sx*topSize[0], sy*topSize[1],
+                                                     initSurf, 1)
         elif quadType == "SPHERE":
             initSurf = surfaces.setSphereSurfaces(f,initSurf, 1)
         elif quadType == "CYLINDER" or quadType == "CONE":
@@ -1615,9 +1745,9 @@ class export_penred(Operator, ExportHelper):
 
     def cancel(self, context):
         if self.calledToSimulate:
-            world = context.scene.world
-            if world and world.penred_settings:
-                world.penred_settings.simulation.simulationState = "CANCELLED"
+            scene = context.scene
+            if scene and scene.penred_settings:
+                scene.penred_settings.simulationState = "CANCELLED"
         return {'CANCELLED'}    
     
     def execute(self, context):
@@ -1705,12 +1835,12 @@ class export_penred(Operator, ExportHelper):
         f.close()
 
         if self.calledToSimulate:
-            world = context.scene.world
-            if world and world.penred_settings:
+            scene = context.scene
+            if scene and scene.penred_settings:
                 # Save simulation path
-                world.penred_settings.simulation.simulationConfigPath = os.path.splitext(self.filepath)[0] + ".in"
+                scene.penred_settings.simulationConfigPath = os.path.splitext(self.filepath)[0] + ".in"
                 # Flag the simulation state to exported
-                world.penred_settings.simulation.simulationState = "EXPORTED"
+                scene.penred_settings.simulationState = "EXPORTED"
                 
         return {'FINISHED'}
 

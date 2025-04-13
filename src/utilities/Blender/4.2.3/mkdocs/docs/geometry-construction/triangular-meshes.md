@@ -1,6 +1,6 @@
 ## Triangular Meshes
 
-Unlike the [Quadric Surfaces](quadric-surfaces.md) exporter, the exporter for triangular mesh surfaces can convert any mesh constructed with Blender to the PenRed format. Therefore, there is no need to use the predefined quadric objects. Additionally, Blender can be used to import meshes constructed with other programs and export them to the PenRed format.
+Unlike the [Quadric Surfaces](quadric-surfaces.md) exporter, the exporter for triangular mesh surfaces can convert any mesh created in Blender to the PenRed format. Since it uses the mesh vertex information directly, there is no need to use the predefined quadric objects, keep transforms unapplied, or modify objects only using *Object Mode* transformations. Additionally, Blender can be used to import meshes created with other programs and export them to the PenRed format.
 
 The only parameter required for each body is the **`Material Index`**, which can be found in the **Body Properties** panel within the **Object Properties**. 
 

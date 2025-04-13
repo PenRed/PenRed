@@ -1,5 +1,27 @@
 
-def createPSF(f, name, nhist, psfFile, psfMaxE,
+def createHeaderCT(f, name, phiIni, phiEnd, nProj,
+                   center, rad, tmin, dt, nSecond, toRound):
+    f.write(f"# CT Source configuration for '{name}'\n")
+
+    prefix = f"sources/generic/{name}/specific"
+
+    f.write(f"{prefix}/type \"CT\"\n")
+    f.write(f"{prefix}/phi-ini {phiIni:.3f}\n")
+    f.write(f"{prefix}/phi-end {phiEnd:.3f}\n")
+    f.write(f"{prefix}/nProjections {nProj}\n\n")
+
+    f.write(f"{prefix}/CTx0 {round(center[0],toRound)}\n")
+    f.write(f"{prefix}/CTy0 {round(center[1],toRound)}\n")
+    f.write(f"{prefix}/CTz0 {round(center[2],toRound)}\n")
+    f.write(f"{prefix}/rad {round(rad,toRound)}\n\n")
+    
+    f.write(f"{prefix}/tmin {tmin:.4}\n")
+    f.write(f"{prefix}/dt {dt:.4}\n\n")
+
+    if nSecond > 0:
+        f.write(f"{prefix}/nSecondaries {nSecond}\n\n")
+
+def createPSF(f, name, nhist, isCT, psfFile, psfMaxE,
               split, window, shift, orientation, toRound):
     f.write(f"# PSF Source configuration for '{name}'\n")
 
@@ -9,7 +31,8 @@ def createPSF(f, name, nhist, psfFile, psfMaxE,
     f.write(f"{prefix}/nhist {nhist:.5e}\n")
     
     prefix = f"{prefix}/specific"
-    f.write(f"{prefix}/type \"PSF\"\n")
+    if not isCT:
+        f.write(f"{prefix}/type \"PSF\"\n")
     f.write(f"{prefix}/filename \"{psfFile}\"\n")
     f.write(f"{prefix}/Emax \"{psfMaxE:.3e}\"\n")
 

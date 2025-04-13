@@ -235,6 +235,55 @@ class tallySpatialDistrib(bpy.types.PropertyGroup):
         ],
         default = "PART_GAMMA"
     )
+
+# Spatial distribution
+class tallyCT(bpy.types.PropertyGroup):
+    name : bpy.props.StringProperty(name = "Tally Name", default = "CT Sinogram")
+    show : bpy.props.BoolProperty(name = "Show Tally Properties", default = True)
+
+    emin : bpy.props.FloatProperty(
+        name = "Minimum Energy",
+        default = 1.0e3,
+        min = 0.0,
+        description="Minimum energy, in eV, to be detected",
+        update=lambda self, context: setattr(self, "eminEdit", False))
+    eminEdit : bpy.props.BoolProperty(name = "Minimum Energy Edit", default = False)
+    
+    emax : bpy.props.FloatProperty(
+        name = "Maximum Energy",
+        default = 1.0e6,
+        min = 0.0,
+        description="Maximum energy, in eV, to be detected",
+        update=lambda self, context: setattr(self, "emaxEdit", False))
+    emaxEdit : bpy.props.BoolProperty(name = "Maximum Energy Edit", default = False)
+
+    nPixels : bpy.props.IntProperty(name = "Pixels", min = 1, default = 10,
+                                    description="Number of detector pixels")
+
+    pixelDepth : bpy.props.FloatProperty(name = "Pixel Depth",
+                                         default = 1.0,
+                                         min = 0.001,
+                                         description = "Pixel depth in cm")
+
+    aperture : bpy.props.FloatProperty(name = "Aperture",
+                                       default = 10.0,
+                                       min = 0.01,
+                                       description = "Angle subtended by the detector with respect to the isocenter, in degrees")
+
+    scatter : bpy.props.BoolProperty(name = "Scatter",
+                                     default = True,
+                                     description = "Enables/disables collecting scattered particles")
+
+    particleType : bpy.props.EnumProperty(
+        name = "Particle Type",
+        description = "Choose the particle to detect",
+        items = [
+            ("gamma" , "Gamma", "Gamma"),
+            ("electron", "Electron", "Electron"),
+            ("positron", "Positron", "Positron"),
+        ],
+        default = "gamma"
+    )
     
 # Angular Detector
 class tallyAngularDetector(bpy.types.PropertyGroup):
@@ -325,6 +374,7 @@ talliesPropsClasses = (
     tallyPSF,
     tallyKerma,
     tallySpatialDistrib,
+    tallyCT,
     tallyAngularDetector,
     tallyEmergingParticle,
     tallyTracks,
@@ -371,11 +421,12 @@ class sourceProperties(bpy.types.PropertyGroup):
         )
     )
     
-    ctPhiStep : bpy.props.FloatProperty(
-        name = "CT Angular Step",
-        default = 10.0,
-        min = 0.1,
-        description= "CT projections angular step, in degrees"
+    ctNSteps : bpy.props.IntProperty(
+        name = "CT Projections",
+        default = 10,
+        min = 1,
+        max = 7200,
+        description= "CT number of projections"
     )
     
     ctTStart : bpy.props.FloatProperty(
@@ -697,6 +748,20 @@ class objectProperties(bpy.types.PropertyGroup):
                                  min = 0.0,
                                  update=lambda self, context: (bpy.ops.remesh.remesh_operator(), None)[1])
 
+    topSize : bpy.props.FloatVectorProperty(
+        name = "Top Size",
+        description = "Top size",
+        size = 2,
+        default = (1.0,1.0),
+        min = 0.0,
+        update=lambda self, context: (bpy.ops.remesh.remesh_operator(), None)[1])
+    botSize : bpy.props.FloatVectorProperty(
+        name = "Bot Size",
+        size = 2,
+        default = (2.0, 2.0),
+        min = 0.0,
+        update=lambda self, context: (bpy.ops.remesh.remesh_operator(), None)[1])
+
     ## Source parameters ##
     source: bpy.props.PointerProperty(type=sourceProperties)
     
@@ -725,6 +790,9 @@ class objectProperties(bpy.types.PropertyGroup):
     showTalliesAngularDet : bpy.props.BoolProperty(name = "Show Angular Detector Tallies", default = True)
     talliesAngularDetector : bpy.props.CollectionProperty(type=tallyAngularDetector)
 
+    showTalliesCT : bpy.props.BoolProperty(name = "Show CT Tallies", default = True)
+    talliesCT : bpy.props.CollectionProperty(type=tallyCT)
+    
 # Material properties groups
 #############################
 class elementProperties(bpy.types.PropertyGroup):
@@ -972,24 +1040,6 @@ class simulationProperties(bpy.types.PropertyGroup):
         "Maximum simulation time in seconds"
     )
 
-    simulationState : bpy.props.EnumProperty(
-        name = "Thread Selection Type",
-        description = "Choose how the number of threads is selected",
-        items = [
-            ("NONE" , "None", "No simulation running or on configuration"),
-            ("EXPORTING" , "Exporting", "The simulation is exporting files"),
-            ("EXPORTED" , "Exported", "The simulation files have been exported"),
-            ("RUNNING", "Running", "Simulation is running"),
-            ("CANCELLED", "Running", "Simulation cancelled"),
-        ],
-        default = "NONE"
-    )
-
-    simulationConfigPath : bpy.props.StringProperty(
-        name = "Simulation Path",
-        description = "Path to the simulation folder",
-        default = "")
-
 # World properties group
 #############################
 class worldProperties(bpy.types.PropertyGroup):
@@ -1005,7 +1055,27 @@ class worldProperties(bpy.types.PropertyGroup):
     talliesEmergingParticle : bpy.props.CollectionProperty(type=tallyEmergingParticle)
     tracksTally : bpy.props.PointerProperty(type=tallyTracks)
 
-    
+# Scene properties group
+#############################
+class penredSceneProperties(bpy.types.PropertyGroup):
+
+    simulationState : bpy.props.EnumProperty(
+        name = "Simulation Status",
+        description = "Saves the current simulation status",
+        items = [
+            ("NONE" , "None", "No simulation running or on configuration"),
+            ("EXPORTING" , "Exporting", "The simulation is exporting files"),
+            ("EXPORTED" , "Exported", "The simulation files have been exported"),
+            ("RUNNING", "Running", "Simulation is running"),
+            ("CANCELLED", "Running", "Simulation cancelled"),
+        ],
+        default = "NONE"
+    )
+
+    simulationConfigPath : bpy.props.StringProperty(
+        name = "Simulation Path",
+        description = "Path to the simulation folder",
+        default = "")
     
 def register():
 
@@ -1035,11 +1105,17 @@ def register():
     # Register world properties
     bpy.utils.register_class(worldProperties)
 
+    # Register scene properties
+    bpy.utils.register_class(penredSceneProperties)    
+
     # Add properties to objects
     bpy.types.Object.penred_settings = bpy.props.PointerProperty(type=objectProperties)
 
     # Add properties to world
     bpy.types.World.penred_settings = bpy.props.PointerProperty(type=worldProperties)
+
+    # Add properties to scene
+    bpy.types.Scene.penred_settings = bpy.props.PointerProperty(type=penredSceneProperties)
     
 def unregister():
 
@@ -1071,4 +1147,9 @@ def unregister():
 
     # Unregister world properties
     bpy.utils.unregister_class(worldProperties)
+
+    # Delete scene penRed settings
+    del bpy.types.Scene.penred_settings
     
+    # Unregister scene properties
+    bpy.utils.unregister_class(penredSceneProperties)    

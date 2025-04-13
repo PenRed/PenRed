@@ -98,11 +98,20 @@ def createSources(context, f, toRound):
 
                 # Get object properties
                 x,y,z,dx,dy,dz,sx,sy,sz,omega,theta,phi,name,bsize = utils.getObjInfo(obj)
+
+                if source.ctEnable:
+                    if source.particleType == "PART_PSF":
+                        nSecond = -1
+                    else:
+                        nSecond = source.ctSecondaries
+                    sources.createHeaderCT(f, name, source.ctPhiInterval[0], source.ctPhiInterval[1],
+                                           source.ctNSteps, (x,y,z), source.ctRad, source.ctTStart,
+                                           source.ctDT, nSecond, toRound)
                 
                 if source.particleType == "PART_PSF":
 
                     # Create the PSF source
-                    sources.createPSF(f, name, source.nHists,
+                    sources.createPSF(f, name, source.nHists, source.ctEnable,
                                       source.sourcePSF, source.psfMaxE,
                                       source.split, source.psfWindow,
                                       (x,y,z), (omega, theta, phi), toRound)
@@ -304,6 +313,18 @@ def createTallies(context, f, toRound):
                                          min1, min2, min3,
                                          max1, max2, max3,
                                          toRound)
+
+            if obj.penred_settings.source and obj.penred_settings.source.ctEnable:
+                source = obj.penred_settings.source
+                for i, item in enumerate(obj.penred_settings.talliesCT):
+                    tallyName = f"{obj.name}_{i}_{item.name}"
+
+                    tallies.createTallyCT(f, tallyName, outputPrefix, (x,y,z), item.emin, item.emax,
+                                          item.nPixels, item.pixelDepth,
+                                          source.ctPhiInterval[0], source.ctPhiInterval[1],
+                                          source.ctNSteps, item.aperture, source.ctRad,
+                                          item.particleType, source.ctTStart, source.ctDT,
+                                          item.scatter, toRound)
 
             # Detector based tallies
 

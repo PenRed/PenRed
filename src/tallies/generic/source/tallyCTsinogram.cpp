@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2020-2021 Universitat de València - UV
 //    Copyright (C) 2020-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -609,14 +610,31 @@ int pen_CTsinogram::configure(const wrapper_geometry& geometry,
       return -17;
     }
 
-  err = config.read("angularStep", dphi);
+  int auxProj;
+  err = config.read("nProjections", auxProj);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("pen_CTsinogram:configure: Error: Unable to read 'angularStep' in configuration. Double expected\n");
+      printf("pen_CTsinogram:configure: Error: Unable to read 'nProjections' "
+	     "in configuration. Integer expected\n");
     }
     return -18;
-
+    
   }
+
+  if(auxProj <= 0){
+    if(verbose > 0){
+      printf("pen_CTsinogram:configure: Error: Invalid number of projections %d. "
+	     "One or more projections is required\n", auxProj);
+    }
+    return -18;
+  }
+  
+  //Number of total phi positions/projections 
+  // depending of the angula step
+  nphi = static_cast<unsigned long>(auxProj);
+
+  //Calculate angular step
+  dphi = (phif-phi0)/static_cast<double>(nphi);
 
   if(verbose > 1){
     printf("Angular information angle initial, angle final and angular step for each projection:\n");
@@ -646,9 +664,7 @@ int pen_CTsinogram::configure(const wrapper_geometry& geometry,
   phipx=phi/double(npixs);
   //Inner arc of the detector
   si = phipx*ri*double(npixs);
-  //Number of total phi positions/projections 
-  // depending of the angula step
-  nphi = (phif-phi0)/dphi+1;
+
   //Dimension of the sinogram, number of possible angles projections 
   //by the number of pixels of the detector that is the same in each projection
   sinoDim = nphi*npixs;

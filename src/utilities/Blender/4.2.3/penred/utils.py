@@ -11,6 +11,11 @@ from mathutils import Vector
 from mathutils import Color
 from math import cos, acos, sin, asin, tan, atan2, sqrt, pi
 
+def redrawView3D(context):
+    for area in context.screen.areas:
+        if area.type == 'VIEW_3D':
+            area.tag_redraw()    
+
 def getObjPosSize(obj):
 
     #Get scale
@@ -288,7 +293,7 @@ def draw_zcyl(obj, inbox, color, segments = 32, shift=(0.0,0.0,0.0)):
     batch.draw(shader)
 
 # Draw a circle section along Z axis
-def draw_zcircle(obj, rad, phi0, phi1, color, segments = 32):
+def draw_zcircle(obj, rad, phi0, phi1, color, solidDepth, segments = 32):
 
     # Get object spatial properties
     center,dx,dy,dz,sx,sy,sz,bsize = getObjPosSize(obj)
@@ -296,19 +301,33 @@ def draw_zcircle(obj, rad, phi0, phi1, color, segments = 32):
     vertices = []
     indices = []
 
-    # Create the circles
+    # Create the circle
     angleStep = (phi1-phi0) / (segments-1)
     for i in range(segments):
         angle = phi0 + angleStep * i
         x = center[0] + rad * cos(angle)
         y = center[1] + rad * sin(angle)
 
-        # Bottom circle
         vertices.append((x, y, center[2]))
-
-    # Create indices to connect the circles
+        
+    # Create indices to connect the circle
     for i in range(segments-1):
         indices.append((i, i+1))
+
+    # Add vertices for solid circle
+    if solidDepth > 0.0:
+        for i in range(segments):
+            angle = phi0 + angleStep * i
+            x = center[0] + (rad+solidDepth) * cos(angle)
+            y = center[1] + (rad+solidDepth) * sin(angle)
+
+            vertices.append((x, y, center[2]))
+
+        # Create indices
+        indices.append((0, segments))
+        for i in range(segments-1):
+            indices.append((segments+i, segments+i+1))
+        indices.append((2*segments-1, segments-1))
                 
     # Create a shader for 3D drawing
     shader = gpu.shader.from_builtin('UNIFORM_COLOR')
@@ -388,6 +407,15 @@ def add_object(self, context, meshType, quadType):
     # blender uses radius instead of diameter (bug?) OLD VERSIONS
     if quadType == "CUBE":
         bmesh.ops.create_cube(bm, size=2.0)
+    elif quadType == "TRAPEZOID":
+        bmesh.ops.create_cube(bm, size=2.0)
+
+        #Get top vertex
+        vertsTop = [v for v in bm.verts if v.co[2] > 0.0]
+        for v in vertsTop:
+            v.co[0] = 0.5
+            v.co[1] = 0.5
+        
     elif quadType == "SPHERE":
         bmesh.ops.create_uvsphere(bm, u_segments=32, v_segments=16, radius=0.5)
     elif quadType == "CONE":
@@ -421,5 +449,8 @@ def add_object(self, context, meshType, quadType):
         obj.penred_settings.r2 = coneDefaultR2
     elif quadType == "CUT_PLANE":
         obj.penred_settings.isMaterialObject = False
+    elif quadType == "TRAPEZOID":
+        obj.penred_settings.topSize = (1.0,1.0)
+        obj.penred_settings.botSize = (2.0,2.0)
 
     return obj

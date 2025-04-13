@@ -42,6 +42,7 @@ class OBJECT_MT_quadric_submenu(bpy.types.Menu):
         layout = self.layout
         
         layout.operator("mesh.add_cube_quadric",text="Cube",icon='CUBE')
+        layout.operator("mesh.add_trapezoid_quadric",text="Trapezoid",icon='CUBE')
         layout.operator("mesh.add_sphere_quadric",text="Sphere",icon='SPHERE')
         layout.operator("mesh.add_cone_quadric",text="Cone",icon='CONE')
         layout.operator("mesh.add_cylinder_quadric",text="Cylinder",icon='MESH_CYLINDER')
@@ -188,6 +189,25 @@ class PenredBodyPropertiesPanel(bpy.types.Panel):
                     row = box.row()
                     row.prop(obj.penred_settings, "r1", text="Bottom Radius")
 
+                if obj.penred_settings.quadricType == "TRAPEZOID":
+                    row = box.row()
+                    split = row.split(factor=0.4)
+                    col = split.column()
+                    col.label(text="Top Size (dx,dy)")
+                    col = split.column()
+                    col.prop(obj.penred_settings, "topSize", text="")
+                    col = split.column()
+                    col.label(text="cm")
+
+                    row = box.row()
+                    split = row.split(factor=0.4)
+                    col = split.column()
+                    col.label(text="Bot Size (dx,dy)")
+                    col = split.column()
+                    col.prop(obj.penred_settings, "botSize", text="")
+                    col = split.column()
+                    col.label(text="cm")
+                    
                 # Add internal planes
                 pbox = box.box()
                 pbox.label(text="Cutting Planes")
@@ -258,9 +278,8 @@ class PenredSourcePropertiesPanel(bpy.types.Panel):
                     row.label(text="Deg")
 
                     row = ctbox.row()
-                    row.label(text="Projection Step")                
-                    row.prop(source, "ctPhiStep", text="")
-                    row.label(text="Deg")
+                    row.label(text="Projections")                
+                    row.prop(source, "ctNSteps", text="")
 
                     row = ctbox.row()
                     row.label(text="Start Time")
@@ -585,83 +604,152 @@ class PenredTallyPropertiesPanel(bpy.types.Panel):
                     
             ## Detector based tallies ##
 
-            if not obj.penred_settings.isDetector:
-                return
+            if obj.penred_settings.isDetector:
 
-            # Impact detector
-            ############################
-            boxTallies = layout.box()
-            row = boxTallies.row()
-            row.prop(obj.penred_settings, "showTalliesImpactDet",
-                     text="Impact Detector Tallies", emboss=True,
-                     icon="TRIA_DOWN" if obj.penred_settings.showTalliesImpactDet else "TRIA_RIGHT")
-            
-            row.operator("tallies_impactdetector.add_item", text="", icon="ADD")
+                # Impact detector
+                ############################
+                boxTallies = layout.box()
+                row = boxTallies.row()
+                row.prop(obj.penred_settings, "showTalliesImpactDet",
+                         text="Impact Detector Tallies", emboss=True,
+                         icon="TRIA_DOWN" if obj.penred_settings.showTalliesImpactDet else "TRIA_RIGHT")
 
-            if obj.penred_settings.showTalliesImpactDet:            
-                for i, item in enumerate(obj.penred_settings.talliesImpactDetector):
+                row.operator("tallies_impactdetector.add_item", text="", icon="ADD")
 
-                    box = boxTallies.box()
-                    row = box.row()
-                    row.prop(item, "show", text=item.name, emboss=True,
-                             icon="TRIA_DOWN" if item.show else "TRIA_RIGHT")
-                    row.operator("tallies_impactdetector.remove_item", text="", icon="TRASH").index = i
-                    if not item.show:
-                        continue
+                if obj.penred_settings.showTalliesImpactDet:            
+                    for i, item in enumerate(obj.penred_settings.talliesImpactDetector):
 
-                    # Name
-                    row = box.row()
-                    row.prop(item, "name", text="Name")
+                        box = boxTallies.box()
+                        row = box.row()
+                        row.prop(item, "show", text=item.name, emboss=True,
+                                 icon="TRIA_DOWN" if item.show else "TRIA_RIGHT")
+                        row.operator("tallies_impactdetector.remove_item", text="", icon="TRASH").index = i
+                        if not item.show:
+                            continue
 
-                    if item.fluence or item.spectrum or item.edep:
-                        eEnabled = True
-                    else:
-                        eEnabled = False
+                        # Name
+                        row = box.row()
+                        row.prop(item, "name", text="Name")
 
-                    # Fluence
-                    fluenceBox = box.box()
-                    fluenceBox.label(text="Fluence")
-                    row = fluenceBox.row()
-                    row.prop(item, "fluence", text="Enabled")
-                    row = fluenceBox.row()
-                    row.enabled = item.fluence
-                    row.prop(item, "fluenceLogScale", text="Log Scale")
+                        if item.fluence or item.spectrum or item.edep:
+                            eEnabled = True
+                        else:
+                            eEnabled = False
 
-                    # Spectrum
-                    spectrumBox = box.box()
-                    spectrumBox.label(text="Spectrum")
-                    row = spectrumBox.row()
-                    row.prop(item, "spectrum", text="Enabled")
-                    row = spectrumBox.row()
-                    row.enabled = item.spectrum
-                    row.prop(item, "spectrumLogScale", text="Log Scale")
+                        # Fluence
+                        fluenceBox = box.box()
+                        fluenceBox.label(text="Fluence")
+                        row = fluenceBox.row()
+                        row.prop(item, "fluence", text="Enabled")
+                        row = fluenceBox.row()
+                        row.enabled = item.fluence
+                        row.prop(item, "fluenceLogScale", text="Log Scale")
 
-                    # Edep
-                    edepBox = box.box()
-                    edepBox.label(text="Energy Deposition")
-                    row = edepBox.row()
-                    row.prop(item, "edep", text="Enabled")
-                    row = edepBox.row()
-                    row.enabled = item.edep
-                    row.prop(item, "edepLogScale", text="Log Scale")
+                        # Spectrum
+                        spectrumBox = box.box()
+                        spectrumBox.label(text="Spectrum")
+                        row = spectrumBox.row()
+                        row.prop(item, "spectrum", text="Enabled")
+                        row = spectrumBox.row()
+                        row.enabled = item.spectrum
+                        row.prop(item, "spectrumLogScale", text="Log Scale")
 
-                    # Age
-                    ageBox = box.box()
-                    ageBox.label(text="Age")
-                    row = ageBox.row()
-                    row.prop(item, "age", text="Enabled")
-                    row = ageBox.row()
-                    row.enabled = item.age
-                    row.prop(item, "ageLogScale", text="Log Scale")                
+                        # Edep
+                        edepBox = box.box()
+                        edepBox.label(text="Energy Deposition")
+                        row = edepBox.row()
+                        row.prop(item, "edep", text="Enabled")
+                        row = edepBox.row()
+                        row.enabled = item.edep
+                        row.prop(item, "edepLogScale", text="Log Scale")
 
-                    # Energy settings
-                    ebox = box.box()
-                    ebox.prop(item, "showEBox", text="Energy",emboss=True,
-                              icon="TRIA_DOWN" if item.showEBox else "TRIA_RIGHT")
+                        # Age
+                        ageBox = box.box()
+                        ageBox.label(text="Age")
+                        row = ageBox.row()
+                        row.prop(item, "age", text="Enabled")
+                        row = ageBox.row()
+                        row.enabled = item.age
+                        row.prop(item, "ageLogScale", text="Log Scale")                
 
-                    if item.showEBox:
+                        # Energy settings
+                        ebox = box.box()
+                        ebox.prop(item, "showEBox", text="Energy",emboss=True,
+                                  icon="TRIA_DOWN" if item.showEBox else "TRIA_RIGHT")
+
+                        if item.showEBox:
+                            row = ebox.row()
+                            row.enabled = eEnabled
+                            if item.eminEdit:
+                                row.prop(item, "emin", text="")
+                            else:
+                                row.label(text=f"Min :  {item.emin:.3e} eV")
+                                row.prop(item, "eminEdit", text="", icon="GREASEPENCIL", toggle=True)
+
+                            row = ebox.row()
+                            row.enabled = eEnabled
+                            if item.emaxEdit:
+                                row.prop(item, "emax", text="")
+                            else:
+                                row.label(text=f"Max:  {item.emax:.3e} eV")
+                                row.prop(item, "emaxEdit", text="", icon="GREASEPENCIL", toggle=True)
+
+                            row = ebox.row()
+                            row.enabled = eEnabled
+                            row.prop(item, "ebins", text="Bins")
+
+                        # Age settings
+                        agebox = box.box()
+                        agebox.prop(item, "showAgeBox", text="Age",emboss=True,
+                                  icon="TRIA_DOWN" if item.showAgeBox else "TRIA_RIGHT")
+
+                        if item.showAgeBox:
+                            row = agebox.row()
+                            row.enabled = item.age
+                            row.label(text="Min")
+                            row.prop(item, "ageMin", text="")
+                            row.label(text="s")
+
+                            row = agebox.row()
+                            row.enabled = item.age
+                            row.label(text="Max")
+                            row.prop(item, "ageMax", text="")
+                            row.label(text="s")
+
+                            row = agebox.row()
+                            row.enabled = item.age
+                            row.prop(item, "ageBins", text="Bins")
+
+                # Spatial distribution tally
+                ############################
+                boxTallies = layout.box()
+                row = boxTallies.row()
+                row.prop(obj.penred_settings, "showTalliesSpatialDistrib",
+                         text="Spatial Distribution Tallies", emboss=True,
+                         icon="TRIA_DOWN" if obj.penred_settings.showTalliesSpatialDistrib else "TRIA_RIGHT")
+
+                row.operator("tallies_spatialdistrib.add_item", text="", icon="ADD")
+
+                if obj.penred_settings.showTalliesSpatialDistrib:            
+                    for i, item in enumerate(obj.penred_settings.talliesSpatialDistrib):
+
+                        box = boxTallies.box()
+                        row = box.row()
+                        row.prop(item, "show", text=item.name, emboss=True,
+                                 icon="TRIA_DOWN" if item.show else "TRIA_RIGHT")
+                        row.operator("tallies_spatialdistrib.remove_item", text="", icon="TRASH").index = i
+                        if not item.show:
+                            continue
+
+                        # Name
+                        row = box.row()
+                        row.prop(item, "name", text="Name")
+
+                        # Energy box
+                        ebox = box.box()
+                        ebox.label(text="Energy")
+
                         row = ebox.row()
-                        row.enabled = eEnabled
                         if item.eminEdit:
                             row.prop(item, "emin", text="")
                         else:
@@ -669,7 +757,6 @@ class PenredTallyPropertiesPanel(bpy.types.Panel):
                             row.prop(item, "eminEdit", text="", icon="GREASEPENCIL", toggle=True)
 
                         row = ebox.row()
-                        row.enabled = eEnabled
                         if item.emaxEdit:
                             row.prop(item, "emax", text="")
                         else:
@@ -677,224 +764,226 @@ class PenredTallyPropertiesPanel(bpy.types.Panel):
                             row.prop(item, "emaxEdit", text="", icon="GREASEPENCIL", toggle=True)
 
                         row = ebox.row()
-                        row.enabled = eEnabled
                         row.prop(item, "ebins", text="Bins")
 
-                    # Age settings
-                    agebox = box.box()
-                    agebox.prop(item, "showAgeBox", text="Age",emboss=True,
-                              icon="TRIA_DOWN" if item.showAgeBox else "TRIA_RIGHT")
+                        # Spatial box
+                        sbox = box.box()
+                        sbox.label(text="Spatial")
+                        row = sbox.row()
+                        row.prop(item, "nx", text="X Bins")
+                        row = sbox.row()
+                        row.prop(item, "ny", text="Y Bins")
+                        row = sbox.row()
+                        row.prop(item, "nz", text="Z Bins")
 
-                    if item.showAgeBox:
-                        row = agebox.row()
-                        row.enabled = item.age
+                        row = box.row()
+                        row.prop(item, "particleType", text="Particle")
+
+                        row = box.row()
+                        row.prop(item, "printCoordinates", text="Coordinates")
+
+                        row = box.row()
+                        row.prop(item, "printBins", text="Print Bins")
+
+                        row = box.row()
+
+                # PSF
+                ############################
+                boxTallies = layout.box()
+                row = boxTallies.row()
+                row.prop(obj.penred_settings, "showTalliesPSF",
+                         text="PSF Tallies", emboss=True,
+                         icon="TRIA_DOWN" if obj.penred_settings.showTalliesPSF else "TRIA_RIGHT")
+
+                row.operator("tallies_psf.add_item", text="", icon="ADD")
+
+                if obj.penred_settings.showTalliesPSF:            
+                    for i, item in enumerate(obj.penred_settings.talliesPSF):
+
+                        box = boxTallies.box()
+                        row = box.row()
+                        row.prop(item, "show", text=item.name, emboss=True,
+                                 icon="TRIA_DOWN" if item.show else "TRIA_RIGHT")
+                        row.operator("tallies_psf.remove_item", text="", icon="TRASH").index = i
+                        if not item.show:
+                            continue
+
+                        # Name
+                        row = box.row()
+                        row.prop(item, "name", text="Name")
+
+                        # Minimum and maximum energy
+                        row = box.row()
+                        if item.eminEdit:
+                            row.prop(item, "emin", text="")
+                        else:
+                            row.label(text=f"Min :  {item.emin:.3e} eV")
+                            row.prop(item, "eminEdit", text="", icon="GREASEPENCIL", toggle=True)
+
+                        row = box.row()
+                        if item.emaxEdit:
+                            row.prop(item, "emax", text="")
+                        else:
+                            row.label(text=f"Max:  {item.emax:.3e} eV")
+                            row.prop(item, "emaxEdit", text="", icon="GREASEPENCIL", toggle=True)
+
+                        # Particles
+                        row = box.row()
+                        row.prop(item, "gamma", text="Gammas")
+                        row = box.row()
+                        row.prop(item, "electron", text="Electrons")
+                        row = box.row()
+                        row.prop(item, "positron", text="Positrons")
+
+                # Angular Detector
+                ############################
+                boxTallies = layout.box()
+                row = boxTallies.row()
+                row.prop(obj.penred_settings, "showTalliesAngularDet",
+                         text="Angular Detector Tallies", emboss=True,
+                         icon="TRIA_DOWN" if obj.penred_settings.showTalliesAngularDet else "TRIA_RIGHT")
+
+                row.operator("tallies_angdet.add_item", text="", icon="ADD")
+
+                if obj.penred_settings.showTalliesAngularDet:            
+                    for i, item in enumerate(obj.penred_settings.talliesAngularDetector):
+
+                        box = boxTallies.box()
+                        row = box.row()
+                        row.prop(item, "show", text=item.name, emboss=True,
+                                 icon="TRIA_DOWN" if item.show else "TRIA_RIGHT")
+                        row.operator("tallies_angdet.remove_item", text="", icon="TRASH").index = i
+                        if not item.show:
+                            continue
+
+                        # Name
+                        row = box.row()
+                        row.prop(item, "name", text="Name")
+
+                        # Energy box
+                        ebox = box.box()
+                        ebox.label(text="Energy")
+
+                        row = ebox.row()
+                        if item.eminEdit:
+                            row.prop(item, "emin", text="")
+                        else:
+                            row.label(text=f"Min :  {item.emin:.3e} eV")
+                            row.prop(item, "eminEdit", text="", icon="GREASEPENCIL", toggle=True)
+
+                        row = ebox.row()
+                        if item.emaxEdit:
+                            row.prop(item, "emax", text="")
+                        else:
+                            row.label(text=f"Max:  {item.emax:.3e} eV")
+                            row.prop(item, "emaxEdit", text="", icon="GREASEPENCIL", toggle=True)
+
+                        row = ebox.row()
+                        row.prop(item, "ebins", text="Bins")
+
+
+                        # Polar angle box
+                        pbox = box.box()
+                        pbox.label(text="Polar Angle")
+
+                        row = pbox.row()
                         row.label(text="Min")
-                        row.prop(item, "ageMin", text="")
-                        row.label(text="s")
+                        row.prop(item, "theta1", text="")
+                        row.label(text="Deg")
 
-                        row = agebox.row()
-                        row.enabled = item.age
+                        row = pbox.row()
                         row.label(text="Max")
-                        row.prop(item, "ageMax", text="")
-                        row.label(text="s")
+                        row.prop(item, "theta2", text="")
+                        row.label(text="Deg")
 
-                        row = agebox.row()
-                        row.enabled = item.age
-                        row.prop(item, "ageBins", text="Bins")
-                
-            # Spatial distribution tally
+                        # Azimuthal angle box
+                        abox = box.box()
+                        abox.label(text="Azimuthal Angle")
+
+                        row = abox.row()
+                        row.label(text="Min")
+                        row.prop(item, "phi1", text="")
+                        row.label(text="Deg")
+
+                        row = abox.row()
+                        row.label(text="Max")
+                        row.prop(item, "phi2", text="")
+                        row.label(text="Deg")
+
+                        row = box.row()
+                        row.prop(item, "logScale", text="Logarithmic scale")                
+
+            # CT tally
             ############################
-            boxTallies = layout.box()
-            row = boxTallies.row()
-            row.prop(obj.penred_settings, "showTalliesSpatialDistrib",
-                     text="Spatial Distribution Tallies", emboss=True,
-                     icon="TRIA_DOWN" if obj.penred_settings.showTalliesSpatialDistrib else "TRIA_RIGHT")
-            
-            row.operator("tallies_spatialdistrib.add_item", text="", icon="ADD")
 
-            if obj.penred_settings.showTalliesSpatialDistrib:            
-                for i, item in enumerate(obj.penred_settings.talliesSpatialDistrib):
+            # Only enabled if CT source is active
+            if obj.penred_settings.source.enabled and obj.penred_settings.source.ctEnable:
 
-                    box = boxTallies.box()
-                    row = box.row()
-                    row.prop(item, "show", text=item.name, emboss=True,
-                             icon="TRIA_DOWN" if item.show else "TRIA_RIGHT")
-                    row.operator("tallies_spatialdistrib.remove_item", text="", icon="TRASH").index = i
-                    if not item.show:
-                        continue
+                boxTallies = layout.box()
+                row = boxTallies.row()
+                row.prop(obj.penred_settings, "showTalliesCT",
+                         text="CT Tallies", emboss=True,
+                         icon="TRIA_DOWN" if obj.penred_settings.showTalliesCT else "TRIA_RIGHT")
 
-                    # Name
-                    row = box.row()
-                    row.prop(item, "name", text="Name")
+                row.operator("tallies_ct.add_item", text="", icon="ADD")
 
-                    # Energy box
-                    ebox = box.box()
-                    ebox.label(text="Energy")
+                if obj.penred_settings.showTalliesCT:            
+                    for i, item in enumerate(obj.penred_settings.talliesCT):
 
-                    row = ebox.row()
-                    if item.eminEdit:
-                        row.prop(item, "emin", text="")
-                    else:
-                        row.label(text=f"Min :  {item.emin:.3e} eV")
-                        row.prop(item, "eminEdit", text="", icon="GREASEPENCIL", toggle=True)
+                        box = boxTallies.box()
+                        row = box.row()
+                        row.prop(item, "show", text=item.name, emboss=True,
+                                 icon="TRIA_DOWN" if item.show else "TRIA_RIGHT")
+                        row.operator("tallies_ct.remove_item", text="", icon="TRASH").index = i
+                        if not item.show:
+                            continue
 
-                    row = ebox.row()
-                    if item.emaxEdit:
-                        row.prop(item, "emax", text="")
-                    else:
-                        row.label(text=f"Max:  {item.emax:.3e} eV")
-                        row.prop(item, "emaxEdit", text="", icon="GREASEPENCIL", toggle=True)
+                        # Name
+                        row = box.row()
+                        row.prop(item, "name", text="Name")
 
-                    row = ebox.row()
-                    row.prop(item, "ebins", text="Bins")
+                        # Energy box
+                        ebox = box.box()
+                        ebox.label(text="Energy")
 
-                    # Spatial box
-                    sbox = box.box()
-                    sbox.label(text="Spatial")
-                    row = sbox.row()
-                    row.prop(item, "nx", text="X Bins")
-                    row = sbox.row()
-                    row.prop(item, "ny", text="Y Bins")
-                    row = sbox.row()
-                    row.prop(item, "nz", text="Z Bins")
+                        row = ebox.row()
+                        if item.eminEdit:
+                            row.prop(item, "emin", text="")
+                        else:
+                            row.label(text=f"Min :  {item.emin:.3e} eV")
+                            row.prop(item, "eminEdit", text="", icon="GREASEPENCIL", toggle=True)
 
-                    row = box.row()
-                    row.prop(item, "particleType", text="Particle")
+                        row = ebox.row()
+                        if item.emaxEdit:
+                            row.prop(item, "emax", text="")
+                        else:
+                            row.label(text=f"Max:  {item.emax:.3e} eV")
+                            row.prop(item, "emaxEdit", text="", icon="GREASEPENCIL", toggle=True)
 
-                    row = box.row()
-                    row.prop(item, "printCoordinates", text="Coordinates")
+                        # Detector box
+                        pbox = box.box()
+                        pbox.label(text="Detector")
 
-                    row = box.row()
-                    row.prop(item, "printBins", text="Print Bins")
+                        row = pbox.row()
+                        row.label(text="Pixels")
+                        row.prop(item, "nPixels", text="")
 
-                    row = box.row()
+                        row = pbox.row()
+                        row.label(text="Depth")
+                        row.prop(item, "pixelDepth", text="")
+                        row.label(text="cm")
 
-            # PSF
-            ############################
-            boxTallies = layout.box()
-            row = boxTallies.row()
-            row.prop(obj.penred_settings, "showTalliesPSF",
-                     text="PSF Tallies", emboss=True,
-                     icon="TRIA_DOWN" if obj.penred_settings.showTalliesPSF else "TRIA_RIGHT")
-            
-            row.operator("tallies_psf.add_item", text="", icon="ADD")
+                        row = pbox.row()
+                        row.label(text="Aperture")
+                        row.prop(item, "aperture", text="")
+                        row.label(text="Deg")
 
-            if obj.penred_settings.showTalliesPSF:            
-                for i, item in enumerate(obj.penred_settings.talliesPSF):
+                        row = box.row()
+                        row.prop(item, "scatter", text="Detect Scatter")
 
-                    box = boxTallies.box()
-                    row = box.row()
-                    row.prop(item, "show", text=item.name, emboss=True,
-                             icon="TRIA_DOWN" if item.show else "TRIA_RIGHT")
-                    row.operator("tallies_psf.remove_item", text="", icon="TRASH").index = i
-                    if not item.show:
-                        continue
-
-                    # Name
-                    row = box.row()
-                    row.prop(item, "name", text="Name")
-
-                    # Minimum and maximum energy
-                    row = box.row()
-                    if item.eminEdit:
-                        row.prop(item, "emin", text="")
-                    else:
-                        row.label(text=f"Min :  {item.emin:.3e} eV")
-                        row.prop(item, "eminEdit", text="", icon="GREASEPENCIL", toggle=True)
-
-                    row = box.row()
-                    if item.emaxEdit:
-                        row.prop(item, "emax", text="")
-                    else:
-                        row.label(text=f"Max:  {item.emax:.3e} eV")
-                        row.prop(item, "emaxEdit", text="", icon="GREASEPENCIL", toggle=True)
-
-                    # Particles
-                    row = box.row()
-                    row.prop(item, "gamma", text="Gammas")
-                    row = box.row()
-                    row.prop(item, "electron", text="Electrons")
-                    row = box.row()
-                    row.prop(item, "positron", text="Positrons")
-            
-            # Angular Detector
-            ############################
-            boxTallies = layout.box()
-            row = boxTallies.row()
-            row.prop(obj.penred_settings, "showTalliesAngularDet",
-                     text="Angular Detector Tallies", emboss=True,
-                     icon="TRIA_DOWN" if obj.penred_settings.showTalliesAngularDet else "TRIA_RIGHT")
-            
-            row.operator("tallies_angdet.add_item", text="", icon="ADD")
-
-            if obj.penred_settings.showTalliesAngularDet:            
-                for i, item in enumerate(obj.penred_settings.talliesAngularDetector):
-
-                    box = boxTallies.box()
-                    row = box.row()
-                    row.prop(item, "show", text=item.name, emboss=True,
-                             icon="TRIA_DOWN" if item.show else "TRIA_RIGHT")
-                    row.operator("tallies_angdet.remove_item", text="", icon="TRASH").index = i
-                    if not item.show:
-                        continue
-
-                    # Name
-                    row = box.row()
-                    row.prop(item, "name", text="Name")
-
-                    # Energy box
-                    ebox = box.box()
-                    ebox.label(text="Energy")
-
-                    row = ebox.row()
-                    if item.eminEdit:
-                        row.prop(item, "emin", text="")
-                    else:
-                        row.label(text=f"Min :  {item.emin:.3e} eV")
-                        row.prop(item, "eminEdit", text="", icon="GREASEPENCIL", toggle=True)
-
-                    row = ebox.row()
-                    if item.emaxEdit:
-                        row.prop(item, "emax", text="")
-                    else:
-                        row.label(text=f"Max:  {item.emax:.3e} eV")
-                        row.prop(item, "emaxEdit", text="", icon="GREASEPENCIL", toggle=True)
-
-                    row = ebox.row()
-                    row.prop(item, "ebins", text="Bins")
-
-
-                    # Polar angle box
-                    pbox = box.box()
-                    pbox.label(text="Polar Angle")
-
-                    row = pbox.row()
-                    row.label(text="Min")
-                    row.prop(item, "theta1", text="")
-                    row.label(text="Deg")
-
-                    row = pbox.row()
-                    row.label(text="Max")
-                    row.prop(item, "theta2", text="")
-                    row.label(text="Deg")
-
-                    # Azimuthal angle box
-                    abox = box.box()
-                    abox.label(text="Azimuthal Angle")
-
-                    row = abox.row()
-                    row.label(text="Min")
-                    row.prop(item, "phi1", text="")
-                    row.label(text="Deg")
-
-                    row = abox.row()
-                    row.label(text="Max")
-                    row.prop(item, "phi2", text="")
-                    row.label(text="Deg")
-
-                    row = box.row()
-                    row.prop(item, "logScale", text="Logarithmic scale")                
-
+                        row = box.row()
+                        row.prop(item, "particleType", text="Particle")
+                        
 ## World simulation properties
 class PenredWorldSimulationPanel(bpy.types.Panel):
     bl_label = "Simulation properties"
@@ -985,12 +1074,6 @@ class PenredWorldSimulationPanel(bpy.types.Panel):
             row.label(text="Limit")
             row.prop(simulation, "maxSimTime", text="")            
             row.label(text="s")
-
-            row = layout.row()
-            if world.penred_settings.simulation.simulationState == "RUNNING":
-                row.operator("world.cancel_penred_simulation", text="Cancel Simulation")
-            else:
-                row.operator("world.simulate_penred", text="Simulate")
             
 ## World tallies
 class PenredWorldTalliesPanel(bpy.types.Panel):
@@ -1238,6 +1321,27 @@ class PenredMaterialPropertiesPanel(bpy.types.Panel):
             row.operator("materials_material.add_item", text="Add Material")
             row = layout.row()
             row.operator("materials_material.remove_item", text="Remove Material")
+
+class penred_PT_SimulationPanel(bpy.types.Panel):
+    """Creates a panel in the 3D Viewport sidebar to run simulations"""
+    bl_label = "Simulation Panel"
+    bl_idname = "penred_PT_SimulationPanel"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "PenRed"
+    
+    def draw(self, context):
+        layout = self.layout
+
+        scene = context.scene
+        if scene and scene.penred_settings:
+            sceneProp = scene.penred_settings
+            row = layout.row()
+            if sceneProp.simulationState == "RUNNING":
+                row.operator("scene.cancel_penred_simulation",
+                             text="Cancel Simulation")
+            else:
+                row.operator("scene.simulate_penred", text="Simulate")
             
 # Manual
 ##########
@@ -1288,13 +1392,13 @@ def drawHintsHandler():
                         if source.ctEnable:
                             startPhi = source.ctPhiInterval[0]*pi/180.0
                             endPhi   = source.ctPhiInterval[1]*pi/180.0
-                            dangle = source.ctPhiStep*pi/180.0
-                            nProj = int((endPhi-startPhi)/dangle)+1
+                            nProj = source.ctNSteps
+                            dangle = (endPhi - startPhi)/float(nProj)
 
                             # Draw CT circle
                             utils.draw_zcircle(obj, source.ctRad,
                                                startPhi, endPhi,
-                                               sourceColor)
+                                               sourceColor, -1)
 
                             #Draw projection arrows
                             iangle = 0
@@ -1311,7 +1415,17 @@ def drawHintsHandler():
                                                  (source.ctRad*cAngle,
                                                   source.ctRad*sAngle,
                                                   0.0))
+
+                                #Check if a CT tally is enabled also
+                                for item in penSett.talliesCT:
+                                    initAngle = angle - 0.5*item.aperture*pi/180.0
+                                    endAngle  = angle + 0.5*item.aperture*pi/180.0
+                                    utils.draw_zcircle(obj, source.ctRad,
+                                                       initAngle, endAngle,
+                                                       tallyColor, item.pixelDepth)
+                                    
                                 iangle = iangle + 1
+
                                 
                         else:                        
                             utils.draw_arrow(obj, worldZ, sourceColor)
@@ -1322,13 +1436,13 @@ def drawHintsHandler():
                         if source.ctEnable:
                             startPhi = source.ctPhiInterval[0]*pi/180.0
                             endPhi   = source.ctPhiInterval[1]*pi/180.0
-                            dangle = source.ctPhiStep*pi/180.0
-                            nProj = int((endPhi-startPhi)/dangle)+1
+                            nProj = source.ctNSteps
+                            dangle = (endPhi - startPhi)/float(nProj)
 
                             # Draw CT circle
                             utils.draw_zcircle(obj, source.ctRad,
                                                startPhi, endPhi,
-                                               sourceColor)
+                                               sourceColor, -1)
 
                             #Draw projection arrows
                             iangle = 0
@@ -1343,6 +1457,15 @@ def drawHintsHandler():
                                     direction[2]
                                 )
                                 utils.draw_arrow(obj, aux, sourceColor, shift)
+
+                                #Check if a CT tally is enabled also
+                                for item in penSett.talliesCT:
+                                    initAngle = angle - 0.5*item.aperture*pi/180.0
+                                    endAngle  = angle + 0.5*item.aperture*pi/180.0
+                                    utils.draw_zcircle(obj, source.ctRad,
+                                                       initAngle, endAngle,
+                                                       tallyColor, item.pixelDepth)
+                                
                                 iangle = iangle + 1
 
                         else:
@@ -1448,7 +1571,10 @@ def register():
     bpy.utils.register_class(PenredWorldSimulationPanel)
 
     #Register world based tallies Panel
-    bpy.utils.register_class(PenredWorldTalliesPanel)    
+    bpy.utils.register_class(PenredWorldTalliesPanel)
+
+    #Register scene viewport simulation panel
+    bpy.utils.register_class(penred_PT_SimulationPanel)
 
     #Register manual (To be done)
     bpy.utils.register_manual_map(add_object_manual_map)
@@ -1487,6 +1613,9 @@ def unregister():
 
     #Unregister world based tallies Panel
     bpy.utils.unregister_class(PenredWorldTalliesPanel)    
+
+    #Unregister scene viewport simulation panel
+    bpy.utils.register_class(penred_PT_SimulationPanel)
     
     #Unregister manual (To be done)
     bpy.utils.unregister_manual_map(add_object_manual_map)    

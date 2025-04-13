@@ -8,6 +8,36 @@ Note that **only the objects listed in the *Quadric* submenu can be exported as 
 
 <img src="../../images/cylQuad.png" alt="Quadric Properties Panel" width="400" style="display: block; margin: 0 auto"/>
 
+### Transformation Handling for Export
+
+The **Quadric** exporter directly uses Blender's object properties and transformations (location, rotation and bounding box size) to define geometry parameters in the PenRed/PENELOPE quadric format. Therefore, **vertex modifications done in *edit mode* will produce unexpected behaviours** in the exported quadric geometry.
+
+**⚠️ Critical Warning:**  
+**Applying object transformations in Blender will result in exported geometry that doesn't match the viewport representation.**
+
+#### Best Practices
+
+##### ✅ Do:
+- Keep all transformations **unapplied** before exporting
+- Modify objects using:
+    - Object Mode transforms
+    - Transform properties panel (`N` panel)
+    - Native transformation tools
+
+##### ❌ Don't:
+- Use `Ctrl+A` > "Apply" operations:
+    - "Apply Rotation & Scale"
+    - "Apply Location"
+    - "Apply All Transforms"
+  
+##### Consequences of Applying Transforms
+| Action | Export Result | Viewport Appearance |
+|--------|--------------|---------------------|
+| Keep transforms | Correct export | Matches export |
+| Apply transforms | **Incorrect** export | Still looks correct |
+
+### Quadric Parameters
+
 Regardless of the quadric object type, the following parameters must be specified to define the object in the geometry:
 
 - **`Material Index`**  
@@ -16,7 +46,10 @@ Regardless of the quadric object type, the following parameters must be specifie
 - **`Module`**  
   If enabled, the geometry package will assume this object is a module. This means none of its surfaces are crossed by other bodies or module surfaces. Therefore, all descendant bodies and modules must be completely included inside the module volume. If used, this option speeds up the particle tracking calculations, but the user must ensure the requirements are fulfilled.
 
-The only quadric objects requiring additional parameters are **CONE** bodies. For this type, the top radius and bottom radius must be specified.
+Additionally, the following object types require additional parameters:
+
+- **Cone**: The top and bottom radius must be specified.
+- **Trapezoid**: The *(dx,dy)* dimensions for both, top and bottom faces, must be specified.
 
 ### Cutting Planes
 

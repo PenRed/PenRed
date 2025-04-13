@@ -167,7 +167,8 @@ int ct_specificSampler::configure(double& Emax,
       return -4;
     }
 
-  err = config.read("angularStep", dphi);
+  int auxNProj;
+  err = config.read("nProjections", auxNProj);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
       printf("CTsource:configure: Error: Unable to read 'angularStep' "
@@ -176,14 +177,21 @@ int ct_specificSampler::configure(double& Emax,
     return -5;
 
   }
-  
+
+  if(auxNProj < 1){
+    if(verbose > 0){
+      printf("CTsource:configure: Error: Invalid number of projections (%d). "
+	     "One or more projections is required\n", auxNProj);
+    }
+    return -5;    
+  }
+
+  nphi = static_cast<unsigned long>(auxNProj);
 
   //Convert to rad
   phif *= M_PI/180.0;
   phi0 *= M_PI/180.0;
-  dphi *= M_PI/180.0;
-    
-  nphi = (phif-phi0)/dphi+1;
+  dphi = (phif-phi0)/static_cast<double>(nphi);
   
   if(verbose > 1){
     printf("Number of total angular positions (projections):, \n");
@@ -213,8 +221,9 @@ int ct_specificSampler::configure(double& Emax,
   
   
   if(verbose > 1){
-    printf("CT origin:\n");
-    printf("(%12.5E, %12.5E, %12.5E) \n\n",origin2CT.x ,origin2CT.y, origin2CT.z);
+    printf("CT origin:\n"
+	   "(%12.5E, %12.5E, %12.5E) cm \n\n",
+	   origin2CT.x ,origin2CT.y, origin2CT.z);
   }
   
   // Time window

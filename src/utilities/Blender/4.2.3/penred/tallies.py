@@ -256,3 +256,34 @@ def createTallyTrack(f, name, output, nHists):
     if output:
         f.write(f"tallies/{name}/outputdir \"{output}\"\n")
     f.write("\n")
+
+def createTallyCT(f, name, output, origin, emin, emax,
+                  npixels, pixelDepth, phi0, phi1,
+                  nPorjections, aperture, rad,
+                  particleType, tmin, timeInterval,
+                  scatter, toRound):
+    f.write(f"# CT Sinogram tally configuration for '{name}'\n")
+    f.write(f"tallies/{name}/type \"CT_SINOGRAM\"\n")
+    f.write(f"tallies/{name}/emin {emin:.3e}\n")
+    f.write(f"tallies/{name}/emax {emax:.3e}\n")
+    f.write(f"tallies/{name}/npixels {npixels}\n")
+    f.write(f"tallies/{name}/pixel-depth {round(pixelDepth, toRound)}\n")
+    f.write(f"tallies/{name}/r-inner {round(rad, toRound)}\n")
+    f.write(f"tallies/{name}/xOrigin {round(origin[0], toRound)}\n")
+    f.write(f"tallies/{name}/yOrigin {round(origin[1], toRound)}\n")
+    f.write(f"tallies/{name}/zOrigin {round(origin[2], toRound)}\n")
+    f.write(f"tallies/{name}/phi-ini {phi0:.3f}\n")
+    f.write(f"tallies/{name}/phi-end {phi1:.3f}\n")
+    f.write(f"tallies/{name}/nProjections {nPorjections}\n")
+    f.write(f"tallies/{name}/aperture {aperture:.3f}\n")
+    f.write(f"tallies/{name}/particle \"{particleType}\"\n")
+    f.write(f"tallies/{name}/tmin {tmin:.3f}\n")
+    f.write(f"tallies/{name}/timeInterval {timeInterval:.3f}\n")
+    if scatter:
+        f.write(f"tallies/{name}/scattered true\n")
+    else:
+        f.write(f"tallies/{name}/scattered false\n")
+        
+    if output:
+        f.write(f"tallies/{name}/outputdir \"{output}\"\n")
+    f.write("\n")

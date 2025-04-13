@@ -151,7 +151,7 @@ void pen_Singles::tally_beginPart(const unsigned long long nhist,
   }
 }
 
-void pen_Singles::tally_sampledPart(const unsigned long long nhist,
+void pen_Singles::tally_sampledPart(const unsigned long long /*nhist*/,
 				    const unsigned long long /*dhist*/,
 				    const unsigned kdet,
 				    const pen_KPAR /*kpar*/,
@@ -177,7 +177,7 @@ void pen_Singles::tally_step(const unsigned long long nhist,
 	state.PAGE, state.WGHT, nhist);
 }
 
-void pen_Singles::tally_move2geo(const unsigned long long nhist,
+void pen_Singles::tally_move2geo(const unsigned long long /*nhist*/,
 				 const unsigned kdet,
 				 const pen_KPAR /*kpar*/,
 				 const pen_particleState& state,

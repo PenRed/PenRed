@@ -111,7 +111,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         add_compile_options(-march=native)
   endif (WITH_NATIVE)
 
-  add_compile_options(-O2 -Wall -Wpedantic -Wextra -Wshadow -frecord-gcc-switches -Wno-unused-result -Wno-overlength-strings)
+  add_compile_options(-O2 -Wall -Wpedantic -Wextra -Wshadow -frecord-gcc-switches -Wno-unused-result)
 
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
   # using Clang
@@ -120,7 +120,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL
         add_compile_options(-march=native)
   endif (WITH_NATIVE)
 
-  add_compile_options(-O2 -Wall -Wpedantic -Wextra -Wshadow -Wc++14-compat -Wc++14-compat-pedantic -Wno-unused-result -Wno-overlength-strings)
+  add_compile_options(-O2 -Wall -Wpedantic -Wextra -Wshadow -Wc++14-compat -Wc++14-compat-pedantic -Wno-unused-result)
 
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
   # using Intel C++

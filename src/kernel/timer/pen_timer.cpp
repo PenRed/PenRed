@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2020 Universitat de València - UV
 //    Copyright (C) 2019-2020 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -28,6 +29,8 @@
 
 
 #include "pen_timer.hh"
+
+constexpr std::chrono::milliseconds pen_stopWatch::MAX_DURATION_MS;
 
 //  *********************************************************************
 //                       SUBROUTINE TIMER
