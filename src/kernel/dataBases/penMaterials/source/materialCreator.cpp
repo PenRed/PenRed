@@ -1,7 +1,8 @@
 //
 //
-//    Copyright (C) 2024 Universitat de València - UV
-//    Copyright (C) 2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024-2025 Universitat de València - UV
+//    Copyright (C) 2024-2025 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -6590,7 +6591,8 @@ namespace penred{
       const double EPS = 1.0E-10;
       const int NP_S = 12000;
       const int NP2_S = NP_S + NP_S;
-      double X[NP2_S], Y12[NP2_S];
+      std::vector<double> X(NP2_S);
+      std::vector<double> Y12(NP2_S);
 
       if (N1 > NP_S || N2 > NP_S)
 	{
@@ -7657,7 +7659,7 @@ namespace penred{
       //  values of Y are set to zero).
 
       const int NP_S = 12000;
-      int IORDER[NP_S];
+      std::vector<int> IORDER(NP_S);
 
       if (N > NP_S)
 	{

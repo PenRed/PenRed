@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019 Universitat de València - UV
 //    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -908,7 +909,8 @@ void MERGE2(double* X1, double* Y1, double* X2, double* Y2, double* XM, double* 
   const double EPS = 1.0E-10;
   const int NP_S = 12000;
   const int NP2_S = NP_S + NP_S;
-  double X[NP2_S], Y12[NP2_S];
+  std::vector<double> X(NP2_S);
+  std::vector<double> Y12(NP2_S);
 
   if(N1 > NP_S || N2 > NP_S)
   {
@@ -1065,7 +1067,7 @@ void SORT2(double* X, double* Y, int &N)
 
 
   const int NP_S=12000;
-  int IORDER[NP_S];
+  std::vector<int> IORDER(NP_S);
   
   if(N > NP_S)
   {
