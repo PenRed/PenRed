@@ -4,7 +4,7 @@ import bmesh
 import gpu
 from gpu_extras.batch import batch_for_shader
 import blf
-from bpy_extras.io_utils import ExportHelper
+from bpy_extras.io_utils import ExportHelper, ImportHelper
 from bpy.types import Operator
 from bpy.props import FloatVectorProperty
 from bpy_extras.object_utils import AddObjectHelper, object_data_add
@@ -13,7 +13,7 @@ from mathutils import Color
 from math import cos, acos, sin, asin, tan, atan2, sqrt, pi
 import os
 import time
-from . import surfaces, utils, addon_properties, conf
+from . import surfaces, utils, addon_properties, conf, tracks
 
 ### Material view
 class QUADRIC_OT_view_material(Operator, AddObjectHelper):
@@ -1411,6 +1411,226 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
                         if region.type == 'WINDOW':
                             region.tag_redraw()        
         return {'CANCELLED'}
+
+# Import tracks operator
+class import_tracks(Operator, ImportHelper):
+    bl_idname = "scene.import_tracks"
+    bl_label = "Import Tracks"
+    bl_description = "Import simulated tracks"
+
+    filename_ext = ".dat"
+
+    filter_glob: bpy.props.StringProperty(
+        default="*.dat",
+        options={'HIDDEN'},
+        maxlen=255,  # Max length of the property
+    )
+    
+    def execute(self, context):
+
+        # Get the scene
+        scene = context.scene
+        if scene and scene.penred_settings:
+            
+            # Create a new track File
+            scene.penred_settings.trackFiles.add()
+            nTrackFiles = len(scene.penred_settings.trackFiles)
+            trackFile = scene.penred_settings.trackFiles[nTrackFiles-1]
+            trackFile.filename = self.filepath
+
+            # Create a new track
+            trackFile.tracks.add()
+            completedTracks = 0
+            
+            # Get track points
+            points = trackFile.tracks[0].points
+            nPoints = 0
+            totalPoints = 0
+            
+            # Iterate over track file lines
+            eRange = [1.0e35, -1.0]
+            tRange = [1.0e35, -1.0]
+            with open(self.filepath, "r") as file:
+                for lineNumber, line in enumerate(file, start=1):
+                    line = line.strip()
+
+                    # Extract elements
+                    elements = line.split()
+                    if len(elements) == 0:
+                        # End of track
+                        if nPoints > 0:                            
+                            # Create a new track
+                            trackFile.tracks.add()
+                            completedTracks = completedTracks + 1
+                            
+                            # Get track points
+                            points = trackFile.tracks[completedTracks].points
+                            nPoints = 0
+
+                    elif line[0] == '#':
+                        #Skip comment
+                        continue
+                    
+                    elif len(elements) == 16:
+
+                        #Check parameters
+                        try:
+                            e = float(elements[0])
+                            
+                            x = float(elements[1])
+                            y = float(elements[2])
+                            z = float(elements[3])
+
+                            u = float(elements[4])
+                            v = float(elements[5])
+                            w = float(elements[6])
+                            
+                            wght = float(elements[7])
+
+                            body = int(elements[8])                            
+                            mat  = int(elements[9])
+
+                            t = float(elements[10])
+
+                            ILB = (int(elements[11]),
+                                   int(elements[12]),
+                                   int(elements[13]),
+                                   int(elements[14]),
+                                   int(elements[15]))
+
+                            if e < 0.0 or t < 0 or body < 0:
+                                self.report({'WARNING'}, f"Corrupted track file {self.filepath} at line {lineNumber}. Invalid values")
+                                break
+                            if e < 1.0: # Avoid 0.0 energy points
+                                continue
+                            
+                        except Exception as e:
+                            # Corrupted line
+                            self.report({'WARNING'}, f"Corrupted track file {self.filepath} at line {lineNumber}: {str(e)}")
+                            break
+
+                        # Save the ILB on the first point
+                        if nPoints == 0:
+                            trackFile.tracks[completedTracks].ILB = ILB
+
+                        # Save the point
+                        points.add()
+                        point = points[nPoints]
+                        nPoints = nPoints + 1
+                        totalPoints = totalPoints + 1
+
+                        point.position = (x,y,z)
+                        point.energy = e
+                        point.time = t
+                        point.weight = wght
+                    
+                        if eRange[0] > e:
+                            eRange[0] = e
+                        if eRange[1] < e:
+                            eRange[1] = e
+
+                        if tRange[0] > t:
+                            tRange[0] = t
+                        if tRange[1] < t:
+                            tRange[1] = t
+                            
+                        # Limit the amout of points per track file to 1M
+                        if totalPoints >= 1000000:
+                            break                            
+                    else:
+                        # Corrupted line
+                        self.report({'WARNING'}, f"Corrupted track file {self.filepath} at line {lineNumber}. Expected 16 elements per line")
+                        break
+                    
+            # Check if any point has been added to the final track
+            if nPoints == 0:
+                # Remove last empty track
+                trackFile.tracks.remove(completedTracks)
+            
+                # Check if, at least, one track has been read
+                if completedTracks == 0:
+                    # Remove this track file
+                    scene.penred_settings.trackFiles.remove(nTrackFiles-1)
+
+            if completedTracks > 0:
+                # Save track file ranges
+                scene.penred_settings.trackFiles[nTrackFiles-1].eRange = eRange
+                scene.penred_settings.trackFiles[nTrackFiles-1].tRange = tRange
+
+                # Get track manager
+                tm = tracks.getTrackManager()
+                
+                # Update ranges
+                if len(scene.penred_settings.trackFiles) == 1:
+                    tm.setERange(eRange)
+                    tm.setTRange(tRange)
+                else:
+                    toUpdate = tm.fitERange(eRange)
+                    toUpdate = tm.fitTRange(tRange) or toUpdate
+                    if toUpdate:
+                        tm.updateTracks(scene.penred_settings.trackFiles)
+                scene.penred_settings.trackERange = tm.energyRange
+                scene.penred_settings.trackTRange = tm.timeRange                
+                
+                # Create drawing batch for this track file
+                tm.addBatch(trackFile.tracks)
+                    
+                self.report({'INFO'}, f"Track file {self.filepath} load. Energy range: ({eRange[0]:.3e}, {eRange[1]:.3e}, Time range: ({tRange[0]}, {tRange[1]})")
+            else:
+                self.report({'WARNING'}, f"Nothing to load in track file {self.filepath}.")
+        return {'FINISHED'}
+
+# Import tracks operator
+class SCENE_OT_removeTrackFile(Operator):
+    bl_idname = "trackfiles.remove_item"
+    bl_label = "Remove Item"
+    bl_description = "Remove the track file"
+
+    index: bpy.props.IntProperty()  # Index of the item to remove
+    
+    def execute(self, context):
+
+        # Get the scene
+        scene = context.scene
+        if scene and scene.penred_settings:
+
+            # Remove drawing batch for this track file
+            tm = tracks.getTrackManager()
+            tm.removeBatch(self.index)
+            
+            #Remove tracks points
+            for track in scene.penred_settings.trackFiles[self.index].tracks:
+                track.points.clear()
+                
+            #Remove tracks
+            scene.penred_settings.trackFiles[self.index].tracks.clear()
+
+            #Remove track file
+            scene.penred_settings.trackFiles.remove(self.index)
+
+            # Get new ranges
+            if len(scene.penred_settings.trackFiles) > 0:
+                minE = min([tf.eRange[0] for tf in scene.penred_settings.trackFiles])
+                maxE = max([tf.eRange[1] for tf in scene.penred_settings.trackFiles])
+
+                minT = min([tf.tRange[0] for tf in scene.penred_settings.trackFiles])
+                maxT = max([tf.tRange[1] for tf in scene.penred_settings.trackFiles])
+
+                # Update ranges
+                toUpdate = tm.setERange((minE, maxE))
+                toUpdate = tm.setTRange((minT, maxT)) or toUpdate
+                if toUpdate:
+                    tm.updateTracks(scene.penred_settings.trackFiles)
+
+                scene.penred_settings.trackERange = tm.energyRange
+                scene.penred_settings.trackTRange = tm.timeRange
+
+        return {'FINISHED'}
+                
+tracksClasses=(
+    import_tracks,
+    SCENE_OT_removeTrackFile,
+)
     
 # Export operator
 class export_penred(Operator, ExportHelper):
@@ -1875,6 +2095,11 @@ def register():
     #Register simulation operators
     bpy.utils.register_class(SIMULATE_PENRED_OT_run)
     bpy.utils.register_class(SIMULATE_PENRED_OT_cancel)
+
+    #Register tracks operators
+    for cls in tracksClasses:
+        bpy.utils.register_class(cls)
+    
 def unregister():
 
     #Unregister view classes
@@ -1906,3 +2131,7 @@ def unregister():
     #Unregister simulation operator
     bpy.utils.unregister_class(SIMULATE_PENRED_OT_run)
     bpy.utils.unregister_class(SIMULATE_PENRED_OT_cancel)
+
+    #Unregister tracks operators
+    for cls in tracksClasses:
+        bpy.utils.unregister_class(cls)    

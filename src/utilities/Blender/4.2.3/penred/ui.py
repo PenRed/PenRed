@@ -2,8 +2,9 @@
 import bpy
 from mathutils import Vector
 from mathutils import Color
-from . import addon_properties, utils
+from . import addon_properties, utils, tracks
 from math import pi, cos, sin
+import os
 
 # Export menu function
 def menu_func_penred_export(self, context):
@@ -254,6 +255,10 @@ class PenredSourcePropertiesPanel(bpy.types.Panel):
                 row.label(text=f"Histories :  {source.nHists:.5e}")
                 row.prop(source, "nHistsEdit", text="", icon="GREASEPENCIL", toggle=True)
 
+            row = layout.row()
+            row.enabled = senabled
+            row.prop(source, "particleType", text="Type")
+                
             # CT-like source
             if obj.type == "EMPTY":
                 ctbox = layout.box()
@@ -291,10 +296,6 @@ class PenredSourcePropertiesPanel(bpy.types.Panel):
                     row.prop(source, "ctDT", text="")
                     row.label(text="s")
                 
-            row = layout.row()
-            row.enabled = senabled
-            row.prop(source, "particleType", text="Type")
-
             if source.particleType == "PART_PSF":
                 row = layout.row()
                 row.enabled = senabled
@@ -1324,8 +1325,8 @@ class PenredMaterialPropertiesPanel(bpy.types.Panel):
 
 class penred_PT_SimulationPanel(bpy.types.Panel):
     """Creates a panel in the 3D Viewport sidebar to run simulations"""
-    bl_label = "Simulation Panel"
-    bl_idname = "penred_PT_SimulationPanel"
+    bl_label = "PenRed"
+    bl_idname = "SCENE_PT_SimulationPanel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "PenRed"
@@ -1342,7 +1343,57 @@ class penred_PT_SimulationPanel(bpy.types.Panel):
                              text="Cancel Simulation")
             else:
                 row.operator("scene.simulate_penred", text="Simulate")
+
+            # Tracks
+            trackBox = layout.box()
+            trackBox.label(text="Tracks")
+
+            row = trackBox.row()
+            row.operator("scene.import_tracks", text="Load")
+
+            if len(sceneProp.trackFiles) > 0:
+                limitsBox = trackBox.box()
+                limitsBox.label(text="Limits")
+                row = limitsBox.row()
+                row.prop(sceneProp, "trackColorType", text="Type")
+
+                row = limitsBox.row()
+                row.prop(sceneProp, "trackAutoRange", text="Automatic")
+
+                row = limitsBox.row()
+                row.prop(sceneProp, "trackDrawOutOfRange", text="Out Of Range")
+                
+                row = limitsBox.row()
+                if sceneProp.trackColorType == "ENERGY":
+                    row.prop(sceneProp, "trackERangeLog", text="Logscale")
+                    row = limitsBox.row()
+                    if sceneProp.trackERangeEdit:
+                        row.prop(sceneProp, "trackERange", text="")
+                    else:
+                        row.label(text=f"({sceneProp.trackERange[0]:.3e}, {sceneProp.trackERange[1]:.3e}) eV")
+                        if not sceneProp.trackAutoRange:
+                            row.prop(sceneProp, "trackERangeEdit",
+                                     text="", icon="GREASEPENCIL",
+                                     toggle=True)
+                        
+                if sceneProp.trackColorType == "TIME":
+                    if sceneProp.trackTRangeEdit:
+                        row.prop(sceneProp, "trackTRange", text="")
+                    else:
+                        row.label(text=f"({sceneProp.trackTRange[0]:.2}, {sceneProp.trackTRange[1]:.2}) s")
+                        if not sceneProp.trackAutoRange:
+                            row.prop(sceneProp, "trackTRangeEdit",
+                                     text="", icon="GREASEPENCIL",
+                                     toggle=True)
             
+            for i, item in enumerate(sceneProp.trackFiles):
+
+                row = trackBox.row()
+                row.prop(item, "enabled", text=os.path.basename(item.filename))
+                row.operator("trackfiles.remove_item",
+                             text="",
+                             icon="TRASH").index = i
+                
 # Manual
 ##########
 def add_object_manual_map():
@@ -1356,12 +1407,28 @@ def add_object_manual_map():
 # Hints draw handler
 drawHintsHandlerRef = None
 def drawHintsHandler():
-
+    
+    # Get context
+    context = bpy.context
+    
     # Define colors
     sourceColor = (1.0, 0.2, 0.2, 0.2)
     tallyColor = (0.2, 0.2, 1.0, 0.2)
-    
-    context = bpy.context
+
+    # Draw tracks
+    if context.scene.penred_settings:
+        # Get track manager
+        tm = tracks.getTrackManager()
+        
+        # Check if color type has been changed
+        if tm.setColorType(context.scene.penred_settings.trackColorType):
+            tm.updateTracks(context.scene.penred_settings.trackFiles)
+
+        # Print enabled tracks
+        enabledTracks = [tf.enabled for tf in context.scene.penred_settings.trackFiles]
+        tm.draw(enabledTracks)
+
+    # Object draws
     for obj in context.scene.objects:
         if obj and obj.penred_settings:
             penSett = obj.penred_settings
@@ -1615,10 +1682,13 @@ def unregister():
     bpy.utils.unregister_class(PenredWorldTalliesPanel)    
 
     #Unregister scene viewport simulation panel
-    bpy.utils.register_class(penred_PT_SimulationPanel)
+    bpy.utils.unregister_class(penred_PT_SimulationPanel)
     
     #Unregister manual (To be done)
-    bpy.utils.unregister_manual_map(add_object_manual_map)    
+    bpy.utils.unregister_manual_map(add_object_manual_map)
+
+    # Remove track batches and managers if created
+    tracks.clearTrackManager()
 
     #Unregister hints draw handler
     global drawHintsHandlerRef

@@ -1,5 +1,6 @@
 
 import bpy
+from . import tracks
 
 materialRows = 20
 materialColumns = 20
@@ -1040,6 +1041,162 @@ class simulationProperties(bpy.types.PropertyGroup):
         "Maximum simulation time in seconds"
     )
 
+# Track properties group
+#############################
+
+def updateTrackERange(self, context):
+
+    if self.trackERangeEdit:
+        self.trackERangeEdit = False
+
+    tm = tracks.getTrackManager()
+    
+    if self.trackAutoRange:
+        # Get new ranges automaticatly
+        if len(self.trackFiles) > 0:
+            minE = min([tf.eRange[0] for tf in self.trackFiles])
+            maxE = max([tf.eRange[1] for tf in self.trackFiles])
+            
+            # Update ranges if needed
+            toUpdate = tm.setERange((minE, maxE))
+            if toUpdate:
+                tm.updateTracks(self.trackFiles)
+                
+    else:
+        #Update ranges according to the property value
+        toUpdate = tm.setERange(self.trackERange)
+        if toUpdate:
+            tm.updateTracks(self.trackFiles)
+
+    # Update property values if needed
+    if (self.trackERange[0] != tm.energyRange[0] or
+        self.trackERange[1] != tm.energyRange[1]):
+        self.trackERange = tm.energyRange
+
+def updateTrackTRange(self, context):
+
+    if self.trackTRangeEdit:
+        self.trackTRangeEdit = False
+
+    tm = tracks.getTrackManager()        
+    
+    if self.trackAutoRange:
+        # Get new ranges automaticatly
+        if len(self.trackFiles) > 0:
+            minT = min([tf.tRange[0] for tf in self.trackFiles])
+            maxT = max([tf.tRange[1] for tf in self.trackFiles])
+            
+            # Update ranges if needed
+            toUpdate = tm.setTRange((minT, maxT))
+            if toUpdate:
+                tm.updateTracks(self.trackFiles)
+                
+    else:
+        
+        #Update ranges according to the property value
+        toUpdate = tm.setTRange(self.trackTRange)
+        if toUpdate:
+            tm.updateTracks(self.trackFiles)
+
+    # Update property values if needed
+    if (self.trackTRange[0] != tm.timeRange[0] or
+        self.trackTRange[1] != tm.timeRange[1]):
+        self.trackTRange = tm.timeRange
+
+def updateTrackRanges(self, context):
+    updateTrackERange(self, context)
+    updateTrackTRange(self, context)
+
+def updateTracks(self, context):
+    
+    tm = tracks.getTrackManager()
+
+    # Check if the logscale has been changed
+    toUpdate = tm.setELogScale(self.trackERangeLog) 
+    # Check if the out of range has been changed
+    toUpdate = tm.setOutOfRange(self.trackDrawOutOfRange) or toUpdate
+
+    if toUpdate:
+        tm.updateTracks(self.trackFiles)
+
+# Frame change handler
+@bpy.app.handlers.persistent
+def updateTracksFrame(scene):
+    if hasattr(scene,"penred_settings"):
+        updateTracks(scene.penred_settings, None)
+        updateTrackRanges(scene.penred_settings, None)
+    
+class trackPointProperties(bpy.types.PropertyGroup):
+    
+    position : bpy.props.FloatVectorProperty(
+        name = "Position",
+        description = "Point position, in cm",
+        size = 3,
+        default = (0.0, 0.0, 0.0)
+    )
+
+    energy : bpy.props.FloatProperty(
+        name = "Energy",
+        default = 1.0,
+        min = 0.0,
+        description="Track energy at this point, in keV"
+    )
+
+    time : bpy.props.FloatProperty(
+        name = "Time",
+        default = 1.0,
+        min = 0.0,
+        description="Track time at this point, in seconds"
+    )
+    
+    weight : bpy.props.FloatProperty(
+        name = "Weight",
+        default = 1.0,
+        min = 0.0,
+        description="Track weight at this point"
+    )
+    
+class trackProperties(bpy.types.PropertyGroup):
+
+    points: bpy.props.CollectionProperty(type=trackPointProperties)
+
+    ILB : bpy.props.IntVectorProperty(
+        name = "ILB",
+        description = "ILB values",
+        size = 5,
+        default = (0, 0, 0, 0, 0)
+    )
+
+class trackFileProperties(bpy.types.PropertyGroup):
+
+    tracks : bpy.props.CollectionProperty(type=trackProperties)
+    filename : bpy.props.StringProperty(name = "Tracks File",
+                                        description = "Tracks Filename",
+                                        default = "")
+    enabled : bpy.props.BoolProperty(
+        name = "Enable Drawing",
+        description = "Enable/Disable tracks drawing",
+        default = False)
+
+    eRange : bpy.props.FloatVectorProperty(
+        name = "Tracks Energy Range",
+        size = 2,
+        default = (0.0, 1.0e6),
+        description = "Energy range for this track file, in eV"
+    )
+    
+    tRange : bpy.props.FloatVectorProperty(
+        name = "Tracks Time Range",
+        size = 2,
+        default = (0.0, 30.0)
+    )
+    
+tracksClasses = (
+    trackPointProperties,
+    trackProperties,
+    trackFileProperties,
+)
+
 # World properties group
 #############################
 class worldProperties(bpy.types.PropertyGroup):
@@ -1076,7 +1233,57 @@ class penredSceneProperties(bpy.types.PropertyGroup):
         name = "Simulation Path",
         description = "Path to the simulation folder",
         default = "")
+
+    # Tracks
+    trackFiles : bpy.props.CollectionProperty(type=trackFileProperties)
+    trackDrawOutOfRange : bpy.props.BoolProperty(
+        name="Draw Out Of Range",
+        description="Enable/disable drawing out of range track points",
+        default = True,
+        update = updateTracks
+    )
+    trackColorType : bpy.props.EnumProperty(
+        name = "Track Color Type Selection",
+        description = "Choose how color is assigned for tracks",
+        items = [
+            ("ENERGY" , "Energy", "By energy"),
+            ("TIME", "Time", "By time"),
+        ],
+        default = "ENERGY"
+    )
     
+    trackAutoRange : bpy.props.BoolProperty(
+        name = "Track Automatic Range",
+        default = True,
+        description = "Enable/disable automatic range selection for tracks",
+        update = updateTrackRanges
+    )
+    
+    trackERange : bpy.props.FloatVectorProperty(
+        name = "Track Energy Range",
+        size = 2,
+        default = (0.0, 1.0e6),
+        description = "Energy range for track drawing, in eV",
+        update = updateTrackERange
+    )
+    trackERangeEdit : bpy.props.BoolProperty(name = "Track Energy Range Edit",
+                                             default = False)
+    trackERangeLog : bpy.props.BoolProperty(
+        name = "Track Energy Range Logscale",
+        default = False,
+        description = "Enable/disable logscale for track energy range",
+        update = updateTracks
+    )
+
+    trackTRange : bpy.props.FloatVectorProperty(
+        name = "Track Time Range",
+        size = 2,
+        default = (0.0, 30.0),
+        description = "Time range for track drawing, in seconds",
+        update=updateTrackTRange
+    )
+    trackTRangeEdit : bpy.props.BoolProperty(name = "Track Time Range Edit",
+                                             default = False)
 def register():
 
     # Register source properties
@@ -1089,6 +1296,10 @@ def register():
     # Register VR properties
     for cls in VRPropsClasses:
         bpy.utils.register_class(cls)
+
+    #Register tracks property groups
+    for cls in tracksClasses:
+        bpy.utils.register_class(cls)        
         
     # Register globa properties
     bpy.utils.register_class(objectProperties)
@@ -1106,7 +1317,7 @@ def register():
     bpy.utils.register_class(worldProperties)
 
     # Register scene properties
-    bpy.utils.register_class(penredSceneProperties)    
+    bpy.utils.register_class(penredSceneProperties)
 
     # Add properties to objects
     bpy.types.Object.penred_settings = bpy.props.PointerProperty(type=objectProperties)
@@ -1116,7 +1327,10 @@ def register():
 
     # Add properties to scene
     bpy.types.Scene.penred_settings = bpy.props.PointerProperty(type=penredSceneProperties)
-    
+
+    # Register frame update for tracks
+    bpy.app.handlers.frame_change_pre.append(updateTracksFrame)
+        
 def unregister():
 
     # Unregister source properties
@@ -1130,6 +1344,10 @@ def unregister():
     for cls in VRPropsClasses:
         bpy.utils.unregister_class(cls)        
 
+    #Unregister tracks property groups
+    for cls in tracksClasses:
+        bpy.utils.unregister_class(cls)
+        
     # Unregister element properties
     bpy.utils.unregister_class(elementProperties)
 
@@ -1150,6 +1368,9 @@ def unregister():
 
     # Delete scene penRed settings
     del bpy.types.Scene.penred_settings
+
+    # Unregister frame update for tracks
+    bpy.app.handlers.frame_change_pre.remove(updateTracksFrame)    
     
     # Unregister scene properties
     bpy.utils.unregister_class(penredSceneProperties)    

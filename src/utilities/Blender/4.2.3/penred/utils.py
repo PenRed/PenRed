@@ -11,6 +11,9 @@ from mathutils import Vector
 from mathutils import Color
 from math import cos, acos, sin, asin, tan, atan2, sqrt, pi
 
+def clamp(v, minV, maxV):
+    return max(minV, min(v, maxV))
+
 def redrawView3D(context):
     for area in context.screen.areas:
         if area.type == 'VIEW_3D':

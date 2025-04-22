@@ -46,8 +46,8 @@ class image_spatialSampling : public abc_spatialSampler {
   double dx, dy, dz;
   double imageCx,imageCy,imageCz;
   double Ox,Oy,Oz;
-  double* F;
-  long int* K;
+  std::vector<double> F;
+  std::vector<long int> K;
   double isocenter[3];
   bool positionset;
   bool savegeosampling;

@@ -30,11 +30,14 @@ def createPSF(f, name, nhist, isCT, psfFile, psfMaxE,
     # Write number of histories
     f.write(f"{prefix}/nhist {nhist:.5e}\n")
     
-    prefix = f"{prefix}/specific"
     if not isCT:
+        prefix = f"{prefix}/specific"
         f.write(f"{prefix}/type \"PSF\"\n")
+    else:
+        prefix = f"{prefix}/specific/psf"
+        
     f.write(f"{prefix}/filename \"{psfFile}\"\n")
-    f.write(f"{prefix}/Emax \"{psfMaxE:.3e}\"\n")
+    f.write(f"{prefix}/Emax {psfMaxE:.3e}\n")
 
     f.write(f"{prefix}/nsplit {split}\n")
     f.write(f"{prefix}/wght-window [{window[0]:.4e}, {window[1]:.4e}]\n\n")

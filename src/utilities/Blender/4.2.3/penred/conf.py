@@ -321,7 +321,8 @@ def createTallies(context, f, toRound):
 
                     tallies.createTallyCT(f, tallyName, outputPrefix, (x,y,z), item.emin, item.emax,
                                           item.nPixels, item.pixelDepth,
-                                          source.ctPhiInterval[0], source.ctPhiInterval[1],
+                                          source.ctPhiInterval[0] + 180.0,
+                                          source.ctPhiInterval[1] + 180.0,
                                           source.ctNSteps, item.aperture, source.ctRad,
                                           item.particleType, source.ctTStart, source.ctDT,
                                           item.scatter, toRound)
