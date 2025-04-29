@@ -47,6 +47,7 @@ class OBJECT_MT_quadric_submenu(bpy.types.Menu):
         layout.operator("mesh.add_sphere_quadric",text="Sphere",icon='SPHERE')
         layout.operator("mesh.add_cone_quadric",text="Cone",icon='CONE')
         layout.operator("mesh.add_cylinder_quadric",text="Cylinder",icon='MESH_CYLINDER')
+        layout.operator("mesh.add_tube_quadric",text="Tube",icon='MESH_CYLINDER')
         layout.operator("mesh.add_plane_quadric",text="Plane",icon='MESH_PLANE')
         layout.operator("mesh.add_semisphere_quadric",text="Semi-Sphere",icon='SPHERE')
 
@@ -187,10 +188,22 @@ class PenredBodyPropertiesPanel(bpy.types.Panel):
                 if obj.penred_settings.quadricType == "CONE":
                     row = box.row()
                     row.prop(obj.penred_settings, "r2", text="Top Radius")
+                    row.label(text="cm")
                     row = box.row()
                     row.prop(obj.penred_settings, "r1", text="Bottom Radius")
+                    row.label(text="cm")
 
-                if obj.penred_settings.quadricType == "TRAPEZOID":
+                elif obj.penred_settings.quadricType == "TUBE":
+                    row = box.row()
+                    row.label(text="Outer Radius")
+                    row.prop(obj.penred_settings, "r1", text="")
+                    row.label(text="cm")
+                    row = box.row()
+                    row.label(text="Inner Radius")
+                    row.prop(obj.penred_settings, "r2", text="")
+                    row.label(text="cm")
+                    
+                elif obj.penred_settings.quadricType == "TRAPEZOID":
                     row = box.row()
                     split = row.split(factor=0.4)
                     col = split.column()
@@ -270,6 +283,10 @@ class PenredSourcePropertiesPanel(bpy.types.Panel):
                     if source.particleType != "PART_PSF":
                         row = ctbox.row()
                         row.prop(source, "ctSecondaries", text="Secondaries to Sample")
+                    else:
+                        row = ctbox.row()
+                        row.label(text="PSF Origin")
+                        row.prop(source, "ctPSFOrigin", text="")                        
 
                     row = ctbox.row()
                     row.label(text="Radius")
@@ -1485,8 +1502,8 @@ def drawHintsHandler():
 
                                 #Check if a CT tally is enabled also
                                 for item in penSett.talliesCT:
-                                    initAngle = angle - 0.5*item.aperture*pi/180.0
-                                    endAngle  = angle + 0.5*item.aperture*pi/180.0
+                                    initAngle = angle + pi - 0.5*item.aperture*pi/180.0
+                                    endAngle  = angle + pi + 0.5*item.aperture*pi/180.0
                                     utils.draw_zcircle(obj, source.ctRad,
                                                        initAngle, endAngle,
                                                        tallyColor, item.pixelDepth)
@@ -1527,8 +1544,8 @@ def drawHintsHandler():
 
                                 #Check if a CT tally is enabled also
                                 for item in penSett.talliesCT:
-                                    initAngle = angle - 0.5*item.aperture*pi/180.0
-                                    endAngle  = angle + 0.5*item.aperture*pi/180.0
+                                    initAngle = angle + pi - 0.5*item.aperture*pi/180.0
+                                    endAngle  = angle + pi + 0.5*item.aperture*pi/180.0
                                     utils.draw_zcircle(obj, source.ctRad,
                                                        initAngle, endAngle,
                                                        tallyColor, item.pixelDepth)

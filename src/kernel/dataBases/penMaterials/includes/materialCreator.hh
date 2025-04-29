@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2024 Universitat de València - UV
 //    Copyright (C) 2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -462,7 +463,36 @@ namespace penred{
 
     int createMat(const unsigned matID,		  
 		  const std::string& filename,
-		  std::string& errorString);    
+		  std::string& errorString);
+
+    inline int createDBFile(const char* filenameOut,
+			    const char* filenameDB){
+      //Read the first DB file partition to ensure the file exists
+      const char* pdata = penred::penMatDB::readDataBaseFile(filenameDB,0);
+      if(pdata == nullptr){
+	//Data base file not found
+	return -1;
+      }
+
+      //Create the output file
+      FILE* fout = fopen(filenameOut, "w");
+      if(fout == nullptr){
+	return -2;
+      }
+
+      //Write the data
+      size_t nextPart = 1;
+      while(pdata != nullptr){
+	fprintf(fout, "%s", pdata);
+	pdata = penred::penMatDB::readDataBaseFile(filenameDB,nextPart++);
+      }
+
+      //Close the file
+      fclose(fout);
+      
+      return 0;
+    }
+    
   } // namespace penMaterialCreator
 } //namespace penred
 

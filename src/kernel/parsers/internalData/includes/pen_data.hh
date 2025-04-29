@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -156,7 +157,7 @@ namespace penred{
 				    const char* filename,
 				    const bool append = false) {
 	if(!_flog[ilog].isOpen()){
-	  _flog[ilog].open(filename, append ? "a" : "w");
+	  _flog[ilog].open(filename, append);
 	}
       }
 

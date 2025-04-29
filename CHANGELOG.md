@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0]
+
+### Added
+- Published Python bindings to PyPI as `pyPenred`
+- New Blender plugin features for:
+  - Configuration file creation and export
+  - Running simulations within Blender using pyPenred
+- Detector singles tally implementation
+- Configurable log file output for configurations and simulations
+- Support for custom seed pair files to override `rand0` function
+
+### Changed
+- Refactored Blender plugin with support for Blender 4.2.3 LTS
+- DICOM dictionary now embedded by default in all DCMTK builds
+- Simplified MSVC optimization flags when native optimizations are disabled
+- PENNUC no longer requires external database files when built with embedded database (default behaviour)
+
+### Fixed
+- Resolved DCMTK compilation/linking errors with DICOM support
+- Fixed multiple memory leaks
+- Corrected memory alignment issues
+- Fixed zlib linking on Windows
+- Addressed macOS stack overflows in secondary threads
+- Fixed PENNUC file parsing for files with empty fields
+
 ## [1.12.1] - 2025-01-31
 
 ### Added

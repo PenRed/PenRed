@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2021 Universitat de València - UV
 //    Copyright (C) 2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -64,7 +65,7 @@ public:
 
   image_spatialSampling() : nx(0), ny(0), nz(0),
 			    dx(0.0), dy(0.0), dz(0.0),
-			    F(nullptr), K(nullptr), count(0), verbose(0)
+			    count(0), verbose(0)
   {}
 
   void geoSampling(double pos[3], pen_rand& random) const;

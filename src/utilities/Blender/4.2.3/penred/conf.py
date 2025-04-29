@@ -1,7 +1,7 @@
 import bpy
 
 from . import sources, utils, tallies, materials, vr
-from math import sqrt
+from math import sqrt, pi
 
 def createSim(context, f):
     
@@ -99,7 +99,13 @@ def createSources(context, f, toRound):
                 # Get object properties
                 x,y,z,dx,dy,dz,sx,sy,sz,omega,theta,phi,name,bsize = utils.getObjInfo(obj)
 
+                # Convert rotation to degrees
+                omega *= 180.0/pi
+                theta *= 180.0/pi
+                phi   *= 180.0/pi
+
                 if source.ctEnable:
+                    psfShift = (-source.ctPSFOrigin[0], -source.ctPSFOrigin[1], -source.ctPSFOrigin[2])
                     if source.particleType == "PART_PSF":
                         nSecond = -1
                     else:
@@ -107,6 +113,8 @@ def createSources(context, f, toRound):
                     sources.createHeaderCT(f, name, source.ctPhiInterval[0], source.ctPhiInterval[1],
                                            source.ctNSteps, (x,y,z), source.ctRad, source.ctTStart,
                                            source.ctDT, nSecond, toRound)
+                else:
+                    psfShift = (x,y,z)
                 
                 if source.particleType == "PART_PSF":
 
@@ -114,7 +122,7 @@ def createSources(context, f, toRound):
                     sources.createPSF(f, name, source.nHists, source.ctEnable,
                                       source.sourcePSF, source.psfMaxE,
                                       source.split, source.psfWindow,
-                                      (x,y,z), (omega, theta, phi), toRound)
+                                      psfShift, (omega, theta, phi), toRound)
                 else:
                     if source.spatialType == "SPATIAL_CYL":
                         if source.spatialBBFit:
@@ -177,6 +185,11 @@ def createTallies(context, f, toRound):
 
             # Get object properties
             x,y,z,dx,dy,dz,sx,sy,sz,omega,theta,phi,name,bsize = utils.getObjInfo(obj)
+            
+            # Convert rotation to degrees
+            omega *= 180.0/pi
+            theta *= 180.0/pi
+            phi   *= 180.0/pi
 
             xmin = x-bsize[0]/2.0
             xmax = x+bsize[0]/2.0
@@ -386,7 +399,10 @@ def createTallies(context, f, toRound):
 def createVR(obj, simBodyName, f):
 
     if hasattr(obj, "penred_settings"):
-        f.write(f"\n## Variance Reduction for body {simBodyName} (Blender Name: {obj.name}) ##\n\n")
+
+        if obj.penred_settings.enableBremssSplitting or obj.penred_settings.enableXRaySplitting or len(obj.penred_settings.interactionForcing) > 0:
+            f.write(f"\n## Variance Reduction for body {simBodyName} (Blender Name: {obj.name}) ##\n\n")
+            
         # Bremsstrahlung splitting
         if obj.penred_settings.enableBremssSplitting:
             bremssName = f"{obj.name}_bremss_splitting"

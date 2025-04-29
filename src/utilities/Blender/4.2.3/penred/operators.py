@@ -758,7 +758,106 @@ class REMESH_OT_remesh_operator(Operator):
             #Remove old mesh
             if oldMesh.users == 0:
                 oldMesh.user_clear()
-                bpy.data.meshes.remove(oldMesh)            
+                bpy.data.meshes.remove(oldMesh)
+
+        elif obj.penred_settings.quadricType == "TUBE":
+
+            # Move origin to geometry center
+            bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
+
+            #Get radius
+            outerRad = obj.penred_settings.r1
+            innerRad = obj.penred_settings.r2
+            
+            outerRad = max(1.0e-5,outerRad)
+            innerRad = max(0.0,innerRad)
+
+            if outerRad < innerRad:
+                innerRad = outerRad*0.99
+                obj.penred_settings.r2 = innerRad
+            
+            segments = 32
+
+            # Create the new mesh
+            mesh = bpy.data.meshes.new(name=obj.data.name)
+
+            # Calculate vertices
+            vertices = []
+
+            # Outer cylinder vertices (top and bottom)
+            for i in range(segments):
+                angle = 2 * pi * i / segments
+                x = outerRad * cos(angle)
+                y = outerRad * sin(angle)
+
+                # Bottom outer vertex
+                vertices.append((x, y, -1.0))
+                # Top outer vertex
+                vertices.append((x, y,  1.0))
+
+            # Inner cylinder vertices (top and bottom)
+            for i in range(segments):
+                angle = 2 * pi * i / segments
+                x = innerRad * cos(angle)
+                y = innerRad * sin(angle)
+
+                # Bottom inner vertex
+                vertices.append((x, y, -1.0))
+                # Top inner vertex
+                vertices.append((x, y,  1.0))
+
+            # Create faces
+            faces = []
+
+            # Outer cylinder faces
+            for i in range(segments):
+                next_i = (i + 1) % segments
+
+                # Side faces (quad)
+                v1 = 2 * i
+                v2 = 2 * next_i
+                v3 = 2 * next_i + 1
+                v4 = 2 * i + 1
+                faces.append((v1, v2, v3, v4))
+
+                # Bottom face (triangle fan would be better, but quads for consistency)
+                v1 = 2 * i
+                v2 = 2 * next_i
+                v3 = 2 * segments + 2 * next_i
+                v4 = 2 * segments + 2 * i
+                faces.append((v1, v2, v3, v4))
+
+                # Top face
+                v1 = 2 * i + 1
+                v2 = 2 * next_i + 1
+                v3 = 2 * segments + 2 * next_i + 1
+                v4 = 2 * segments + 2 * i + 1
+                faces.append((v1, v2, v3, v4))
+
+            # Inner cylinder faces
+            for i in range(segments):
+                next_i = (i + 1) % segments
+
+                # Side faces (quad)
+                v1 = 2 * segments + 2 * i
+                v2 = 2 * segments + 2 * i + 1
+                v3 = 2 * segments + 2 * next_i + 1
+                v4 = 2 * segments + 2 * next_i
+                faces.append((v1, v2, v3, v4))
+
+            # Assign vertices and faces to the mesh
+            mesh.from_pydata(vertices, [], faces)
+
+            #Store old mesh
+            oldMesh = obj.data
+            
+            #Assign new mesh
+            obj.data = mesh
+            
+            #Remove old mesh
+            if oldMesh.users == 0:
+                oldMesh.user_clear()
+                bpy.data.meshes.remove(oldMesh)
 
         return {'FINISHED'}
 
@@ -861,6 +960,24 @@ class QUADRIC_OT_add_cylinder(Operator, AddObjectHelper):
     def execute(self, context):
         utils.add_object(self, context, "Cylinder", "CYLINDER")
         return {'FINISHED'}
+
+# TUBE
+class QUADRIC_OT_add_tube(Operator, AddObjectHelper):
+    """Create a new Tube Quadric"""
+    bl_idname = "mesh.add_tube_quadric"
+    bl_label = "Add Tube Quadric"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    scale: FloatVectorProperty(
+        name="scale",
+        default=(1.0, 1.0, 1.0),
+        subtype='TRANSLATION',
+        description="scaling",
+    )
+
+    def execute(self, context):
+        utils.add_object(self, context, "Tube", "TUBE")
+        return {'FINISHED'}    
 
 # PLANE
 class QUADRIC_OT_add_plane(Operator, AddObjectHelper):
@@ -979,6 +1096,7 @@ quadricObjectAddOperators = (
     QUADRIC_OT_add_sphere,
     QUADRIC_OT_add_cone,
     QUADRIC_OT_add_cylinder,
+    QUADRIC_OT_add_tube,
     QUADRIC_OT_add_plane,
     QUADRIC_OT_add_semiSphere,
     QUADRIC_OT_add_cutplane,
@@ -1859,6 +1977,10 @@ class export_penred(Operator, ExportHelper):
             nSurf = surfaces.createSphereSurfaces(f,x,y,z,dx,dy,dz,nSurf,name,toRound)
         elif quadType == "CYLINDER":
             nSurf = surfaces.createCylinderSurfaces(f,x,y,z, dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
+        elif quadType == "TUBE":
+            r1 = obj.penred_settings.r1
+            r2 = obj.penred_settings.r2
+            nSurf = surfaces.createTubeSurfaces(f,x,y,z,r1,r2,sx,sy,dz,omega,theta,phi,nSurf,name,toRound)
         elif quadType == "CONE":
             r1 = obj.penred_settings.r1
             r2 = obj.penred_settings.r2
@@ -1916,6 +2038,8 @@ class export_penred(Operator, ExportHelper):
             initSurf = surfaces.setSphereSurfaces(f,initSurf, 1)
         elif quadType == "CYLINDER" or quadType == "CONE":
             initSurf = surfaces.setCylinderConeSurfaces(f,initSurf, 1)
+        elif quadType == "TUBE":
+            initSurf = surfaces.setTubeSurfaces(f,initSurf, 1)
         elif quadType == "PLANE":
             initSurf = surfaces.setPlaneSurfaces(f,initSurf, 1)
         elif quadType == "SEMI_SPHERE":

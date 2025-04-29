@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2021-2022 Universitat de València - UV
 //    Copyright (C) 2021-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -33,7 +34,7 @@
 void image_spatialSampling::geoSampling(double pos[3], pen_rand& random) const{
 
   //Obtain voxel index randomly using Walker's aliasing algorithm
-  long int ivox = IRND(F,K,nvox,random);
+  long int ivox = IRND(F.data(),K.data(),nvox,random);
 
   long int ix = ivox % nx;
   long int iy = (ivox % nxy)/nx;

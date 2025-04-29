@@ -425,6 +425,8 @@ def add_object(self, context, meshType, quadType):
         bmesh.ops.create_cone(bm, cap_ends=True, segments=32, radius1=coneDefaultR1, radius2=coneDefaultR2, depth = 1.0)
     elif quadType == "CYLINDER":
         bmesh.ops.create_cone(bm, cap_ends=True, segments=32, radius1=1.0, radius2=1.0, depth = 2.0)
+    elif quadType == "TUBE":
+        bmesh.ops.create_cone(bm, cap_ends=True, segments=32, radius1=1.0, radius2=1.0, depth = 2.0)
     elif quadType == "PLANE":
         bmesh.ops.create_circle(bm, cap_ends=True, segments=32, radius=1.0)
     elif quadType == "CUT_PLANE":
@@ -455,5 +457,8 @@ def add_object(self, context, meshType, quadType):
     elif quadType == "TRAPEZOID":
         obj.penred_settings.topSize = (1.0,1.0)
         obj.penred_settings.botSize = (2.0,2.0)
+    elif quadType == "TUBE":
+        obj.penred_settings.r1 = 1.0
+        obj.penred_settings.r2 = 0.5
 
     return obj

@@ -456,6 +456,14 @@ class sourceProperties(bpy.types.PropertyGroup):
         ],
         default = "PART_GAMMA"
     )
+
+    ctPSFOrigin : bpy.props.FloatVectorProperty(
+        name="CT PSF Position",
+        description="Position, in cm, where the PSF has been recorded",
+        size=3,
+        default=(0.0, 0.0, 0.0),
+    )
+    
     sourcePSF : bpy.props.StringProperty(name = "Source Phase Space File",
                                          description = "Path to the source Phase Space File",
                                          default = "data.psf")

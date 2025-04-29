@@ -373,7 +373,7 @@ int main(int argc, char** argv){
   penred::simulation::simConfig baseSimConfig;
   int errSimConfig = baseSimConfig.configure("simulation",config);
   if(errSimConfig != penred::simulation::errors::SUCCESS){
-    log.printf("Error: Unable to parse 'simulation' section: Invalid seeds\n");
+    log.printf(penred::simulation::errors::errorMessage(errSimConfig));
     return -1;
   }
   //Extract verbose level
@@ -557,10 +557,11 @@ int main(int argc, char** argv){
   if(config.read("simulation/seedPair",nseedPair) != INTDATA_SUCCESS){
      nseedPair = -1;
   }
-  else if(nseedPair < 0 || nseedPair > 1000){
+  else if(nseedPair < 0 || nseedPair > static_cast<int>(baseSimConfig.nRandSeeds())){
     if(verbose > 0){
       log.printf("Invalid initial seed pair number %d\n",nseedPair);
-      log.printf("Available seed pair range is [0,1000]\n");
+      log.printf("Available seed pair range is [0,%u]\n",
+		 static_cast<unsigned>(baseSimConfig.nRandSeeds()-1));
     }
     return -2;
   }
@@ -731,8 +732,8 @@ int main(int argc, char** argv){
   //*******************************
   // Obtain initial random seeds
   //*******************************
-
-  const size_t nRand0Seeds = 1001;
+  
+  const size_t nRand0Seeds = baseSimConfig.nRandSeeds();
 
   int seedPos0 = nseedPair; //First seed pair to use
   //Set required seeds equal to the number of threads
@@ -768,11 +769,12 @@ int main(int argc, char** argv){
   //First, ensure that rand0 can provide sufficient
   //initial seeds for all MPI processes and threads.
   
-  if(nReqSeeds > 1001){
+  if(nReqSeeds > static_cast<int>(baseSimConfig.nRandSeeds())){
     log.printf("Error: Unsuficient initial seeds for all processes "
-	   "and seeds (%d required).\n"
-	   "        Please, use less threads to use, as maximum,"
-	   " 1001 initial seeds.\n",nReqSeeds);
+	       "and threads (%d required, %d available).\n"
+	       "        Please, use less threads or provide a larger"
+	       " seed file via the 'simulation/seeds-file' parameter.\n",
+	       nReqSeeds, static_cast<int>(baseSimConfig.nRandSeeds()));
     return -3;
   }
   

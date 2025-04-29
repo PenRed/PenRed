@@ -741,6 +741,85 @@ def setCylinderConeSurfaces(f, initSurf, sign):
     
     return initSurf
 
+### TUBE
+#############
+
+def createTubeSurfaces(f, x, y, z, rOut, rInner, sx, sy, dz, omega, theta, phi, nSurf, name, toRound):
+
+    ### Outer Cylinder surface
+    nSurf = printCylinderQuad(f,x,y,z,sx*rOut,sy*rOut,omega,theta,phi,nSurf,name,toRound)
+
+    ### Inner Cylinder surface
+    nSurf = printCylinderQuad(f,x,y,z,sx*rInner,sy*rInner,omega,theta,phi,nSurf,name,toRound)
+    
+    ### -Z plane surface
+    
+    if omega == 0.0 and theta == 0.0 and phi == 0.0:
+        xRot = x
+        yRot = y
+        zRot = z - dz/2.0
+    else:
+        xRot=-dz/2.0*cos(phi)*sin(theta)+x
+        yRot=-dz/2.0*sin(theta)*sin(phi)+y
+        zRot=-dz/2.0*cos(theta)+z    
+    
+    f.write("0000000000000000000000000000000000000000000000000000000000000000\n")
+    f.write("SURFACE (%4i) %s -Z plane\n" % (nSurf,name))
+    f.write("INDICES=( 0, 0, 0, 1, 0)\n")
+    f.write("X-SHIFT=(%+.15E,   0)\n" % (round(xRot,toRound)))
+    f.write("Y-SHIFT=(%+.15E,   0)\n" % (round(yRot,toRound)))
+    f.write("Z-SHIFT=(%+.15E,   0)\n" % (round(zRot,toRound)))
+    f.write("  OMEGA=(%+.15E,   0) RAD\n" % (round(omega,toRound)))
+    f.write("  THETA=(%+.15E,   0) RAD\n" % (round(theta,toRound)))
+    f.write("    PHI=(%+.15E,   0) RAD\n" % (round(phi,toRound)))
+    
+    nSurf += 1
+    
+    ### +Z plane surface    
+    
+    if omega == 0.0 and theta == 0.0 and phi == 0.0:
+        xRot = x
+        yRot = y
+        zRot = z + dz/2.0
+    else:
+        xRot=+dz/2.0*cos(phi)*sin(theta)+x
+        yRot=+dz/2.0*sin(theta)*sin(phi)+y
+        zRot=+dz/2.0*cos(theta)+z
+    
+    f.write("0000000000000000000000000000000000000000000000000000000000000000\n")
+    f.write("SURFACE (%4i) %s +Z plane\n" % (nSurf,name))
+    f.write("INDICES=( 0, 0, 0, 1, 0)\n")
+    f.write("X-SHIFT=(%+.15E,   0)\n" % (round(xRot,toRound)))
+    f.write("Y-SHIFT=(%+.15E,   0)\n" % (round(yRot,toRound)))
+    f.write("Z-SHIFT=(%+.15E,   0)\n" % (round(zRot,toRound)))
+    f.write("  OMEGA=(%+.15E,   0) RAD\n" % (round(omega,toRound)))
+    f.write("  THETA=(%+.15E,   0) RAD\n" % (round(theta,toRound)))
+    f.write("    PHI=(%+.15E,   0) RAD\n" % (round(phi,toRound)))
+
+    #Increment surface number
+    nSurf += 1
+    
+    return nSurf
+
+def setTubeSurfaces(f, initSurf, sign): 
+    
+    ###  Set outer cylinder surface
+    f.write("SURFACE (%4i), SIDE POINTER=(%+2i)\n" % (initSurf,-sign))
+    initSurf += 1
+
+    ###  Set inner cylinder surface
+    f.write("SURFACE (%4i), SIDE POINTER=(%+2i)\n" % (initSurf, sign))
+    initSurf += 1
+    
+    ###  Set -Z plane surface
+    f.write("SURFACE (%4i), SIDE POINTER=(%+2i)\n" % (initSurf,sign))
+    initSurf += 1
+    
+    ###  Set +Z plane surface
+    f.write("SURFACE (%4i), SIDE POINTER=(%+2i)\n" % (initSurf,-sign))
+    initSurf += 1
+    
+    return initSurf
 
 ### PLANE
 #############

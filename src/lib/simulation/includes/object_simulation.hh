@@ -690,8 +690,8 @@ namespace penred{
 
 	return std::string("***************************************************************\n"
 			   " PenRed version: 1.13.0 (13-April-2025) \n"
-			   " Copyright (c) 2019-2024 Universitat Politecnica de Valencia\n"
-			   " Copyright (c) 2019-2024 Universitat de Valencia\n"
+			   " Copyright (c) 2019-2025 Universitat Politecnica de Valencia\n"
+			   " Copyright (c) 2019-2025 Universitat de Valencia\n"
 			   " Copyright (c) 2024-2025 Vicent Giménez Alventosa\n"
 			   " Reference: Computer Physics Communications, 267 (2021) 108065\n"
 			   "            https://doi.org/10.1016/j.cpc.2021.108065\n"
@@ -1242,7 +1242,7 @@ namespace penred{
 	}
 
 	// ** Set random seeds
-	constexpr size_t nRand0Seeds = 1001;
+	const size_t nRand0Seeds = baseSimConfig.nRandSeeds();
 
 	if(nThreads > 1){
 	  for(unsigned i = 0; i < nThreads; i++){

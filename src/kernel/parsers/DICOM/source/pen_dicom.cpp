@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2023 Universitat de València - UV
 //    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -808,6 +809,10 @@ int pen_dicom::loadDicom(const char* dirName,
 
   if(dirName == nullptr)
     return PEN_DICOM_FOLDER_NOT_SPECIFIED;
+
+  //Change dcmtk log level
+  dcmtk::log4cplus::Logger rootLogger = dcmtk::log4cplus::Logger::getRoot();
+  rootLogger.setLogLevel(dcmtk::log4cplus::FATAL_LOG_LEVEL);
 
   //Remove '/' at the end of dirname if exists
   std::string dirString(dirName);

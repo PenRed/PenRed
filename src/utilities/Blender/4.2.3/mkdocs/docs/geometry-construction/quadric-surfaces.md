@@ -50,6 +50,7 @@ Additionally, the following object types require additional parameters:
 
 - **Cone**: The top and bottom radius must be specified.
 - **Trapezoid**: The *(dx,dy)* dimensions for both, top and bottom faces, must be specified.
+- **Tube**: The radius for both outer and inner cylinders, must be specified.
 
 ### Cutting Planes
 

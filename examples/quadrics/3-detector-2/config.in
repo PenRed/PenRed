@@ -67,10 +67,8 @@ sources/generic/source1/specific/age true
 tallies/second/type "SECONDARY_GEN"
 
 tallies/bodyEDep/type "EDEP_BODY"
-tallies/bodyEDep/nBody 2
 
 tallies/matEDep/type "EDEP_MAT"
-tallies/matEDep/nmat 2
 
 tallies/EmergingPartDistrib/type "EMERGING_PART_DISTRIB"
 tallies/EmergingPartDistrib/emin 5.0e3
@@ -79,23 +77,19 @@ tallies/EmergingPartDistrib/nBinsE 300
 tallies/EmergingPartDistrib/nBinsTheta 45
 tallies/EmergingPartDistrib/nBinsPhi 18
 
+tallies/ImpactLarge/type "IMPACT_DET"
+tallies/ImpactLarge/detector 1
+tallies/ImpactLarge/emin 100.0
+tallies/ImpactLarge/emax 2.6e6
+tallies/ImpactLarge/nbin-energy 300
+tallies/ImpactLarge/energy-dep true
+tallies/ImpactLarge/spectrum true
 
-tallies/ImpactDetector/type "IMPACT_DET"
-tallies/ImpactDetector/detector 1
-tallies/ImpactDetector/fluence true
-tallies/ImpactDetector/emin 5.0e3
-tallies/ImpactDetector/emax 6.4e4
-tallies/ImpactDetector/nbin-energy 280
-tallies/ImpactDetector/energy-dep true
-tallies/ImpactDetector/linearScale-edep true
-tallies/ImpactDetector/spectrum true
-tallies/ImpactDetector/linearScale-spc true
-tallies/ImpactDetector/age true
-tallies/ImpactDetector/linearScale-age false
-tallies/ImpactDetector/age-min 1.0e-11
-tallies/ImpactDetector/age-max 1e-9
-tallies/ImpactDetector/nbin-age 200
-
+tallies/ImpactLarge/age true
+tallies/ImpactLarge/linearScale-age false
+tallies/ImpactLarge/age-min 1.0e-11
+tallies/ImpactLarge/age-max 1e-9
+tallies/ImpactLarge/nbin-age 300
 
 #########################
 #  GEOMETRY PARAMETERS  #

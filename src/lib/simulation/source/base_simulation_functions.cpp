@@ -4,6 +4,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -114,6 +115,29 @@ namespace penred{
 
       lSeed1 = iSeed1;
       lSeed2 = iSeed2;
+
+      // Get seeds file
+      //*******************************
+      seedList.clear();
+      std::string seedsFile;
+      if(config.read("seeds-file",seedsFile) == INTDATA_SUCCESS){
+	//Seed file provided, read and store them
+	FILE* fseed = fopen(seedsFile.c_str(), "r");
+
+	//Read and parse file lines
+	char line[1000];
+	long unsigned lineNum = 0;
+	unsigned long read;
+	while(pen_getLine(fseed,1000,line,read) == 0){
+	  lineNum += read;
+	  int aux1, aux2;
+	  if(sscanf(line, "%d %d", &aux1, &aux2) != 2){
+	    fclose(fseed);
+	    return errors::ERROR_CORRUPTED_SEED_FILE;
+	  }
+	  seedList.emplace_back(aux1, aux2);
+	}
+      }
 
       // Write partial results option
       //*******************************
