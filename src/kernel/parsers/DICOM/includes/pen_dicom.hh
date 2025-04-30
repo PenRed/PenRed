@@ -54,7 +54,7 @@
 #include "dcmtk/oflog/oflog.h"
 
 #include "math_classes.hh"
-#include "pen_data.hh"
+#include "logger.hh"
 
 enum pen_dicom_status{
 		      PEN_DICOM_SUCCESS = 0,

@@ -1,4 +1,3 @@
-
 //
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
@@ -23,16 +22,9 @@
 //    contact emails:
 //
 //        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
 //    
 //
 
- 
-#ifndef __PENRED_INTERNAL_DATA_CLASSES__
-#define __PENRED_INTERNAL_DATA_CLASSES__
-
-#include "pen_parser.hh"
-#include "pen_reader.hh"
 #include "logger.hh"
 
-#endif
+std::vector<penred::logs::loggerFile> penred::logs::logger::_flog(penred::logs::logger::nlogs);

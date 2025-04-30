@@ -23,19 +23,16 @@
 #    contact emails:
 #
 #        vicent.gimenez.alventosa@gmail.com
-#        vicente.gimenez@uv.es
 #    
 #
 
 
 
 #####################################
-#  INTERNAL DATA FORMAT AND PARSERS 
+#  Logger lib
 #####################################
 
-# Create geo lib
-add_library(pen_internalData STATIC ${CMAKE_CURRENT_SOURCE_DIR}/source/pen_parser.cpp ${CMAKE_CURRENT_SOURCE_DIR}/source/pen_reader.cpp ${CMAKE_CURRENT_SOURCE_DIR}/source/pen_data.cpp)
+# Create logger lib
+add_library(pen_logger STATIC ${CMAKE_CURRENT_SOURCE_DIR}/logger.cpp)
 
-target_include_directories(pen_internalData PUBLIC ${PROJECT_SOURCE_DIR}/kernel/parsers/internalData/includes)
-
-target_link_libraries(pen_internalData PUBLIC pen_logger)
+target_include_directories(pen_logger PUBLIC ${PROJECT_SOURCE_DIR}/kernel/logger)
