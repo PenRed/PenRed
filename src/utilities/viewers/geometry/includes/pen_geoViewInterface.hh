@@ -33,6 +33,7 @@
 
 #include <cstdio>
 #include <vector>
+#include <string>
 
 struct geoError{
   double from[3];
