@@ -67,6 +67,14 @@ public:
     set3DResolution(512,512,0.1,0.1,0.3490658503988659);
   }
 
+  inline unsigned getBodies() const{
+    return geometry->getBodies();
+  }
+  
+  inline std::string getBodyName(const unsigned ibody) const{
+    return geometry->getBodyName(ibody);
+  }
+  
   inline double z2dir(const double u,
 		      const double v,
 		      const double w,
