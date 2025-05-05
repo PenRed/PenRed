@@ -31,6 +31,7 @@
 
 #include <vector>
 #include <thread>
+#include <string>
 #include "pen_geoViewInterface.hh"
 #include "pen_geometries.hh"
 #include "pen_matrix.hh"
