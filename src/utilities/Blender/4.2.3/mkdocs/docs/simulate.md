@@ -4,7 +4,7 @@ In addition to constructing the geometry and configuring the simulation, you can
 
 ## Prerequisites
 
-To run simulations with penRed, the **pyPenred** package must be installed in Blender's Python environment. Note that this **may differ from your system's default Python installation**.
+To run simulations with penRed, the **[pyPenred](https://pypi.org/project/pyPenred/)** package must be installed in Blender's Python environment. Note that this **may differ from your system's default Python installation**.
 
 ### Finding Blender's Python Environment
 

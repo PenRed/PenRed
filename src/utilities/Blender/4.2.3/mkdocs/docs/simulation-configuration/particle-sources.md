@@ -118,3 +118,44 @@ If the recording time is enabled, the simulation will calculate and increase the
     - **Weight $>$ Maximum**: Splitting will be applied to the read state.  
   
   Finally, like the specific particle type sources, the time recording can be enabled, but the initial times are read from the PSF, not sampled.
+
+### CT
+
+  A CT-like source moves a generic or PSF source position along a circle defined in the **XY** plane while rotating the particle direction according to the angular position, as shown in the following figure:
+  
+  <img src="../../simulation-configuration/images/ctSource.png" alt="CT Source" width="400" style="display: block; margin: 0 auto"/>
+  
+  Since this source doesn't sample particles directly, it requires either a generic or PSF source as its complement. The transformations applied to sampled particles occur in the following order:  
+  
+  1. The particle is initially sampled using either a generic or PSF source
+  2. A translation of (r, 0, 0) is applied to the particle position, where *r* is the configured CT radius
+  3. A projection is selected, setting the particle age, and the particle is rotated accordingly  
+  
+  **Important Note:** To ensure particles are aimed toward the CT center, the sampled particles' initial direction must point along the *-X* axis.
+
+  
+  The behavior of the CT-like source is controlled by these parameters:
+  
+- **`Enable`**  
+  Enable or disable CT-like source.
+  
+- **`Radius`**  
+  Define the CT radius in cm.
+
+- **`Rotation Interval`**  
+  Sets the minimum and maximum rotation angles, in degrees.
+  
+- **`Projections`**  
+  Specify the number of angular positions (projections) where particles will be placed around the circle.
+  
+- **`Start Time`**  
+  Initial age, in seconds, assigned to particles sampled in the first projection.
+  
+- **`Projection Time`**  
+  Time interval between consecutive projections, in seconds.
+
+- **`Secondaries to sample`**  
+  This parameter is only available if combined with generic sources. Specify how many particles will be sampled per history.
+  
+- **`PSF Origin`**  
+  This parameter is only available if combined with PSF sources. Specify the original recording position of the PSF, required for proper transformation calculations.

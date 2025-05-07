@@ -1,7 +1,7 @@
 #
 #
-#    Copyright (C) 2022-2023 Universitat de València - UV
-#    Copyright (C) 2022-2023 Universitat Politècnica de València - UPV
+#    Copyright (C) 2022-2025 Universitat de València - UV
+#    Copyright (C) 2022-2025 Universitat Politècnica de València - UPV
 #    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.

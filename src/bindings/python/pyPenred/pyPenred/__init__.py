@@ -20,8 +20,17 @@ def readConfigFile(filename):
         yamlstr = simulation.configFile2YAML(filename)
         return yaml.safe_load(yamlstr)
 
+def writeConfigFile(filename, d):
+    '''
+    Write a configuration file in penRed internal format,
+    from the data stored in the dictionary.
+    '''
+    configText = simulation.dict2SectionString(d)
+    with open(filename, "w") as f:
+        f.write(configText)
+    
 def runFromFile(configFile = "config.in",
-                statusTime = 120,
+                statusTime = 20,
                 configLog = "config.log",
                 simulationLog = "simulation.log"):
     '''
@@ -50,7 +59,7 @@ def runFromFile(configFile = "config.in",
         
     print("Configuration set\n")
 
-    #Start the simulation asyncronously
+    #Start the simulation asynchronously
     err = simu.simulate(True)
     if(err != 0):
         print("Error on simulation configuration. See config.log\n")
