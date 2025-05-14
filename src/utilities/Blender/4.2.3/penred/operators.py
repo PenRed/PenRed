@@ -1441,10 +1441,36 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
             import pyPenred
         except:
             try:
-                self.report({'WARNING'}, f"pyPenred is not installed, trying to install it...")
                 import sys
                 import subprocess
-                subprocess.call([sys.executable, "-m", "pip", "install", "pyPenred"])
+                import site
+
+                site_packages = site.getsitepackages()[0]  # Primary site-packages directory
+                self.report({'WARNING'}, f"pyPenred is not installed, trying to install it to '{site_packages}'...")
+
+                # pyYAML
+                subprocess.call([
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "pyyaml",
+                    "--target",
+                    site_packages,
+                    "--no-cache-dir"
+                ])
+                
+                subprocess.call([
+                    sys.executable, 
+                    "-m", 
+                    "pip", 
+                    "install", 
+                    "pyPenred",
+                    "--target", 
+                    site_packages,
+                    "--no-cache-dir"  # Avoids permission issues with temp files
+                ])
+                
                 import pyPenred
             except Exception as e:            
                 self.report({'ERROR'}, f"Setup failed: {str(e)}. Unable to install pyPenred. Please, install it manually in blender environment")

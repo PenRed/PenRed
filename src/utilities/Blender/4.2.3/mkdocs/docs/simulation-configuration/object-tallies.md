@@ -112,3 +112,40 @@ This tally is based on the equivalence of particle fluence and the total photon 
 In addition, this tally requires a list of \( \mu_{en} \) values for the simulated energy range and for each material in the tallied region. These values are automatically calculated by penRed and saved in files for use in subsequent simulations. The user can provide a prefix to specify where these files should be saved using the **Data Prefix** parameter. For example:
 
 - To save \( \mu_{en} \) files in a folder named `muen`, set the **Data Prefix** value to `muen/` on Unix systems or `muen\` on Windows.
+
+---
+
+### CT
+
+This tally is designed to work with a **CT-like source** and must be attached to a Blender *Empty* object with an enabled CT source. It collects particles reaching a virtual detector positioned behind the CT circle.  
+
+For each projection in the CT circle, a virtual detector (shown in blue in the figure below) is placed in front of the corresponding source position:
+
+  <img src="../../simulation-configuration/images/ctTally.png" alt="CT Tally" width="400" style="display: block; margin: 0 auto"/>
+
+Each detector **only records particles** with ages falling within the projection time (defined in the source). This ensures that a detector exclusively captures particles originating from the source directly in front of it. The result is a **sinogram** containing measurements from all projections.  
+
+#### **Configuration Parameters**  
+
+##### **Energy Parameters**  
+Defines the energy range, in eV, of particles to be recorded.  
+- **`Minimum`**  
+  Lower energy threshold for particle detection.  
+- **`Maximum`**  
+  Upper energy threshold for particle detection.
+
+##### **Detector Parameters**  
+Configures the detector's geometric properties.  
+- **`Pixels`**  
+  Number of subdivisions (pixels) in the detector.  
+- **`Depth`**  
+  Radial depth of the detector, in cm.  
+- **`Aperture`**  
+  Angular width of the detector, in degrees, subtended from the isocenter.  
+
+##### **Detection Options**  
+Controls which events are detected.  
+- **`Detect Scatter`**  
+  If disabled, only **non-scattered particles** are recorded.  
+- **`Particle`**  
+  Specifies the particle type to detect (other types are ignored).  

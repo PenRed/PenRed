@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DICOM dictionary now embedded by default in all DCMTK builds
 - Simplified MSVC optimization flags when native optimizations are disabled
 - PENNUC no longer requires external database files when built with embedded database (default behaviour)
+- PSF and PSF-based sources now use the shared configuration method rather than static variables
 
 ### Fixed
 - Resolved DCMTK compilation/linking errors with DICOM support
@@ -28,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed zlib linking on Windows
 - Addressed macOS stack overflows in secondary threads
 - Fixed PENNUC file parsing for files with empty fields
+- Source configurations were not shared between threads in previous versions. (Note: This did not impact functionality for existing sources.)
 
 ## [1.12.1] - 2025-01-31
 

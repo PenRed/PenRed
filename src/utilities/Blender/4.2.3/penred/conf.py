@@ -78,7 +78,6 @@ def createMaterials(context, f):
 
     f.write("## Materials ##\n\n")
 
-    # World tallies
     world = context.scene.world
     
     if hasattr(world, "penred_settings"):
@@ -182,6 +181,10 @@ def createSources(context, f, toRound):
 def createTallies(context, f, toRound):
 
     f.write("## Tallies ##\n\n")
+
+    # Add default tallies
+    f.write("tallies/bodyEDep/type \"EDEP_BODY\"\n")    
+    f.write("tallies/matEDep/type \"EDEP_MAT\"\n\n")
     
     # World tallies
     world = context.scene.world

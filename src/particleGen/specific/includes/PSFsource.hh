@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2019-2023 Universitat de València - UV
 //    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
-//    Copyright (C) 2024 Vicent Giménez Alventosa
+//    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -32,7 +32,6 @@
 #ifndef __PSF_SPECIFIC_SAMPLER__
 #define __PSF_SPECIFIC_SAMPLER__
 
-#include <mutex>
 #include "pen_phaseSpaceFile.hh"
 #include "sharedFile.hh"
 #include <memory>
@@ -44,12 +43,6 @@
 class psf_specificSampler : public abc_specificSampler<pen_particleState>{
   DECLARE_SPECIFIC_SAMPLER(psf_specificSampler, pen_particleState)
   private:
-
-  static std::vector<
-    std::pair<std::string,std::shared_ptr<pen_sharedFile>>
-    > sharedFiles;
-
-  static std::mutex SFlock;
 
   std::shared_ptr<pen_sharedFile> pSF;
 
@@ -84,6 +77,7 @@ class psf_specificSampler : public abc_specificSampler<pen_particleState>{
 
   psf_specificSampler() : abc_specificSampler<pen_particleState>(USE_NONE),
 			  pSF(nullptr),
+			  npartitions(0),
 			  nChunks(0),
 			  chunksPerPart(0),
 			  offsetChunks(0),
@@ -123,6 +117,8 @@ class psf_specificSampler : public abc_specificSampler<pen_particleState>{
 		const pen_parserSection& config,
 		const unsigned nthreads,
 		const unsigned verbose);
+
+  int sharedConfig(const psf_specificSampler& o);  
 
   ~psf_specificSampler(){
     if(buffer != nullptr){

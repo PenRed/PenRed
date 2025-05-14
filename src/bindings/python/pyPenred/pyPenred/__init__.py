@@ -54,7 +54,7 @@ def runFromFile(configFile = "config.in",
         confSetErr = simu.configFromFile(configFile)
 
     if(confSetErr != 0):
-        print("Invalid configuration file format. See config log\n")
+        print(f"{simulation.errorMessage(err)}\nInvalid configuration file format. See config log\n")
         return 1
         
     print("Configuration set\n")
@@ -62,7 +62,7 @@ def runFromFile(configFile = "config.in",
     #Start the simulation asynchronously
     err = simu.simulate(True)
     if(err != 0):
-        print("Error on simulation configuration. See config.log\n")
+        print(f"{simulation.errorMessage(err)}\nError on simulation configuration. See config.log\n")
         return 2
 
     #Simulation started, check status every 30 seconds

@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2020-2023 Universitat de València - UV
 //    Copyright (C) 2020-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -408,6 +409,11 @@ void ct_specificSampler::sample(pen_particleState& state,
   //Finally, move the particle to the CT
   origin2CT.translate(state);
 
+}
+
+int ct_specificSampler::sharedConfig(const ct_specificSampler& o){
+  //Share psf configuration
+  return psf.sharedConfig(o.psf);
 }
 
 REGISTER_SPECIFIC_SAMPLER(ct_specificSampler,pen_particleState, CT)

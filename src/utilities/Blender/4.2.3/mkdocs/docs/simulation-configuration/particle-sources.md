@@ -131,7 +131,7 @@ If the recording time is enabled, the simulation will calculate and increase the
   2. A translation of (r, 0, 0) is applied to the particle position, where *r* is the configured CT radius
   3. A projection is selected, setting the particle age, and the particle is rotated accordingly  
   
-  **Important Note:** To ensure particles are aimed toward the CT center, the sampled particles' initial direction must point along the *-X* axis.
+  **Important Notes:** This kind of source can only be used on Blender *empty* objects, not mesh based objects. To ensure particles are aimed toward the CT center, the sampled particles' initial direction must point along the *-X* axis.
 
   
   The behavior of the CT-like source is controlled by these parameters:

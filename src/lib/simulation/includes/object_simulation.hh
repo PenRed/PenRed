@@ -1205,30 +1205,40 @@ namespace penred{
 
 	//Get lock until configuration finish
 	std::unique_lock<std::mutex> lock(simMutex);
+
+	// Get verbose level
+	const unsigned verbose = baseSimConfig.verbose;
 	
 	if(simulating){
+	  if(verbose > 0)
+	    cout << errors::errorMessage(errors::ERROR_SIMULATION_RUNNING) << std::endl;
 	  return errors::ERROR_SIMULATION_RUNNING;
 	}
 	
 	//Ensure required configurations are provided
 	if(contextConfig.empty()){
+	  if(verbose > 0)
+	    cout << errors::errorMessage(errors::ERROR_MISSING_CONTEXT_CONFIGURATION) << std::endl;
 	  return errors::ERROR_MISSING_CONTEXT_CONFIGURATION;
 	}
 	if(particleSourcesConfig.empty()){
+	  if(verbose > 0)
+	    cout << errors::errorMessage(errors::ERROR_MISSING_SOURCE_CONFIGURATION) << std::endl;
 	  return errors::ERROR_MISSING_SOURCE_CONFIGURATION;
 	}
 	if(geometryConfig.empty()){
+	  if(verbose > 0)
+	    cout << errors::errorMessage(errors::ERROR_MISSING_GEOMETRY_CONFIGURATION) << std::endl;
 	  return errors::ERROR_MISSING_GEOMETRY_CONFIGURATION;
 	}
 	if(talliesConfig.empty()){
+	  if(verbose > 0)
+	    cout << errors::errorMessage(errors::ERROR_MISSING_TALLY_CONFIGURATION) << std::endl;
 	  return errors::ERROR_MISSING_TALLY_CONFIGURATION;
 	}
 	
 	//Create a timer to measure the expended time in initialization 
 	pen_timer initializationTimer;
-
-	// Get verbose level
-	const unsigned verbose = baseSimConfig.verbose;
 	
 	// Create a simulation config for each thread
 	//*********************************************
