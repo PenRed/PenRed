@@ -2,8 +2,7 @@
 import importlib
 import yaml
 import time
-
-simulation = importlib.import_module(".simulation", __name__)
+from pyPenred import simulation
 
 simulation.create = simulation.simulator
 
