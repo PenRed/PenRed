@@ -1261,13 +1261,16 @@ class penredSceneProperties(bpy.types.PropertyGroup):
             ("RUNNING", "Running", "Simulation is running"),
             ("CANCELLED", "Running", "Simulation cancelled"),
         ],
-        default = "NONE"
+        default = "NONE",
+        options={'SKIP_SAVE'}
     )
 
     simulationConfigPath : bpy.props.StringProperty(
         name = "Simulation Path",
         description = "Path to the simulation folder",
-        default = "")
+        default = "",
+        options={'SKIP_SAVE'}
+    )
 
     # Tracks
     trackFiles : bpy.props.CollectionProperty(type=trackFileProperties)
@@ -1319,6 +1322,14 @@ class penredSceneProperties(bpy.types.PropertyGroup):
     )
     trackTRangeEdit : bpy.props.BoolProperty(name = "Track Time Range Edit",
                                              default = False)
+
+@bpy.app.handlers.persistent
+def ensureCleanState(dummy):
+    scene = bpy.context.scene
+    if scene and scene.penred_settings:
+        if scene.penred_settings.simulationState != "NONE":
+            scene.penred_settings.simulationState = "NONE"
+    
 def register():
 
     # Register source properties
@@ -1365,6 +1376,9 @@ def register():
 
     # Register frame update for tracks
     bpy.app.handlers.frame_change_pre.append(updateTracksFrame)
+
+    # Register clean state handler
+    bpy.app.handlers.load_post.append(ensureCleanState)
         
 def unregister():
 
@@ -1409,3 +1423,6 @@ def unregister():
     
     # Unregister scene properties
     bpy.utils.unregister_class(penredSceneProperties)    
+
+    # Unregister clean state handler
+    bpy.app.handlers.load_post.remove(ensureCleanState)

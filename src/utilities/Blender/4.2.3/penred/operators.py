@@ -1517,8 +1517,9 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
         try:
             simulated = self._simu.simulated()
             self._progress = min((s[0]/s[1]*100.0 for s in simulated if s[1] > 0), default=0)
+            totalSimulated = sum(s[0] for s in simulated)
                 
-            self.report({'INFO'}, f"Simulation Progress: {self._progress:.2f}%")
+            self.report({'INFO'}, f"Simulation Progress: {self._progress:.2f}% (Simulated: {totalSimulated})")
 
         except Exception as e:
             self.report({'WARNING'}, f"Progress update failed: {str(e)}")
@@ -2138,6 +2139,28 @@ class export_penred(Operator, ExportHelper):
         return nMeshes
 
     def invoke(self, context, event):
+
+        quadrics = False
+        meshes   = False
+        for obj in context.scene.objects:
+            if hasattr(obj, "penred_settings"):
+                if obj.penred_settings.quadricType != 'unknown':
+                    quadrics = True
+                    if meshes:
+                        break
+                elif obj.type == 'MESH':
+                    meshes = True
+                    if quadrics:
+                        break
+
+        if quadrics and meshes:
+            self.report({'WARNING'}, "Exporting scene mixes quadric and mesh geometries")
+            self.exportType = "QUADRICS" # Quadrics
+        elif quadrics:
+            self.exportType = "QUADRICS" # Quadrics            
+        else:
+            self.exportType = "MESH" # Mesh            
+        
         return super().invoke(context, event)
 
     def cancel(self, context):
