@@ -12,49 +12,89 @@ env:
 
 jobs:
   build:
+    runs-on: ${{ matrix.os.runner }}
     name: Build check
     strategy:
-      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        include:
-          - os: ubuntu-latest
-            release_suffix: ubuntu
-          - os: windows-latest
-            release_suffix: windows            
-          - os: macos-latest
-            release_suffix: mac
-    runs-on: ${{matrix.os}}
-            
+        os:
+          - { runner: ubuntu-latest, container: 'quay.io/pypa/manylinux_2_28_x86_64', name: manylinux }
+          - { runner: windows-latest, container: '', name: windows }
+          - { runner: macos-latest, container: '', name: macos}
+    container: ${{ matrix.os.container }}            
     steps:
     - uses: actions/checkout@v2
 
-    - name: Create building folder
+    - name: Create build and artifacts folders
       run: |
-        mkdir ${{ github.workspace }}/src/build
+        mkdir src/build
+        mkdir artifacts
 
-    - name: Build and compile
+    - name: Build and compile utilities without embedded DB
+      shell: bash
       run: |
-        cmake -DWITH_DICOM="OFF" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DWITH_LB="OFF" -DWITH_EMBEDDED_DB="OFF" ../
-        cmake --build . --config Release --target install
+
+        # Set architecture-specific flags for macOS
+        if [[ "${{ matrix.os.name }}" == "macos" ]]; then
+          ARCH_FLAGS="-DCMAKE_OSX_ARCHITECTURES=x86_64;arm64"
+        else
+          ARCH_FLAGS=""
+        fi      
+          
+        cmake $ARCH_FLAGS -DWITH_NATIVE="OFF" -DBUILD_TESTS="OFF" -DBUILD_UTILITIES="ON" -DWITH_DICOM="ON" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DWITH_LB="OFF" -DWITH_EMBEDDED_DB="OFF" ../
+        cmake --build . --config Release --target install -j 4
+      working-directory: ${{ github.workspace }}/src/build       
+
+    - name: Move compiled utilities to artifacts folder
+      shell: bash
+      run: |
+        mv src/compiled/* artifacts/
+        # Remove mains without DB
+        rm -fr artifacts/mains
+
+    - name: Build and compile main programs with embedded DB
+      shell: bash
+      run: |
+
+        # Set architecture-specific flags for macOS
+        if [[ "${{ matrix.os.name }}" == "macos" ]]; then
+          ARCH_FLAGS="-DCMAKE_OSX_ARCHITECTURES=x86_64;arm64"
+        else
+          ARCH_FLAGS=""
+        fi      
+          
+        cmake $ARCH_FLAGS -DWITH_NATIVE="OFF" -DBUILD_TESTS="OFF" -DBUILD_UTILITIES="OFF" -DWITH_DICOM="ON" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DWITH_LB="OFF" -DWITH_EMBEDDED_DB="ON" ../
+        cmake --build . --config Release --target install -j 4
       working-directory: ${{ github.workspace }}/src/build
-              
-    - name: Print PenRed version
+
+    - name: Move main programs to artifacts folder
+      shell: bash
       run: |
-        ./pen_main --version
-      working-directory: ${{ github.workspace }}/src/compiled/mains/penmain
+        mv src/compiled/mains artifacts/
+      
 
     - name: Print PenRed registered tallies
       run: |
         ./regTallies
-      working-directory: ${{ github.workspace }}/src/compiled/registers
+      working-directory: ${{ github.workspace }}/artifacts/registers
       
     - name: Print PenRed registered geometries
       run: |
         ./regGeometries
-      working-directory: ${{ github.workspace }}/src/compiled/registers
+      working-directory: ${{ github.workspace }}/artifacts/registers
       
     - name: Print PenRed registered particle samplers
       run: |
         ./regSamplers
-      working-directory: ${{ github.workspace }}/src/compiled/registers
+      working-directory: ${{ github.workspace }}/artifacts/registers
+
+    - name: Print PenRed version
+      run: |
+        ./pen_main --version
+      working-directory: ${{ github.workspace }}/artifacts/mains/penmain
+
+    - name: Upload artifacts
+      if: github.event_name == 'workflow_dispatch'
+      uses: actions/upload-artifact@v4
+      with:
+        name: artifacts-${{ matrix.os.name }}
+        path: artifacts
