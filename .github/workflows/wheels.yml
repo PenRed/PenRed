@@ -96,7 +96,7 @@ jobs:
           
             # Use the container's Python interpreter for manylinux
             /opt/python/cp${PYTHON_VERSION}-cp${PYTHON_VERSION}/bin/python -m pip install --upgrade pip
-            /opt/python/cp${PYTHON_VERSION}-cp${PYTHON_VERSION}/bin/python -m pip wheel . --wheel-dir wheelhouse
+            /opt/python/cp${PYTHON_VERSION}-cp${PYTHON_VERSION}/bin/python -m pip wheel . --wheel-dir wheelhouse --no-deps
           else
             # Use the host's Python interpreter for non-container jobs
             python -m pip install --upgrade pip
@@ -119,7 +119,7 @@ jobs:
                   lipo -extract x86_64 $lib -output pyPenred/$filename
                 fi
               done
-              ARCH=x86_64 python -m pip wheel . --wheel-dir tmp_wheelhouse_x86_64
+              ARCH=x86_64 python -m pip wheel . --wheel-dir tmp_wheelhouse_x86_64 --no-deps
 
               # Rename wheel
               for wheel in tmp_wheelhouse_x86_64/*.whl; do
@@ -149,7 +149,7 @@ jobs:
                   lipo -extract arm64 $lib -output pyPenred/$filename
                 fi
               done              
-              ARCH=arm64 python -m pip wheel . --wheel-dir tmp_wheelhouse_arm64
+              ARCH=arm64 python -m pip wheel . --wheel-dir tmp_wheelhouse_arm64 --no-deps
 
               # Rename wheel
               for wheel in tmp_wheelhouse_arm64/*.whl; do
@@ -167,7 +167,7 @@ jobs:
               
             else
               # For windows, create a single wheel
-              python -m pip wheel . --wheel-dir wheelhouse
+              python -m pip wheel . --wheel-dir wheelhouse --no-deps
             fi
           fi
           rm -f wheelhouse/PyYAML-*.whl
@@ -179,7 +179,7 @@ jobs:
           PYTHON_VERSION=$(echo "${{ matrix.python-version }}" | tr -d '.')
           cd src/bindings/python/pyPenred/wheelhouse
           /opt/python/cp${PYTHON_VERSION}-cp${PYTHON_VERSION}/bin/python -m pip install auditwheel
-          /opt/python/cp${PYTHON_VERSION}-cp${PYTHON_VERSION}/bin/python -m auditwheel repair *.whl --plat manylinux_2_28_x86_64 -w .
+          /opt/python/cp${PYTHON_VERSION}-cp${PYTHON_VERSION}/bin/python -m auditwheel repair --exclude numpy,pyyaml *.whl --plat manylinux_2_28_x86_64 -w .
           # Remove the original wheel
           rm -f pypenred-*-linux_x86_64.whl          
       
@@ -194,7 +194,7 @@ jobs:
           cd src/bindings/python/pyPenred
           
           # Fix wheels with delocate
-          delocate-wheel -w wheelhouse -v wheelhouse/*.whl
+          delocate-wheel --skip-deps numpy,pyyaml -w wheelhouse -v wheelhouse/*.whl
 
           # Check dependencies
           for wheel in wheelhouse/*.whl; do
