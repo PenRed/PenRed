@@ -25,13 +25,32 @@ jobs:
       # Install MkDocs, Material theme, and PyMdown extensions
       - run: pip install mkdocs mkdocs-material pymdown-extensions
 
-      # Build the documentation
+      # Build Blender plugin documentation
       - run: cd src/utilities/Blender/4.2.3/mkdocs && mkdocs build --site-dir ./site
+
+      # Install dependencies for pyPenred API documentation build
+      - run: pip pyPenred install sphinx furo sphinx-copybutton sphinx-autodoc-typehints sphinxcontrib-napoleon myst-parser
+
+      # Build pyPenred API documentation
+      - run: cd src/bindings/python/pyPenred/docs && make html
+
+      # Combine both documentations
+      - name: Merge docs
+        run: |
+          # Create a folder for each documentation
+          mkdir -p combined-docs/Blender
+          mkdir -p combined-docs/pyPenred
+          
+          # Get Blender plugin documentation
+          mv src/utilities/Blender/4.2.3/mkdocs/site/* combined-docs/Blender/
+
+          # Get pyPenred API documentation
+          mv src/bindings/python/pyPenred/docs/_build/html/* combined-docs/pyPenred/
 
       # Upload the built documentation as a GitHub Pages artifact
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: ./src/utilities/Blender/4.2.3/mkdocs/site
+          path: ./combined-docs/
 
   deploy-pages:
     needs: deploy  # Wait for the deploy job to complete
