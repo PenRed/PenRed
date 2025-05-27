@@ -29,7 +29,7 @@ jobs:
       - run: cd src/utilities/Blender/4.2.3/mkdocs && mkdocs build --site-dir ./site
 
       # Install dependencies for pyPenred API documentation build
-      - run: pip pyPenred install sphinx furo sphinx-copybutton sphinx-autodoc-typehints sphinxcontrib-napoleon myst-parser
+      - run: pip install pyPenred sphinx furo sphinx-copybutton sphinx-autodoc-typehints sphinxcontrib-napoleon myst-parser
 
       # Build pyPenred API documentation
       - run: cd src/bindings/python/pyPenred/docs && make html
