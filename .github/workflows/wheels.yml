@@ -194,7 +194,7 @@ jobs:
           cd src/bindings/python/pyPenred
           
           # Fix wheels with delocate
-          delocate-wheel --skip-deps numpy,pyyaml -w wheelhouse -v wheelhouse/*.whl
+          delocate-wheel --ignore-missing-dependencies -w wheelhouse -v wheelhouse/*.whl
 
           # Check dependencies
           for wheel in wheelhouse/*.whl; do
