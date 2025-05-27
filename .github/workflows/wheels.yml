@@ -77,10 +77,10 @@ jobs:
           fi          
           
           if [[ '${{ github.event.inputs.pypi_repo }}' == 'pypi' || "${{ matrix.os.name }}" == "windows" ]]; then
-            cmake $ARCH_FLAGS -DWITH_NATIVE="OFF" -DBUILD_TESTS=OFF -DBUILD_UTILITIES=OFF -DBUILD_PYTHON_MODULES=ON -DWITH_DICOM=ON -DWITH_MULTI_THREADING=ON -DPython3_EXECUTABLE=$PYTHON_EXECUTABLE ../
+            cmake $ARCH_FLAGS -DWITH_NATIVE="OFF" -DBUILD_TESTS=OFF -DBUILD_UTILITIES=OFF -DBUILD_PYTHON_MODULES=ON -DWITH_DICOM=ON -DXRAY=ON -DWITH_MULTI_THREADING=ON -DPython3_EXECUTABLE=$PYTHON_EXECUTABLE ../
             cmake --build . --config Release --target install -j 4
           else
-            cmake $ARCH_FLAGS -DCMAKE_BUILD_TYPE=Debug -DWITH_NATIVE="OFF" -DBUILD_TESTS=OFF -DBUILD_UTILITIES=OFF -DBUILD_PYTHON_MODULES=ON -DWITH_DICOM=ON -DWITH_MULTI_THREADING=ON -DPython3_EXECUTABLE=$PYTHON_EXECUTABLE ../
+            cmake $ARCH_FLAGS -DCMAKE_BUILD_TYPE=Debug -DWITH_NATIVE="OFF" -DBUILD_TESTS=OFF -DBUILD_UTILITIES=OFF -DBUILD_PYTHON_MODULES=ON -DWITH_DICOM=ON -DXRAY=ON -DWITH_MULTI_THREADING=ON -DPython3_EXECUTABLE=$PYTHON_EXECUTABLE ../
             cmake --build . --config Debug --target install -j 4
           fi
           
