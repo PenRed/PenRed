@@ -5,7 +5,7 @@
     <img src="logo.png" width="200" alt="PenRed logo">
   </a>
 </p>
-
+https://penred.github.io/PenRed/pyPenred/
 Python interface for the [PenRed](https://github.com/PenRed/PenRed) Monte Carlo radiation transport simulator, enabling programmatic control and automation.
 
 ## Key Features
@@ -138,6 +138,7 @@ def runFromFile(configFile = "config.in",
 
 ## Documentation
 
+📚 [pyPenred API](https://penred.github.io/PenRed/pyPenred/)
 📚 [PenRed Documentation](https://github.com/PenRed/PenRed/blob/master/doc/PenRed_usage_guide.pdf)  
 
 ## Support
