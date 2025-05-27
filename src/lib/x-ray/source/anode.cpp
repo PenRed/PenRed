@@ -2,6 +2,7 @@
 //
 //    Copyright (C) 2024 Universitat de València - UV
 //    Copyright (C) 2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -291,45 +292,45 @@ namespace penred{
       if(eMin < 50.0){
 	if(verbose > 0)
 	  printf("simAnode: Error: Minimum energy must be greater than 50 eV.\n");
-	return -1;
+	return errors::MINIMUM_ENERGY_TOO_LOW;
       }
 
       //Check beam energy
       if(eEnergy < 50.0){
 	if(verbose > 0)
 	  printf("simAnode: Error: Beam energy must be greater than 50 eV.\n");
-	return -1;
+	return errors::INVALID_ENERGY_RANGE;
       }
-      if(eEnergy >= 1.0e6){
+      if(eEnergy > 1.0e6){
 	if(verbose > 0)
-	  printf("simAnode: Error: Beam energy must be lesser than 1 GeV.\n");
-	return -1;
+	  printf("simAnode: Error: Beam energy must be lesser than 1 MeV.\n");
+	return errors::BEAM_ENERGY_TOO_HIGH;
       }
 
       if(eMin >= eEnergy){
 	if(verbose > 0)
 	  printf("simAnode: Error: Minimum scoring energy greater "
 		 "than initial beam energy.\n");
-	return -1;
+	return errors::INVALID_ENERGY_RANGE;
       }
 
       //Check focal spot
       if(focalSpot <= 0.0){
 	if(verbose > 0)
 	  printf("simAnode: Error: Invalid focal sport. Must be greater than zero.\n");
-	return -1;
+	return errors::INVALID_FOCAL_SPOT;
       }
       if(focalSpot >= 1.0){
 	if(verbose > 0)
 	  printf("simAnode: Error: Invalid focal spot. Must be lesser than 1cm");
-	return -1;
+	return errors::INVALID_FOCAL_SPOT;
       }
 
       //Check angle
       if(angle < 0.0 || angle >= 90.0){
 	if(verbose > 0)
 	  printf("simAnode: Error: Anode angle must be in the range [0,90) Deg.\n");
-	return -1;
+	return errors::INVALID_LIMITING_ANGLE;
       }
 
       const double angleRad = deg2rad*angle;
@@ -338,7 +339,7 @@ namespace penred{
       if(nHists == 0){
 	if(verbose > 0)
 	  printf("simAnode: Error: No histories must be simulated.\n");
-	return -1;
+	return errors::NOTHING_TO_SIMULATE;
       }
 
       //Get the number of threads to use
@@ -423,9 +424,10 @@ namespace penred{
 			      contextConf,
 			      matInfo,
 			      verbose) != pen_context::SUCCESS){
-	printf("simAnode: Error at simulation context initialization. "
-	       "See context report.\n");
-	return -3;
+	if(verbose > 0)
+	  printf("simAnode: Error at simulation context initialization. "
+		 "See context report.\n");
+	return errors::ERROR_ON_CONTEXT_INITIALIZATION;
       }
 
       // ** Geometry
@@ -488,7 +490,7 @@ namespace penred{
 		 "Please, report this error\n");
 	}
 	delete geometry;
-	return -4;
+	return errors::ERROR_ON_GEOMETRY_INITIALIZATION;
       }
 
       //Set the geometry to the simulation context
@@ -499,7 +501,8 @@ namespace penred{
 				     verbose) != pen_context::SUCCESS){
 	printf("simAnode: Error at simulation context initialization with geometry. "
 	       "Report this error.\n");
-	return -5;
+	delete geometry;
+	return errors::ERROR_ON_CONTEXT_INITIALIZATION;
       }
 
       // ** Convigure VR
@@ -517,7 +520,7 @@ namespace penred{
 	printf("Unexpected error: Unable to configure "
 	       "photon variance reduction. Please, report this.");
 	delete geometry;
-	return -5;
+	return errors::ERROR_ON_CONTEXT_INITIALIZATION;
       }
       
       // ** Configure seeds
@@ -571,7 +574,7 @@ namespace penred{
 			 onlyPhotons);
 #endif
       delete geometry;
-      return 0;
+      return errors::SUCCESS;
     }
 
     int simAnodeDistrib(const char* matFilename,
@@ -619,7 +622,7 @@ namespace penred{
 	if(verbose > 0)
 	  printf("simAnodeDistrib: Error: Pixel size must be "
 		 "greater than 0 cm.\n");
-	return -1;
+	return errors::INVALID_SIZE;
       }
   
       //Check specified minimum energy
@@ -627,7 +630,7 @@ namespace penred{
 	if(verbose > 0)
 	  printf("simAnodeDistrib: Error: Minimum energy must be "
 		 "greater than 50 eV.\n");
-	return -1;
+	return errors::MINIMUM_ENERGY_TOO_LOW;
       }
 
       //Check beam energy
@@ -635,20 +638,20 @@ namespace penred{
 	if(verbose > 0)
 	  printf("simAnodeDistrib: Error: Beam energy must be "
 		 "greater than 50 eV.\n");
-	return -1;
+	return errors::INVALID_ENERGY_RANGE;
       }
       if(eEnergy >= 1.0e6){
 	if(verbose > 0)
 	  printf("simAnodeDistrib: Error: Beam energy must be "
 		 "lesser than 1 GeV.\n");
-	return -1;
+	return errors::BEAM_ENERGY_TOO_HIGH;
       }
 
       if(eMin >= eEnergy){
 	if(verbose > 0)
 	  printf("simAnodeDistrib: Error: Minimum scoring energy greater "
 		 "than initial beam energy.\n");
-	return -1;
+	return errors::INVALID_ENERGY_RANGE;
       }
 
       //Check angle
@@ -656,7 +659,7 @@ namespace penred{
 	if(verbose > 0)
 	  printf("simAnodeDistrib: Error: Anode angle must be "
 		 "in the range [0,90) Deg.\n");
-	return -1;
+	return errors::INVALID_LIMITING_ANGLE;
       }
 
       const double angleRad = deg2rad*angle;
@@ -665,7 +668,7 @@ namespace penred{
       if(nHists == 0){
 	if(verbose > 0)
 	  printf("simAnodeDistrib: Error: No histories must be simulated.\n");
-	return -1;
+	return errors::NOTHING_TO_SIMULATE;
       }
 
       //Get the number of threads to use
@@ -767,7 +770,7 @@ namespace penred{
 			      verbose > 2 ? verbose : 1) != pen_context::SUCCESS){
 	printf("simAnodeDistrib: Error at simulation context initialization. "
 	       "See context report.\n");
-	return -3;
+	return errors::ERROR_ON_CONTEXT_INITIALIZATION;
       }
 
       // ** Geometry
@@ -829,7 +832,7 @@ namespace penred{
 	  printf("Unexpected Error: Unable to construct the geometry. "
 		 "Please, report this error.\n");
 	delete geometry;
-	return -4;
+	return errors::ERROR_ON_GEOMETRY_INITIALIZATION;
       }
 
       //Set the geometry to the simulation context
@@ -838,7 +841,7 @@ namespace penred{
 	printf("Unexpected Error: Unable to set geometry in the "
 	       "simulation context. Please, report this error.\n");
 	delete geometry;
-	return -4;
+	return errors::ERROR_ON_CONTEXT_INITIALIZATION;
       }
 
       //Run context configuration step with geometry
@@ -848,7 +851,7 @@ namespace penred{
 	       "initialization with geometry. "
 	       "Report this error.\n");
 	delete geometry;
-	return -5;
+	return errors::ERROR_ON_CONTEXT_INITIALIZATION;
       }
 
       // ** Convigure VR
@@ -866,7 +869,7 @@ namespace penred{
 	printf("Unexpected error: Unable to configure "
 	       "photon variance reduction. Please, report this.");
 	delete geometry;
-	return -5;
+	return errors::ERROR_ON_CONTEXT_INITIALIZATION;
       }
       
       // ** Configure seeds
@@ -901,7 +904,7 @@ namespace penred{
 	  printf("Unexpected error: Unable to copy "
 		 "spectrum tally configuration. Please, report this.");
 	  delete geometry;
-	  return -6;	  
+	  return errors::ERROR_ON_CONTEXT_INITIALIZATION;
 	}
 	err = spatialDistribs[i].init(spatialDistrib);
 	if(err != 0){
@@ -909,7 +912,7 @@ namespace penred{
 		 "spatial distribution tally configuration. "
 		 "Please, report this.");
 	  delete geometry;
-	  return -6;	  
+	  return errors::ERROR_ON_CONTEXT_INITIALIZATION;
 	}	
       }
 
@@ -948,7 +951,7 @@ namespace penred{
       spatialDistrib.add(spatialDistribs[0]);
 #endif
       delete geometry;
-      return 0;
+      return errors::SUCCESS;
     }
 
     void createAnode(std::ostream& out,

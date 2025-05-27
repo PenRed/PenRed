@@ -3,7 +3,7 @@
 #
 #    Copyright (C) 2019-2024 Universitat de València - UV
 #    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
-#    Copyright (C) 2024 Vicent Giménez Alventosa
+#    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -200,6 +200,11 @@ CMAKE_DEPENDENT_OPTION(XRAY "Compile x-ray libs and utilities, if enabled" OFF
 if(WITH_EMBEDDED_DB)
   add_definitions(-D_PEN_EMBEDDED_DATA_BASE_=1) #enable embedded data bases
 endif(WITH_EMBEDDED_DB)
+
+# Check if x-ray libs are enabled
+if(XRAY)
+  add_definitions(-D_PEN_XRAY_LIBS_=1) #enabled x-ray libs
+endif(XRAY)
 
 if(WITH_TCP)
   add_definitions(-D_PEN_USE_TCP_=1) #enable TCP library

@@ -1,0 +1,19 @@
+/* Force vertical parameter list */
+.sig-param {
+    display: block !important;
+    margin: 0.25em 0 !important;
+    padding-left: 1em !important;
+    text-indent: -1em !important;
+    line-height: 1.3 !important;
+}
+
+/* Make logo smaller */
+.sidebar-logo {
+    max-width: 150px;
+}
+
+/* Or make it larger */
+.sidebar-logo {
+    max-width: 200px;
+    padding: 1rem;
+}

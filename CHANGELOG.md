@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simplified MSVC optimization flags when native optimizations are disabled
 - PENNUC no longer requires external database files when built with embedded database (default behaviour)
 - PSF and PSF-based sources now use the shared configuration method rather than static variables
+- COMBO geometry body name assign
 
 ### Fixed
 - Resolved DCMTK compilation/linking errors with DICOM support
@@ -30,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Addressed macOS stack overflows in secondary threads
 - Fixed PENNUC file parsing for files with empty fields
 - Source configurations were not shared between threads in previous versions. (Note: This did not impact functionality for existing sources.)
+- X-Ray device simulation fails when a custom geometry is combined with anode simulation
 
 ## [1.12.1] - 2025-01-31
 

@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2023-2024 Universitat de València - UV
 //    Copyright (C) 2023-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -233,11 +234,7 @@ int pen_comboGeo::configure(const pen_parserSection& config,
       pen_comboBody& body = bodies[iBodyIndex];
       
       //Set body name
-      char bodyName[30];
-      sprintf(bodyName,"%u_%u",
-	      static_cast<unsigned>(igeo),
-	      static_cast<unsigned>(ibody));
-      body.name.assign(bodyName);
+      body.name = geometries[igeo]->name + "_" + geometries[igeo]->getBodyName(ibody);
 
       
       //Set body material

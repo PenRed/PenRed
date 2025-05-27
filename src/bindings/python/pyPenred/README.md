@@ -145,3 +145,18 @@ def runFromFile(configFile = "config.in",
 🐞 [Report Issues](https://github.com/PenRed/PenRed/issues)  
 💬 [Discussion Forum](https://github.com/PenRed/PenRed/discussions)
 
+## API
+
+To build the authomatic API documentation, you need the sphinx package:
+
+```python
+pip install sphinx furo sphinx-copybutton sphinx-autodoc-typehints sphinxcontrib-napoleon myst-parser
+```
+
+once installed, build the documentation running the following instructions inside the *docs* folder
+
+```bash
+make html
+```
+
+Finally, the documentation will be available opening the file *docs/build/html/index.html* with a web browser.
