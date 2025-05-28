@@ -1,8 +1,6 @@
 name: Build and Publish Binary Wheels
 
 on:
-  release:
-    types: [published]  # Trigger when a release is published
   workflow_dispatch:    # Allow manual triggering
     inputs:
       version:
