@@ -48,21 +48,14 @@ def runFromFile(configFile = "config.in",
     try:
         f = open(configFile)
         d = yaml.load(f, Loader=yaml.SafeLoader)
-        confSetErr = simu.configure(d)
+        simu.configure(d)
     except:
-        confSetErr = simu.configFromFile(configFile)
-
-    if(confSetErr != 0):
-        print(f"{simulation.errorMessage(err)}\nInvalid configuration file format. See config log\n")
-        return 1
+        simu.configFromFile(configFile)
         
     print("Configuration set\n")
 
     #Start the simulation asynchronously
-    err = simu.simulate(True)
-    if(err != 0):
-        print(f"{simulation.errorMessage(err)}\nError on simulation configuration. See config.log\n")
-        return 2
+    simu.simulate(True)
 
     #Simulation started, check status every 30 seconds
     print("Simulation started\n")
@@ -70,7 +63,7 @@ def runFromFile(configFile = "config.in",
         try:
             time.sleep(statusTime)
         except:
-            time.sleep(120)
+            time.sleep(20)
         status = simu.stringifyStatus()
         for e in status:
             print(e)

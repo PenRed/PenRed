@@ -6,7 +6,7 @@
   </a>
 </p>
 
-Official Blender integration for [PenRed](https://penred.github.io/PenRed/) radiation transport simulation toolkit.
+Official Blender integration for [PenRed](https://penred.github.io/PenRed/Blender) radiation transport simulation toolkit.
 
 ## Features
 - Create and export simulation geometries
@@ -16,14 +16,15 @@ Official Blender integration for [PenRed](https://penred.github.io/PenRed/) radi
 - Full GUI integration in Blender
 
 ## Installation
-1. Download the latest `.zip` from [Releases](#)
+1. Download the latest `.zip` from [Utilities](https://github.com/PenRed/PenRed/tree/v-1.13.0/src/utilities/Blender/4.2.3)
 2. In Blender:  
    `Edit > Preferences > Add-ons > Install...`  
    (Select the `.zip` and enable the plugin)
+   or just drag and drop the zip file within the Blender 3D viewport.
 
 ## Documentation
 Full documentation available at:  
-📚 [https://penred.github.io/PenRed/](https://penred.github.io/PenRed/)
+📚 [https://penred.github.io/PenRed/Blender](https://penred.github.io/PenRed/Blender)
 
 which corresponding source code is available in the *mkdocs* folder of this repository
 

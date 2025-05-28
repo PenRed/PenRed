@@ -1459,7 +1459,20 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
                     site_packages,
                     "--no-cache-dir"
                 ])
+
+                # numpy
+                subprocess.call([
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "numpy",
+                    "--target",
+                    site_packages,
+                    "--no-cache-dir"
+                ])
                 
+                # pyPenred
                 subprocess.call([
                     sys.executable, 
                     "-m", 

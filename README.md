@@ -30,6 +30,8 @@ On some systems, you may also need to install the *pyYAML* package manually:
 pip install pyYAML
 ```
 
+The complete [API documentation](https://penred.github.io/PenRed/pyPenred) can be found online and included in this package at *src/bindings/python/pyPenred/docs/*
+
 ### Compiling pyPenred
 
 To compile and install the pyPenred package manually (to enable native optimizations or include custom-developed modules), use the appropriate compilation script from the src folder:
@@ -64,7 +66,7 @@ A [Blender](https://www.blender.org/) plugin has been developed to integrate geo
 src/utilities/Blender/4.2.3/penred.zip
 ```
 
-The plugin [documentation is available online](https://penred.github.io/PenRed/), and both the plugin and documentation source code can be found in the same folder as the zipped plugin.
+The plugin [documentation is available online](https://penred.github.io/PenRed/Blender), and both the plugin and documentation source code can be found in the same folder as the zipped plugin.
 
 ## Code Compilation
 

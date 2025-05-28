@@ -34,7 +34,7 @@ bl_info = {
     "location": "File > Export",
     "description": "Adds geometry construction capabilities and simulation configuration for PenRed simulations",
     "warning": "",
-    "doc_url": "https://penred.github.io/PenRed/",
+    "doc_url": "https://penred.github.io/PenRed/Blender",
     "category": "Import-Export",
 }
 

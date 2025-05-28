@@ -516,29 +516,20 @@ Example:
         #!/usr/bin/env python3
         import pyPenred
         import time
+
+        #Define configuration file
+        configFile = "config.in"
     
         #Create simulation object
-        simu = simulation.create()
+        simu = pyPenred.simulation.create()
 
-        #Try to get the configuration from yaml or penred internal format
-        try:
-            f = open(configFile)
-            d = yaml.load(f, Loader=yaml.SafeLoader)
-            confSetErr = simu.configure(d)
-        except:
-            confSetErr = simu.configFromFile(configFile)
-
-        if(confSetErr != 0):
-            print(f"{simulation.errorMessage(err)}\nInvalid configuration file format. See config log\n")
-            return 1
+        #Try to configure the simulation from the configuration file
+        simu.configFromFile(configFile)
         
         print("Configuration set\n")
 
         #Start the simulation asynchronously
-        err = simu.simulate(True)
-        if(err != 0):
-            print(f"{simulation.errorMessage(err)}\nError on simulation configuration. See config.log\n")
-            return 2
+        simu.simulate(True)
 
         #Simulation started, check status every 20 seconds
         print("Simulation started\n")
@@ -644,7 +635,14 @@ Returns:
     .def("__repr__",
 	 [](const penred::simulation::simulator<pen_context>& /*obj*/){
 	   return std::string("<penred.simulator>");
-	 });
+	 })
+    .doc() = R"doc(
+A simulator class for penRed simulations.
+
+This class handles particle transport and interaction modeling
+in the penRed framework. It provides methods to configure and run
+simulations, track particles, and retrieve results.
+    )doc";
 
 #ifdef _PEN_EMBEDDED_DATA_BASE_
   
@@ -1290,7 +1288,7 @@ Example:
         import numpy as np
         import pyPenred
 
-        results = pyPenred.simulation.xray.deviceSim(ebins=100, inherent_filter_width=0.15, anode_angle=16, source_to_detector=100.0, max_time=7200, histories=1.0e8)
+        results = pyPenred.simulation.xray.deviceSim(ebins=100, inherent_filter_width=0.15, anode_angle=16, source_to_detector=100.0, max_time=600, histories=1.0e8)
 
         # Extract energy and spatial ranges
         eLimits = results[0]

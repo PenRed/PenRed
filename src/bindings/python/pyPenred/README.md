@@ -94,6 +94,10 @@ def runFromFile(configFile = "config.in",
                 statusTime = 20,
                 configLog = "config.log",
                 simulationLog = "simulation.log"):
+    '''
+    Configures and runs a simulation from the specified file.
+    Reports the simulation status periodically.
+    '''
 
     #Set logs
     simulation.setConfigurationLog(str(configLog))
@@ -106,21 +110,14 @@ def runFromFile(configFile = "config.in",
     try:
         f = open(configFile)
         d = yaml.load(f, Loader=yaml.SafeLoader)
-        confSetErr = simu.configure(d)
+        simu.configure(d)
     except:
-        confSetErr = simu.configFromFile(configFile)
-
-    if(confSetErr != 0):
-        print("Invalid configuration file format. See config log\n")
-        return 1
+        simu.configFromFile(configFile)
         
     print("Configuration set\n")
 
     #Start the simulation asynchronously
-    err = simu.simulate(True)
-    if(err != 0):
-        print("Error on simulation configuration. See config.log\n")
-        return 2
+    simu.simulate(True)
 
     #Simulation started, check status every 30 seconds
     print("Simulation started\n")
@@ -128,7 +125,7 @@ def runFromFile(configFile = "config.in",
         try:
             time.sleep(statusTime)
         except:
-            time.sleep(120)
+            time.sleep(20)
         status = simu.stringifyStatus()
         for e in status:
             print(e)
@@ -139,6 +136,7 @@ def runFromFile(configFile = "config.in",
 ## Documentation
 
 📚 [pyPenred API](https://penred.github.io/PenRed/pyPenred/)
+
 📚 [PenRed Documentation](https://github.com/PenRed/PenRed/blob/master/doc/PenRed_usage_guide.pdf)  
 
 ## Support
