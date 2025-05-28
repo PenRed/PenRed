@@ -52,31 +52,46 @@ public:
 };
 
 class pen_stopWatch{
+
 private:
   std::chrono::steady_clock::time_point _start;
   std::chrono::steady_clock::time_point stop;
   std::chrono::milliseconds interval;
+  
 public:
 
+  static constexpr const std::chrono::milliseconds MAX_DURATION_MS{157'788'000'000}; //Allow "only" 5 years as time intervals
+  
   pen_stopWatch() : interval(0){
     _start = std::chrono::steady_clock::now();
     stop = _start;
   }
 
   template<class T> pen_stopWatch(T elapsed, const typename std::enable_if<std::is_integral<T>::value,bool>::type /*dummy*/ = true){
-    std::chrono::milliseconds::rep toWait;
-    if(std::numeric_limits<std::chrono::milliseconds::rep>::max() < elapsed)
-      toWait = std::numeric_limits<std::chrono::milliseconds::rep>::max();
-    else
-      toWait = static_cast<std::chrono::milliseconds::rep>(elapsed);
-    
-    interval = std::chrono::milliseconds(toWait);
+
+    if(elapsed > 0){    
+      if(static_cast<double>(MAX_DURATION_MS.count()) <= static_cast<double>(elapsed))
+	interval = MAX_DURATION_MS;
+      else
+	interval = std::chrono::milliseconds(static_cast<std::chrono::milliseconds::rep>(elapsed));
+    }else{
+      interval = std::chrono::milliseconds(0);
+    }
     _start = std::chrono::steady_clock::now();
     stop = _start;
   }
   
   template<class T> void duration(const T elapsed){
-    interval = std::chrono::milliseconds(elapsed);
+
+    if(elapsed > 0){    
+      if(static_cast<double>(MAX_DURATION_MS.count()) <= static_cast<double>(elapsed))
+	interval = MAX_DURATION_MS;
+      else
+	interval = std::chrono::milliseconds(static_cast<std::chrono::milliseconds::rep>(elapsed));
+    }else{
+      interval = std::chrono::milliseconds(0);
+    }
+
     if(_start < stop){
       //Update stop
       stop = _start + interval;
@@ -89,15 +104,11 @@ public:
   }
 
   inline bool check(const std::chrono::steady_clock::time_point& time) const {
-    if(time >= stop)
-      return true;
-    return false;
+    return time >= stop;
   }
   
   inline bool check() const {
-    if(std::chrono::steady_clock::now() >= stop)
-      return true;
-    return false;
+    return std::chrono::steady_clock::now() >= stop;
   }
 };
   

@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2024 Universitat de València - UV
-//    Copyright (C) 2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024-2025 Universitat de València - UV
+//    Copyright (C) 2024-2025 Universitat Politècnica de València - UPV
 //    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
@@ -108,12 +108,14 @@ namespace penred{
 
 	//Get particle ID
 	unsigned id = particleID(auxkpar.c_str());
-	if(!isKpar(id)){
+	if(isKpar(id)){
+	  source.kpar = static_cast<pen_KPAR>(id);	  
+	}
+	else if(!useSpecific){
 	  if(verbose > 0)
 	    cout << "\nInvalid selected particle type: " << auxkpar << std::endl;
 	  return -2;
 	}
-	source.kpar = static_cast<pen_KPAR>(id);
 
 	//Configure source
 	source.configure(config,nThreads,verbose);
@@ -687,9 +689,9 @@ namespace penred{
       static std::string versionMessage(){
 
 	return std::string("***************************************************************\n"
-			   " PenRed version: 1.12.1 (1-December-2024) \n"
-			   " Copyright (c) 2019-2024 Universitat Politecnica de Valencia\n"
-			   " Copyright (c) 2019-2024 Universitat de Valencia\n"
+			   " PenRed version: 1.13.0 (28-May-2025) \n"
+			   " Copyright (c) 2019-2025 Universitat Politecnica de Valencia\n"
+			   " Copyright (c) 2019-2025 Universitat de Valencia\n"
 			   " Copyright (c) 2024-2025 Vicent Giménez Alventosa\n"
 			   " Reference: Computer Physics Communications, 267 (2021) 108065\n"
 			   "            https://doi.org/10.1016/j.cpc.2021.108065\n"
@@ -1064,15 +1066,17 @@ namespace penred{
 	int nseedPairAux;
 	path = prefixSimConfig + "/seedPair"; 
 	if(config.read(path,nseedPairAux) == INTDATA_SUCCESS){
-	  if(setSeedPair(nseedPairAux) != errors::SUCCESS){
+
+	  if(nseedPairAux < 0 || nseedPairAux > 1000){
 	    if(verbose > 0){
 	      cout << "Invalid initial seed pair number " << nseedPairAux << std::endl;
 	      cout << "Available seed pair range is [0,1000]" << std::endl;
 	      cout << "Seed pair will be unchanged. " << std::endl;
 	    }
-	  }
-	  else if(verbose > 2){
-	    cout << "Selected rand0 seed pair number: " << nSeedPair << std::endl;
+	  }else{
+	    nSeedPair = nseedPairAux;
+	    if(verbose > 2)
+	      cout << "Selected rand0 seed pair number: " << nSeedPair << std::endl;
 	  }
 	}else{
 	  nSeedPair = -1;
@@ -1201,30 +1205,40 @@ namespace penred{
 
 	//Get lock until configuration finish
 	std::unique_lock<std::mutex> lock(simMutex);
+
+	// Get verbose level
+	const unsigned verbose = baseSimConfig.verbose;
 	
 	if(simulating){
+	  if(verbose > 0)
+	    cout << errors::errorMessage(errors::ERROR_SIMULATION_RUNNING) << std::endl;
 	  return errors::ERROR_SIMULATION_RUNNING;
 	}
 	
 	//Ensure required configurations are provided
 	if(contextConfig.empty()){
+	  if(verbose > 0)
+	    cout << errors::errorMessage(errors::ERROR_MISSING_CONTEXT_CONFIGURATION) << std::endl;
 	  return errors::ERROR_MISSING_CONTEXT_CONFIGURATION;
 	}
 	if(particleSourcesConfig.empty()){
+	  if(verbose > 0)
+	    cout << errors::errorMessage(errors::ERROR_MISSING_SOURCE_CONFIGURATION) << std::endl;
 	  return errors::ERROR_MISSING_SOURCE_CONFIGURATION;
 	}
 	if(geometryConfig.empty()){
+	  if(verbose > 0)
+	    cout << errors::errorMessage(errors::ERROR_MISSING_GEOMETRY_CONFIGURATION) << std::endl;
 	  return errors::ERROR_MISSING_GEOMETRY_CONFIGURATION;
 	}
 	if(talliesConfig.empty()){
+	  if(verbose > 0)
+	    cout << errors::errorMessage(errors::ERROR_MISSING_TALLY_CONFIGURATION) << std::endl;
 	  return errors::ERROR_MISSING_TALLY_CONFIGURATION;
 	}
 	
 	//Create a timer to measure the expended time in initialization 
 	pen_timer initializationTimer;
-
-	// Get verbose level
-	const unsigned verbose = baseSimConfig.verbose;
 	
 	// Create a simulation config for each thread
 	//*********************************************
@@ -1238,7 +1252,7 @@ namespace penred{
 	}
 
 	// ** Set random seeds
-	constexpr size_t nRand0Seeds = 1001;
+	const size_t nRand0Seeds = baseSimConfig.nRandSeeds();
 
 	if(nThreads > 1){
 	  for(unsigned i = 0; i < nThreads; i++){

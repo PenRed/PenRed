@@ -3,6 +3,7 @@
 #
 #    Copyright (C) 2024 Universitat de València - UV
 #    Copyright (C) 2024 Universitat Politècnica de València - UPV
+#    Copyright (C) 2025 Vicent Giménez Alventosa
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -68,6 +69,9 @@ endif()
 add_library(simulator MODULE ${CMAKE_CURRENT_SOURCE_DIR}/simulator.cpp)
 target_link_libraries(simulator PUBLIC pybind11::module)
 target_link_libraries(simulator PUBLIC pen_sim)
+if(XRAY)
+    target_link_libraries(simulator PUBLIC pen_xray)
+endif(XRAY)
 set_target_properties(simulator PROPERTIES
       OUTPUT_NAME simulation${MODULE_SUFFIX}
       SUFFIX ""

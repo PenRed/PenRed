@@ -1,8 +1,9 @@
 
 //
 //
-//    Copyright (C) 2024 Universitat de València - UV
-//    Copyright (C) 2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024-2025 Universitat de València - UV
+//    Copyright (C) 2024-2025 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -22,7 +23,6 @@
 //    contact emails:
 //
 //        vicent.gimenez.alventosa@gmail.com  (Vicent Giménez Alventosa)
-//        vicente.gimenez@uv.es (Vicente Giménez Gómez)
 //        sanolgi@upvnet.upv.es (Sandra Oliver Gil)
 //    
 //
@@ -41,36 +41,37 @@ private:
 
   struct single{
 
-    static constexpr const size_t maxBuffSize = 110;
+    static constexpr const size_t maxBuffSize = 150;
+    static constexpr const size_t dataSize = sizeof(float)*5 + sizeof(double) + sizeof(unsigned long long);
     
     double E, x, y, z, t, weight;
+    unsigned long long hist;
 
     constexpr single() : E(0.0), x(0.0), y(0.0), z(0.0), t(0.0),
-			 weight(0.0)
+			 weight(0.0), hist(0)
     {}
     inline single(const double de,
 		  const double xIn, const double yIn, const double zIn,
-		  const double tIn, const double w) noexcept :
+		  const double tIn, const double w, const unsigned long long histIn) noexcept :
       E(de),
       x(de*xIn),
       y(de*yIn),
       z(de*zIn),
       t(tIn),
-      weight(de*w)
+      weight(de*w),
+      hist(histIn)
     {}
 
-    inline void add(const double de,
-		    const double xIn, const double yIn, const double zIn,
-		    const double w) noexcept {
-      
-      E += de;
-      x += de*xIn;
-      y += de*yIn;
-      z += de*zIn;
-      weight += de*w;
+    inline std::string stringify() const noexcept {
+      char auxBuff[maxBuffSize];
+      toBufferFinal(auxBuff, maxBuffSize);
+      std::string ret(auxBuff);
+      ret.pop_back();
+      return ret;
     }
 
     inline void add(const single& s) noexcept {
+
       E += s.E;
       x += s.x;
       y += s.y;
@@ -78,82 +79,240 @@ private:
       weight += s.weight;
     }
 
+    inline void addEnergy(const double de, const double w) noexcept {
+      //Scale energy increment according to weight ratio
+      const double origW = weight/E;
+      const vector3D<double> porig = pos();
+      E = E + de*w/origW;
+
+      //Correct parameters
+      x = porig.x*E;
+      y = porig.y*E;
+      z = porig.z*E;
+      weight = origW*E;
+      
+    }
+
     inline vector3D<double> pos() const noexcept {
-      if(E <= 1.0e-15)
-	return vector3D<double>(x,y,z);
-      else{
-	return vector3D<double>(x/E,y/E,z/E);
-      }
+      return vector3D<double>(x/E,y/E,z/E);
+    }
+
+    inline double dist(const single& s) const noexcept{
+      return pos().dist(s.pos());
     }
 
     inline int toBuffer(char* b, size_t max) const {
       return snprintf(b, max, "%15.5E %15.5E %15.5E %15.5E "
-		      "%25.15E %15.5E\n",
-		      E, x, y, z, t, weight);
+		      "%25.15E %15.5E %llu\n",
+		      E, x, y, z, t, weight, hist);
     }
 
     inline int toBufferFinal(char* b, size_t max) const {
       return snprintf(b, max, "%15.5E %15.5E %15.5E %15.5E "
-		      "%25.15E %15.5E\n",
-		      E, x/E, y/E, z/E, t, weight/E);
+		      "%25.15E %15.5E %llu\n",
+		      E, x/E, y/E, z/E, t, weight/E, hist);
+    }
+
+    inline void toBufferB(unsigned char* b, size_t& pos){
+      float auxf[] = {(float)E, (float)x, (float)y, (float)z, (float)weight};
+      memcpy(&b[pos], auxf, 5*sizeof(float));
+      pos += sizeof(float)*5;
+
+      memcpy(&b[pos], &t, sizeof(double));
+      pos += sizeof(double);      
+      memcpy(&b[pos], &hist, sizeof(unsigned long long));
+      pos += sizeof(unsigned long long);
+    }
+
+    inline void toBufferFinalB(unsigned char* b, size_t& pos){
+      float auxf[] = {(float)E, float(x/E), float(y/E), float(z/E), float(weight/E)};
+      memcpy(&b[pos], auxf, 5*sizeof(float));
+      pos += sizeof(float)*5;
+
+      memcpy(&b[pos], &t, sizeof(double));
+      pos += sizeof(double);      
+      memcpy(&b[pos], &hist, sizeof(unsigned long long));
+      pos += sizeof(unsigned long long);
     }
     
-    inline bool read(FILE* f){
-      char line[maxBuffSize+1];
-      while(fgets(line, maxBuffSize+1, f) != nullptr){
-	if(sscanf(line, "%le %le %le %le %le %le",
-		  &E, &x, &y, &z, &t, &weight) == 6){
-	  return true;
-	}
-	else{
-	  penred::logs::logger::printf(penred::logs::SIMULATION,
-				       "Error: Skipping corrupted line: %s\n", line);
-	}
-      }
-      return false;
+    inline bool read(FILE* f, unsigned long& offset){
+
+      //Set the file position
+      std::fseek(f, offset, SEEK_SET);
+
+      offset += dataSize;
+
+      float auxf[5];
+      fread(static_cast<void*>(auxf), sizeof(float), 5, f);
+      E = auxf[0];
+      x = auxf[1];
+      y = auxf[2];
+      z = auxf[3];
+      weight = auxf[4];
+
+      fread(static_cast<void*>(&t), sizeof(double), 1, f);
+      if(fread(static_cast<void*>(&hist), sizeof(unsigned long long), 1, f) == 1)
+	return true;
+      else
+	return false;
+      
     }
     
     inline bool operator<(const single& o) const noexcept{
+      if(t == o.t){
+	return E > o.E; //Set first high or positive energy
+      }
       return t < o.t;
     }
   };
 
   struct singlesBuffer{
-    static constexpr const size_t size = 10000;
+    static constexpr const size_t baseSize = 200000;
   private:
     std::vector<single> buffer;
     size_t n;
     size_t nflushes;
   public:
-    singlesBuffer() noexcept : buffer(size), n(0), nflushes(0) {}
-    inline bool store(const double de,
+    singlesBuffer() noexcept : buffer(baseSize), n(0), nflushes(0) {}
+    inline void store(const double de,
 		      const double x, const double y, const double z,
-		      const double t, const double w) noexcept {
-      if(n < size){
-	buffer[n++] = single(de, x, y, z, t, w);
-	return true;
+		      const double t, const double w,
+		      const unsigned long long hist) noexcept {
+      
+      if(n < buffer.size()){
+	buffer[n++] = single(de, x, y, z, t, w, hist);
       }else{
-	return false;
+	buffer.resize(buffer.size() + baseSize/10);
+	buffer[n++] = single(de, x, y, z, t, w, hist);
       }
     }
+
+    inline void reduce(const size_t start, const double dt, const double tmin, const double tmax){
+
+      if(n <= start+1)
+	return;      
+
+      //std::vector<single> auxBuff(buffer.cbegin() + start, buffer.cbegin() + n);
+      
+      //Sort specified data range
+      std::sort(buffer.begin() + start, buffer.begin() + n);
+
+      //std::vector<single> auxBuffSort(buffer.cbegin() + start, buffer.cbegin() + n);
+
+      // Add singles within the same time window
+      
+      //Create auxiliary single
+      single auxSing;
+      size_t iAux = start;
+      
+      //Get the first single with positive energy
+      size_t ifirst = iAux;
+      auxSing = buffer[ifirst];
+      while(auxSing.E < 0.0 && ifirst < n-1){
+	//Get the next one
+	auxSing = buffer[++ifirst]; 
+      }
+      
+      if(ifirst != iAux){
+	//The first single with positive energy is not at the first position, correct it
+	buffer[ifirst] = buffer[iAux];
+      }
+
+      if(auxSing.E < 0.0){
+	penred::logs::logger::printf(penred::logs::SIMULATION,
+				     "No non negative single found!\n"
+				     "   First Energy: %15.5E",
+				     buffer[ifirst].E);
+      }
+
+      //double lastE = auxSing.E;
+      for(size_t i = iAux+1; i < n; ++i){
+	if(buffer[i].E < 0.0){ //Check if the next pulse has a negative energy 	  
+	  auxSing.addEnergy(buffer[i].E, buffer[i].weight/buffer[i].E);
+	}
+	else if(buffer[i].t - auxSing.t < dt){ //Check time window
+	  auxSing.add(buffer[i]);	  
+	}else{
+	  //Pulse with positive energy outside the join window
+
+	  //lastE = auxSing.E;
+
+	  //Save the current single
+	  if(auxSing.E > 0.0){
+	    if(auxSing.t >= tmin && auxSing.t <= tmax)
+	      buffer[iAux++] = auxSing;
+	  }
+	  /*
+	  else if(auxSing.E <= -1.0e-6)
+	    penred::logs::logger::printf(penred::logs::SIMULATION,
+					 "Warning: Single with negative energy (%E eV)."
+					 " Previous single energy: %E eV\n"
+					 "       i first: %lu\n"					 
+					 "         Start: %lu\n"
+					 "          iAux: %lu\n"
+					 "             n: %lu\n",
+					 auxSing.E, lastE, ifirst, start, iAux, n);
+	  */
+	  
+	  //Get the next one
+	  auxSing = buffer[i];
+	}
+	
+      }
+      
+      //Save the last single
+      if(auxSing.E > 0.0){
+	buffer[iAux++] = auxSing;
+      }
+      /*
+      else if(auxSing.E <= -1.0e-6){
+
+	std::string text;
+	for(size_t k = 0; k < auxBuff.size(); ++k){
+	  text.append(auxBuffSort[k].stringify() + "  |  " + auxBuff[k].stringify());
+	  text.append("\n");
+	}
+	
+	penred::logs::logger::printf(penred::logs::SIMULATION,
+				     "Warning: Final single with negative energy (%E eV).\n"
+				     "         Previous single energy: %E eV\n"
+				     " Previous history single energy: %E eV\n"
+				     "       i first: %lu\n"					 
+				     "         Start: %lu\n"
+				     "          iAux: %lu\n"
+				     "             n: %lu\n"
+				     "         tinit: %.25E\n"				     
+				     "         tlast: %.25E\n"
+				     "         Einit: %.15E\n"				     
+				     "         Elast: %.15E\n"
+				     " Singles list (%lu):\n%s\n",
+				     auxSing.E, lastE, buffer[start > 0 ? start-1 : 0].E, ifirst, start, iAux, n,
+				     auxSing.t, buffer[n-1].t, buffer[iAux].E, buffer[n-1].E,
+				     auxBuff.size(), text.c_str());
+      }
+      */
+
+      
+      //Update the number of elements in the buffer
+      n = iAux;      
+    }
     
-    inline std::string flush(){
+    inline std::vector<unsigned char> flush(){
 
       if(n == 0)
-	return std::string();
+	return std::vector<unsigned char>();
 
       //Sort data
       std::sort(buffer.begin(), buffer.begin()+n);
-      
-      //Reserve a buffer to store data
-      std::string result;
-      result.resize(single::maxBuffSize*n);
-      
-      //Save data in the result buffer
-      long int pos = 0;
+
+      //Create a results buffer
+      std::vector<unsigned char> result;
+      result.resize(single::dataSize*n);
+
+      //Save data in the results buffer
+      size_t pos = 0;
       for(size_t i = 0; i < n; ++i){
-	int nwrite = buffer[i].toBuffer((&result.front() + pos), single::maxBuffSize);
-	pos += nwrite;
+	buffer[i].toBufferB(result.data(), pos);
       }
 
       //Reset buffer
@@ -166,9 +325,10 @@ private:
       return result;
     }
     inline size_t flushes() const { return nflushes; }
+    inline size_t size() const { return n; }
   };
   
-  double emin, emax;
+  double singleEmin, singleEmax;
   double tmin, tmax;
   double dt;
 
@@ -176,21 +336,27 @@ private:
 
   std::array<unsigned long, constants::nParTypes> nInStack;
 
-  static constexpr const size_t tpart = 10;
-  //The tally will use one buffer per time partition and detector
-  std::array<std::vector<singlesBuffer>, tpart> buffers;
-  //Save detector index in buffer array
+  //The tally will use one buffer per detector
+  std::vector<singlesBuffer> buffers;
+  //Save last history start position in each buffer
+  std::vector<size_t> lastHistStart;
+  //Save enabled detector indexes
   std::vector<unsigned> detInternalIndex;
   //Save sensible detectors
   std::vector<bool> kdets;
   //Save paths to information files
-  std::array<std::string, tpart> fInfoPaths;
+  std::vector<std::string> fInfoPaths;
+  //Save paths to data files
+  std::vector<std::string> fDataPaths;
+  //Save data files offsets (Bytes from file beggining)
+  std::vector<unsigned long> offsets;
 
   unsigned actualKdet;
   bool toDetect;
-  bool knocked;
   bool simFinished;
   bool removeOnEnd;
+  bool binary;
+  bool skipBeginPart;
 
   const wrapper_geometry* geo;
   
@@ -198,17 +364,13 @@ public:
 
   pen_Singles() : pen_genericTally( USE_LOCALEDEP |
 				    USE_BEGINPART |
-				    USE_JUMP |
+				    USE_SAMPLEDPART |
 				    USE_STEP |
-				    USE_KNOCK |
-				    USE_ENDPART |
+				    USE_MOVE2GEO |
 				    USE_INTERFCROSS |
+				    USE_ENDHIST |
 				    USE_ENDSIM)
   {}
-
-  inline singlesBuffer& getBuffer(unsigned ipart, unsigned idet){
-    return buffers[ipart][detInternalIndex[idet]];
-  }
 
   inline bool activeDet(){
     //Check detector
@@ -221,53 +383,55 @@ public:
   inline void count(const double de,
 		    const double x, const double y, const double z,
 		    const double t, const double w,
-		    const unsigned ipart){
+		    const unsigned long long nhist){
 
-    if(de < emin || de > emax)
+    if(!toDetect)
+      return;
+    
+    if(de == 0.0)
       return;
 
     //Get the buffer
-    singlesBuffer& buffer = getBuffer(ipart, actualKdet);
-
+    singlesBuffer& buffer = buffers[detInternalIndex[actualKdet]];
+    
     //Store single
-    if(!buffer.store(de, x, y, z, t, w)){
-      flush(ipart, actualKdet);
-      buffer.store(de, x, y, z, t, w);
-    }
+    buffer.store(de, x, y, z, t, w, nhist);
   }
   
-  void tally_localEdep(const unsigned long long /*nhist*/,
+  void tally_localEdep(const unsigned long long nhist,
 		       const pen_KPAR /*kpar*/,
 		       const pen_particleState& state,
 		       const double dE);
-  void tally_beginPart(const unsigned long long /*nhist*/,
-		       const unsigned /*kdet*/,
+  
+  void tally_beginPart(const unsigned long long nhist,
+		       const unsigned kdet,
 		       const pen_KPAR /*kpar*/,
 		       const pen_particleState& state);
 
-  void tally_jump(const unsigned long long /*nhist*/,
-		  const pen_KPAR /*kpar*/,
-		  const pen_particleState& /*state*/,
-		  const double /*ds*/);
+  void tally_sampledPart(const unsigned long long nhist,
+			 const unsigned long long /*dhist*/,
+			 const unsigned kdet,
+			 const pen_KPAR /*kpar*/,
+			 const pen_particleState& state);
   
-  void tally_step(const unsigned long long /*nhist*/,
+  void tally_step(const unsigned long long nhist,
 		  const pen_KPAR /*kpar*/,
 		  const pen_particleState& state,
 		  const tally_StepData& stepData);
 
-  void tally_knock(const unsigned long long /*nhist*/,
-		   const pen_KPAR /*kpar*/,
-		   const pen_particleState& /*state*/,
-		   const int /*icol*/);
-  
-  void tally_endPart(const unsigned long long /*nhist*/,
-		     const pen_KPAR /*kpar*/,
-		     const pen_particleState& state);
-    
+  void tally_move2geo(const unsigned long long nhist,
+		      const unsigned kdet,
+		      const pen_KPAR /*kpar*/,
+		      const pen_particleState& state,
+		      const double /*dsef*/,
+		      const double /*dstot*/);  
+
   void tally_interfCross(const unsigned long long /*nhist*/,
 			 const unsigned kdet,
 			 const pen_KPAR /*kpar*/,
 			 const pen_particleState& /*state*/);
+
+  void tally_endHist(const unsigned long long /*nhist*/);
 
   inline void tally_endSim(const unsigned long long /*nhist*/){
     simFinished = true;
@@ -276,10 +440,12 @@ public:
   int configure(const wrapper_geometry& geometry,
 		const abc_material* const /*materials*/[pen_geoconst::NB],     
 		const pen_parserSection& /*config*/, const unsigned verbose);
-  void flush(const unsigned ipart, const unsigned det);
+  void flush(const unsigned det);
   void flush();
   void saveData(const unsigned long long nhist) const;
   int sumTally(const pen_Singles& tally);
+
+  void orderDetectorData(const unsigned idet, FILE* fout) const;
 };
 
 //Tally configuration reader
@@ -293,8 +459,9 @@ public:
   };
 
   bool removeOnEnd;
+  bool binary;
   
-  double emin, emax;
+  double singleEmin, singleEmax;
   double tmin, tmax, tjoin;
 
   std::vector<unsigned> kdets;
@@ -333,20 +500,20 @@ detectors/reader-required/type "required"
 # Thresholds
 
 ## Energy
-energy/min/reader-description "Minimum energy to be tallied in eV"
-energy/min/reader-value 0.0
-energy/min/reader-required/type "required_if_exist"
-energy/min/reader-required/value "energy/max"
-energy/min/reader-conditions/lt/type "lesser"
-energy/min/reader-conditions/lt/value "energy/max"
-energy/min/reader-conditions/positive/type "positive"
+energy/single/min/reader-description "Minimum single energy to be stored, in eV"
+energy/single/min/reader-value 0.0
+energy/single/min/reader-required/type "required_if_exist"
+energy/single/min/reader-required/value "energy/single/max"
+energy/single/min/reader-conditions/lt/type "lesser"
+energy/single/min/reader-conditions/lt/value "energy/single/max"
+energy/single/min/reader-conditions/positive/type "positive"
 
-energy/max/reader-description "Maximum energy to be tallied in eV"
-energy/max/reader-value 1.0e30
-energy/max/reader-required/type "required_if_exist"
-energy/max/reader-required/value "energy/min"
-energy/max/reader-conditions/gt/type "greater"
-energy/max/reader-conditions/gt/value "energy/min"
+energy/single/max/reader-description "Maximum single energy to be stored, in eV"
+energy/single/max/reader-value 1.0e30
+energy/single/max/reader-required/type "required_if_exist"
+energy/single/max/reader-required/value "energy/single/min"
+energy/single/max/reader-conditions/gt/type "greater"
+energy/single/max/reader-conditions/gt/value "energy/single/min"
 
 ## Time
 time/min/reader-description "Minimum time to be tallied in seconds"
@@ -374,6 +541,9 @@ clear/reader-description "Enable/disable removing auxiliary data files after fin
 clear/reader-value true
 clear/reader-required/type "optional"
 
+binary/reader-description "Enable/disable binary output."
+binary/reader-value true
+binary/reader-required/type "optional"
 )===";
 };
 

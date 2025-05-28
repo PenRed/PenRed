@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
-//    Copyright (C) 2024 Vicent Giménez Alventosa
+//    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -468,17 +468,10 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 		      static_cast<unsigned>(dicom.getNZ())};
   double dvox[3] = {dicom.getDX(),dicom.getDY(),dicom.getDZ()};
 
-  unsigned* mats = nullptr;
-  double*   dens = nullptr;
-
   unsigned long tnvox = dicom.getNVox();
-  
-  mats = (unsigned*) malloc(sizeof(unsigned)*tnvox);
-  dens = (double*)   malloc(sizeof(double)*tnvox);
 
-  if(mats == nullptr || dens == nullptr){
-    throw std::bad_alloc();
-  }
+  std::vector<unsigned> mats(tnvox);
+  std::vector<double>   dens(tnvox);
 
   //Set materials and densities to default values
   for(unsigned long ivox = 0; ivox < tnvox; ivox++){mats[ivox] = defMat;}
@@ -835,7 +828,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   }
   
   //Create voxelized geometry
-  err = setVoxels(nvox,dvox,mats,dens,verbose);
+  err = setVoxels(nvox,dvox,mats.data(),dens.data(),verbose);
   if(err != 0){
     if(verbose > 0){
       printf("pen_dicomGeo:configure: Error: Unable to create voxel geometry from DICOM with provided configuration.\n");
@@ -1208,7 +1201,9 @@ int readIntensityRanges(const pen_parserSection& config,
   
   if(config.readSubsection("intensity-ranges",intensityRanges) != INTDATA_SUCCESS){
     if(verbose > 1){
-      printf(" No image intensity ranges field ('intensity-ranges') provided to assign materials\n");
+      penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				   " No image intensity ranges field ('intensity-ranges') "
+				   "provided to assign materials\n");
     }
     return 0;
   }else{
@@ -1218,7 +1213,8 @@ int readIntensityRanges(const pen_parserSection& config,
 
   if(intensityRangesNames.size() > 0){
     if(verbose > 1)
-      printf("\nRange name  | MAT ID | density (g/cm^3) | Intensity range\n");
+      penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				   "\nRange name  | MAT ID | density (g/cm^3) | Intensity range\n");
     for(unsigned long i = 0; i < intensityRangesNames.size(); i++){
       //Read material assigned to this contour
       int auxMat;
@@ -1237,16 +1233,24 @@ int readIntensityRanges(const pen_parserSection& config,
       //Read material ID
       if(intensityRanges.read(matField,auxMat) != INTDATA_SUCCESS){
 	if(verbose > 0){
-	  printf("pen_dicomGeo:readIntensityRanges: Error: Unable to read material ID for intensity range '%s'. Integer expected.\n",intensityRangesNames[i].c_str());
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "pen_dicomGeo:readIntensityRanges: Error: "
+				       "Unable to read material ID for intensity range '%s'. "
+				       "Integer expected.\n",intensityRangesNames[i].c_str());
 	}
 	return -1;
       }
       //Check material ID
       if(auxMat < 1 || auxMat > (int)constants::MAXMAT){
 	if(verbose > 0){
-	  printf("pen_dicomGeo:readIntensityRanges: Error: Invalid material ID for intensity range '%s'.\n",intensityRangesNames[i].c_str());
-	  printf("                         ID: %d\n",auxMat);
-	  printf("Maximum number of materials: %d\n",constants::MAXMAT);
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "pen_dicomGeo:readIntensityRanges: Error: "
+				       "Invalid material ID for intensity range '%s'.\n",
+				       intensityRangesNames[i].c_str());
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "                         ID: %d\n",auxMat);
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "Maximum number of materials: %d\n",constants::MAXMAT);
 	}
 	return -2;
       }
@@ -1257,7 +1261,10 @@ int readIntensityRanges(const pen_parserSection& config,
       //Read low intensity limit
       if(intensityRanges.read(intensityLowField,auxIntensityLow) != INTDATA_SUCCESS){
 	if(verbose > 0){
-	  printf("pen_dicomGeo:readIntensityRanges: Error: Unable to read low intensity for range '%s'. Double expected.\n",intensityRangesNames[i].c_str());
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "pen_dicomGeo:readIntensityRanges: Error: "
+				       "Unable to read low intensity for range '%s'. "
+				       "Double expected.\n",intensityRangesNames[i].c_str());
 	}
 	return -3;
       }
@@ -1265,7 +1272,10 @@ int readIntensityRanges(const pen_parserSection& config,
       //Read top voxel intensity
       if(intensityRanges.read(intensityTopField,auxIntensityTop) != INTDATA_SUCCESS){
 	if(verbose > 0){
-	  printf("pen_dicomGeo:readIntensityRanges: Error: Unable to read top intensity for range '%s'. Double expected.\n",intensityRangesNames[i].c_str());
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "pen_dicomGeo:readIntensityRanges: Error: "
+				       "Unable to read top intensity for range '%s'. "
+				       "Double expected.\n",intensityRangesNames[i].c_str());
 	}
 	return -4;
       }
@@ -1273,9 +1283,14 @@ int readIntensityRanges(const pen_parserSection& config,
       //Check voxel intensities
       if(auxIntensityLow >= auxIntensityTop){
 	if(verbose > 0){
-	  printf("pen_dicomGeo:readIntensityRanges: Error: Invalid intensity range specified for range '%s'.\n",intensityRangesNames[i].c_str());
-	  printf("                    low intensity: %12.4E\n",auxIntensityLow);
-	  printf("                    top intensity: %12.4E\n",auxIntensityTop);
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "pen_dicomGeo:readIntensityRanges: Error: "
+				       "Invalid intensity range specified for range '%s'.\n",
+				       intensityRangesNames[i].c_str());
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "                    low intensity: %12.4E\n",auxIntensityLow);
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "                    top intensity: %12.4E\n",auxIntensityTop);
 	}
 	return -5;
       }
@@ -1286,15 +1301,19 @@ int readIntensityRanges(const pen_parserSection& config,
       //Read low voxel intensity
       if(intensityRanges.read(intensityDensityField,auxIntensityDensity) != INTDATA_SUCCESS){
 	if(verbose > 0){
-	  printf("pen_dicomGeo:readIntensityRanges: Error: Unable to read density for intensity range '%s'. Double expected.\n",intensityRangesNames[i].c_str());
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "pen_dicomGeo:readIntensityRanges: Error: "
+				       "Unable to read density for intensity range '%s'. "
+				       "Double expected.\n",intensityRangesNames[i].c_str());
 	}
 	return -3;
       }
 
       if(verbose > 1)
-	printf("%10.10s -> %4d   %12.4E    %12.4E - %12.4E\n",
-	       intensityRangesNames[i].c_str(),auxMat,
-	       auxIntensityDensity,auxIntensityLow,auxIntensityTop);
+	penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				     "%10.10s -> %4d   %12.4E    %12.4E - %12.4E\n",
+				     intensityRangesNames[i].c_str(),auxMat,
+				     auxIntensityDensity,auxIntensityLow,auxIntensityTop);
       
       //Store values
       data.emplace_back(static_cast<unsigned>(auxMat),
@@ -1304,7 +1323,9 @@ int readIntensityRanges(const pen_parserSection& config,
     }
   }
   else if(verbose > 1){
-    printf("\nNo image intensity ranges specified to assign voxel materials and densities.\n");
+    penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				 "\nNo image intensity ranges specified to "
+				 "assign voxel materials and densities.\n");
   }  
 
   return 0;
@@ -1320,7 +1341,10 @@ int readDensityRanges(const pen_parserSection& config,
 
   if(config.readSubsection("ranges",ranges) != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("pen_dicomGeo:readDensityRanges: No density ranges field ('ranges') provided to assign materials\n");
+      penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				   "pen_dicomGeo:readDensityRanges: "
+				   "No density ranges field ('ranges') provided "
+				   "to assign materials\n");
     }
     return 0;
   }else{
@@ -1331,7 +1355,8 @@ int readDensityRanges(const pen_parserSection& config,
   if(rangesNames.size() > 0){
 
     if(verbose > 1)
-      printf("\nRange name  | MAT ID | density range (g/cm^3)\n");
+      penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				   "\nRange name  | MAT ID | density range (g/cm^3)\n");
     for(unsigned i = 0; i < rangesNames.size(); i++){
       //Read material assigned to this range
       int auxMat;
@@ -1348,16 +1373,24 @@ int readDensityRanges(const pen_parserSection& config,
       //Read material ID
       if(ranges.read(matField.c_str(),auxMat) != INTDATA_SUCCESS){
 	if(verbose > 0){
-	  printf("pen_dicomGeo:readDensityRanges: Error: Unable to read material ID for density range '%s'. Integer expected.\n",rangesNames[i].c_str());
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "pen_dicomGeo:readDensityRanges: Error: "
+				       "Unable to read material ID for density range '%s'. "
+				       "Integer expected.\n",rangesNames[i].c_str());
 	}
 	return -1;
       }
       //Check material ID
       if(auxMat < 1 || auxMat > (int)constants::MAXMAT){
 	if(verbose > 0){
-	  printf("pen_dicomGeo:readDensityRanges: Error: Invalid material ID for density range '%s'.\n",rangesNames[i].c_str());
-	  printf("                         ID: %d\n",auxMat);
-	  printf("Maximum number of materials: %d\n",constants::MAXMAT);
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "pen_dicomGeo:readDensityRanges: Error: "
+				       "Invalid material ID for density range '%s'.\n",
+				       rangesNames[i].c_str());
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "                         ID: %d\n",auxMat);
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "Maximum number of materials: %d\n",constants::MAXMAT);
 	}
 	return -2;
       }
@@ -1368,7 +1401,10 @@ int readDensityRanges(const pen_parserSection& config,
       //Read low density
       if(ranges.read(densLowField.c_str(),auxDensLow) != INTDATA_SUCCESS){
 	if(verbose > 0){
-	  printf("pen_dicomGeo:readDensityRanges: Error: Unable to read low density for range '%s'. Double expected.\n",rangesNames[i].c_str());
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "pen_dicomGeo:readDensityRanges: Error: "
+				       "Unable to read low density for range '%s'. "
+				       "Double expected.\n",rangesNames[i].c_str());
 	}
 	return -3;
       }
@@ -1376,7 +1412,10 @@ int readDensityRanges(const pen_parserSection& config,
       //Read top density
       if(ranges.read(densTopField.c_str(),auxDensTop) != INTDATA_SUCCESS){
 	if(verbose > 0){
-	  printf("pen_dicomGeo:readDensityRanges: Error: Unable to read top density for range '%s'. Double expected.\n",rangesNames[i].c_str());
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "pen_dicomGeo:readDensityRanges: Error: "
+				       "Unable to read top density for range '%s'. "
+				       "Double expected.\n",rangesNames[i].c_str());
 	}
 	return -4;
       }
@@ -1384,14 +1423,21 @@ int readDensityRanges(const pen_parserSection& config,
       //Check densities
       if(auxDensLow <= 0.0 || auxDensLow >= auxDensTop){
 	if(verbose > 0){
-	  printf("pen_dicomGeo:readDensityRanges: Error: Invalid density range specified for range '%s'.\n",rangesNames[i].c_str());
-	  printf("                    low density: %12.4E\n",auxDensLow);
-	  printf("                    top density: %12.4E\n",auxDensTop);
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "pen_dicomGeo:readDensityRanges: Error: "
+				       "Invalid density range specified for range '%s'.\n",
+				       rangesNames[i].c_str());
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "                    low density: %12.4E\n",auxDensLow);
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "                    top density: %12.4E\n",auxDensTop);
 	}
 	return -5;
       }
       if(verbose > 1)
-	printf("%10.10s -> %4d   %12.4E - %12.4E\n",rangesNames[i].c_str(),auxMat,auxDensLow,auxDensTop);
+	penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				     "%10.10s -> %4d   %12.4E - %12.4E\n",
+				     rangesNames[i].c_str(),auxMat,auxDensLow,auxDensTop);
 
       //Store values
       data.emplace_back(static_cast<unsigned>(auxMat),
@@ -1400,7 +1446,8 @@ int readDensityRanges(const pen_parserSection& config,
     }
   }
   else if(verbose > 1){
-    printf("\nNo density ranges specified to assign materials.\n");
+    penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				 "\nNo density ranges specified to assign materials.\n");
   }
 
   return 0;
@@ -1416,8 +1463,9 @@ int readSegmentConstraints(const pen_parserSection& config,
 
   if(config.readSubsection("constraints",constraints) != INTDATA_SUCCESS){
     if(verbose > 2){
-      printf("pen_dicomGeo:readSegmentConstraints: No constraints "
-	     "field ('constraints') provided to apply on segmentation\n");
+      penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				   "pen_dicomGeo:readSegmentConstraints: No constraints "
+				   "field ('constraints') provided to apply on segmentation\n");
     }
     return 0;
   }else{
@@ -1428,8 +1476,9 @@ int readSegmentConstraints(const pen_parserSection& config,
   if(constraintsNames.size() > 0){
 
     if(verbose > 1)
-      printf("\nConstraint name  | MAT ID | min volume (cm^3)"
-	     " | max volume (cm^3) | max clusters\n");
+      penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				   "\nConstraint name  | MAT ID | min volume (cm^3)"
+				   " | max volume (cm^3) | max clusters\n");
     for(unsigned i = 0; i < constraintsNames.size(); i++){
       //Read material assigned to this range
       int auxMat;
@@ -1448,20 +1497,24 @@ int readSegmentConstraints(const pen_parserSection& config,
       //Read material ID
       if(constraints.read(matField.c_str(),auxMat) != INTDATA_SUCCESS){
 	if(verbose > 0){
-	  printf("pen_dicomGeo:readSegmentConstraints: Error: Unable "
-		 "to read material ID for constraint '%s'. Integer expected.\n",
-		 constraintsNames[i].c_str());
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "pen_dicomGeo:readSegmentConstraints: Error: Unable "
+				       "to read material ID for constraint '%s'. Integer expected.\n",
+				       constraintsNames[i].c_str());
 	}
 	return -1;
       }
       //Check material ID
       if(auxMat < 1 || auxMat > (int)constants::MAXMAT){
 	if(verbose > 0){
-	  printf("pen_dicomGeo:readSegmentConstraints: Error: "
-		 "Invalid material ID for density range '%s'.\n",
-		 constraintsNames[i].c_str());
-	  printf("                         ID: %d\n",auxMat);
-	  printf("Maximum number of materials: %d\n",constants::MAXMAT);
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "pen_dicomGeo:readSegmentConstraints: Error: "
+				       "Invalid material ID for density range '%s'.\n",
+				       constraintsNames[i].c_str());
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "                         ID: %d\n",auxMat);
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "Maximum number of materials: %d\n",constants::MAXMAT);
 	}
 	return -2;
       }
@@ -1481,9 +1534,11 @@ int readSegmentConstraints(const pen_parserSection& config,
 	 auxMaxVol > 0.0 &&
 	 auxMinVol >= auxMaxVol){
 	if(verbose > 0){
-	  printf("pen_dicomGeo:readSegmentConstraints: Error in constraint '%s': "
-		 "Minimum volume (%E) greater or equal to maximum volume (%E).\n",
-		 constraintsNames[i].c_str(), auxMinVol, auxMaxVol);
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				       "pen_dicomGeo:readSegmentConstraints: Error "
+				       "in constraint '%s': Minimum volume (%E) greater"
+				       " or equal to maximum volume (%E).\n",
+				       constraintsNames[i].c_str(), auxMinVol, auxMaxVol);
 	}
 	return -2;
       }
@@ -1495,12 +1550,13 @@ int readSegmentConstraints(const pen_parserSection& config,
       }
 
       if(verbose > 1){
-	printf("%10.10s -> %4d   %12.4E - %12.4E  %d\n",
-	       constraintsNames[i].c_str(),
-	       auxMat,
-	       auxMinVol <= 0.0 ? 0.0 : auxMinVol,
-	       auxMaxVol <= 0.0 ? 1.0e35 : auxMaxVol,
-	       auxMaxClusters <= 0 ? 100000 : auxMaxClusters);
+	penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				     "%10.10s -> %4d   %12.4E - %12.4E  %d\n",
+				     constraintsNames[i].c_str(),
+				     auxMat,
+				     auxMinVol <= 0.0 ? 0.0 : auxMinVol,
+				     auxMaxVol <= 0.0 ? 1.0e35 : auxMaxVol,
+				     auxMaxClusters <= 0 ? 100000 : auxMaxClusters);
       }
 
       //Store values
@@ -1511,7 +1567,8 @@ int readSegmentConstraints(const pen_parserSection& config,
     }
   }
   else if(verbose > 1){
-    printf("\nNo constraints specified for segmentation.\n");
+    penred::logs::logger::printf(penred::logs::CONFIGURATION,
+				 "\nNo constraints specified for segmentation.\n");
   }
 
   return 0;

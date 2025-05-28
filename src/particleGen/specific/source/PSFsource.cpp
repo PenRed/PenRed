@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2019-2023 Universitat de València - UV
 //    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
-//    Copyright (C) 2024 Vicent Giménez Alventosa
+//    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -28,12 +28,6 @@
 //
 
 #include "PSFsource.hh" 
-
-std::vector<
-  std::pair<std::string,std::shared_ptr<pen_sharedFile>>
-  > psf_specificSampler::sharedFiles;
-
-std::mutex psf_specificSampler::SFlock;
 
 void psf_specificSampler::skip(const unsigned long long  dhists){
 
@@ -112,7 +106,7 @@ void psf_specificSampler::sample(pen_particleState& state,
 	dhist = sumDHist;
 	splitted = 0;
 	requiredSplits = 0;      
-    return;
+	return;
       }
       
       //Read next chunk
@@ -161,6 +155,8 @@ void psf_specificSampler::sample(pen_particleState& state,
 	requiredSplits = 0; 
 	return;
       }
+
+      //printf("Thread %u: %s\n", getThread(), state.stringify().c_str());      
     }
     //Check if is a valid kpar
     if(isKpar(kpar)){
@@ -276,82 +272,12 @@ int psf_specificSampler::configure(double& Emax,
   //Clear phase space file
   psf.clear();
 
-  // Read psf filename
-  //*******************
-  std::string psfFilename;
-  err = config.read("filename", psfFilename);
-  if(err != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("psfSource:configure: Error: No psf filename specified. String expected\n");
-    }
-    return -1;
-  }
-
-  // ******************************* MPI ************************************ //
-#ifdef _PEN_USE_MPI_
-
-    //Get process rank
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    
-    //Add MPI rank to filename 
-    psfFilename = std::string("MPI") + std::to_string(rank) +
-      std::string("-") + psfFilename;
-#endif
-  // ***************************** MPI END ********************************** //  
-  
-  //Try to create a shared file with this filename
-
-  //First, lock shared files vector
-  std::lock_guard<std::mutex> guard(SFlock);  
-
-  //Next, check if a shared file with our name exists
-  bool found = false;
-  size_t nSF = sharedFiles.size();
-  for(unsigned i = 0; i < nSF; i++){
-    if(sharedFiles[i].first.compare(psfFilename.c_str()) == 0){
-      //This shared file has already created. Get its pointer
-      pSF = sharedFiles[i].second;
-      found = true;
-      break;
-    }
-  }
-
-  if(!found){ 
-    //Create the required splitted file
-    sharedFiles.push_back(std::make_pair(psfFilename,
-					 std::make_shared<pen_sharedFile>()
-					 )
-			  );
-    //Take shared file pointer
-    pSF = sharedFiles[nSF].second;
-
-    //Open specified file
-    err = pSF->open(psfFilename.c_str(),true);
-    if(err != SHARED_FILE_SUCCESS){
-      if(verbose > 0){
-	printf("psfSource:configure: Error: Unable to open file '%s' as shared file on thread %d\n",
-	       psfFilename.c_str(),getThread());
-      }
-      return -2;
-    }
-  }
-
-  //Try to create a new reader
-  err = pSF->createReader(getThread());
-  if(err != SHARED_FILE_SUCCESS){
-    if(verbose > 0){
-      printf("psfSource:configure: Error: Unable to create reader with ID %d\n",getThread());
-    }
-    return -3;
-  }
-
   // Read Emax
   //************
   err = config.read("Emax", Emax);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("psfSource:configure: Error: Unable to read 'Emax' field. Double expected.\n");
+      printf("psfSource:configure: Error: Unable to read 'Emax' field. Number expected.\n");
     }
     Emax = 0.0;
     return -4;
@@ -359,7 +285,8 @@ int psf_specificSampler::configure(double& Emax,
 
   if(Emax <= 0.0){
     if(verbose > 0){
-      printf("psfSource:configure: Error: Invalid maximum energy (%14.5EeV). Must be greater than zero.\n",Emax);
+      printf("psfSource:configure: Error: Invalid maximum energy (%14.5EeV). "
+	     "Must be greater than zero.\n",Emax);
     }
     Emax = 0.0;
     return -5;
@@ -427,73 +354,46 @@ int psf_specificSampler::configure(double& Emax,
   }
 
   NSPLIT = unsigned(auxNSplit);
-  
+
   // Save Number of partitions
   //***************************
   npartitions = nthreads;
   if(npartitions <= 0){
     if(verbose > 0){
-      printf("psfSource:configure: Error: Invalid number of partitions: %d.\n",npartitions);
+      printf("psfSource:configure: Error: Invalid number of partitions (%d). "
+	     "No threads are used? Please, report this error.\n",npartitions);
     }
     return -12;    
   }
 
-  //Check file size and number of data chunks
-  size_t fsize = pSF->size();
-
-  //Check if specified file is empty
-  if(fsize == 0){
-    if(verbose > 0){
-      printf("psfSource:configure: Error: Specified PSF ('%s') file is empty.\n",psfFilename.c_str());
-    }
-    return -13;
-  }
-  
-  nChunks = fsize/psf.memory();
-
-  if(nChunks*psf.memory() != fsize){
-    if(verbose > 0){
-      printf("psfSource:configure: Warning: PSF corrupted or incompatible with current version of 'phase space file' library.\n");    
-    }
-  }
-
-  if(nChunks < (unsigned)npartitions){
-    if(verbose > 1){
-      printf("psfSource:configure: Warning: Number of psf chunks smaller than specified partitions. The same number of partitions as chunks will be used\n");
-    }
-    npartitions = nChunks;
-  }
-
-  //Calculate chunks per partition and remaining chunks
-  chunksPerPart = nChunks/npartitions;
-  offsetChunks = nChunks - chunksPerPart*npartitions;
-    
+  // Rotation
+  //***************************
   if(config.isSection(std::string("rotation"))){
       
     //Read rotation Euler angles 
     double omega, theta, phi;
     err = config.read("rotation/omega", omega);
     if(err != INTDATA_SUCCESS){
-        if(verbose > 0){
-            printf("psfSource:configure: Error: Unable to read 'omega' Euler angle\n");
-        }
-        return -14;
+      if(verbose > 0){
+	printf("psfSource:configure: Error: Unable to read 'omega' Euler angle\n");
+      }
+      return -14;
     }
   
     err = config.read("rotation/theta", theta);
     if(err != INTDATA_SUCCESS){
-        if(verbose > 0){
-            printf("psfSource:configure: Error: Unable to read 'theta' Euler angle\n");
-        }
-        return -15;
+      if(verbose > 0){
+	printf("psfSource:configure: Error: Unable to read 'theta' Euler angle\n");
+      }
+      return -15;
     }
   
     err = config.read("rotation/phi", phi);
     if(err != INTDATA_SUCCESS){
-        if(verbose > 0){
-            printf("psfSource:configure: Error: Unable to read 'phi' Euler angle\n");
-        }
-        return -16;
+      if(verbose > 0){
+	printf("psfSource:configure: Error: Unable to read 'phi' Euler angle\n");
+      }
+      return -16;
     }
   
     //Change to rad
@@ -502,121 +402,227 @@ int psf_specificSampler::configure(double& Emax,
     phi*=M_PI/180.0;  
   
     if(omega != 0.0 || theta != 0.0 || phi != 0.0){
-        rotation = true;
-        if(verbose > 1){
-            printf("Psf rotation has been applied with Euler angles values:\n"
-                    "omega = %15.5E\n"
-                    "theta = %15.5E\n"
-                    "phi   = %15.5E\n", omega*180.0/M_PI, theta*180.0/M_PI, phi*180.0/M_PI);
-        }
-        //Create particle rotation matrix
-        createRotationZYZ(omega,theta,phi,particleRot);
-  }
-}else{
+      rotation = true;
+      if(verbose > 1){
+	printf("Psf rotation has been applied with Euler angles values:\n"
+	       "omega = %15.5E\n"
+	       "theta = %15.5E\n"
+	       "phi   = %15.5E\n", omega*180.0/M_PI, theta*180.0/M_PI, phi*180.0/M_PI);
+      }
+      //Create particle rotation matrix
+      createRotationZYZ(omega,theta,phi,particleRot);
+    }
+  }else{
     rotation=false;
     if(verbose > 1){
-            printf("No psf rotation has been applied.\n");
+      printf("No psf rotation has been applied.\n");
     }
-}
-
-    
-if(config.isSection(std::string("translation"))){
-  //Read translation 
-  err = config.read("translation/dx", dx);
-  if(err != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("psfSource:configure: Error: Unable to read 'dx' translation in x axis\n");
-    }
-    return -17;
-  }
-  
-  err = config.read("translation/dy", dy);
-  if(err != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("psfSource:configure: Error: Unable to read 'dy' translation in y axis\n");
-    }
-    return -18;
-  }
-  
-  err = config.read("translation/dz", dz);
-  if(err != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("psfSource:configure: Error: Unable to read 'dz' translation in z axis\n");
-    }
-    return -19;
-  }
-  
-  if(verbose > 1){
-        printf("Psf translation has been applied:\n"
-                "dx = %15.5E\n"
-                "dy = %15.5E\n"
-                "dz = %15.5E\n", dx, dy, dz);
-  }
-    
-}else
-{
-    dx=0.0;
-    dy=0.0;
-    dz=0.0;
-    
-    if(verbose > 1){
-        printf("No psf translation has been applied.\n");
-    }
-}
-  
-  if(verbose > 1){
-    printf("Maximum psf energy (eV):\n");
-    printf(" %14.5E\n",Emax);
-    printf("PSF size:\n");
-    printf(" %lu B\n",fsize);
-    printf("Expected chunk size:\n");
-    printf(" %lu B\n",psf.memory());
-    printf("PSF partitions:\n");
-    printf(" %d\n",npartitions);
-    printf("PSF particle chunks:\n");
-    printf(" %lu\n",nChunks);
-    printf("Offset chunks:\n");
-    printf(" %lu\n",offsetChunks);
-    printf("NSPLIT:\n");
-    printf(" %u\n",NSPLIT);
-    printf("Weight window :\n");
-    printf(" %15.4E - %15.4E\n",WGHTL,WGHTU);
   }
 
-  //Calculate start chunk
-  size_t startChunk = 0;
-  size_t localStartChunk = 0;
-  remainingChunks = 0;
-  for(size_t i = 0; i < (unsigned)npartitions; i++){
-    size_t chunks2read = chunksPerPart;
-    if(npartitions-i <= offsetChunks)
-      chunks2read++;
-    if(verbose > 1)
-      printf("Partition %lu start on chunk %lu and finish at %lu (%lu chunks)\n",
-	     i,startChunk,startChunk+chunks2read,chunks2read);
-    if(i == getThread()){
-      remainingChunks = chunks2read;
-      localStartChunk = startChunk;
-    }
-    startChunk += chunks2read;
-  }
-  
-  //Move to our partition beginning
-  long int psfChunkSize = (long int)psf.memory(); //Cast is secure because constructor check
-  for(size_t i = 0; i < localStartChunk; i++){
-    //Skip one data chunk
-    int fseekErr;
-    err = pSF->seek(getThread(),psfChunkSize,SEEK_CUR,&fseekErr);
-    if(err != SHARED_FILE_SUCCESS || fseekErr != 0){
+
+  // Translation
+  //***************************
+  if(config.isSection(std::string("translation"))){
+    //Read translation 
+    err = config.read("translation/dx", dx);
+    if(err != INTDATA_SUCCESS){
       if(verbose > 0){
-	printf("psfSource:configure: Error: Error moving file cursor.\n");
-	printf("          Shared file seek error code: %d\n",err);
-	printf("                     fseek error code: %d\n",fseekErr);
+	printf("psfSource:configure: Error: Unable to read 'dx' translation in x axis\n");
       }
-      return -20;
+      return -17;
     }
+  
+    err = config.read("translation/dy", dy);
+    if(err != INTDATA_SUCCESS){
+      if(verbose > 0){
+	printf("psfSource:configure: Error: Unable to read 'dy' translation in y axis\n");
+      }
+      return -18;
+    }
+  
+    err = config.read("translation/dz", dz);
+    if(err != INTDATA_SUCCESS){
+      if(verbose > 0){
+	printf("psfSource:configure: Error: Unable to read 'dz' translation in z axis\n");
+      }
+      return -19;
+    }
+  
+    if(verbose > 1){
+      printf("Psf translation has been applied:\n"
+	     "dx = %15.5E\n"
+	     "dy = %15.5E\n"
+	     "dz = %15.5E\n", dx, dy, dz);
+    }
+    
+  }else
+    {
+      dx=0.0;
+      dy=0.0;
+      dz=0.0;
+    
+      if(verbose > 1){
+        printf("No psf translation has been applied.\n");
+      }
+    }  
+  
+  //Try to create a shared file with this filename. Only on thread 0, it will be shared later
+  if(getThread() == 0){
+
+    // Read psf filename
+    //*******************
+    std::string psfFilename;
+    err = config.read("filename", psfFilename);
+    if(err != INTDATA_SUCCESS){
+      if(verbose > 0){
+	printf("psfSource:configure: Error: No psf filename specified. String expected\n");
+      }
+      return -1;
+    }
+
+    // ******************************* MPI ************************************ //
+#ifdef _PEN_USE_MPI_
+
+    //Get process rank
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    
+    //Add MPI rank to filename 
+    psfFilename = std::string("MPI") + std::to_string(rank) +
+      std::string("-") + psfFilename;
+#endif
+    // ***************************** MPI END ********************************** //  
+    
+  
+    //Create a shared sharedFile
+    pSF = std::make_shared<pen_sharedFile>();
+
+    //Open the specified file
+    err = pSF->open(psfFilename.c_str(),true);
+    if(err != SHARED_FILE_SUCCESS){
+      if(verbose > 0){
+	printf("psfSource:configure: Error: Unable to open file '%s' as shared file\n",
+	       psfFilename.c_str());
+      }
+      return -2;
+    }
+
+    //Try to create a reader for each thread
+    for(int i = 0; i < npartitions; ++i){
+      err = pSF->createReader(i);
+      if(err != SHARED_FILE_SUCCESS){
+	if(verbose > 0){
+	  printf("psfSource:configure: Error: Unable to create reader with ID %d. "
+		 "Please, report this error.\n", i);
+	}
+	return -3;
+      }
+    }
+
+    //Check file size and number of data chunks
+    size_t fsize = pSF->size();
+
+    //Check if specified file is empty
+    if(fsize == 0){
+      if(verbose > 0){
+	printf("psfSource:configure: Error: Specified PSF ('%s') file is empty.\n",psfFilename.c_str());
+      }
+      return -13;
+    }
+
+    //Calculate the number of particle chunks
+    nChunks = fsize/psf.memory();
+
+    if(nChunks*psf.memory() != fsize){
+      if(verbose > 0){
+	printf("psfSource:configure: Error: PSF corrupted or incompatible with current "
+	       "version of 'phase space file' library.\n");
+      }
+      return -14;
+    }
+
+    if(nChunks < (unsigned)npartitions){
+      if(verbose > 1){
+	printf("psfSource:configure: Warning: Number of psf chunks smaller than "
+	       "specified partitions. The same number of partitions as chunks will be used\n");
+      }
+      npartitions = nChunks;
+    }
+
+    //Calculate chunks per partition and remaining chunks
+    chunksPerPart = nChunks/npartitions;
+    offsetChunks = nChunks - chunksPerPart*npartitions;
+
+    if(verbose > 1){
+      printf("Maximum psf energy (eV):\n");
+      printf(" %14.5E\n",Emax);
+      printf("PSF size:\n");
+      printf(" %lu B\n",fsize);
+      printf("Expected chunk size:\n");
+      printf(" %lu B\n",psf.memory());
+      printf("PSF partitions:\n");
+      printf(" %d\n",npartitions);
+      printf("PSF particle chunks:\n");
+      printf(" %lu\n",nChunks);
+      printf("Offset chunks:\n");
+      printf(" %lu\n",offsetChunks);
+      printf("NSPLIT:\n");
+      printf(" %u\n",NSPLIT);
+      printf("Weight window :\n");
+      printf(" %15.4E - %15.4E\n\n",WGHTL,WGHTU);
+    }
+
+    //Calculate reader start chunks and move them
+    long int psfChunkSize = (long int)psf.memory();
+    size_t startChunk = 0;
+    for(unsigned i = 0; i < (unsigned)npartitions; i++){
+      size_t chunks2read = chunksPerPart;
+      if(npartitions-i <= offsetChunks)
+	chunks2read++;
+      if(verbose > 1)
+	printf("Partition %u start on chunk %lu and finish at %lu (%lu chunks)\n",
+	       i,startChunk,startChunk+chunks2read,chunks2read);
+
+      //Move reader to partition beginning
+      for(size_t j = 0; j < startChunk; j++){
+	//Skip one data chunk
+	int fseekErr;
+	err = pSF->seek(i,psfChunkSize,SEEK_CUR,&fseekErr);
+	if(err != SHARED_FILE_SUCCESS || fseekErr != 0){
+	  if(verbose > 0){
+	    printf("psfSource:configure: Error: Error moving file cursor for partition %u.\n"
+		   "          Shared file seek error code: %d\n"
+		   "                     fseek error code: %d\n",
+		   i, err,fseekErr);
+	  }
+	  return -20;
+	}
+      }
+
+      startChunk += chunks2read;
+    }
+
+    //Set remaining chunks for first thread
+    remainingChunks = chunksPerPart;
+    
   }
   
+  return 0;
+}
+
+int psf_specificSampler::sharedConfig(const psf_specificSampler& o){
+  //Get missing configured vaues
+  pSF = o.pSF;
+    
+  npartitions = o.npartitions;
+  nChunks = o.nChunks;
+  chunksPerPart = o.chunksPerPart;
+  offsetChunks = o.offsetChunks;
+  remainingChunks = chunksPerPart;
+  if(npartitions-getThread() <= offsetChunks){
+    ++remainingChunks;
+  }
+    
   return 0;
 }
 

@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -1271,7 +1272,7 @@ public:
     //Share configuration between sampler threads
     //*********************************************
     for(unsigned i = 1; i < nthreads; i++){
-      int errSharing = specificSamplerVect[i]->sharedConfig(*specificSamplerVect[0]);
+      int errSharing = specificSamplerVect[i]->shareConfig(*specificSamplerVect[0]);
       if(errSharing != 0){
 	if(verbose > 0){
 	  printf("SelectSpecificSampler: Error: Unable to share configuration "

@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2020-2023 Universitat de València - UV
 //    Copyright (C) 2020-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -26,7 +27,6 @@
 //        vicente.gimenez@uv.es (Vicente Giménez Gómez)
 //    
 //
-
 
 #ifndef __CT_SPECIFIC_SAMPLER__
 #define __CT_SPECIFIC_SAMPLER__
@@ -84,19 +84,22 @@ class ct_specificSampler : public abc_specificSampler<pen_particleState>{
 public:
     
     
-ct_specificSampler() :abc_specificSampler<pen_particleState>(USE_NONE), genericSource(false){}    
+  ct_specificSampler() :abc_specificSampler<pen_particleState>(USE_NONE), genericSource(false){}    
     
-void skip(const unsigned long long dhists);
+  void skip(const unsigned long long dhists);
     
-int configure(double& Emax,
-	      const pen_parserSection& config,
-	      const unsigned nthreads,
-	      const unsigned verbose);  
+  int configure(double& Emax,
+		const pen_parserSection& config,
+		const unsigned nthreads,
+		const unsigned verbose);  
 
-void sample(pen_particleState& state,
+  void sample(pen_particleState& state,
 	      pen_KPAR& genKpar,
 	      unsigned long long& dhist,
-	      pen_rand& random);  
+	      pen_rand& random);
+
+  int sharedConfig(const ct_specificSampler& o);
+
 };
 
 #endif

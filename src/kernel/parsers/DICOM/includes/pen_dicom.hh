@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2019-2023 Universitat de València - UV
 //    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
-//    Copyright (C) 2024 Vicent Giménez Alventosa
+//    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -51,8 +51,10 @@
 #include "dcmtk/dcmdata/dctk.h" 
 #include "dcmtk/dcmdata/dcpxitem.h"
 #include "dcmtk/dcmimgle/dcmimage.h"
+#include "dcmtk/oflog/oflog.h"
 
 #include "math_classes.hh"
+#include "logger.hh"
 
 enum pen_dicom_status{
 		      PEN_DICOM_SUCCESS = 0,
@@ -314,7 +316,7 @@ struct pen_ctData{
   void load(DcmDataset* metainfo);
 };
 
-class pen_dicom{
+class pen_dicom : public penred::logs::logger{
 
 private:
 

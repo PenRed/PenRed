@@ -2,8 +2,7 @@
 import importlib
 import yaml
 import time
-
-simulation = importlib.import_module(".simulation", __name__)
+from pyPenred import simulation
 
 simulation.create = simulation.simulator
 
@@ -20,8 +19,17 @@ def readConfigFile(filename):
         yamlstr = simulation.configFile2YAML(filename)
         return yaml.safe_load(yamlstr)
 
+def writeConfigFile(filename, d):
+    '''
+    Write a configuration file in penRed internal format,
+    from the data stored in the dictionary.
+    '''
+    configText = simulation.dict2SectionString(d)
+    with open(filename, "w") as f:
+        f.write(configText)
+    
 def runFromFile(configFile = "config.in",
-                statusTime = 120,
+                statusTime = 20,
                 configLog = "config.log",
                 simulationLog = "simulation.log"):
     '''
@@ -40,21 +48,14 @@ def runFromFile(configFile = "config.in",
     try:
         f = open(configFile)
         d = yaml.load(f, Loader=yaml.SafeLoader)
-        confSetErr = simu.configure(d)
+        simu.configure(d)
     except:
-        confSetErr = simu.configFromFile(configFile)
-
-    if(confSetErr != 0):
-        print("Invalid configuration file format. See config log\n")
-        return 1
+        simu.configFromFile(configFile)
         
     print("Configuration set\n")
 
-    #Start the simulation asyncronously
-    err = simu.simulate(True)
-    if(err != 0):
-        print("Error on simulation configuration. See config.log\n")
-        return 2
+    #Start the simulation asynchronously
+    simu.simulate(True)
 
     #Simulation started, check status every 30 seconds
     print("Simulation started\n")
@@ -62,7 +63,7 @@ def runFromFile(configFile = "config.in",
         try:
             time.sleep(statusTime)
         except:
-            time.sleep(120)
+            time.sleep(20)
         status = simu.stringifyStatus()
         for e in status:
             print(e)

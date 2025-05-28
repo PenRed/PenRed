@@ -2,6 +2,7 @@
 //
 //    Copyright (C) 2024 Universitat de València - UV
 //    Copyright (C) 2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -65,7 +66,15 @@ namespace penred{
 
 
     int simDevice(const pen_parserSection& config,
+		  measurements::measurement<double, 2>& detFluence,
+		  measurements::measurement<double, 2>& detEdep,
+		  measurements::measurement<double, 1>& detSpec,
+		  unsigned long long& simHistsOut,
 		  const unsigned verbose);
+
+    int simDevice(const pen_parserSection& config,
+		  const unsigned verbose);
+
 
     int simDevice(const readerXRayDeviceSimulate& reader,
 		  const double maxE,
@@ -332,10 +341,10 @@ focalSpot/reader-value 0.1
 focalSpot/reader-conditions/positive/type "positive"
 
 #Distance source to detector
-source2det/reader-description "Distance, in cm, from source to detector"
-source2det/reader-value 30.0
-source2det/reader-conditions/gt0/type "greater"
-source2det/reader-conditions/gt0/value 0.0
+distance/detector/reader-description "Distance, in cm, from source to detector"
+distance/detector/reader-value 30.0
+distance/detector/reader-conditions/gt0/type "greater"
+distance/detector/reader-conditions/gt0/value 0.0
 
 #Detector size
 detector/dx/reader-description "Detector size, in cm, in the X axis"
@@ -349,16 +358,16 @@ detector/dy/reader-conditions/gt0/type "greater"
 detector/dy/reader-conditions/gt0/value 0.0
 
 #Inherent filter
-inherentFilter/width/reader-description "Inherent filter size, in cm"
-inherentFilter/width/reader-value 0.1
+inherent-filter/width/reader-description "Inherent filter size, in cm"
+inherent-filter/width/reader-value 0.1
 
 #Distance source to filter
-source2filter/reader-description "Distance, in cm, from source to first filter"
-source2filter/reader-value 8.0
-source2filter/reader-conditions/gt0/type "greater"
-source2filter/reader-conditions/gt0/value 0.0
-source2filter/reader-conditions/lesserThanDet/type "lesser"
-source2filter/reader-conditions/lesserThanDet/value "source2det"
+distance/filter/reader-description "Distance, in cm, from source to first filter"
+distance/filter/reader-value 8.0
+distance/filter/reader-conditions/gt0/type "greater"
+distance/filter/reader-conditions/gt0/value 0.0
+distance/filter/reader-conditions/lesserThanDet/type "lesser"
+distance/filter/reader-conditions/lesserThanDet/value "distance/detector"
 
 ## Filters
 
@@ -374,17 +383,17 @@ filters/${subsection}/width/reader-conditions/gt0/value 0.0
 ## Bowtie
 
 # Distance source to bowtie
-source2bowtie/reader-description "Distance, in cm, from source to bowtie"
-source2bowtie/reader-value -1.0
-source2bowtie/reader-conditions/greaterThanFilters/type "greater"
-source2bowtie/reader-conditions/greaterThanFilters/value "source2filter"
-source2bowtie/reader-required/type "required_if_exist"
-source2bowtie/reader-required/value "bowtie/dz"
+distance/bowtie/reader-description "Distance, in cm, from source to bowtie"
+distance/bowtie/reader-value -1.0
+distance/bowtie/reader-conditions/greaterThanFilters/type "greater"
+distance/bowtie/reader-conditions/greaterThanFilters/value "distance/filter"
+distance/bowtie/reader-required/type "required_if_exist"
+distance/bowtie/reader-required/value "bowtie/dz"
 
 bowtie/dz/reader-description "Bowtie heights"
 bowtie/dz/reader-value [0.5,0.5,0.4,0.3,0.2,0.3,0.4,0.5,0.5]
 bowtie/dz/reader-required/type "required_if_exist"
-bowtie/dz/reader-required/value "source2bowtie"
+bowtie/dz/reader-required/value "distance/bowtie"
 
 # Source position
 source/pos/x/reader-description "Source position in X axis (cm)"
@@ -434,7 +443,7 @@ simulation/min-energy/reader-conditions/gt/type "greater"
 simulation/min-energy/reader-conditions/gt/value 50.0
 simulation/min-energy/reader-required/type "optional"
 
-simulation/tolerance/reader-description "Tolerance to finish the simulation"
+simulation/tolerance/reader-description "Tolerance to finish the simulation, in %"
 simulation/tolerance/reader-value 0.0
 simulation/tolerance/reader-conditions/positive/type "positive"
 simulation/tolerance/reader-required/type "optional"
@@ -487,27 +496,27 @@ x-ray/source/position/reader-description "Position (x,y,z) of the source, in cm.
 x-ray/source/position/reader-value [0.0,0.0,0.0]
 
 #Source distributions
-x-ray/source/spatial-distrib-file/reader-description "Path to the spatial source distribution file"
-x-ray/source/spatial-distrib-file/reader-value "path/to/distrib.dat"
-x-ray/source/spatial-distrib-file/reader-required/type "optional_if"
-x-ray/source/spatial-distrib-file/reader-required/value "simulation/sim-anode"
+x-ray/source/distribution/spatial/reader-description "Path to the spatial source distribution file"
+x-ray/source/distribution/spatial/reader-value "path/to/distrib.dat"
+x-ray/source/distribution/spatial/reader-required/type "optional_if"
+x-ray/source/distribution/spatial/reader-required/value "simulation/sim-anode"
 
-x-ray/source/energy-distrib-file/reader-description "Path to the energy source distribution file"
-x-ray/source/energy-distrib-file/reader-value "path/to/distrib.dat"
-x-ray/source/energy-distrib-file/reader-required/type "optional_if"
-x-ray/source/energy-distrib-file/reader-required/value "simulation/sim-anode"
+x-ray/source/distribution/energy/reader-description "Path to the energy source distribution file"
+x-ray/source/distribution/energy/reader-value "path/to/distrib.dat"
+x-ray/source/distribution/energy/reader-required/type "optional_if"
+x-ray/source/distribution/energy/reader-required/value "simulation/sim-anode"
 
-x-ray/source/distrib2source/reader-description "Distance between the source spatial distribution and the 'real' source in cm."
-x-ray/source/distrib2source/reader-value 0.4
-x-ray/source/distrib2source/reader-required/type "optional_if"
-x-ray/source/distrib2source/reader-required/value "simulation/sim-anode"
-x-ray/source/distrib2source/reader-conditions/positive/type "positive"
+x-ray/distance/distribution/reader-description "Distance between the source spatial distribution and the anode impacting point in cm."
+x-ray/distance/distribution/reader-value 0.4
+x-ray/distance/distribution/reader-required/type "optional_if"
+x-ray/distance/distribution/reader-required/value "simulation/sim-anode"
+x-ray/distance/distribution/reader-conditions/positive/type "positive"
 
 #Distance source to detector
-x-ray/source2det/reader-description "Distance, in cm, from source to detector"
-x-ray/source2det/reader-value 30.0
-x-ray/source2det/reader-conditions/gt0/type "greater"
-x-ray/source2det/reader-conditions/gt0/value 0.0
+x-ray/distance/detector/reader-description "Distance, in cm, from anode impact point to the detector."
+x-ray/distance/detector/reader-value 30.0
+x-ray/distance/detector/reader-conditions/gt0/type "greater"
+x-ray/distance/detector/reader-conditions/gt0/value 0.0
 
 #Detector size
 x-ray/detector/dx/reader-description "Detector size, in cm, in the X axis"
@@ -521,16 +530,16 @@ x-ray/detector/dy/reader-conditions/gt0/type "greater"
 x-ray/detector/dy/reader-conditions/gt0/value 0.0
 
 #Inherent filter
-x-ray/inherentFilter/width/reader-description "Inherent filter width, in cm"
-x-ray/inherentFilter/width/reader-value 0.1
+x-ray/inherent-filter/width/reader-description "Inherent filter width, in cm"
+x-ray/inherent-filter/width/reader-value 0.1
 
 #Distance source to filter
-x-ray/source2filter/reader-description "Distance, in cm, from source to first filter"
-x-ray/source2filter/reader-value 8.0
-x-ray/source2filter/reader-conditions/gt0/type "greater"
-x-ray/source2filter/reader-conditions/gt0/value 0.0
-x-ray/source2filter/reader-conditions/lesserThanDet/type "lesser"
-x-ray/source2filter/reader-conditions/lesserThanDet/value "x-ray/source2det"
+x-ray/distance/filter/reader-description "Distance, in cm, from anode impact point to first filter."
+x-ray/distance/filter/reader-value 8.0
+x-ray/distance/filter/reader-conditions/gt0/type "greater"
+x-ray/distance/filter/reader-conditions/gt0/value 0.0
+x-ray/distance/filter/reader-conditions/lesserThanDet/type "lesser"
+x-ray/distance/filter/reader-conditions/lesserThanDet/value "x-ray/distance/detector"
 
 ## Filters
 
@@ -559,19 +568,19 @@ x-ray/filters/${subsection}/mat-file/reader-required/value "z"
 ## Bowtie
 
 # Distance source to bowtie
-x-ray/source2bowtie/reader-description "Distance, in cm, from source to bowtie"
-x-ray/source2bowtie/reader-value -1.0
-x-ray/source2bowtie/reader-conditions/greaterThanFilters/type "greater"
-x-ray/source2bowtie/reader-conditions/greaterThanFilters/value "x-ray/source2filter"
-x-ray/source2bowtie/reader-conditions/lesserThanDet/type "lesser"
-x-ray/source2bowtie/reader-conditions/lesserThanDet/value "x-ray/source2det"
-x-ray/source2bowtie/reader-required/type "required_if_exist"
-x-ray/source2bowtie/reader-required/value "x-ray/bowtie/dz"
+x-ray/distance/bowtie/reader-description "Distance, in cm, from anode impact point to bowtie"
+x-ray/distance/bowtie/reader-value -1.0
+x-ray/distance/bowtie/reader-conditions/greaterThanFilters/type "greater"
+x-ray/distance/bowtie/reader-conditions/greaterThanFilters/value "x-ray/distance/filter"
+x-ray/distance/bowtie/reader-conditions/lesserThanDet/type "lesser"
+x-ray/distance/bowtie/reader-conditions/lesserThanDet/value "x-ray/distance/detector"
+x-ray/distance/bowtie/reader-required/type "required_if_exist"
+x-ray/distance/bowtie/reader-required/value "x-ray/bowtie/dz"
 
 x-ray/bowtie/dz/reader-description "Bowtie top face displacements"
 x-ray/bowtie/dz/reader-value [0.5,0.5,0.4,0.3,0.2,0.3,0.4,0.5,0.5]
 x-ray/bowtie/dz/reader-required/type "required_if_exist"
-x-ray/bowtie/dz/reader-required/value "x-ray/source2bowtie"
+x-ray/bowtie/dz/reader-required/value "x-ray/distance/bowtie"
 
 x-ray/bowtie/z/reader-description "Bowtie material atomic number Z"
 x-ray/bowtie/z/reader-value 13
@@ -604,20 +613,20 @@ x-ray/bowtie/design-iterations/reader-required/type "optional"
 ## Anode
 
 #Angle
-anode/angle/reader-description "Sets the anode angle in DEG"
-anode/angle/reader-value 5.0
-anode/angle/reader-required/type "required"
-anode/angle/reader-conditions/gt0/type "greater"
-anode/angle/reader-conditions/gt0/value 0.0
-anode/angle/reader-conditions/lesserThan90/type "lesser"
-anode/angle/reader-conditions/lesserThan90/value 90.0
+x-ray/anode/angle/reader-description "Sets the anode angle in DEG"
+x-ray/anode/angle/reader-value 5.0
+x-ray/anode/angle/reader-required/type "required"
+x-ray/anode/angle/reader-conditions/gt0/type "greater"
+x-ray/anode/angle/reader-conditions/gt0/value 0.0
+x-ray/anode/angle/reader-conditions/lesserThan90/type "lesser"
+x-ray/anode/angle/reader-conditions/lesserThan90/value 90.0
 
 #Z
-anode/z/reader-description "Sets the anode atomic number"
-anode/z/reader-value 74
-anode/z/reader-required/type "optional"
-anode/z/reader-conditions/gt0/type "greater"
-anode/z/reader-conditions/gt0/value 0
+x-ray/anode/z/reader-description "Sets the anode atomic number"
+x-ray/anode/z/reader-value 74
+x-ray/anode/z/reader-required/type "optional"
+x-ray/anode/z/reader-conditions/gt0/type "greater"
+x-ray/anode/z/reader-conditions/gt0/value 0
 
 #Beam energy
 x-ray/kvp/reader-description "X-ray KVP value"
@@ -626,21 +635,15 @@ x-ray/kvp/reader-required/type "required_if"
 x-ray/kvp/reader-required/value "simulation/sim-anode"
 x-ray/kvp/reader-conditions/gt0/type "greater"
 x-ray/kvp/reader-conditions/gt0/value 1.0
-x-ray/kvp/reader-conditions/lesserThan90/type "lesser"
-x-ray/kvp/reader-conditions/lesserThan90/value 1.0e6
+x-ray/kvp/reader-conditions/lesserThan1MeV/type "lesser"
+x-ray/kvp/reader-conditions/lesserThan1MeV/value 1.0e6
 
 ## Added geometry
-
-# Type
-geometry/type/reader-description "Added geometry type"
-geometry/type/reader-value "-"
-geometry/type/reader-required/type "required_if_exist"
-geometry/type/reader-required/value "geometry/config"
 
 # Geometry configuration section
 geometry/config/${subsection}/reader-description "Added geometry configuration section"
 geometry/config/${subsection}/reader-required/type "required_if_exist"
-geometry/config/${subsection}/reader-required/value "geometry/type"
+geometry/config/${subsection}/reader-required/value "geometry/materials"
 
 # Materials
 geometry/materials/${subsection}/reader-description "Materials of the added geometry"

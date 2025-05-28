@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2025 Universitat de València - UV
+//    Copyright (C) 2019-2025 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -22,6 +22,7 @@
 //    contact emails:
 //
 //        vicent.gimenez.alventosa@gmail.com
+//        sanolgi@upvnet.upv.es
 //        vicente.gimenez@uv.es
 //    
 //
@@ -120,11 +121,11 @@ void pen_ImpactDetector::flush(){
 	int binEdep;
 	if(!isLinScaleDep)
 	  {
-	    binEdep = (log(edepCounterTmp) - emin)*iebin;
+	    binEdep = (log(edepCounterTmp) - eminLog)*iebinLog;
 	  }
 	else
 	  {
-	    binEdep = (edepCounterTmp - emin)*iebin;
+	    binEdep = (edepCounterTmp - configEmin)*iconfigEBin;
 	  }
             
 	//Check if we are inside of energy bin range
@@ -156,12 +157,12 @@ void pen_ImpactDetector::discreteTrackL(const pen_KPAR kpar,
   if(!isLinScaleFlu)
     {
       //Lowest E bin that scores
-      binhigh = int((log(energy) - emin)*iebin);
+      binhigh = int((log(energy) - eminLog)*iebinLog);
     }
   else
     {
       //Lowest E bin that scores
-      binhigh = int((energy - emin)*iebin);
+      binhigh = int((energy - configEmin)*iconfigEBin);
     }
         
   if(binhigh >= 0 && binhigh < nbin)
@@ -188,43 +189,57 @@ void pen_ImpactDetector::continuousTrackL(const pen_KPAR kpar,
   int binhigh, binlow;
     
   double eContinuous = energy;
-  if(eContinuous > emax)
+  if(eContinuous > configEmax)
     {
-      eContinuous = emax;
+      eContinuous = configEmax;
     }
   double eFinal = energy - de;
-  if(eFinal < emin)
+  if(eFinal < configEmin)
     {
-      eFinal = emin;
+      eFinal = configEmin;
     }
   //Out of energy range
   if(eFinal > eContinuous){return;}
     
   //Energy grid in no Linear Scale
+  double fact = ds/de;
   if(!isLinScaleFlu)
     {
-      binhigh = int((log(eContinuous) - emin)*iebin);
-      binlow = int((log(eFinal) - emin)*iebin);
+      binhigh = int((log(eContinuous) - eminLog)*iebinLog);
+      binlow = int((log(eFinal) - eminLog)*iebinLog);
+      if(binhigh >= nbin) binhigh = nbin-1;
+
+      for(int i = binlow; i <= binhigh; i++)
+	{
+	  double EA = exp(eminLog + double(i)*ebinLog);
+	  EA = EA < eFinal ? eFinal : EA;
+
+	  double EB = exp(eminLog + double(i+1)*ebinLog);
+	  EB = EB > eContinuous ? eContinuous : EB;
+        
+	  double trackBin = (EB-EA)*fact;
+	  flutmptotal[i] += state.WGHT*trackBin;	  	
+	  flutmp[kpar][i] += state.WGHT*trackBin;	
+	}
     }
   else
     {
-      binhigh = int((eContinuous - emin)*iebin);
-      binlow = int((eFinal - emin)*iebin);
-    }
-    
-  double fact = ds/de;
-    
-  for(int i = binlow; i <= binhigh; i++)
-    {
-      double EA = emin + double(i)*ebin;
-      EA = EA < eFinal ? eFinal : EA;
+      binhigh = int((eContinuous - configEmin)*iconfigEBin);
+      binlow = int((eFinal - configEmin)*iconfigEBin);
+      if(binhigh >= nbin) binhigh = nbin-1;
 
-      double EB = emin + double(i+1)*ebin;
-      EB = EB > eContinuous ? eContinuous : EB;
+      for(int i = binlow; i <= binhigh; i++)
+	{
+	  double EA = configEmin + double(i)*configEBin;
+	  EA = EA < eFinal ? eFinal : EA;
+
+	  double EB = configEmin + double(i+1)*configEBin;
+	  EB = EB > eContinuous ? eContinuous : EB;
         
-      double trackBin = (EB-EA)*fact;
-      flutmptotal[i] += state.WGHT*trackBin;	  	
-      flutmp[kpar][i] += state.WGHT*trackBin;	
+	  double trackBin = (EB-EA)*fact;
+	  flutmptotal[i] += state.WGHT*trackBin;	  	
+	  flutmp[kpar][i] += state.WGHT*trackBin;	
+	}
     }
 }
 
@@ -233,17 +248,17 @@ void pen_ImpactDetector::continuousTrackL(const pen_KPAR kpar,
 
 //Energy spectrum of entering particles
 void pen_ImpactDetector::countSpectrum(const pen_KPAR kpar,
-					   const pen_particleState& state){
+				       const pen_particleState& state){
   
   int binE;
   //Calculate energy bin
   if(!isLinScaleSpc)
     {
-      binE = (log(state.E) - emin)*iebin;
+      binE = (log(state.E) - eminLog)*iebinLog;
     }
   else
     {
-      binE = (state.E - emin)*iebin;
+      binE = (state.E - configEmin)*iconfigEBin;
     }
     
   //Check if we are inside of energy bin range
@@ -420,8 +435,7 @@ void pen_ImpactDetector::tally_endHist(const unsigned long long /*nhist*/){
 int pen_ImpactDetector::configure(const wrapper_geometry& /*geometry*/,
 				      const abc_material* const /*materials*/[constants::MAXMAT],
 				      const pen_parserSection& config,
-				      const unsigned verbose
-				      ){
+				      const unsigned verbose){
   int err;
   
 
@@ -501,8 +515,8 @@ int pen_ImpactDetector::configure(const wrapper_geometry& /*geometry*/,
  
  if(spc || fln || eDepActive){
   // Minimum energy
-  //***************    
-  err = config.read("emin", emin);
+  //***************
+  err = config.read("emin", configEmin);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
       printf("pen_ImpactDetector:configure: Error: Unable to read 'emin' in configuration. Double expected\n");
@@ -512,8 +526,7 @@ int pen_ImpactDetector::configure(const wrapper_geometry& /*geometry*/,
 
   // Maximum energy
   //***************    
-    
-  err = config.read("emax", emax);
+  err = config.read("emax", configEmax);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
       printf("pen_ImpactDetector:configure: Error: Unable to read 'emax' in configuration. Double expected\n");
@@ -549,12 +562,31 @@ int pen_ImpactDetector::configure(const wrapper_geometry& /*geometry*/,
     
   if(verbose > 1){
     printf("Spectrum limits [Emin,Emax] (eV) and no. bins:\n");
-    printf(" %12.5E %12.5E %d \n\n",emin,emax,nbin);
+    printf(" %12.5E %12.5E %d \n\n",configEmin,configEmax,nbin);
   }
 
-  //Save original emin
-  configEmin = emin;
-  configEmax = emax;
+  //Calculate emin and emax for log scales
+  if(configEmin == 0.0){
+    configEmin = 50.0;
+    eminLog = log(50.0);
+  }else{
+    eminLog = log(configEmin);
+  }
+  emaxLog = log(configEmax);
+
+  //Check energy limits
+  if(configEmin >= configEmax ||
+     eminLog >= emaxLog){
+    if(verbose > 0){
+      printf("pen_pen_ImpactDetector:configure: Error: Invalid entry, "
+	     "maximum energy must be greater than minimum.\n"
+	     "         Linear range: [%.5E, %.5E)\n"
+	     "    Logarithmic range: [%.5E, %.5E)\n",
+	     configEmin, configEmax,
+	     eminLog, emaxLog);
+    }
+    return -9;    
+  }
  }
     
  // Age interval
@@ -651,101 +683,54 @@ int pen_ImpactDetector::configure(const wrapper_geometry& /*geometry*/,
   //***************    
    
   //Fluence
-  if(fln){
-  err = config.read("linearScale-fln", isLinScaleFlu);
-  if(err != INTDATA_SUCCESS){
-    if(verbose > 1){
-      printf("No 'linearScale-fln' specified, linear scale will be set.\n");
-    }
-    isLinScaleFlu = true;
-  }
-    
-    
-  if(isLinScaleFlu){
-    if(verbose > 1){
-      printf("Linear scale for fluence. \n\n");
-    }  
-  }
-  else{
-    if(verbose > 1){
-      printf("Logarithmic scale for fluence. \n\n");
-    }
-    //Default values due to the Logarithmic scale
-    if(emin == 0.0){
-      emin = 50.0;
-    }
+ if(fln){
+   err = config.read("linearScale-fln", isLinScaleFlu);
+   if(err != INTDATA_SUCCESS){
+     if(verbose > 1){
+       printf("No 'linearScale-fln' specified, linear scale will be set.\n");
+     }
+     isLinScaleFlu = true;
+   }
 
-    // Store values in log scale
-    emin = log(emin); 
-    emax = log(emax);
-  }
-}
+  
+   if(verbose > 1){
+     printf("%s scale for fluence. \n\n", isLinScaleFlu ? "Linear" : "Logarithmic");
+   }
+ }
   
   
   
-  //Spectrum
-  if(spc){
-    err = config.read("linearScale-spc", isLinScaleSpc);
-  if(err != INTDATA_SUCCESS){
-    if(verbose > 1){
-      printf("No 'linearScale-spc' specified, linear scale will be set.\n");
-    }
-    isLinScaleSpc = true;
-  }
-    
-    
-  if(isLinScaleSpc){
-    if(verbose > 1){
-      printf("Linear scale for spectrum. \n\n");
-    }  
-  }
-  else{
-    if(verbose > 1){
-      printf("Logarithmic scale for spectrum. \n\n");
-    }
-    //Default values due to the Logarithmic scale
-    if(emin == 0.0){
-      emin = 50.0;
-    }
+ //Spectrum
+ if(spc){
+   err = config.read("linearScale-spc", isLinScaleSpc);
+   if(err != INTDATA_SUCCESS){
+     if(verbose > 1){
+       printf("No 'linearScale-spc' specified, linear scale will be set.\n");
+     }
+     isLinScaleSpc = true;
+   }
 
-    // Store values in log scale
-    emin = log(emin); 
-    emax = log(emax);
-  }
   
-}
+   if(verbose > 1){
+     printf("%s scale for spectrum. \n\n", isLinScaleSpc ? "Linear" : "Logarithmic");
+   }  
+ }
 
-  //Energy deposition
-  if(eDepActive){
-    err = config.read("linearScale-edep", isLinScaleDep);
-  if(err != INTDATA_SUCCESS){
-    if(verbose > 1){
-      printf("No 'linearScale-edep' specified, linear scale will be set.\n");
-    }
-    isLinScaleDep = true;
-  }
+ //Energy deposition
+ if(eDepActive){
+   err = config.read("linearScale-edep", isLinScaleDep);
+   if(err != INTDATA_SUCCESS){
+     if(verbose > 1){
+       printf("No 'linearScale-edep' specified, linear scale will be set.\n");
+     }
+     isLinScaleDep = true;
+   }
     
-    
-  if(isLinScaleDep){
-    if(verbose > 1){
-      printf("Linear scale for spectrum. \n\n");
-    }  
-  }
-  else{
-    if(verbose > 1){
-      printf("Logarithmic scale for spectrum. \n\n");
-    }
-    //Default values due to the Logarithmic scale
-    if(emin == 0.0){
-      emin = 50.0;
-    }
 
-    // Store values in log scale
-    emin = log(emin); 
-    emax = log(emax);
-  }
-  
-}
+   if(verbose > 1){
+     printf("%s scale for spectrum. \n\n", isLinScaleDep ? "Linear" : "Logarithmic");
+   }
+ }
 
   //Age
   if(ageActive){
@@ -780,14 +765,11 @@ int pen_ImpactDetector::configure(const wrapper_geometry& /*geometry*/,
 }
     
   //For energy bin width
-  ebin = (emax-emin)/(double)nbin;
-  iebin = 1.0/ebin;
-    
-  // Set energy grid
-  for(int i = 0; i<nbin; i++){
-    egrid[i] = emin+double(i)*ebin;
-    ebingrd[i] = ebin;
-  }
+  configEBin = (configEmax-configEmin)/(double)nbin;
+  iconfigEBin = 1.0/configEBin;
+
+  ebinLog = (emaxLog-eminLog)/(double)nbin;
+  iebinLog = 1.0/ebinLog;
     
   //For age bin width
   ageBinW = (ageMax - ageMin)/(double)nbinAge;
@@ -874,7 +856,7 @@ void pen_ImpactDetector::saveData(const unsigned long long nhist) const{
   sprintf(filenameAGE, "age-impdet-%u.dat",idet);
   
   
-  double fact, emiddle, invn;
+  double invn;
   double qFLU, sigmaFLU,
     qSPC, sigmaSPC,
     qEDEP, sigmaEDEP,
@@ -909,11 +891,11 @@ if(fln){
   
   if (isLinScaleFlu){
     fprintf(outFLU,"# Linear energy scale, bin width (eV):\n");
-    fprintf(outFLU,"#  %12.5E\n",ebin);
+    fprintf(outFLU,"#  %12.5E\n",configEBin);
   }
   else{
     fprintf(outFLU,"# Log energy scale, E_{i+1}/E_i:\n");
-    fprintf(outFLU,"#  %12.5E\n",exp(ebin));
+    fprintf(outFLU,"#  %12.5E\n",exp(ebinLog));
   }
       
   fprintf(outFLU,"#\n");
@@ -949,33 +931,39 @@ if(fln){
   //*************
   // Fluence
   //*************
-  
   for(int i = 0; i < nbin; i++){
+
+    double elow;
+    double emiddle;
+    double localiebin;
+    if(isLinScaleFlu){
+      elow = configEmin + ((double)i)*configEBin;
+      emiddle = configEmin + ((double)i+0.5)*configEBin;
+      localiebin = iconfigEBin;
+    }
+    else{
+      elow = exp(eminLog +(double)i*ebinLog);
+      double eup = exp(eminLog + (double)(i+1)*ebinLog);
+      emiddle = 0.5*(eup + elow);
+      localiebin = 1.0/(eup - elow);
+    }
 
     //Total Fluence
     qFLU = flutotal[i]*invn;
     sigmaFLU = (flu2total[i]*invn - qFLU*qFLU)*invn;
     sigmaFLU = sqrt((sigmaFLU > 0.0 ? sigmaFLU : 0.0));
-    fact = 1.0/ebingrd[i];
-    qFLU = qFLU*fact;
-    sigmaFLU = sigmaFLU*fact;
-        
-    // Middle energy of the bin
-    emiddle = egrid[i] + ebin*0.5;
+    qFLU = qFLU*localiebin;
+    sigmaFLU = sigmaFLU*localiebin;
           
-    fprintf(outFLU," %5d  %12.5E %12.5E    %12.5E    %8.1E   ",i,egrid[i],emiddle,qFLU,2.0*sigmaFLU);
+    fprintf(outFLU," %5d  %12.5E %12.5E    %12.5E    %8.1E   ",i,elow,emiddle,qFLU,2.0*sigmaFLU);
 
     //Particle fluence
     for(unsigned ipart = 0; ipart < constants::nParTypes; ipart++){    
       qFLU = flu[ipart][i]*invn;
       sigmaFLU = (flu2[ipart][i]*invn - qFLU*qFLU)*invn;
       sigmaFLU = sqrt((sigmaFLU > 0.0 ? sigmaFLU : 0.0));
-      fact = 1.0/ebingrd[i];
-      qFLU = qFLU*fact;
-      sigmaFLU = sigmaFLU*fact;
-        
-      // Middle energy of the bin
-      emiddle = egrid[i] + ebin*0.5;
+      qFLU = qFLU*localiebin;
+      sigmaFLU = sigmaFLU*localiebin;
           
       fprintf(outFLU," %12.5E    %8.1E   ",qFLU,2.0*sigmaFLU);
     }
@@ -1009,12 +997,12 @@ if(fln){
     if(isLinScaleSpc){
       fprintf(outSPC, "# Linear scale\n");
       fprintf(outSPC, "# Energy     min    ,    max    , number of bins\n");
-      fprintf(outSPC, "#        %11.5e %10.5e  %5d\n", emin, emax, nbin);
+      fprintf(outSPC, "#        %11.5e %10.5e  %5d\n", configEmin, configEmax, nbin);
     }
     else{
       fprintf(outSPC, "# Logarithmic scale\n");
       fprintf(outSPC, "# Energy     min    ,    max    , number of bins\n");
-      fprintf(outSPC, "#        %11.5e %10.5e  %5d\n", exp(emin), exp(emax), nbin);
+      fprintf(outSPC, "#        %11.5e %10.5e  %5d\n", exp(eminLog), exp(emaxLog), nbin);
     }
     
   
@@ -1045,13 +1033,14 @@ if(fln){
     for(int j = 0; j < nbin; j++)
       {
 	double energy;
-	double localiebin = iebin;
+	double localiebin;
 	if(isLinScaleSpc){
-	  energy = emin + ((double)j+0.5)*ebin;
+	  energy = configEmin + ((double)j+0.5)*configEBin;
+	  localiebin = iconfigEBin;
 	}
 	else{
-	  double xLow = exp(emin +(double)j*ebin);
-	  double xUp = exp(emin + (double)(j+1)*ebin);
+	  double xLow = exp(eminLog +(double)j*ebinLog);
+	  double xUp = exp(eminLog + (double)(j+1)*ebinLog);
 	  energy = 0.5*(xUp + xLow);
 	  localiebin = 1.0/(xUp - xLow);
 	}
@@ -1115,12 +1104,12 @@ if(fln){
     if(isLinScaleDep){
       fprintf(outEDEP, "# Linear scale\n");
       fprintf(outEDEP, "# Energy     min    ,    max    , number of bins\n");
-      fprintf(outEDEP, "#       %11.5e  %10.5e    %5d\n", emin, emax, nbin);
+      fprintf(outEDEP, "#       %11.5e  %10.5e    %5d\n", configEmin, configEmax, nbin);
     }
     else{
       fprintf(outEDEP, "# Logarithmic scale\n");
       fprintf(outEDEP, "# Energy     min    ,    max    , number of bins\n");
-      fprintf(outEDEP, "#       %11.5e  %10.5e    %5d\n", exp(emin), exp(emax), nbin);
+      fprintf(outEDEP, "#       %11.5e  %10.5e    %5d\n", exp(eminLog), exp(emaxLog), nbin);
     }
     
     fprintf(outEDEP, "#\n");
@@ -1131,14 +1120,15 @@ if(fln){
     for(int j = 0; j < nbin; j++)
     {
         double energy;
-	double localiebin = iebin;
+	double localiebin;
         if(isLinScaleDep){
-            energy = emin + ((double)j+0.5)*ebin;
+            energy = configEmin + ((double)j+0.5)*configEBin;
+	    localiebin = iconfigEBin;
         }
         else
         {
-            double xLow = exp(emin +(double)j*ebin);
-            double xUp = exp(emin + (double)(j+1)*ebin);
+            double xLow = exp(eminLog +(double)j*ebinLog);
+            double xUp = exp(eminLog + (double)(j+1)*ebinLog);
             energy = 0.5*(xUp + xLow);
             localiebin = 1.0/(xUp - xLow);
         }

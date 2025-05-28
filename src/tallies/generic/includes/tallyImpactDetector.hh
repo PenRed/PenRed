@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2025 Universitat de València - UV
+//    Copyright (C) 2019-2025 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -22,6 +22,7 @@
 //    contact emails:
 //
 //        vicent.gimenez.alventosa@gmail.com
+//        sanolgi@upvnet.upv.es
 //        vicente.gimenez@uv.es
 //    
 //
@@ -69,11 +70,9 @@ class pen_ImpactDetector: public pen_genericTally<pen_particleState> {
          age[nbinmax],
          age2[nbinmax];
          
-
-  double egrid[nbinmax],ebingrd[nbinmax];
-  double ebin,iebin,eratio,unclimit,
-         emin,emax,ageMin,ageMax, ageBinW, iageBinW;
-  double configEmin, configAgeMin;
+  double ageMin,ageMax, ageBinW, iageBinW;
+  double configEmin, configAgeMin, configEBin, iconfigEBin;
+  double eminLog, emaxLog, ebinLog, iebinLog;
   double configEmax;
     
     

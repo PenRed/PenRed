@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2020-2022 Universitat de València - UV
 //    Copyright (C) 2020-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -249,8 +250,7 @@ class pen_tallyKermaTrackLength: public pen_genericTally<pen_particleState> {
   pen_tally_KTL::vect3d lastPos;
 
   pen_genericLogGrid<nbinmax> grid;
-  double sharedMuen[constants::MAXMAT+1][nbinmax];
-  const double* muen[constants::MAXMAT+1];
+  std::vector<std::vector<double>> muen;
   bool activeMat[constants::MAXMAT+1];
 
   //Cartesian
@@ -312,6 +312,7 @@ public:
     
   pen_tallyKermaTrackLength() : pen_genericTally(USE_JUMP | USE_STEP),
 				kparTrig(PEN_PHOTON),
+				muen(constants::MAXMAT+1),
 				cartesian(nullptr),
 				cartesian2(nullptr),
 				cartesianTmp(nullptr),

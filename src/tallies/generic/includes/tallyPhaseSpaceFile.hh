@@ -1,8 +1,9 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2025 Universitat de València - UV
+//    Copyright (C) 2019-2025 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -22,6 +23,7 @@
 //    contact emails:
 //
 //        vicent.gimenez.alventosa@gmail.com
+//        sanolgi@upvnet.upv.es
 //        vicente.gimenez@uv.es
 //    
 //
@@ -32,7 +34,6 @@
 
 #include <vector>
 #include <memory>
-#include <mutex>
 #include "splittedFile.hh"
 #include "pen_phaseSpaceFile.hh"
 
@@ -40,12 +41,6 @@ class pen_tallyPhaseSpaceFile : public pen_genericTally<pen_particleState> {
   DECLARE_TALLY(pen_tallyPhaseSpaceFile,pen_particleState)
 
 private:
-
-  static std::vector<
-    std::pair<std::string,std::shared_ptr<pen_splittedFile>>
-    > splittedFiles;
-
-  static std::mutex SFlock;
 
   std::shared_ptr<pen_splittedFile> pSF;
   
@@ -106,6 +101,20 @@ public:
 		const abc_material* const /*materials*/[constants::MAXMAT],
 		const pen_parserSection& config,
 		const unsigned verbose);
+
+  inline int sharedConfig(const pen_tallyPhaseSpaceFile& tally){
+    pSF = tally.pSF;
+
+    //try to create a partition for our thread
+    int err = pSF.get()->createPartition(getThread());
+    if(err != SPLITTED_FILE_SUCCESS){
+      printf("PhaseSpaceFile:sharedConfig: Error: Unable to create a partition for "
+	     "tally %s thread %u.\n",readName().c_str(),getThread());
+      printf("                 Error code: %d\n",err);
+      return -1;
+    }
+    return 0;
+  }
 
   inline void store(const unsigned long long nhist,
 		    const unsigned kpar,

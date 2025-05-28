@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2020-2024 Universitat de València - UV
 //    Copyright (C) 2020-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -1710,11 +1711,6 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& geometry,
   
   //Calculate muen data on thread 0
   if(getThread() == 0){
-
-    //Set muen pointers to shared data
-    for(unsigned posMat = 0; posMat <= constants::MAXMAT; ++posMat){
-      muen[posMat] = sharedMuen[posMat];
-    }
       
     // Absorption coefficient data filenames
     //***************************************
@@ -1736,6 +1732,9 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& geometry,
     geometry.usedMat(geometryUsedMats);
     for(unsigned imat = 1; imat <= constants::MAXMAT; ++imat){
 
+      //Disable materials by default
+      activeMat[imat] = false;
+      
       if(!geometryUsedMats[imat]){
 	//Skip unused mats
 	continue;
@@ -1744,8 +1743,6 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& geometry,
       //Clear energy and muen data vectors
       EData.clear();
       muenData.clear();
-    
-      activeMat[imat] = false;
     
       std::string key("dataFiles/");
       key += std::to_string(imat);
@@ -1868,7 +1865,10 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& geometry,
 	  if(fmuen != nullptr)
 	    fprintf(fmuen,"# %11s     %12s\n","E(eV)","mu_en g/cm^2");
 	}
-	double* pmuen = sharedMuen[imat];
+	//Get the muen vector for this material
+	std::vector<double>& pmuen = muen[imat];
+	//Resize it to save the muen grid
+	pmuen.resize(nbinmax);
 	for(size_t j = 0; j < nbinmax; ++j){
 	  double nextE = grid.DLEMP[j];
 	  while((EData[nextSplin] > nextE || EData[nextSplin+1] < nextE) &&
@@ -2541,8 +2541,8 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& geometry,
 int pen_tallyKermaTrackLength::sharedConfig(const pen_tallyKermaTrackLength& tally){
 
   //Set muen pointers to shared data and copy active materials
-  for(unsigned imat = 0; imat < constants::MAXMAT; ++imat){
-    muen[imat] = tally.sharedMuen[imat];
+  for(unsigned imat = 0; imat <= constants::MAXMAT; ++imat){
+    muen[imat] = tally.muen[imat];
     activeMat[imat] = tally.activeMat[imat];
   }
     

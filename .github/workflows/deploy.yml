@@ -1,0 +1,63 @@
+name: Deploy Documentation
+on:
+  push:
+    branches:
+      - v-1.13.0
+  workflow_dispatch:  # Allow manual triggering of the workflow
+
+# Grant permissions for the workflow to deploy to GitHub Pages
+permissions:
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # Check out the repository
+      - uses: actions/checkout@v4
+
+      # Set up Python
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.x
+
+      # Install MkDocs, Material theme, and PyMdown extensions
+      - run: pip install mkdocs mkdocs-material pymdown-extensions
+
+      # Build Blender plugin documentation
+      - run: cd src/utilities/Blender/4.2.3/mkdocs && mkdocs build --site-dir ./site
+
+      # Install dependencies for pyPenred API documentation build
+      - run: pip install pyPenred sphinx furo sphinx-copybutton sphinx-autodoc-typehints sphinxcontrib-napoleon myst-parser
+
+      # Build pyPenred API documentation
+      - run: cd src/bindings/python/pyPenred/docs && make html
+
+      # Combine both documentations
+      - name: Merge docs
+        run: |
+          # Create a folder for each documentation
+          mkdir -p combined-docs/Blender
+          mkdir -p combined-docs/pyPenred
+          
+          # Get Blender plugin documentation
+          mv src/utilities/Blender/4.2.3/mkdocs/site/* combined-docs/Blender/
+
+          # Get pyPenred API documentation
+          mv src/bindings/python/pyPenred/docs/_build/html/* combined-docs/pyPenred/
+
+      # Upload the built documentation as a GitHub Pages artifact
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./combined-docs/
+
+  deploy-pages:
+    needs: deploy  # Wait for the deploy job to complete
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      # Deploy the artifact to GitHub Pages
+      - uses: actions/deploy-pages@v4

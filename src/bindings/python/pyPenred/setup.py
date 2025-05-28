@@ -1,14 +1,25 @@
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
 import os
+import codecs
 
-# Inclou el fitxer .so en el paquet
+# Read the version from an environment variable or use the default
+VERSION = os.getenv("PENRED_VERSION", "1.13.0")
+
+ext_modules = [
+    Extension(
+        name="pyPenred.simulation",
+        sources=[],  # Empty because the .so file is pre-built
+    ),
+]
+
 setup(
     name='pyPenred',
-    version='0.1',
+    version=VERSION,
     packages=find_packages(),
+    ext_modules=ext_modules,
     include_package_data=True,
     description='Python interface for penRed framework',
-    long_description=open('README.md').read(),
+    long_description=codecs.open('README.md', 'r', encoding='utf-8').read(),
     long_description_content_type='text/markdown',
     platforms=["Linux :: x86_64", "Windows :: x86_64", "Mac OS-X"],
     author="PenRed Contributors",
@@ -26,6 +37,7 @@ setup(
     },
     install_requires=[
         'pyyaml',
+        'numpy',
     ],
     python_requires='>=3.8',
     zip_safe=False,

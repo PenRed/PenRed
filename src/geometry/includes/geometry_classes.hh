@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019 Universitat de València - UV
 //    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -213,7 +214,7 @@ protected:
   
   void clearMesh(){
     if(mesh != nullptr){
-      delete mesh;
+      delete[] mesh;
       mesh = nullptr;
     }
     meshDim = 0;

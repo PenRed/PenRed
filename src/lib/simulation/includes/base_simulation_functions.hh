@@ -1,8 +1,8 @@
 
 //
 //
-//    Copyright (C) 2019-2024 Universitat de València - UV
-//    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2025 Universitat de València - UV
+//    Copyright (C) 2019-2025 Universitat Politècnica de València - UPV
 //    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
@@ -78,6 +78,7 @@ namespace penred{
 	ERROR_LOADING_DUMP,
 	ERROR_SECTION_NOT_FOUND,
 	ERROR_INVALID_SEED_PAIR,
+	ERROR_CORRUPTED_SEED_FILE,
 	ERROR_NO_SOURCE,
 	ERROR_MISSING_PATH,
 	ERROR_MISSING_SOURCE_CONFIGURATION,
@@ -104,6 +105,7 @@ namespace penred{
 	case GEOMETRY_NOT_REACHED: return "Geometry not reached";
 	case KPAR_NOT_FOUND: return "Unknown particle type";
 	case ERROR_INVALID_SEEDS: return "Invalid seeds";
+	case ERROR_CORRUPTED_SEED_FILE: return "Corrupted seeds file";
 	case ERROR_LOADING_DUMP: return "Error loading dump";
 	case ERROR_SECTION_NOT_FOUND: return "Section not found";
 	case ERROR_INVALID_SEED_PAIR: return "Invalid seed pair";
@@ -429,6 +431,8 @@ namespace penred{
       //Finish simulation function.
       //Returns true if the simulation must continue and false to stop it
       std::function<bool(const unsigned long long)> fSimFinish;
+
+      std::vector<std::pair<int, int>> seedList;
       
       //Verbose level
       unsigned verbose;
@@ -549,8 +553,22 @@ namespace penred{
 	lSeed2 = seed2;	
       }
 
+      inline size_t nRandSeeds() const{
+	if(seedList.size() > 0){
+	  return seedList.size();
+	}
+	return 1001;
+      }
+      
       inline void setSeeds(const int& seedPos){
-	rand0(seedPos, iSeed1, iSeed2);
+	if(seedList.size() > 0){
+	  int auxPos = seedPos % static_cast<int>(seedList.size());
+	  iSeed1 = seedList[auxPos].first;
+	  iSeed2 = seedList[auxPos].second;
+	}
+	else{
+	  rand0(seedPos, iSeed1, iSeed2);
+	}
 	lSeed1 = iSeed1;
 	lSeed2 = iSeed2;
       }
@@ -703,6 +721,9 @@ namespace penred{
 	dumpFilename = c.dumpFilename;
 	writePartial = c.writePartial;
 	setMaxSimTime(c.getMaxSimTime());
+
+	seedList = c.seedList;
+	
 	verbose = c.verbose;
       }
 
@@ -1012,12 +1033,17 @@ namespace penred{
 
 	  double Eprod = particle.annihilationEDep;
 	  if(state.MAT > 0){
+	    //Set to the particle state the origin material and body
+	    state.IBODY = particle.lastBody();
+	    state.MAT = particle.lastMat();
+	    
 	    // run annihilation process
 	    particle.annihilate(randoms);
+	  }else{
+	    //Set to the particle state the origin material and body
+	    state.IBODY = particle.lastBody();
+	    state.MAT = particle.lastMat();
 	  }
-	  //Set to the particle state the origin material and body
-	  state.IBODY = particle.lastBody();
-	  state.MAT = particle.lastMat();
 
 	  //Set position to the end of dsef
 	  double XL,YL,ZL;
@@ -1180,12 +1206,17 @@ namespace penred{
 	if(state.E < lastEABS){
 
 	  if(state.MAT > 0){
+	    //Set to the particle state the origin material and body
+	    state.IBODY = particle.lastBody();
+	    state.MAT = particle.lastMat();
+	  
 	    // run annihilation process
 	    particle.annihilate(randoms);
+	  }else{
+	    //Set to the particle state the origin material and body
+	    state.IBODY = particle.lastBody();
+	    state.MAT = particle.lastMat();
 	  }
-	  //Set to the particle state the origin material and body
-	  state.IBODY = particle.lastBody();
-	  state.MAT = particle.lastMat();
 
 	  //Set position to the end of dsef
 	  double XL,YL,ZL;

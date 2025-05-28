@@ -2,7 +2,7 @@
 //
 //    Copyright (C) 2020-2023 Universitat de València - UV
 //    Copyright (C) 2020-2023 Universitat Politècnica de València - UPV
-//    Copyright (C) 2024 Vicent Giménez Alventosa
+//    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -71,19 +71,16 @@ int pennuc_specificSampler::configure(double& Emax,
   std::string PennuclogFilename ("pennuc.dat");
   int err = config.read("pennuclog_filename",PennuclogFilename);
   if(err != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("pennuc_specificSampler:configure: Error: Unable to read "
-       "'pennuclog_filename' field from the configuration.\n "
+    if(verbose > 2){
+      printf("Field 'pennuclog_filename' not provided in the configuration.\n "
        "The default filename %s will be used.\n",PennuclogFilename.c_str());
     }
   }
-  else
-  {
-    if(verbose > 0){
-      printf("pennuc_specificSampler:configure: 'pennuclog_filename' field read from the configuration.\n "
-       "pennuclog_filename = %s.\n",PennuclogFilename.c_str());
-    }
+
+  if(verbose > 1){
+    printf("Pennuc log file set to %s.\n",PennuclogFilename.c_str());
   }
+  
 
   FILE* fout = nullptr;
   char straux[200];
@@ -110,7 +107,7 @@ int pennuc_specificSampler::configure(double& Emax,
   std::string nucleideFilename;
   err = config.read("nucleide_filename",nucleideFilename);
   if(err != INTDATA_SUCCESS){
-    if(verbose > 0){
+    if(verbose > 2){
       printf("pennuc_specificSampler:configure: Error: Unable to read "
 	     "'nucleide_filename' field from the configuration. "
 	     "String expected\n");
@@ -122,18 +119,14 @@ int pennuc_specificSampler::configure(double& Emax,
   std::string atomicFilename ("pdatconf.p14");
   err = config.read("atomic_filename",atomicFilename);
   if(err != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("pennuc_specificSampler:configure: Error: Unable to read "
-       "'atomic_filename' field from the configuration.\n "
+    if(verbose > 2){
+      printf("Field 'atomic_filename' not provided in the configuration.\n "
        "The default filename %s will be used.\n",atomicFilename.c_str());
     }
   }
-  else
-  {
-    if(verbose > 0){
-      printf("pennuc_specificSampler:configure: 'atomic_filename' field read from the configuration.\n "
-       "atomic_filename = %s.\n",atomicFilename.c_str());
-    }
+  
+  if(verbose > 1){
+    printf("Atomic data filename set to %s.\n",atomicFilename.c_str());
   }
 
   //Read the filename of the singly ionised atoms with the initial vacancy in one of the K, L,
@@ -141,37 +134,30 @@ int pennuc_specificSampler::configure(double& Emax,
   std::string relaxationFilename ("pdrelax.p11");
   err = config.read("relaxation_filename",relaxationFilename);
   if(err != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("pennuc_specificSampler:configure: Error: Unable to read "
-       "'atomic_filename' field from the configuration.\n "
+    if(verbose > 2){
+      printf("Field 'relaxation_filename' not provided in the configuration.\n "
        "The default filename %s will be used.\n",relaxationFilename.c_str());
     }
   }
-  else
-  {
-    if(verbose > 0){
-      printf("pennuc_specificSampler:configure: 'relaxation_filename' field read from the configuration.\n "
-       "relaxation_filename = %s.\n",relaxationFilename.c_str());
-    }
-  }
+
+  if(verbose > 1){
+    printf("Relaxation data filename set to %s.\n",relaxationFilename.c_str());
+  }  
 
   //Read the filename of the atreli log file.
   std::string AtrelilogFilename ("atreli.dat");
   err = config.read("atrelilog_filename",AtrelilogFilename);
   if(err != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("pennuc_specificSampler:configure: Error: Unable to read "
-       "'atrelilog_filename' field from the configuration.\n "
+    if(verbose > 2){
+      printf("Field 'atrelilog_filename' not provided in the configuration.\n "
        "The default filename %s will be used.\n",AtrelilogFilename.c_str());
     }
   }
-  else
-  {
-    if(verbose > 0){
-      printf("pennuc_specificSampler:configure: 'atrelilog_filename' field read from the configuration.\n "
-       "atrelilog_filename = %s.\n",AtrelilogFilename.c_str());
-    }
+
+  if(verbose > 1){
+    printf("Atreli logging filename set to %s.\n",AtrelilogFilename.c_str());
   }
+  
 
   sourceMaterial = 0;
   int auxInt;
@@ -195,8 +181,7 @@ int pennuc_specificSampler::configure(double& Emax,
 
 
   // ** DRTIME
-  DRTIME = 5.0E-6;
-  /*
+
   //Read the detector resolution time
   if(config.read("drtime",DRTIME) != INTDATA_SUCCESS){
     DRTIME = 5.0E-6;
@@ -208,7 +193,7 @@ int pennuc_specificSampler::configure(double& Emax,
   else if(verbose > 1){
     printf(" Detector resolution time set to %E seconds\n",DRTIME);
   }
-  */
+  
   
   // ** ECNUC
   //Read the cutoff energy for the de-excitation of inner subshells
@@ -261,7 +246,11 @@ int pennuc_specificSampler::configure(double& Emax,
   NIR=0;
   NR = 0; //No particles in the storage
   lastMETAST = 0; //Nucleus is not in a metastable level 
-  PENNUC0(nucleideFilename.c_str(),atomicFilename.c_str(),relaxationFilename.c_str(),AtrelilogFilename.c_str(),auxEmax,fout,IER);
+  PENNUC0(nucleideFilename.c_str(),
+	  atomicFilename.c_str(),
+	  relaxationFilename.c_str(),
+	  AtrelilogFilename.c_str(),
+	  auxEmax,fout,IER);
   fclose(fout);
   Emax = 1.001E0*auxEmax;
   if(IER != 0)
@@ -330,7 +319,10 @@ bool pennuc_specificSampler::getNext(pen_particleState& state,
 
       if(LAGE){
 	state.LAGE = true;
-	state.PAGE = AGENR[NR - 1];
+	state.PAGE = t0 + AGENR[NR - 1];
+      }else{
+	state.LAGE = false;
+	state.PAGE = t0;
       }
 
       state.WGHT = 1.0;
@@ -378,6 +370,14 @@ void pennuc_specificSampler::sample(pen_particleState& state,
          spatial()->sample(state,random);
          geometry->locate(state);
       }
+    }
+
+    //Sample initial time if a sampler is provided
+    if(time() != nullptr){
+      time()->sample(state,random);
+      t0 = state.PAGE;
+    }else{
+      t0 = 0.0;
     }
 
     //Save decay position
@@ -1076,8 +1076,8 @@ void pennuc_specificSampler::ISOTROP(double &U,
 //                       SUBROUTINE PENNUC0
 //  *********************************************************************
 void pennuc_specificSampler::PENNUC0(const char* NUCFNAME,
-             const char* ATOMFNAME, const char* RELAXFNAME,
-             const char* ATRELIFNAME,
+				     const char* ATOMFNAME, const char* RELAXFNAME,
+				     const char* ATRELIFNAME,
 				     double& EPMAX,
 				     FILE* IWR,
 				     int &IER){
@@ -1154,7 +1154,7 @@ void pennuc_specificSampler::PENNUC0(const char* NUCFNAME,
   //
   //Uses PENNUC_mod, CPN1, CPN2, CPN3, CPN4 and CPN5 commons
   //
-  char TEMPBUF[100], WCODE[4];
+  char WCODE[4];
   //      CHARACTER NUCFNAME*45
   //
   char WTYPE[9][6];
@@ -1255,12 +1255,25 @@ void pennuc_specificSampler::PENNUC0(const char* NUCFNAME,
       return;
     }
   //
-  READSKP (NRD, WCODE, TEMPBUF);
-  sscanf (TEMPBUF, "%s", NUCLIDE[NIR - 1]);
-  READSKP (NRD, WCODE, TEMPBUF);
-  sscanf (TEMPBUF, "%d , %d", &IANUC[NIR - 1], &IZNUC[NIR - 1]);
-  READSKP (NRD, WCODE, TEMPBUF);
-  sscanf (TEMPBUF, "%d", &NDAUGH[NIR - 1]);
+  bool goodRead;
+  goodRead = READSKP (NRD, WCODE, "%s", NUCLIDE[NIR - 1]);
+  if(!goodRead){
+    printf("\n PENNUC0: Error: Unable to read nuclide name.\n");
+    IER = 13;
+    return;
+  }
+  goodRead = READSKP (NRD, WCODE, "%d %d", &IANUC[NIR - 1], &IZNUC[NIR - 1]);
+  if(!goodRead){
+    printf("\n PENNUC0: Error: Unable to read nuclide atomic number and mass.\n");
+    IER = 13;
+    return;
+  }
+  goodRead = READSKP (NRD, WCODE, "%d", &NDAUGH[NIR - 1]);
+  if(!goodRead){
+    printf("\n PENNUC0: Error: Unable to read nuclide number of daughters.\n");
+    IER = 13;
+    return;
+  }
   //
   if (NIR > 1)
     {
@@ -1316,19 +1329,36 @@ void pennuc_specificSampler::PENNUC0(const char* NUCFNAME,
       return;
     }
   //
-  const char s[2] = ",";
   for (int IDAUGH = 1; IDAUGH <= NDAUGH[NIR - 1]; IDAUGH++)
     {
-      READSKP (NRD, WCODE, TEMPBUF);
-      sscanf (TEMPBUF, "%s", DNUCLIDE[NIR - 1][IDAUGH - 1]);
-      READSKP (NRD, WCODE, TEMPBUF);
-      sscanf (strtok (TEMPBUF, s), "%lf", &PDAUGH[NIR - 1][IDAUGH - 1]);
-      sscanf (strtok (NULL, s), "%lf", &UPDAUGH[NIR - 1][IDAUGH - 1]);
-      sscanf (strtok (NULL, s), "%d", &NLEVEL[NIR - 1][IDAUGH - 1]);
-      sscanf (strtok (NULL, s), "%d", &NBRANCH[NIR - 1][IDAUGH - 1]);
-      READSKP (NRD, WCODE, TEMPBUF);
-      sscanf (TEMPBUF, "%lf , %lf", &Q[NIR - 1][IDAUGH - 1],
-	      &UQ[NIR - 1][IDAUGH - 1]);
+      READSKP (NRD, WCODE, "%s", DNUCLIDE[NIR - 1][IDAUGH - 1]);
+      if(!goodRead){
+	printf("\n PENNUC0: Error: Unable to read daughter nucleide name.\n");
+	IER = 13;
+	return;
+      }
+      
+      READSKP (NRD, WCODE, "%lf %lf %d %d",
+	       &PDAUGH[NIR - 1][IDAUGH - 1],
+	       &UPDAUGH[NIR - 1][IDAUGH - 1],
+	       &NLEVEL[NIR - 1][IDAUGH - 1],
+	       &NBRANCH[NIR - 1][IDAUGH - 1]);
+      if(!goodRead){
+	printf("\n PENNUC0: Error: Unable to read daughter probability, "
+	       "number of levels and branches.\n");
+	IER = 13;
+	return;
+      }
+      
+      READSKP (NRD, WCODE, "%lf %lf",
+	       &Q[NIR - 1][IDAUGH - 1],
+	       &UQ[NIR - 1][IDAUGH - 1]);
+      if(!goodRead){
+	printf("\n PENNUC0: Error: Unable to read desintegration available energy.\n");
+	IER = 13;
+	return;
+      }
+      
       Q[NIR - 1][IDAUGH - 1] = Q[NIR - 1][IDAUGH - 1] * 1.0E3;	// keV to eV.
       UQ[NIR - 1][IDAUGH - 1] = UQ[NIR - 1][IDAUGH - 1] * 1.0E3;
       //
@@ -1336,16 +1366,19 @@ void pennuc_specificSampler::PENNUC0(const char* NUCFNAME,
 	{
 	  fflush (stdout);
 	  int ITPRO;
-	  READSKP (NRD, WCODE, TEMPBUF);
-	  sscanf (strtok (TEMPBUF, s), "%lf",
-		  &BR[NIR - 1][IDAUGH - 1][IB - 1]);
-	  sscanf (strtok (NULL, s), "%lf", &UBR[NIR - 1][IDAUGH - 1][IB - 1]);
-	  sscanf (strtok (NULL, s), "%d", &IFLB[NIR - 1][IDAUGH - 1][IB - 1]);
-	  sscanf (strtok (NULL, s), "%lf",
-		  &EBRANCH[NIR - 1][IDAUGH - 1][IB - 1]);
-	  sscanf (strtok (NULL, s), "%lf",
-		  &UEBRANCH[NIR - 1][IDAUGH - 1][IB - 1]);
-	  sscanf (strtok (NULL, s), "%d", &ITPRO);
+	  READSKP (NRD, WCODE, "%lf %lf %d %lf %lf %d",
+		   &BR[NIR - 1][IDAUGH - 1][IB - 1],
+		   &UBR[NIR - 1][IDAUGH - 1][IB - 1],
+		   &IFLB[NIR - 1][IDAUGH - 1][IB - 1],
+		   &EBRANCH[NIR - 1][IDAUGH - 1][IB - 1],
+		   &UEBRANCH[NIR - 1][IDAUGH - 1][IB - 1],
+		   &ITPRO);
+	  if(!goodRead){
+	    printf("\n PENNUC0: Error: Unable to read branch information.\n");
+	    IER = 13;
+	    return;
+	  }
+
 	  //  The sign of ITPRO distinguishes non-unique beta transitions.
 	  IPRBETA[NIR - 1][IDAUGH - 1][IB - 1] = abs (ITPRO);
 	  //
@@ -1432,13 +1465,17 @@ void pennuc_specificSampler::PENNUC0(const char* NUCFNAME,
       //
       for (int IL = NLEVEL[NIR - 1][IDAUGH - 1]; IL >= 1; IL--)
 	{
-	  READSKP (NRD, WCODE, TEMPBUF);
-	  sscanf (TEMPBUF, "%lf , %lf , %d , %lf , %lf",
-		  &ELEVEL[NIR - 1][IDAUGH - 1][IL - 1],
-		  &UELEVEL[NIR - 1][IDAUGH - 1][IL - 1],
-		  &NTRANS[NIR - 1][IDAUGH - 1][IL - 1],
-		  &DTIME[NIR - 1][IDAUGH - 1][IL - 1],
-		  &UDTIME[NIR - 1][IDAUGH - 1][IL - 1]);
+	  READSKP (NRD, WCODE, "%lf %lf %d %lf %lf",
+		   &ELEVEL[NIR - 1][IDAUGH - 1][IL - 1],
+		   &UELEVEL[NIR - 1][IDAUGH - 1][IL - 1],
+		   &NTRANS[NIR - 1][IDAUGH - 1][IL - 1],
+		   &DTIME[NIR - 1][IDAUGH - 1][IL - 1],
+		   &UDTIME[NIR - 1][IDAUGH - 1][IL - 1]);
+	  if(!goodRead){
+	    printf("\n PENNUC0: Error: Unable to read level information.\n");
+	    IER = 13;
+	    return;
+	  }
 	  //
 	  ELEVEL[NIR - 1][IDAUGH - 1][IL - 1] =
 	    ELEVEL[NIR - 1][IDAUGH - 1][IL - 1] * 1.0E3;
@@ -1465,13 +1502,17 @@ void pennuc_specificSampler::PENNUC0(const char* NUCFNAME,
 	      for (int IT = NTRANS[NIR - 1][IDAUGH - 1][IL - 1]; IT >= 1;
 		   IT--)
 		{
-		  READSKP (NRD, WCODE, TEMPBUF);
-		  sscanf (TEMPBUF, "%lf , %lf , %lf , %lf , %d",
-			  &PTRANS[NIR - 1][IDAUGH - 1][IL - 1][IT - 1],
-			  &UPTRANS[NIR - 1][IDAUGH - 1][IL - 1][IT - 1],
-			  &ETRANS[NIR - 1][IDAUGH - 1][IL - 1][IT - 1],
-			  &UETRANS[NIR - 1][IDAUGH - 1][IL - 1][IT - 1],
-			  &IFLT[NIR - 1][IDAUGH - 1][IL - 1][IT - 1]);
+		  READSKP (NRD, WCODE, "%lf %lf %lf %lf %d",
+			   &PTRANS[NIR - 1][IDAUGH - 1][IL - 1][IT - 1],
+			   &UPTRANS[NIR - 1][IDAUGH - 1][IL - 1][IT - 1],
+			   &ETRANS[NIR - 1][IDAUGH - 1][IL - 1][IT - 1],
+			   &UETRANS[NIR - 1][IDAUGH - 1][IL - 1][IT - 1],
+			   &IFLT[NIR - 1][IDAUGH - 1][IL - 1][IT - 1]);
+		  if(!goodRead){
+		    printf("\n PENNUC0: Error: Unable to read transition information.\n");
+		    IER = 13;
+		    return;
+		  }		  
 		  //
 		  if (strcmp (WCODE, "GA ") == 0)
 		    {
@@ -1753,41 +1794,6 @@ void pennuc_specificSampler::PENNUC0(const char* NUCFNAME,
   IZD = 0;
   IAD = 0;
   LEVD = 9999;
-  return;
-}
-
-//  *********************************************************************
-//                       SUBROUTINE READSKP
-//  *********************************************************************
-void pennuc_specificSampler::READSKP(FILE * NRD,
-				     char WCODE[4],
-				     char TEMPBUF[100]) const {
-  //
-  //  Reads and reformats an input record. Skips comment records, and in
-  //  data records replaces any ';' by ','.
-  //
-  //
-  char straux[200];
-  strcpy (WCODE, "COM");
-  while (strcmp (WCODE, "COM") == 0)
-    {
-      fgets (straux, sizeof (straux), NRD);
-      straux[strlen (straux) - 1] = '\0';
-      sscanf (straux, "%3c %[^\n]%*[^\n]", WCODE, TEMPBUF);
-      WCODE[strlen (WCODE)] = '\0';
-      TEMPBUF[strlen (TEMPBUF) - 1] = '\0';
-    }
-  //
-
-  char *pch;
-  pch = strchr (TEMPBUF, ';');
-  while (pch != NULL)
-    {
-      int IPOS = pch - TEMPBUF;
-      TEMPBUF[IPOS] = ',';
-      pch = strchr (pch + 1, ';');
-    }
-  //
   return;
 }
 
@@ -2140,8 +2146,8 @@ void pennuc_specificSampler::ATREL0(){
 //                       SUBROUTINE ATRELI
 //  *********************************************************************
 void pennuc_specificSampler::ATRELI(const char* ATRELIFNAME,
-            const char* ATOMFNAME, const char* RELAXFNAME,
-            int IZ,
+				    const char* ATOMFNAME, const char* RELAXFNAME,
+				    int IZ,
 				    int IWR,
 				    int &IER){
   //
@@ -2271,8 +2277,21 @@ void pennuc_specificSampler::ATRELI(const char* ATRELIFNAME,
   //strcpy (straux, FNAME);
   strcpy (straux, ATOMFNAME);
   MRD = fopen (straux, "r");
+  
+#ifdef _PEN_EMBEDDED_DATA_BASE_
   if (MRD == NULL)
-    {
+    {  
+      //Create the file from the embedded data base
+      if(penred::penMaterialCreator::createDBFile(ATOMFNAME,"pdatconf.p14") != 0){
+	printf("\n ATRELI: Unable to create '%s' file from the 'pdatconf.p14'"
+	       " embedded database file. Check folder permissions.\n", ATOMFNAME);
+      }else{
+	MRD = fopen (straux, "r");
+      }
+    }
+#endif
+  if (MRD == NULL)
+    {      
       if (fileIWR != nullptr)
 	{
 	  fprintf (fileIWR,
@@ -2359,6 +2378,19 @@ void pennuc_specificSampler::ATRELI(const char* ATRELIFNAME,
   //strcpy (straux, FNAME);
   strcpy (straux, RELAXFNAME);
   MRD = fopen (straux, "r");
+#ifdef _PEN_EMBEDDED_DATA_BASE_
+  if (MRD == NULL)
+    {  
+      //Create the file from the embedded data base
+      if(penred::penMaterialCreator::createDBFile(RELAXFNAME,"pdrelax.p11") != 0){
+	printf("\n ATRELI: Unable to create '%s' file from the 'pdrelax.p11'"
+	       " embedded database file. Check folder permissions.\n", RELAXFNAME);
+      }else{
+	MRD = fopen (straux, "r");
+      }
+    }
+#endif
+  
   if (MRD == NULL)
     {
       if (fileIWR != nullptr)

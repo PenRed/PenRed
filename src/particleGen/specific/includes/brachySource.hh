@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2021-2023 Universitat de València - UV
 //    Copyright (C) 2021-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -71,6 +72,8 @@ class brachy_specificSampler : public abc_specificSampler<pen_particleState>{
 	      pen_rand& random);
 
   void updateGeometry(const wrapper_geometry* geometryIn);
+
+  int sharedConfig(const brachy_specificSampler& o);
 };
 
 #endif

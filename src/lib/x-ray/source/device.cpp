@@ -2,6 +2,7 @@
 //
 //    Copyright (C) 2024 Universitat de València - UV
 //    Copyright (C) 2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -63,7 +64,7 @@ namespace penred{
 	source2filter - (source2inherentFilter + inherentFilterSize);
 	
       if(inherentFilter2filters < 4.0*elementSpacing+2.0*collHeight){
-	if(verbose > 1){
+	if(verbose > 0){
 	  printf("constructDevice: Error: The minimum distance between "
 		 "inherent filter and first added filter must be %f cm\n"
 		 "    Inherent filter end to source: %f\n"
@@ -338,7 +339,7 @@ namespace penred{
       if(source2bowtie > 0.0 && bowtieDz.size() > 0){
 
 	if(source2bowtie <= filtersEnd){
-	  if(verbose > 1){
+	  if(verbose > 0){
 	    printf("constructDevice: Error: The distance between source"
 		   "and bowtie filter is lesser than the distance between the "
 		   "source and the collimator after flat filters\n"
@@ -356,7 +357,7 @@ namespace penred{
 
 	//Check if the maximum dz is positive
 	if(maxDz <= 0.0){
-	  if(verbose > 1){
+	  if(verbose > 0){
 	    printf("constructDevice: Error: The maximum bowtie height must be greater than 0.\n"
 		   "                        Bowtie maximum height: %f cm\n",
 		   maxDz);
@@ -419,10 +420,14 @@ namespace penred{
 		       false,
 		       worldCenter);
       
-      return 0;
+      return errors::SUCCESS;
     }
     
     int simDevice(const pen_parserSection& config,
+		  measurements::measurement<double, 2>& detFluence,
+		  measurements::measurement<double, 2>& detEdep,
+		  measurements::measurement<double, 1>& detSpec,		  
+		  unsigned long long& simHistsOut,
 		  const unsigned verbose){
       
       // ** Parse configuration
@@ -431,11 +436,15 @@ namespace penred{
       readerXRayDeviceSimulate reader;
       int err = reader.read(config,verbose);
       if(err != readerXRayDeviceSimulate::SUCCESS){
-	return err;
+	return errors::INVALID_CONFIGURATION;
       }
 
       //Save added geometry configuration
       config.readSubsection("geometry/config", reader.addedGeoConf);
+      //Try to read geometry type
+      if(config.read("geometry/config/type", reader.addedGeoType) != INTDATA_SUCCESS){
+	reader.addedGeoType = "-";
+      }
 
       // ** Comon simulation configuration
       penred::simulation::simConfig baseSimConfig;
@@ -444,7 +453,7 @@ namespace penred{
 	if(verbose > 0)
 	  printf("simDevice: Error: Unable to parse 'simulation' "
 		 "section: Invalid seeds\n");
-	return -1;
+	return errors::INVALID_CONFIGURATION;
       }
       //Set verbose level
       baseSimConfig.verbose = verbose;      
@@ -479,7 +488,12 @@ namespace penred{
 	
 	const double beamE = reader.kvp*1.0e3;
 	maxE = beamE;
-
+	if(maxE > 1.0e6){
+	  if(verbose > 0)
+	    printf("simDevice: Error: Beam energy must be lesser than 1 MeV for anode simulations.\n");
+	  return errors::BEAM_ENERGY_TOO_HIGH;
+	}
+	
 	//It is a primary (source) particle, set ILB[0] = 1
 	pen_particleState baseState;
 	baseState.X = sourcePos.x;
@@ -520,12 +534,14 @@ namespace penred{
 	//Read energy distribution
 	std::ifstream fin(reader.energyDistribFile, std::ifstream::in);
 	if(!fin){
-	  printf("Unable to open energy distribution file '%s'\n",
-		 reader.energyDistribFile.c_str());
-	  return -1;
+	  if(verbose > 0)
+	    printf("Unable to open energy distribution file '%s'\n",
+		   reader.energyDistribFile.c_str());
+	  return errors::ERROR_UNABLE_TO_OPEN_FILE;
 	}
   
 	err = energyDistrib.read(fin);
+	fin.close();
 	if(err != 0){
 	  if(verbose > 0){
 	    printf("Error reading energy distribution data file '%s'.\n"
@@ -535,10 +551,8 @@ namespace penred{
 		   err,
 		   penred::measurements::errorToString(err));
 	  }
-	  fin.close();
-	  return -2;
+	  return errors::ERROR_INVALID_FILE;
 	}
-	fin.close();
 
 	if(verbose > 1){
 	  printf("Configuring samplers...\n");
@@ -556,29 +570,30 @@ namespace penred{
 		   reader.energyDistribFile.c_str(),
 		   err);
 	  }
-	  return -3;
+	  return errors::ERROR_INVALID_FILE;
 	}
 
 	//Read spatial distribution
 	fin.open(reader.spatialDistribFile, std::ifstream::in);
 	if(!fin){
-	  printf("Unable to open spatial distribution file '%s'\n",
-		 reader.spatialDistribFile.c_str());
-	  return -1;
+	  if(verbose > 0)
+	    printf("Unable to open spatial distribution file '%s'\n",
+		   reader.spatialDistribFile.c_str());
+	  return errors::ERROR_UNABLE_TO_OPEN_FILE;
 	}
   
 	err = spatialDistrib.read(fin);
-	if(err != 0){
-	  printf("Error reading spatial distribution data file '%s'.\n"
-		 "  Error code: %d\n"
-		 "  Error message: %s\n",
-		 reader.spatialDistribFile.c_str(),
-		 err,
-		 penred::measurements::errorToString(err));
-	  fin.close();
-	  return -2;
-	}
 	fin.close();
+	if(err != 0){
+	  if(verbose > 0)
+	    printf("Error reading spatial distribution data file '%s'.\n"
+		   "  Error code: %d\n"
+		   "  Error message: %s\n",
+		   reader.spatialDistribFile.c_str(),
+		   err,
+		   penred::measurements::errorToString(err));
+	  return errors::ERROR_INVALID_FILE;
+	}
 
 	//Configure spatial sampler
 	err = spatialSampler.init(spatialDistrib.readData(),
@@ -592,7 +607,7 @@ namespace penred{
 		   reader.energyDistribFile.c_str(),
 		   err);
 	  }
-	  return -3;
+	  return errors::ERROR_INVALID_FILE;
 	}
 
 	if(verbose > 1){
@@ -704,9 +719,6 @@ namespace penred{
 		   i, reader.tolerance*100.0);
 	  }
 	  
-	  measurements::measurement<double, 2> detFluence;
-	  measurements::measurement<double, 2> detEdep;
-	  measurements::measurement<double, 1> detSpec;
 	  unsigned long long simHists;
 	
 	  err = simDevice(reader, maxE, fsample, baseSimConfig,
@@ -733,7 +745,7 @@ namespace penred{
 		   "  Error message: %s\n",
 		   err,
 		   penred::measurements::errorToString(err));
-	    return err;
+	    return errors::UNKNOWN_ERROR;
 	  }
 
 	  FILE* fout = nullptr;
@@ -867,14 +879,37 @@ namespace penred{
       reader.tolerance = tolerance;
       baseSimConfig.verbose = verbose;
       
-      measurements::measurement<double, 2> detFluence;
-      measurements::measurement<double, 2> detEdep;
-      measurements::measurement<double, 1> detSpec;
       unsigned long long simHists;
 	
       err = simDevice(reader, maxE, fsample, baseSimConfig,
 		      detFluence, detEdep, detSpec, simHists,
 		      verbose);
+      if(err != errors::SUCCESS){
+	return err;
+      }
+
+      simHistsOut = simHists;
+      
+      return errors::SUCCESS;
+      
+    }
+
+    int simDevice(const pen_parserSection& config,
+		  const unsigned verbose){
+      
+      measurements::measurement<double, 2> detFluence;
+      measurements::measurement<double, 2> detEdep;
+      measurements::measurement<double, 1> detSpec;
+
+      //Read information from config section
+      readerXRayDeviceSimulate reader;
+      int err = reader.read(config,verbose);
+      if(err != readerXRayDeviceSimulate::SUCCESS){
+	return errors::INVALID_CONFIGURATION;
+      }
+
+      unsigned long long simHists;
+      err = simDevice(config, detFluence, detEdep, detSpec, simHists, verbose);
       if(err != errors::SUCCESS){
 	return err;
       }
@@ -899,7 +934,6 @@ namespace penred{
       fclose(fout);      
 
       return errors::SUCCESS;
-      
     }
 
     int simDevice(const readerXRayDeviceSimulate& reader,
@@ -1039,7 +1073,7 @@ namespace penred{
       if(err != 0){
 	if(verbose > 0)
 	  printf("simDevice: Error: Unable to create device geometry\n");
-	return -1;
+	return errors::ERROR_ON_GEOMETRY_INITIALIZATION;
       }
 
       // ** Geometry configuration
@@ -1073,7 +1107,7 @@ namespace penred{
 	  printf("Unexpected Error: Unable to create a geometry instance "
 		 "of type 'MESH_BODY'\n"
 		 "                  Please, report this error");
-	  return -2;
+	  return errors::ERROR_ON_GEOMETRY_INITIALIZATION;
 	}
 
 	//Set in-memory geometry
@@ -1107,7 +1141,7 @@ namespace penred{
 	  printf("Unexpected Error: Unable to create a geometry instance "
 		 "of type 'COMBO'\n"
 		 "                  Please, report this error");
-	  return -2;
+	  return errors::ERROR_ON_GEOMETRY_INITIALIZATION;
 	}
   
 	// * Configure device geometry
@@ -1132,7 +1166,7 @@ namespace penred{
 		   "geometry not provided.\n"
 		   "                  Missing section at: 'geometry/config'\n");
 	  }
-	  return -2;
+	  return errors::ERROR_ON_GEOMETRY_INITIALIZATION;
 	}
 
 	geoConfig.addSubsection("geometries/added/config", reader.addedGeoConf);
@@ -1160,7 +1194,7 @@ namespace penred{
 	printf ("simDevice: Error: Unable to create "
 		"collimator material: %s\n", errorString.c_str());
 	printf ("IRETRN =%d\n", err);
-	return -2;
+	return errors::UNABLE_TO_CREATE_MATERIAL;
       }
 	
       simConf.set("materials/collimators/number", nextMat++);
@@ -1183,7 +1217,7 @@ namespace penred{
 	  printf ("simDevice: Error: Unable to create "
 		  "anode material: %s\n", errorString.c_str());
 	  printf ("IRETRN =%d\n", err);
-	  return -2;
+	  return errors::UNABLE_TO_CREATE_MATERIAL;
 	}
 	
 	//Configure anode material
@@ -1206,17 +1240,27 @@ namespace penred{
 	simConf.set("VR/IForcing/bremss/factor", 400);
 	simConf.set("VR/IForcing/bremss/min-weight", 0.1);
 	simConf.set("VR/IForcing/bremss/max-weight", 2.0);
-	simConf.set("VR/IForcing/bremss/bodies/anode", true);
+	if(reader.addedGeoType.compare("-") == 0)
+	  simConf.set("VR/IForcing/bremss/bodies/anode", true);
+	else
+	  simConf.set("VR/IForcing/bremss/bodies/device_anode", true);
 
 	simConf.set("VR/IForcing/innerShell/particle", "electron");
 	simConf.set("VR/IForcing/innerShell/interaction", BETAe_HARD_INNER_SHELL);
 	simConf.set("VR/IForcing/innerShell/factor", 400);
 	simConf.set("VR/IForcing/innerShell/min-weight", 0.1);
 	simConf.set("VR/IForcing/innerShell/max-weight", 2.0);
-	simConf.set("VR/IForcing/innerShell/bodies/anode", true);
+	if(reader.addedGeoType.compare("-") == 0)
+	  simConf.set("VR/IForcing/innerShell/bodies/anode", true);
+	else
+	  simConf.set("VR/IForcing/innerShell/bodies/device_anode", true);
 
 	simConf.set("VR/bremss/split4/splitting", 4);
-	simConf.set("VR/bremss/split4/bodies/anode", true);      	
+	if(reader.addedGeoType.compare("-") == 0)
+	  simConf.set("VR/bremss/split4/bodies/anode", true);
+	else
+	  simConf.set("VR/bremss/split4/bodies/device_anode", true);
+	
       }
 
       // ** Inherent filter
@@ -1232,7 +1276,7 @@ namespace penred{
 		  "inherent filter material: %s\n",
 		  errorString.c_str());
 	  printf ("IRETRN =%d\n", err);
-	  return -2;
+	  return errors::UNABLE_TO_CREATE_MATERIAL;
 	}
 
 	//Configure inherent filter material
@@ -1268,7 +1312,7 @@ namespace penred{
 		    static_cast<unsigned long>(i),
 		    errorString.c_str());
 	    printf ("IRETRN =%d\n", err);
-	    return -2;
+	    return errors::UNABLE_TO_CREATE_MATERIAL;
 	  }
 	}else{
 	  filterMatFile = reader.filtersMatFile[i];
@@ -1310,7 +1354,7 @@ namespace penred{
 		    "bowtie filter material: %s\n",
 		    errorString.c_str());
 	    printf ("IRETRN =%d\n", err);
-	    return -2;
+	    return errors::UNABLE_TO_CREATE_MATERIAL;
 	  }
 	}else{
 	  matFilename = reader.bowtieMatFile;
@@ -1350,7 +1394,7 @@ namespace penred{
 		     "           Number of reserved materials: %d\n",
 		     mat.index, nextMat);
 	    }
-	    return -3;
+	    return errors::USING_RESERVED_MATERIAL;
 	  }
 
 	  //Add configuration for this material
@@ -1391,9 +1435,10 @@ namespace penred{
 			   simConf,
 			   matInfo,
 			   verbose > 2 ? verbose : 1) != pen_context::SUCCESS){
-	printf("simDevice: Error at simulation context initialization. "
-	       "See context report.\n");
-	return -3;
+	if(verbose > 0)
+	  printf("simDevice: Error at simulation context initialization. "
+		 "See context report.\n");
+	return errors::ERROR_ON_CONTEXT_INITIALIZATION;
       }
 
       //Configure geometry
@@ -1401,11 +1446,9 @@ namespace penred{
       
       if(geometry->configure(geoConfig,
 			     verbose > 2 ? verbose : 1) != PEN_MESHBODY_GEO_SUCCESS){
-	if(verbose > 0){
-	  printf("Unexpected Error: Unable to construct the geometry. "
-		 "Please, report this error\n");
-	}
-	return -2;
+	printf("Unexpected Error: Unable to construct the geometry. "
+	       "Please, report this error\n");
+	return errors::ERROR_ON_GEOMETRY_INITIALIZATION;
       }      
       
       //Set the geometry to the simulation context
@@ -1416,7 +1459,7 @@ namespace penred{
 				  verbose > 2 ? verbose : 1) != pen_context::SUCCESS){
 	printf("simDevice: Error at simulation context initialization with geometry. "
 	       "Please, report this error.\n");
-	return -3;
+	return errors::ERROR_ON_CONTEXT_INITIALIZATION;
       }
 
       if(reader.printGeo){
@@ -1597,24 +1640,24 @@ namespace penred{
 	else if(pathInSection.compare("focalSpot") == 0){
 	  focalSpot = element;
 	}    
-	else if(pathInSection.compare("source2det") == 0){
+	else if(pathInSection.compare("distance/detector") == 0){
 	  source2det = element;
 	}
-	else if(pathInSection.compare("source2bowtie") == 0){
-	  source2bowtie = element;
-	}	
 	else if(pathInSection.compare("detector/dx") == 0){
 	  detectorDx = element;
 	}
 	else if(pathInSection.compare("detector/dy") == 0){
 	  detectorDy = element;
 	}
-	else if(pathInSection.compare("inherentFilter/width") == 0){
+	else if(pathInSection.compare("inherent-filter/width") == 0){
 	  inherentFilterWidth = element;
 	}
-	else if(pathInSection.compare("source2filter") == 0){
+	else if(pathInSection.compare("distance/filter") == 0){
 	  source2filter = element;
 	}
+	else if(pathInSection.compare("distance/bowtie") == 0){
+	  source2bowtie = element;
+	}	
 	else if(pathInSection.compare("source/pos/x") == 0){
 	  sourcePosition.x = element;
 	}    
@@ -1643,7 +1686,7 @@ namespace penred{
 
       return errors::SUCCESS;
   
-}
+    }
 
     int readerXRayDeviceCreate::beginArray(const std::string& pathInSection,
 					   const size_t,
@@ -1782,6 +1825,10 @@ namespace penred{
 	else if(pathInSection.compare("simulation/min-energy") == 0){
 	  minEnergy = element;
 	}
+	else if(pathInSection.compare("simulation/tolerance") == 0){
+	  tolerance = element;
+	  tolerance /= 100.0;
+	}	
 	else if(pathInSection.compare("simulation/print-geometry") == 0){
 	  printGeo = element;
 	}
@@ -1800,17 +1847,13 @@ namespace penred{
 	else if(pathInSection.compare("simulation/eBins") == 0){
 	  eBins = element;
 	}
-	else if(pathInSection.compare("simulation/tolerance") == 0){
-	  tolerance = element;
-	  tolerance /= 100.0;
-	}
 	else if(pathInSection.compare("x-ray/focal-spot") == 0){
 	  focalSpot = element;
 	}	
-	else if(pathInSection.compare("x-ray/source/distrib2source") == 0){
+	else if(pathInSection.compare("x-ray/distance/distribution") == 0){
 	  distrib2source = element;
 	}
-	else if(pathInSection.compare("x-ray/source2det") == 0){
+	else if(pathInSection.compare("x-ray/distance/detector") == 0){
 	  source2det = element;
 	}
 	else if(pathInSection.compare("x-ray/detector/dx") == 0){
@@ -1819,13 +1862,13 @@ namespace penred{
 	else if(pathInSection.compare("x-ray/detector/dy") == 0){
 	  detectorDy = element;
 	}
-	else if(pathInSection.compare("x-ray/inherentFilter/width") == 0){
+	else if(pathInSection.compare("x-ray/inherent-filter/width") == 0){
 	  inherentFilterWidth = element;
 	}
-	else if(pathInSection.compare("x-ray/source2filter") == 0){
+	else if(pathInSection.compare("x-ray/distance/filter") == 0){
 	  source2filter = element;
 	}
-	else if(pathInSection.compare("x-ray/source2bowtie") == 0){
+	else if(pathInSection.compare("x-ray/distance/bowtie") == 0){
 	  source2bowtie = element;
 	}
 	else if(pathInSection.compare("x-ray/bowtie/z") == 0){
@@ -1840,10 +1883,10 @@ namespace penred{
 	else if(pathInSection.compare("x-ray/bowtie/design-iterations") == 0){
 	  bowtieDesignIterations = element;
 	}	
-	else if(pathInSection.compare("anode/angle") == 0){
+	else if(pathInSection.compare("x-ray/anode/angle") == 0){
 	  anodeAngle = element;
 	}
-	else if(pathInSection.compare("anode/z") == 0){
+	else if(pathInSection.compare("x-ray/anode/z") == 0){
 	  anodeZ = element;
 	}	
 	else if(pathInSection.compare("x-ray/kvp") == 0){
@@ -1899,14 +1942,11 @@ namespace penred{
 					      const unsigned){
 
       if(family == -1){ //Root
-	if(pathInSection.compare("x-ray/source/spatial-distrib-file") == 0){	  
+	if(pathInSection.compare("x-ray/source/distribution/spatial") == 0){	  
 	  spatialDistribFile = element;
 	}
-	else if(pathInSection.compare("x-ray/source/energy-distrib-file") == 0){	  
+	else if(pathInSection.compare("x-ray/source/distribution/energy") == 0){	  
 	  energyDistribFile = element;
-	}
-	else if(pathInSection.compare("geometry/type") == 0){
-	  addedGeoType = element;
 	}
 	else if(pathInSection.compare("x-ray/bowtie/mat-file") == 0){
 	  bowtieMatFile = element;

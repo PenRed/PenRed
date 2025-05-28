@@ -118,6 +118,14 @@ int sphereSection_directionSampling::configure(const pen_parserSection& config, 
   theta0 *= deg2rad;
   theta1 *= deg2rad;
 
+  if(theta0 < 0.0 || theta0 > theta1 || theta1 > constants::PI*1.01){
+    if(verbose > 0){
+      printf("sphereSection:configure: Invalid polar interval, "
+	     "must be defined in [0,180].\n");
+    }
+    return -5;
+  }
+  
   
   //Store azimutal angle interval
   err = config.read("phi0",phi0);
@@ -140,9 +148,10 @@ int sphereSection_directionSampling::configure(const pen_parserSection& config, 
   phi0 *= deg2rad;
   dphi *= deg2rad;
 
-  if(phi0 < 0.0 || phi0 >= 2.0*constants::PI || dphi < 0.0 || dphi > 2.0*constants::PI){
+  if(phi0 < 0.0 || phi0 > 2.01*constants::PI || dphi < 0.0 || dphi > 2.01*constants::PI){
     if(verbose > 0){
-      printf("sphereSection:configure: Invalid azimutal interval.\n");
+      printf("sphereSection:configure: Invalid azimutal interval,"
+	     "must be defined in [0,360].\n");
     }
     return -5;
   }

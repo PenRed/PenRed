@@ -1,0 +1,36 @@
+site_name: PenRed Blender Plugin Docs
+docs_dir: docs
+nav:
+  - Home: index.md
+  - Geometry Construction:
+    - Overview: geometry-construction/index.md
+    - Quadric Surfaces: geometry-construction/quadric-surfaces.md
+    - Triangular Meshes: geometry-construction/triangular-meshes.md
+    - Utilities: geometry-construction/utilities.md
+  - Simulation Configuration:
+    - Overview: simulation-configuration/index.md
+    - Generic Parameters: simulation-configuration/generic-parameters.md
+    - Materials: simulation-configuration/materials.md
+    - Body Parameters: simulation-configuration/body-parameters.md
+    - Particle Sources: simulation-configuration/particle-sources.md
+    - Tallies:
+      - Overview: simulation-configuration/tallies.md
+      - World: simulation-configuration/world-tallies.md
+      - Object: simulation-configuration/object-tallies.md
+      - Detector: simulation-configuration/detector-tallies.md
+  - Export:
+    - Export: export.md
+  - Simulate:
+    - Simulate: simulate.md
+theme:
+  name: readthedocs
+  features:
+    - search
+    - content.code.annotate
+    - content.tabs
+markdown_extensions:
+  - pymdownx.arithmatex:
+      generic: true
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js

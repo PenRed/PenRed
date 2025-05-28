@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2023-2024 Universitat de València - UV
 //    Copyright (C) 2023-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -39,10 +40,10 @@ struct pen_comboBody : public pen_baseBody{
   unsigned geoIndex;
 
   //The name of each body is assigned according to the following pattern:
-  //     <geoIndex>_<bodyIndex>
+  //     <geoName>_<bodyName>
   //
-  // where <geoIndex> is the geometry number to which the body belongs and
-  // <bodyName> is its name in the corresponding geometry
+  // where <geoName> is the name of the geometry the body belongs to and
+  // <bodyName> is its name within the corresponding geometry
   std::string name;
 };
 

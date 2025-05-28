@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2021-2022 Universitat de València - UV
 //    Copyright (C) 2021-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -65,6 +66,7 @@ class pen_tallyDICOMkerma: public pen_genericTally<pen_particleState> {
 public:
     
   pen_tallyDICOMkerma() : pen_genericTally(USE_JUMP | USE_STEP),
+			  contVol(nullptr),
 			  contourVox(nullptr),
 			  ncontours(0)
   {}
@@ -91,7 +93,14 @@ public:
   void flush();
   void saveData(const unsigned long long nhist) const;
   int sumTally(const pen_tallyDICOMkerma& tally);
-    
+
+  inline ~pen_tallyDICOMkerma(){
+    if(contVol != nullptr){
+      free(contVol);
+      contVol = nullptr;
+    }
+  }
+
 };
 
 #endif

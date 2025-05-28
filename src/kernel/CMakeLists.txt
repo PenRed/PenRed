@@ -96,6 +96,9 @@ target_include_directories(pen_timer PUBLIC ${PROJECT_SOURCE_DIR}/kernel/timer)
 #  ADD SUB-FOLDERS
 #############################
 
+# logger
+add_subdirectory(logger)
+
 # data base
 add_subdirectory(dataBases)
 

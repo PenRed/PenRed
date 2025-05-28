@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2020-2023 Universitat de València - UV
 //    Copyright (C) 2020-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -107,6 +108,11 @@ C
 #ifndef __PEN_PENNUC_SPECIFIC_SAMPLER__
 #define __PEN_PENNUC_SPECIFIC_SAMPLER__
 
+#include <type_traits>
+#ifdef _PEN_EMBEDDED_DATA_BASE_
+#include "materialCreator.hh"
+#endif
+
 struct BETAS
 {
   double EMAX;
@@ -207,6 +213,7 @@ class pennuc_specificSampler : public abc_specificSampler<pen_particleState>{
   
   int lastMETAST;
   double x0,y0,z0; //Saves decay position
+  double t0;       //Saves base sampled time
   bool LAGE;
 
   int lastIDAUGH, lastIBRANCH, lastISA;
@@ -244,8 +251,6 @@ class pennuc_specificSampler : public abc_specificSampler<pen_particleState>{
   
   void PENNUC0(const char* NUCFNAME, const char* ATOMFNAME, const char* RELAXFNAME, const char* ATRELIFNAME, double& EPMAX, FILE* IWR, int& IER);
   
-  void READSKP(FILE * NRD, char WCODE[4], char TEMPBUF[100]) const;
-  
   void ATREL(int IZ, int IS, double* ES,
 	      double* PAGES, int* KPARS, int* ITR, int &NS, pen_rand& random);  
   
@@ -256,7 +261,89 @@ class pennuc_specificSampler : public abc_specificSampler<pen_particleState>{
   double SBETAS(int IDT, pen_rand& random);
   
   void SBETA0(int IMASS, int IZ, double EMAX, int IPRO, int IDT, int &IER);
+
+  //  *********************************************************************
+  //                       SUBROUTINE READSKP
+  //  *********************************************************************
+  // Base case (empty)
+  template<typename...>
+  struct all_pointers : std::true_type {};
+
+  // Recursive case
+  template<typename T, typename... others>
+  struct all_pointers<T, others...> :
+    std::integral_constant<bool,
+			   std::is_pointer<T>::value && all_pointers<others...>::value
+			   > {};
+  
+  template<class... readTypes, typename = std::enable_if_t<all_pointers<readTypes...>::value>>
+  bool READSKP(FILE * NRD,
+	       char WCODE[4],
+	       const char* format,
+	       readTypes... vars) const {
+    //
+    //  Reads and reformats an input record. Skips comment records, and in
+    //  data records replaces any ';' by ','.
+    //
+    //
     
+    char straux[300];
+    strcpy (WCODE, "COM");
+    while (strcmp (WCODE, "COM") == 0)
+      {
+	if(fgets (straux, sizeof (straux), NRD) == nullptr){
+	  return 0;
+	}
+	if(strlen(straux) < 3) return 0; //Detect invalid empty line
+	sscanf(straux, "%3c", WCODE);
+	WCODE[strlen (WCODE)] = '\0';      
+      }
+  
+    //Get the remaining line without the code
+    std::string line(&straux[3], strlen(straux)-3);
+
+    //Create the resulting string to read
+    std::string result;
+
+    //Define white spaces
+    const char* ws = " \t\n\v\f\r";
+
+    //Init initial position for the first field
+    size_t pi = 0;
+    while(pi != std::string::npos){
+
+      //Find next delimiter position
+      const size_t pf = line.find(';', pi+1);
+
+      //Check if this field contains non white characters
+      const size_t pndel = line.find_first_not_of(ws, pi+1);
+      if(pndel == pf){
+	//Empty field, set a zero
+	result.append(" 0 ");
+      }else{
+	//Field with data, save it
+	result.append(" ");
+	result.append(line, pi+1, pf-pi-1);
+	result.append(" ");
+      }
+      //Update itial delimiter position
+      pi = pf;
+    }
+
+    //Try to read data
+    int nRead = sscanf(result.c_str(), format, vars...);
+    if(nRead != sizeof...(readTypes)){
+      printf("READSKP: PENNUC format read error at line:\n"
+	     "         Original:  %s%s"
+	     "         Processed: %s"
+	     "         Expected %d values, %d read instead.\n",
+	     WCODE, line.c_str(), result.c_str(),
+	     static_cast<int>(sizeof...(readTypes)), nRead);
+      return false;
+    }
+    return true;
+  }
+  
 };
 
 double FERMI(double E0, void* arg);

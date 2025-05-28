@@ -1,0 +1,238 @@
+name: Build and Publish Binary Wheels
+
+on:
+  workflow_dispatch:    # Allow manual triggering
+    inputs:
+      version:
+        description: 'Version to use for manual triggering (e.g., 1.0.0)'
+        required: true
+        default: '0.0.1-dev'
+      pypi_repo:
+        description: 'PyPI repository to upload to (pypi or testpypi)'
+        required: true
+        default: 'testpypi'
+        type: choice
+        options:
+          - pypi
+          - testpypi
+
+jobs:
+  build_wheels:
+    runs-on: ${{ matrix.os.runner }}
+    strategy:
+      matrix:
+        os:
+          - { runner: ubuntu-latest, container: 'quay.io/pypa/manylinux_2_28_x86_64', name: manylinux }
+          - { runner: windows-latest, container: '', name: windows }
+          - { runner: macos-latest, container: '', name: macos}
+          - { runner: macos-13, container: '', name: macos}
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
+    container: ${{ matrix.os.container }}
+    steps:
+      - name: Checkout PenRed repository
+        uses: actions/checkout@v2
+
+      - name: Extract version from release tag or manual input
+        id: version
+        shell: bash
+        run: |
+          # If triggered by a release, extract version from the tag
+          if [[ "$GITHUB_EVENT_NAME" == "release" ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            # For manual triggers, use the provided input
+            VERSION=${{ github.event.inputs.version }}
+          fi
+          echo "Extracted version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Build PenRed and Python bindings
+        env:
+          PENRED_VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          mkdir src/build
+          cd src/build
+          if [[ "${{ matrix.os.name }}" == "manylinux" ]]; then
+            # Format the Python version (e.g., "3.11" -> "311")
+            PYTHON_VERSION=$(echo "${{ matrix.python-version }}" | tr -d '.')
+            PYTHON_EXECUTABLE="/opt/python/cp${PYTHON_VERSION}-cp${PYTHON_VERSION}/bin/python"
+          else
+            # Use the host's Python interpreter for non-container jobs
+            PYTHON_EXECUTABLE=$(which python3 || which python)
+          fi
+
+          # Set architecture-specific flags for macOS
+          if [[ "${{ matrix.os.name }}" == "macos" ]]; then
+            ARCH_FLAGS="-DCMAKE_OSX_ARCHITECTURES=x86_64;arm64"
+          else
+            ARCH_FLAGS=""
+          fi          
+          
+          if [[ '${{ github.event.inputs.pypi_repo }}' == 'pypi' || "${{ matrix.os.name }}" == "windows" ]]; then
+            cmake $ARCH_FLAGS -DWITH_NATIVE="OFF" -DBUILD_TESTS=OFF -DBUILD_UTILITIES=OFF -DBUILD_PYTHON_MODULES=ON -DWITH_DICOM=ON -DXRAY=ON -DWITH_MULTI_THREADING=ON -DPython3_EXECUTABLE=$PYTHON_EXECUTABLE ../
+            cmake --build . --config Release --target install -j 4
+          else
+            cmake $ARCH_FLAGS -DCMAKE_BUILD_TYPE=Debug -DWITH_NATIVE="OFF" -DBUILD_TESTS=OFF -DBUILD_UTILITIES=OFF -DBUILD_PYTHON_MODULES=ON -DWITH_DICOM=ON -DXRAY=ON -DWITH_MULTI_THREADING=ON -DPython3_EXECUTABLE=$PYTHON_EXECUTABLE ../
+            cmake --build . --config Debug --target install -j 4
+          fi
+          
+      - name: Build wheels
+        env:
+          PENRED_VERSION: ${{ steps.version.outputs.version }}      
+        shell: bash
+        run: |
+          cd src/bindings/python/pyPenred
+          if [[ "${{ matrix.os.name }}" == "manylinux" ]]; then
+            # Format the Python version (e.g., "3.11" -> "311")
+            PYTHON_VERSION=$(echo "${{ matrix.python-version }}" | tr -d '.')
+          
+            # Use the container's Python interpreter for manylinux
+            /opt/python/cp${PYTHON_VERSION}-cp${PYTHON_VERSION}/bin/python -m pip install --upgrade pip
+            /opt/python/cp${PYTHON_VERSION}-cp${PYTHON_VERSION}/bin/python -m pip wheel . --wheel-dir wheelhouse --no-deps
+          else
+            # Use the host's Python interpreter for non-container jobs
+            python -m pip install --upgrade pip
+            if [[ "${{ matrix.os.name }}" == "macos" ]]; then
+
+              # Copy original universal libraries
+              cp -r pyPenred ../
+
+              # Create final wheel directory
+              mkdir wheelhouse
+
+              ## Create x86_64 wheel ##
+              rm -f pyPenred/*.os
+              rm -f pyPenred/*.dylib
+              echo "Creating x86_64 wheel"
+              for lib in ../pyPenred/*.{so,dylib}; do
+                filename=$(basename "$lib")
+                echo "lib: $filename"
+                if [ -f "$lib" ]; then
+                  lipo -extract x86_64 $lib -output pyPenred/$filename
+                fi
+              done
+              ARCH=x86_64 python -m pip wheel . --wheel-dir tmp_wheelhouse_x86_64 --no-deps
+
+              # Rename wheel
+              for wheel in tmp_wheelhouse_x86_64/*.whl; do
+                if [ -f "$wheel" ]; then
+                  # Get basename
+                  filename=$(basename "$wheel")
+                  
+                  # Create the new wheel name
+                  new_name=$(echo $filename | sed -E 's/(universal2|arm64)/x86_64/')
+
+                  echo "Renaming $wheel to wheelhouse/$new_name"
+                  mv "$wheel" "wheelhouse/$new_name"
+                fi
+              done
+
+              # Clear tmp folder
+              rm -fr tmp_wheelhouse_x86_64
+          
+              ## Create arm64 wheel ##
+              rm -f pyPenred/*.os
+              rm -f pyPenred/*.dylib
+              echo "Creating arm64 wheel"
+              for lib in ../pyPenred/*.{so,dylib}; do
+                filename=$(basename "$lib")
+                echo "lib: $filename"
+                if [ -f "$lib" ]; then
+                  lipo -extract arm64 $lib -output pyPenred/$filename
+                fi
+              done              
+              ARCH=arm64 python -m pip wheel . --wheel-dir tmp_wheelhouse_arm64 --no-deps
+
+              # Rename wheel
+              for wheel in tmp_wheelhouse_arm64/*.whl; do
+                if [ -f "$wheel" ]; then
+                  # Get basename
+                  filename=$(basename "$wheel")
+                
+                  # Create the new wheel name
+                  new_name=$(echo $filename | sed -E 's/(universal2|x86_64)/arm64/')
+
+                  echo "Renaming $wheel to wheelhouse/$new_name"
+                  mv "$wheel" "wheelhouse/$new_name"
+                fi
+              done
+              
+            else
+              # For windows, create a single wheel
+              python -m pip wheel . --wheel-dir wheelhouse --no-deps
+            fi
+          fi
+          rm -f wheelhouse/PyYAML-*.whl
+
+      - name: Repair wheels with auditwheel (manylinux only)
+        shell: bash
+        if: matrix.os.name == 'manylinux'  # Only repair Linux wheels
+        run: |
+          PYTHON_VERSION=$(echo "${{ matrix.python-version }}" | tr -d '.')
+          cd src/bindings/python/pyPenred/wheelhouse
+          /opt/python/cp${PYTHON_VERSION}-cp${PYTHON_VERSION}/bin/python -m pip install auditwheel
+          /opt/python/cp${PYTHON_VERSION}-cp${PYTHON_VERSION}/bin/python -m auditwheel repair --exclude numpy,pyyaml *.whl --plat manylinux_2_28_x86_64 -w .
+          # Remove the original wheel
+          rm -f pypenred-*-linux_x86_64.whl          
+      
+      - name: Repair wheels with delocate (macOS only)
+        if: matrix.os.name == 'macos'
+        shell: bash
+        run: |
+          # Install delocate
+          python -m pip install delocate
+
+          # Go to python package folder          
+          cd src/bindings/python/pyPenred
+          
+          # Fix wheels with delocate
+          delocate-wheel --ignore-missing-dependencies -w wheelhouse -v wheelhouse/*.whl
+
+          # Check dependencies
+          for wheel in wheelhouse/*.whl; do
+            echo "Verifying dependencies for: $wheel"
+            delocate-listdeps $wheel
+
+            # Unpack the wheel and check binaries
+            unzip $wheel -d tmp_wheel
+            find tmp_wheel -name "*.so" -o -name "*.dylib" | xargs -I {} lipo -info {}
+
+            # remove tmp folder
+            rm -fr tmp_wheel
+          done
+          
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os.runner }}-${{ matrix.python-version }}
+          path: src/bindings/python/pyPenred/wheelhouse/*.whl
+
+  upload_pypi:
+    runs-on: ubuntu-latest
+    needs: build_wheels
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: wheelhouse
+
+      - name: Combine wheels into a single directory
+        run: |
+          mkdir -p combined_wheels
+          cp wheelhouse/*/*.whl combined_wheels/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ github.event.inputs.pypi_repo == 'pypi' && secrets.PYPI_API_TOKEN || secrets.TEST_PYPI_API_TOKEN }}
+          repository-url: ${{ github.event.inputs.pypi_repo == 'pypi' && 'https://upload.pypi.org/legacy/' || 'https://test.pypi.org/legacy/' }}
+          packages-dir: combined_wheels
+          verbose: true  # Enable verbose logging
+          skip-existing: true  # Skip if the version already exists

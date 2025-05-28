@@ -1,7 +1,8 @@
 //
 //
-//    Copyright (C) 2024 Universitat de València - UV
-//    Copyright (C) 2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024-2025 Universitat de València - UV
+//    Copyright (C) 2024-2025 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -2869,8 +2870,8 @@ namespace penred{
       int (&IZ)[30] = COMPOS.IZ;
       int& NELEM = COMPOS.NELEM;
       
-      double Q[NQ], FF[NQ], FF2[NQ], ER[NEM], XSR[NEM];
-      double EI[NEM], XS[NEM];
+      std::vector<double> Q(NQ), FF(NQ), FF2(NQ), ER(NEM), XSR(NEM);
+      std::vector<double> EI(NEM), XS(NEM);
 
       //  ****  Momentum-transfer grid points and atomic form factor.
       for (int I = 0; I < NQ; I++)
@@ -3008,7 +3009,7 @@ namespace penred{
 	    {
 	      int J;
 	      double EE = log (ER[I]);
-	      FINDI (EI, EE, NEI, J);
+	      FINDI (EI.data(), EE, NEI, J);
 	      double XSE =
 		exp (XS[J - 1] +
 		     (XS[J + 1 - 1] - XS[J - 1]) * (EE -
@@ -3595,21 +3596,21 @@ namespace penred{
       int (&IZ)[30] = COMPOS.IZ;
       int& NELEM = COMPOS.NELEM;
       
-      double FBW[30];
-      double FF[NOM], UUI[NOM], FFJ0[NOM], WWRI[NOM];
-      int KKZ[NOM], KKS[NOM];
-      double FFT[NOM], UIT[NOM], WRIT[NOM];
-      int KZT[NOM], KST[NOM];
-      double FC[NOM], UIC[NOM], FJ0C[NOM];
-      int KZC[NOM], KSC[NOM];
+      std::vector<double> FBW(30);
+      std::vector<double> FF(NOM), UUI(NOM), FFJ0(NOM), WWRI(NOM);
+      std::vector<int> KKZ(NOM), KKS(NOM);
+      std::vector<double> FFT(NOM), UIT(NOM), WRIT(NOM);
+      std::vector<int> KZT(NOM), KST(NOM);
+      std::vector<double> FC(NOM), UIC(NOM), FJ0C(NOM);
+      std::vector<int> KZC(NOM), KSC(NOM);
 
       double EGRT[17] =
 	{ 1.0, 1.25, 1.50, 1.75, 2.00, 2.50, 3.00, 3.50, 4.00, 4.50, 5.00, 5.50,
 	  6.00, 7.00, 8.00, 9.00, 1.00E1 };
 
       //  ****  'Standard' energy grid.
-      double EIT[NEGP1], ES[NEGP1], ESS[NEGP1];
-      double XGP0[NEGP1], XGT0[NEGP1], PPE[NEGP1], PPT[NEGP1];
+      std::vector<double> EIT(NEGP1), ES(NEGP1), ESS(NEGP1);
+      std::vector<double> XGP0(NEGP1), XGT0(NEGP1), PPE(NEGP1), PPT(NEGP1);
 
 
       //  ****  Lowest negative valences of the elements.
@@ -5103,7 +5104,7 @@ namespace penred{
 	}
 
       int NPTAB;
-      GPPaW (EIT, XGP0, XGT0, NPTAB);
+      GPPaW (EIT.data(), XGP0.data(), XGT0.data(), NPTAB);
       if (IRETRN != 0)
 	{
 	  return;
@@ -5113,7 +5114,8 @@ namespace penred{
 	  PPE[I] = 0.0;
 	}
       int NESS;
-      MERGE2 (ES, PPE, EIT, XGP0, ESS, PPT, NES, NPTAB, NESS);
+      MERGE2 (ES.data(), PPE.data(), EIT.data(), XGP0.data(),
+	      ESS.data(), PPT.data(), NES, NPTAB, NESS);
       if (IRETRN != 0)
 	{
 	  return;
@@ -5126,7 +5128,8 @@ namespace penred{
 	{
 	  PPE[I] = 0.0;
 	}
-      MERGE2 (ES, PPE, EIT, XGT0, ESS, PPT, NES, NPTAB, NESS);
+      MERGE2 (ES.data(), PPE.data(), EIT.data(), XGT0.data(),
+	      ESS.data(), PPT.data(), NES, NPTAB, NESS);
       if (IRETRN != 0)
 	{
 	  return;
@@ -6590,7 +6593,8 @@ namespace penred{
       const double EPS = 1.0E-10;
       const int NP_S = 12000;
       const int NP2_S = NP_S + NP_S;
-      double X[NP2_S], Y12[NP2_S];
+      std::vector<double> X(NP2_S);
+      std::vector<double> Y12(NP2_S);
 
       if (N1 > NP_S || N2 > NP_S)
 	{
@@ -6788,7 +6792,7 @@ namespace penred{
       double& EE = CGCO00.EE;
       int& IOSC = CGCO00.IOSC;
       
-      double SXCO[NOCO];
+      std::vector<double> SXCO(NOCO);
 
       EE = E;
       double EK, EKS, EK2, EK1, T0, CSL, TAU, CSKN, CSU;
@@ -7657,7 +7661,7 @@ namespace penred{
       //  values of Y are set to zero).
 
       const int NP_S = 12000;
-      int IORDER[NP_S];
+      std::vector<int> IORDER(NP_S);
 
       if (N > NP_S)
 	{

@@ -1,0 +1,7 @@
+# Documentation dependencies
+sphinx>=6.0
+furo>=2023.0
+sphinx-autodoc-typehints
+sphinx-copybutton
+sphinxcontrib-napoleon
+myst-parser

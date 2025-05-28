@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2021-2022 Universitat de València - UV
 //    Copyright (C) 2021-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -33,7 +34,7 @@
 void image_spatialSampling::geoSampling(double pos[3], pen_rand& random) const{
 
   //Obtain voxel index randomly using Walker's aliasing algorithm
-  long int ivox = IRND(F,K,nvox,random);
+  long int ivox = IRND(F.data(),K.data(),nvox,random);
 
   long int ix = ivox % nx;
   long int iy = (ivox % nxy)/nx;
@@ -269,28 +270,14 @@ int image_spatialSampling::configure(const pen_parserSection& config,
   //Get raw image information
   const double* image = dicom.readImage();
 
-  F = static_cast<double*>(malloc(sizeof(double)*nvox));
-  K = static_cast<long int*>(malloc(sizeof(long int)*nvox));
-
-  if(F == nullptr){
-    if(verbose > 0)
-      printf("image_spatialSampling:configure: "
-	     "Unable to allocate memory for 'F' array\n");
-    return 3;
-  }
-
-  if(K == nullptr){
-    if(verbose > 0)
-      printf("image_spatialSampling:configure: "
-	     "Unable to allocate memory for 'K' array\n");
-    return 4;
-  }
+  F.resize(nvox);
+  K.resize(nvox);
 
   if(computeWalker)
     {
       //Init walker algorithm
       printf("Initializing Walker algorithm ... ");fflush(stdout);
-      IRND0(image,F,K,nvox);
+      IRND0(image,F.data(),K.data(),nvox);
       printf("done\n");fflush(stdout); 
     }
   else
@@ -408,12 +395,6 @@ int image_spatialSampling::configure(const pen_parserSection& config,
 }
 
 image_spatialSampling::~image_spatialSampling(){
-  if(F != nullptr)
-    free(F);
-  if(K != nullptr)
-    free(K);
-  F = nullptr;
-  K = nullptr;
   if(outsampling != nullptr) 
     fclose(outsampling);
   outsampling = nullptr;

@@ -3,7 +3,7 @@
 #
 #    Copyright (C) 2019-2024 Universitat de València - UV
 #    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
-#    Copyright (C) 2024 Vicent Giménez Alventosa
+#    Copyright (C) 2024-2025 Vicent Giménez Alventosa
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -111,7 +111,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         add_compile_options(-march=native)
   endif (WITH_NATIVE)
 
-  add_compile_options(-O2 -Wall -Wpedantic -Wextra -Wshadow -frecord-gcc-switches -Wno-unused-result -Wno-overlength-strings)
+  add_compile_options(-O2 -Wall -Wpedantic -Wextra -Wshadow -frecord-gcc-switches -Wno-unused-result)
 
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
   # using Clang
@@ -120,7 +120,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL
         add_compile_options(-march=native)
   endif (WITH_NATIVE)
 
-  add_compile_options(-O2 -Wall -Wpedantic -Wextra -Wshadow -Wc++14-compat -Wc++14-compat-pedantic -Wno-unused-result -Wno-overlength-strings)
+  add_compile_options(-O2 -Wall -Wpedantic -Wextra -Wshadow -Wc++14-compat -Wc++14-compat-pedantic -Wno-unused-result)
 
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
   # using Intel C++
@@ -137,8 +137,9 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   #Define maximum data base string chunk size to 15KB
   add_definitions(-DPEN_MAXDB_CHUNK_SIZE=15000)
 
-  add_compile_options(/arch:AVX2)
-  add_compile_options(/O2)
+  if (WITH_NATIVE)
+    add_compile_options("$<$<CONFIG:Release>:/arch:AVX2>")
+  endif (WITH_NATIVE)
 
   # Disable some warnings
   add_compile_options(/wd4267) #Conversion from size_t to uintn_t, unsigned int or int
@@ -199,6 +200,11 @@ CMAKE_DEPENDENT_OPTION(XRAY "Compile x-ray libs and utilities, if enabled" OFF
 if(WITH_EMBEDDED_DB)
   add_definitions(-D_PEN_EMBEDDED_DATA_BASE_=1) #enable embedded data bases
 endif(WITH_EMBEDDED_DB)
+
+# Check if x-ray libs are enabled
+if(XRAY)
+  add_definitions(-D_PEN_XRAY_LIBS_=1) #enabled x-ray libs
+endif(XRAY)
 
 if(WITH_TCP)
   add_definitions(-D_PEN_USE_TCP_=1) #enable TCP library
