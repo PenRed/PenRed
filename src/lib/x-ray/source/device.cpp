@@ -950,20 +950,10 @@ namespace penred{
 
       //Get the number of threads to use
       unsigned nThreads = reader.nThreads;
-#ifdef _PEN_USE_THREADS_
       if(nThreads == 0){
 	nThreads = std::max(static_cast<unsigned int>(2),
 			    std::thread::hardware_concurrency());
       }
-#else
-      if(nThreads != 0){
-	if(verbose > 1)
-	  printf("simDevice: Warning: Number of threads has been specified,"
-		 " but the code has been compiled with no multithreading support.\n"
-		 " Only one thread will be used.\n");
-      }
-      nThreads = 1;
-#endif
 
       // ** Tally function
 
@@ -1523,8 +1513,6 @@ namespace penred{
       
       // ** Simulate
 
-#ifdef _PEN_USE_THREADS_
-
       std::vector<std::thread> simThreads;
 
       std::string sourceName = "deviceSource";
@@ -1555,16 +1543,6 @@ namespace penred{
 	  detectedSpectrum[0].add(detectedSpectrum[i]);
 	}
       }
-#else
-      simulation::sampleAndSimulateCondContext(simConfigs[0],
-					       context,
-					       reader.nHists,
-					       sourceName,
-					       fsample,
-					       simulation::finishTypes::DETECTOR_REACHED,
-					       1,
-					       ftallies[0]);
-#endif
 
       unsigned long long simHists = 0;
       for(size_t i = 0; i < nThreads; ++i){

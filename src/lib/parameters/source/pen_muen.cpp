@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2023-2024 Universitat de València - UV
 //    Copyright (C) 2023-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -75,11 +76,9 @@ int pen_muen::calculate(const double Emin,
   
   //Set the number of materials to context (1 per thread)
   unsigned int nCalcThreads = 1;
-#ifdef _PEN_USE_THREADS_
   
-    nCalcThreads = std::max(static_cast<unsigned int>(2),
-			    std::thread::hardware_concurrency());
-#endif
+  nCalcThreads = std::max(static_cast<unsigned int>(2),
+			  std::thread::hardware_concurrency());
   
   int errmat = context.setMats<pen_material>(nCalcThreads);
   if(errmat != 0){
@@ -138,9 +137,6 @@ int pen_muen::calculate(const double Emin,
 
   EData.resize(nBins);
   muenData.resize(nBins);
-
-  
-#ifdef _PEN_USE_THREADS_
   
   std::vector<std::thread> calcThreads;
 
@@ -195,48 +191,6 @@ int pen_muen::calculate(const double Emin,
   for(size_t ith = 0; ith < nCalcThreads; ++ith){
     calcThreads[ith].join();
   }
-
-#else
-
-  //Get material
-  pen_material& mat = context.getBaseMaterial(0);
-  double EABS1 = mat.EABS[PEN_ELECTRON];
-  
-  //Get initial random seeds
-  int seed1, seed2;
-  rand0(5,seed1,seed2);
-    
-  for(unsigned ibin = 0; ibin < nBins; ++ibin){
-
-    //Get energy
-    double E0 = Emin + dE*ibin;
-
-    if(E0 < 50.0){
-      printf("pen_muen:calculate:Warning: Energy %E is too low. "
-	     "Skipping.\n",E0);
-      continue;
-    }
-
-    //Ensure to include electron significant radiative yield
-    for(long int i = static_cast<long int>(constants::NEGP)-1; i >= 0; --i){
-      if(exp(mat.EBRY[i])*context.grid.ET[i] < 1.0e-4*E0){
-	mat.EABS[PEN_ELECTRON] = std::max(context.grid.ET[i],EABS1);
-	break;
-      }
-    }
-
-    mat.EABS[PEN_POSITRON] =
-      std::min(std::max(1.0e-4*E0,5.0e3),mat.EABS[PEN_ELECTRON]);
-
-    double muenVal =
-      pen_muen::simulate(context,E0,simTime,tolerance,seed1,seed2,0);
-	
-    EData[ibin] = E0;
-    muenData[ibin] = muenVal;
-  }
-
-    
-#endif  
   
   return 0;
 }
@@ -285,11 +239,9 @@ int pen_muen::calculate(const char** energySpectrums,
   
   //Set the number of materials to context (1 per thread)
   unsigned int nCalcThreads = 1;
-#ifdef _PEN_USE_THREADS_
   
-    nCalcThreads = std::max(static_cast<unsigned int>(2),
-			    std::thread::hardware_concurrency());
-#endif
+  nCalcThreads = std::max(static_cast<unsigned int>(2),
+			  std::thread::hardware_concurrency());
   
   int errmat = context.setMats<pen_material>(1);
   if(errmat != 0){
@@ -398,9 +350,7 @@ int pen_muen::calculate(const char** energySpectrums,
     globalTally.ET2 = 0.0;
     
     globalTally.nhist = 0;
-    
-#ifdef _PEN_USE_THREADS_
-  
+      
     std::vector<std::thread> calcThreads;
     std::vector<pen_muen::muenSimTally> tallies;
     tallies.resize(nCalcThreads);
@@ -445,23 +395,6 @@ int pen_muen::calculate(const char** energySpectrums,
       globalTally.nhist += tallies[ith].nhist;
 
     }
-  
-#else
-
-    //Get initial random seeds
-    int seed1, seed2;
-    rand0(ith,seed1,seed2);	
-
-    //Simulate muen
-    pen_muen::simulate(context,
-		       spectrumSampler,
-		       simTime,
-		       tolerance,
-		       seed1,seed2,
-		       globalTally);
-
-    
-#endif
 
     //Calculate muen    
     double FNT  = 1.0/static_cast<double>(globalTally.nhist);

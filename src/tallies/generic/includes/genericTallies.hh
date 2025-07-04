@@ -50,6 +50,7 @@
 #include "tallyDetectionSpatialDistrib.hh"
 #include "tallyEmergingSphericalDistribution.hh"
 #include "tallySingles.hh"
+#include "tallyTrackingMemory.hh"
 
 namespace penred{
   namespace tally{
@@ -73,7 +74,8 @@ namespace penred{
 					   pen_PSS,
 					   pen_DetectionSpatialDistrib,
 					   pen_EmergingSphericalDistrib,
-					   pen_Singles>;
+					   pen_Singles,
+					   pen_tallyTrackingMemory>;
 #else
     using typesGenericTallies = std::tuple<pen_EdepMat,
 					   pen_EdepBody,
@@ -91,7 +93,8 @@ namespace penred{
 					   pen_PSS,
 					   pen_DetectionSpatialDistrib,
 					   pen_EmergingSphericalDistrib,
-					   pen_Singles>;    
+					   pen_Singles,
+					   pen_tallyTrackingMemory>;    
 #endif
 
     template<size_t T>

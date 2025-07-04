@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2023 Universitat de València - UV
 //    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -453,8 +454,6 @@ int pen_SpatialDoseDistrib::configure(const wrapper_geometry& geometry,
     double ddz = dz*inDiv;
     double subVoxVol = ddx*ddy*ddz;
     
-#ifdef _PEN_USE_THREADS_
-  
     unsigned int nCalcThreads =
       std::max(static_cast<unsigned int>(2),
 	       std::thread::hardware_concurrency());
@@ -548,81 +547,7 @@ int pen_SpatialDoseDistrib::configure(const wrapper_geometry& geometry,
     //Wait until all threads have been finished
     for(std::thread& t : calcThreads){
       t.join();
-    }  
-
-#else
-
-    pen_particleState state;
-  
-    for(long int k = 0; k < nz; k++)
-      {
-	//This is to locate a point and find its material
-	double binZpos = zmin + dz*static_cast<double>(k);
-	long int ibinZ = k*nxy;
-	
-	for(long int j = 0; j < ny; j++)
-	  {
-	    double binYpos = ymin + dy*static_cast<double>(j);
-	    long int ibinY = ibinZ + j*static_cast<long int>(nx);
-	    
-	    for(long int i = 0; i < nx; i++)
-	      {
-
-		double binXpos = xmin + dx*static_cast<double>(i);
-		long int bin = ibinY + i;
-	                      
-		double localdens = 0.0;
-               
-		for (int kk = 0; kk < nDivisions; kk++)
-		  {
-		    state.Z = binZpos + ddz*((double)kk+0.5);
-
-		    //Ensure direction to bin center
-		    if(kk < nDivisions/2)
-		      state.W = 1.0;
-		    else
-		      state.W = -1.0;
-		    
-		    for (int jj = 0; jj < nDivisions; jj++)
-		      {
-			state.Y = binYpos + ddy*((double)jj+0.5);
-
-			//Ensure direction to bin center
-			if(jj < nDivisions/2)
-			  state.V = 1.0;
-			else
-			  state.V = -1.0;
-		      
-			for(int ii = 0; ii < nDivisions; ii++)
-			  {
-			    state.X = binXpos + ddx*((double)ii+0.5);
-			  
-			    //Ensure direction to bin center
-			    if(ii < nDivisions/2)
-			      state.U = 1.0;
-			    else
-			      state.U = -1.0;
-			  
-			    geometry.locate(state);
-                            
-			    if(state.MAT > 0)
-			      {
-				localdens += materials[state.MAT-1]->readDens();
-			      }
-			  }
-		      }
-		  }
-		if(localdens > 0.0){
-		  double voxMass = localdens*subVoxVol;
-		  ivoxMass[bin] = 1.0/voxMass;
-		}
-		else
-		  ivoxMass[bin] = 1.0e35;
-	      }
-	  }
-      }
-    
-#endif
+    }
     
   }
     

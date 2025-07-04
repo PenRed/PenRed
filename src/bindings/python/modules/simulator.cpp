@@ -480,22 +480,31 @@ Raises:
     )")
     
     .def("simulate",
-	 [](penred::simulation::simulator<pen_context>& obj, const bool async) -> void {
+	 [](penred::simulation::simulator<pen_context>& obj, const bool async, const bool interactive) -> void {
 	   if(async){
 	     //py::gil_scoped_release release;
-	     int err = obj.simulateAsync();
+	     int err = obj.enableInteractive(interactive);
+	     if(err != penred::simulation::errors::SUCCESS){
+	       throw py::value_error(penred::simulation::errors::errorMessage(err));
+	     }
+	     err = obj.simulateAsync();
 	     if(err != penred::simulation::errors::SUCCESS){
 	       throw py::value_error(penred::simulation::errors::errorMessage(err));
 	     }
 	   }
 	   else{
-	     int err = obj.simulate();
+	     int err = obj.enableInteractive(false);
+	     if(err != penred::simulation::errors::SUCCESS){
+	       throw py::value_error(penred::simulation::errors::errorMessage(err));
+	     }	     
+	     err = obj.simulate();
 	     if(err != penred::simulation::errors::SUCCESS){
 	       throw py::value_error(penred::simulation::errors::errorMessage(err));
 	     }
 	   }
 	 },
 	 py::arg("async") = false,
+	 py::arg("interactive") = false,
 	 R"doc(
 Executes the configured simulation in either blocking or non-blocking mode.
 
@@ -503,6 +512,9 @@ Args:
     async (bool, optional): Simulation execution mode.
         - False (default): Blocking mode (waits for completion)
         - True: Non-blocking mode (returns immediately)
+    interactive (bool, optional): Simulation executes in interactive mode. Only available on asynchronous executions
+        - False (default): The simulation starts and finish according to the configuration parameters.
+        - True: Interactive. The simulation is configured and waits further instructions.
 
 Returns:
     None
@@ -545,11 +557,7 @@ Example:
     
     .def("simSpeeds",
 	 [](penred::simulation::simulator<pen_context>& obj) -> py::tuple{
-	   auto speeds = obj.simSpeeds();
-	   py::tuple resTuple = py::tuple(speeds.size());
-	   for(size_t i = 0; i < speeds.size(); ++i)
-	     resTuple[i] = py::tuple(py::float_(speeds[i]));
-	   return resTuple;
+	   return py::tuple(py::cast(obj.simSpeeds()));
 	 },
 	 R"(
 
@@ -564,15 +572,7 @@ Returns:
     
     .def("simulated",
 	 [](penred::simulation::simulator<pen_context>& obj) -> py::tuple{
-	   auto sim2sim = obj.simulated();
-	   py::tuple resTuple = py::tuple(sim2sim.size());
-	   for(size_t i = 0; i < sim2sim.size(); ++i){
-	     py::tuple element = py::tuple(2);
-	     element[0] = py::int_(sim2sim[i].first);
-	     element[1] = py::int_(sim2sim[i].second);
-	     resTuple[i] = element;
-	   }
-	   return resTuple;
+	   return py::tuple(py::cast(obj.simulated()));
 	 },
 	 R"(
 
@@ -585,12 +585,8 @@ Returns:
     tuple: A tuple with the the pairs (simulated, to simulate) histories for each thread at the current source
 )")
     .def("stringifyStatus",
-	 [](penred::simulation::simulator<pen_context>& obj){
-	   std::vector<std::string> r = obj.stringifyStatus();
-	   auto resTuple = py::tuple(r.size());
-	   for(size_t i = 0; i < r.size(); ++i)
-	     resTuple[i] = py::str(r[i]);
-	   return resTuple;
+	 [](penred::simulation::simulator<pen_context>& obj) -> py::tuple{
+	   return py::tuple(py::cast(obj.stringifyStatus()));
 	 },
 	 R"(
 
@@ -620,11 +616,31 @@ Returns:
 
     .def("forceFinish",
 	 [](penred::simulation::simulator<pen_context>& obj) -> void{
-	   obj.forceFinish();
+	   int err = obj.forceFinish();
+	   if(err != penred::simulation::errors::SUCCESS){
+	     throw py::value_error(penred::simulation::errors::errorMessage(err));
+	   }	   
 	 },
 	 R"(
 
-Forces the simulation finish reducing the number of histories to be simulated. Finishing a simulation can take some time due tally postprocessing.
+Forces the simulation finish. Only works for non interactive simulations.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    ValueError: Simulation running in interactive mode.
+)")
+    .def("instructionEnd",
+	 [](penred::simulation::simulator<pen_context>& obj) -> void{
+	   obj.instructionEnd();
+	 },
+	 R"(
+
+Appends a finish simulation instruction to the instructions queue. Once executed, the simulation is finished and the tally postprocessing starts.
 
 Args:
     None
@@ -632,6 +648,100 @@ Args:
 Returns:
     None
 )")
+    .def("instructionSimulate",
+	 [](penred::simulation::simulator<pen_context>& obj,
+	    const std::string& sourceName, const double hists,
+	    const std::vector<double>& translation,
+	    const std::vector<double>& rotation) -> void{
+	   obj.instructionSimulate(sourceName, hists, translation, rotation);
+	 },
+	 py::arg("source_name"),
+	 py::arg("hists"),
+	 py::arg("translation") = std::vector<double>(),
+	 py::arg("rotZYZ") = std::vector<double>(),
+	 R"(
+
+Appends a simulate instruction to the instructions queue. Once executed, the specified source is simulated. If both, a rotation and a translation are provided, the former is applied first and the latter seconth. If provided, the three components must be specified.
+
+Args:
+    source_name (str): Name of the source to be simulated
+    hists (float): Number of histories to simulate
+    translation (list[float,float,float]): Specify the translation, in cm, to be applied to the original source position before the simulation starts. If no specified, no translation will be applied
+    rotZYZ (list[float,float,float]): Specify the rotation angles, in rad, to be applied to the original source before the simulation starts. The resulting rotation is the product of three rotations around the Z,Y and Z axis. The angles are, in order:
+                                        omega -> rotation angle around the z axis (rad)
+                                        theta -> rotation angle around the y axis (rad)
+                                        phi   -> rotation angle around the z axis (rad)
+                                      If not provided, no extra rotation is applied to the original source.
+
+Returns:
+    None
+)")
+    .def("getResults",
+	 [](penred::simulation::simulator<pen_context>& obj,
+	    const std::string& tallyName, const bool asIntegers) -> py::tuple{
+
+	   if(!asIntegers){
+	     std::vector<std::vector<double>> resultsData;
+	     int err = obj.getResults(tallyName, resultsData);
+	     if(err != penred::simulation::errors::SUCCESS){
+	       throw py::value_error(penred::simulation::errors::errorMessage(err));
+	     }
+	     if(resultsData.size() == 0)
+	       return py::make_tuple();
+	   
+	     std::vector<py::array_t<double>> results(resultsData.size());
+	     for(size_t i = 0; i < resultsData.size(); ++i){
+	       results[i] = py::array_t<double>(resultsData[i].size(), resultsData[i].data());
+	     }
+	     return py::make_tuple(results);
+	   }
+	   
+	   std::vector<std::vector<int>> resultsData;
+	   int err = obj.getResults(tallyName, resultsData);
+	   if(err != penred::simulation::errors::SUCCESS){
+	     throw py::value_error(penred::simulation::errors::errorMessage(err));
+	   }
+	   if(resultsData.size() == 0)
+	     return py::make_tuple();
+	   
+	   std::vector<py::array_t<int>> results(resultsData.size());
+	   for(size_t i = 0; i < resultsData.size(); ++i){
+	     results[i] = py::array_t<int>(resultsData[i].size(), resultsData[i].data());
+	   }
+	   return py::make_tuple(results);
+	   
+	 },
+	 py::arg("tally_name"),
+	 py::arg("as_integers") = false,
+	 R"(
+
+Gets the simulation results from the specified tally. This function can only be used on interactive simulations and blocks until the previous instructions have been finished.
+
+Args:
+    tally_name (str): Name of the tally to get the results from
+    as_integers (bool): If enabled, forces the tally to provide the results as integers
+
+Returns:
+    On success, a tuple of vectors with the results for each is returned. If the requested tally does not support retrieving results in that format, returned vectors will be empty.
+
+Raises:
+    ValueError: No simulation in interactive mode is running.
+
+)")    
+    .def("instructionClear",
+	 [](penred::simulation::simulator<pen_context>& obj) -> void{
+	   obj.instructionClear();
+	 },
+	 R"(
+
+Clears all pending instructions in queue.
+
+Args:
+    None
+
+Returns:
+    None
+)")    
     .def("__repr__",
 	 [](const penred::simulation::simulator<pen_context>& /*obj*/){
 	   return std::string("<penred.simulator>");

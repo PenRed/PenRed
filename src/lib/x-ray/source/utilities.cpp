@@ -2,6 +2,7 @@
 //
 //    Copyright (C) 2024 Universitat de València - UV
 //    Copyright (C) 2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -257,16 +258,10 @@ namespace penred{
       }
 
       //Set the number of threads to use
-#ifndef _PEN_USE_THREADS_
-      //Without multithreading
-      unsigned nThreads = 1;
-#else
-      //With multithreading
       unsigned nThreads = nthreadsIn;
       if(nThreads == 0){
 	nThreads = std::max(std::thread::hardware_concurrency(),1u);
       }
-#endif
 
       //Create a base configuration
       penred::simulation::simConfig basicConf;
@@ -282,8 +277,6 @@ namespace penred{
       //Calculate number of histories per thread
       unsigned long long nHistsPerThread = nHists/nThreads;
       
-#ifdef _PEN_USE_THREADS_
-
       std::vector<std::thread> threads;
 
       for(size_t ith = 0; ith < nThreads; ++ith){
@@ -309,15 +302,6 @@ namespace penred{
       for(size_t ith = 0; ith < nThreads; ++ith){
 	threads[ith].join();	
       }
-      
-#else
-
-      simulateVectorAndDetect(simConf[0], context, result[0],
-			      particlesIn,
-			      nHists,
-			      "filter-and-collimate",
-			      1); //Detector index      
-#endif
 
       //Clear input particles and store the resulting ones
       particlesIn.clear();
@@ -585,16 +569,10 @@ namespace penred{
       }
 
       //Set the number of threads to use
-#ifndef _PEN_USE_THREADS_
-      //Without multithreading
-      unsigned nThreads = 1;
-#else
-      //With multithreading
       unsigned nThreads = nthreadsIn;
       if(nThreads == 0){
 	nThreads = std::max(std::thread::hardware_concurrency(),1u);
       }
-#endif
 
       //Create a base configuration
       penred::simulation::simConfig basicConf;
@@ -610,8 +588,6 @@ namespace penred{
       //Calculate number of histories per thread
       unsigned long long nHistsPerThread = nHists/nThreads;
       
-#ifdef _PEN_USE_THREADS_
-
       std::vector<std::thread> threads;
 
       for(size_t ith = 0; ith < nThreads; ++ith){
@@ -637,15 +613,6 @@ namespace penred{
       for(size_t ith = 0; ith < nThreads; ++ith){
 	threads[ith].join();	
       }
-      
-#else
-
-      simulateVectorAndDetect(simConf[0], context, result[0],
-			      particlesIn,
-			      nHists,
-			      "filter-and-collimate",
-			      1); //Detector index      
-#endif
 
       //Clear input particles and store the resulting ones
       particlesIn.clear();

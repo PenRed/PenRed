@@ -97,6 +97,9 @@ namespace penred{
 	ERROR_ON_VR_CONFIGURATION,
 	ERROR_PARSING_CONFIG,
 	ERROR_SIMULATION_RUNNING,
+	ERROR_SIMULATION_NOT_RUNNING,
+	ERROR_SIMULATION_NOT_RUNNING_INTERACTIVE,
+	ERROR_SIMULATION_RUNNING_INTERACTIVE,
       };
 
       constexpr const char* errorMessage(const int val){
@@ -127,6 +130,9 @@ namespace penred{
 	case ERROR_ON_VR_CONFIGURATION: return "Error configuring variance reduction";
 	case ERROR_PARSING_CONFIG: return "Error parsing configuration";
 	case ERROR_SIMULATION_RUNNING: return "Simulation is running";
+	case ERROR_SIMULATION_NOT_RUNNING: return "No simulation running";
+	case ERROR_SIMULATION_NOT_RUNNING_INTERACTIVE: return "Simulation is not running in interactive mode";
+	case ERROR_SIMULATION_RUNNING_INTERACTIVE: return "Simulation is running in interactive mode";
 	default: return "Unknown error";
 	}
       }

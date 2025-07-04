@@ -50,6 +50,12 @@ int tallyReader_Singles::storeElement(const std::string& pathInSection,
   else if(pathInSection.compare("time/join") == 0){
     tjoin = element;
   }
+  else if(pathInSection.compare("pileup") == 0){
+    pileup = element;
+  }
+  else if(pathInSection.compare("scatter") == 0){
+    scatter = element;
+  }
   else if(pathInSection.compare("clear") == 0){
     removeOnEnd = element;
   }
@@ -105,7 +111,7 @@ void pen_Singles::flush(const unsigned det){
   fclose(fdata);
     
   //Store data entry information
-  const unsigned long nBytes = static_cast<unsigned long>(sizeof(unsigned char)*data.size());
+  const unsigned long nBytes = static_cast<unsigned long>(data.size());
   FILE* finfo = ::fopen(fInfoPaths[det].c_str(), "a");
   fprintf(finfo,"%lu %lu\n", offsets[det], nBytes);
   offsets[det] += nBytes;
@@ -127,72 +133,88 @@ void pen_Singles::flush(){
 
  
 void pen_Singles::tally_localEdep(const unsigned long long nhist,
-				  const pen_KPAR /*kpar*/,
+				  const pen_KPAR kpar,
 				  const pen_particleState& state,
 				  const double dE){
   //Energy deposited. Register it
-  count(dE, state.X, state.Y, state.Z, state.PAGE, state.WGHT, nhist);
+  count(dE, state.X, state.Y, state.Z, state.PAGE, state.WGHT, kpar, nhist);
 }
 
 void pen_Singles::tally_beginPart(const unsigned long long nhist,
 				  const unsigned kdet,
-				  const pen_KPAR /*kpar*/,
+				  const pen_KPAR kpar,
 				  const pen_particleState& state){
 
   //A particle starts. Save kdet and register energy "extraction" from material
   actualKdet = kdet;
   toDetect = activeDet();
+
+  //Set last icol to "absorbed after produced"
+  lastICol = 255;
+
+  //Reset boolean mask
+  const int gen = state.ILB[0];
+  actualMask = (gen == 1 ? single::FIRST_GENERATION : (gen == 2 ? single::SECOND_GENERATION : 0));
+  
+  if(state.ILB[1] == PEN_POSITRON && state.ILB[2] == BETAp_ANNIHILATION)
+    actualMask |= single::FROM_ANNIHILATION;
   
   if(skipBeginPart){
     skipBeginPart = false;
   }
   else{
-    count(-state.E, state.X, state.Y, state.Z, state.PAGE, state.WGHT, nhist);
+    if(toDetect)
+      actualMask |= single::PRODUCED_IN_DETECTOR;
+    count(-state.E, state.X, state.Y, state.Z, state.PAGE, state.WGHT, kpar, nhist);
   }
 }
 
-void pen_Singles::tally_sampledPart(const unsigned long long /*nhist*/,
+void pen_Singles::tally_sampledPart(const unsigned long long nhist,
 				    const unsigned long long /*dhist*/,
-				    const unsigned kdet,
+				    const unsigned /*kdet*/,
 				    const pen_KPAR /*kpar*/,
 				    const pen_particleState& state){
-  actualKdet = kdet;
-  toDetect = activeDet();
+  //Update last hist
+  lastHist = nhist;
   
   //Add a pulse to compensate the substracted energy on beginPart call
   if(state.MAT > 0){
     //If the particle has been sampled in a non void region, prevent energy counting by beginPart call
     skipBeginPart = true;
-    //count(state.E, state.X, state.Y, state.Z, state.PAGE, state.WGHT, nhist);
   }
 }
 
 void pen_Singles::tally_step(const unsigned long long nhist,
-			     const pen_KPAR /*kpar*/,
+			     const pen_KPAR kpar,
 			     const pen_particleState& state,
 			     const tally_StepData& stepData){
 
+  //Set last icol to soft deposition
+  if(kpar == PEN_ELECTRON)
+    lastICol = BETAe_SOFT_INTERACTION;
+  else if(kpar == PEN_POSITRON)
+    lastICol = BETAp_SOFT_INTERACTION;    
+
   //Register singles due continuous energy deposition
   count(stepData.softDE, stepData.softX, stepData.softY, stepData.softZ,
-	state.PAGE, state.WGHT, nhist);
+	state.PAGE, state.WGHT, kpar, nhist);
+
+  //Set last icol to "absorbed after moved" to handle
+  //this kind of absorptions via tally_localEdep call
+  lastICol = 254;
 }
 
 void pen_Singles::tally_move2geo(const unsigned long long /*nhist*/,
-				 const unsigned kdet,
+				 const unsigned /*kdet*/,
 				 const pen_KPAR /*kpar*/,
 				 const pen_particleState& state,
 				 const double /*dsef*/,
 				 const double /*dstot*/){
-
-  actualKdet = kdet;
-  toDetect = activeDet();
-
   
   //Particle has been created at void volume. Check if the geomtry system is reached  
   if(state.MAT > 0){
     //Non void volume reached, prevent energy counting by beginPart call
     skipBeginPart = true;
-    //count(state.E, state.X, state.Y, state.Z, state.PAGE, state.WGHT, nhist);
   }
 }
 
@@ -210,7 +232,7 @@ void pen_Singles::tally_endHist(const unsigned long long /*nhist*/){
   for(unsigned i = 0; i < buffers.size(); ++i){
 
     //Reduce last history singles
-    buffers[i].reduce(lastHistStart[i], joinTime, tmin, tmax);
+    buffers[i].reduce(lastHistStart[i], scatter, joinTime, tmin, tmax);
     //Update the last history start position after the reduce step
     lastHistStart[i] = buffers[i].size();
 
@@ -245,6 +267,9 @@ int pen_Singles::configure(const wrapper_geometry& geometry,
 
   joinTime = reader.tjoin;
 
+  pileup = reader.pileup;
+  scatter = reader.scatter;
+  
   removeOnEnd = reader.removeOnEnd;
 
   singleEmin = reader.singleEmin;
@@ -253,6 +278,21 @@ int pen_Singles::configure(const wrapper_geometry& geometry,
   //Save time limits
   tmin = reader.tmin;
   tmax = reader.tmax;
+
+  if(verbose > 1){
+    printf("Output format: %s\n"
+	   "Joining time : %.5E\n"
+	   "Pileup       : %s\n"
+	   "Scatter      : %s\n"
+	   "Energy range : [%.5E, %.5E] eV\n"
+	   "Time range   : [%.5E, %.5E] s\n",
+	   binary ? "Binary" : "ASCII",
+	   joinTime,
+	   pileup ? "Enabled" : "Disabled",
+	   scatter ? "Enabled" : "Disabled",
+	   singleEmin, singleEmax,
+	   tmin, tmax);
+  }
 
   //Set enabled detectors
   const unsigned maxkdet = *std::max_element(reader.kdets.cbegin(), reader.kdets.cend());
@@ -353,7 +393,6 @@ void pen_Singles::saveData(const unsigned long long /*nhist*/) const{
   }
   
   // Iterate over all detectors
-#ifdef _PEN_USE_THREADS_
 
   unsigned int nProcessThreads = 
     std::max(static_cast<unsigned int>(2),
@@ -378,14 +417,6 @@ void pen_Singles::saveData(const unsigned long long /*nhist*/) const{
   for(std::thread& t : processingThreads){
     t.join();
   }
-
-#else
-  
-  for(unsigned idet = 0; idet < kdets.size(); ++idet){
-    orderDetectorData(idet, singlesDetFiles[idet]);
-  }
-  
-#endif
 
   //Close final results files
   for(size_t idet = 0; idet < kdets.size(); ++idet){
@@ -468,12 +499,53 @@ int pen_Singles::sumTally(const pen_Singles& tally){
       return -2;
     }
 
-    constexpr const size_t buffSize = 10*1024*1024; // 10MB
+
+    //Append second tally data file to the first one
+    constexpr const size_t buffSize = single::dataSize*singlesBuffer::baseSize;
+    constexpr const size_t histPos = single::dataSize - sizeof(unsigned long long);
     std::vector<unsigned char> buffer(buffSize);
     size_t bytesRead;
+    unsigned long long globalLastHist = lastHist;
+
     while((bytesRead = fread(buffer.data(), 1, buffSize, fdata2)) > 0){
-      fwrite(buffer.data(), 1, bytesRead, fdata);
+
+      //Check read chunk
+      if(bytesRead % single::dataSize != 0){
+	printf("Error in 'sumTally'. Data size in both files missmatch "
+	       "or the file is corrupted: '%s'\n",
+	       tally.fDataPaths[det].c_str());	
+      }
+
+      //Iterate over read singles to correct history number
+      size_t readSingles = bytesRead / single::dataSize;
+      for(size_t iSing = 0; iSing < readSingles; ++iSing){
+	//Calculate buffer initial position
+	const size_t singHistPos = iSing*single::dataSize + histPos;
+	//Extract history number
+	unsigned long long localHist;
+	std::memcpy(&localHist, &buffer[singHistPos], sizeof(unsigned long long));
+      
+	//Add the last history in the local tally
+	localHist += lastHist;
+
+	//Update buffer
+	std::memcpy(&buffer[singHistPos], &localHist, sizeof(unsigned long long));
+
+	//Update global last history
+	if(globalLastHist < localHist) globalLastHist = localHist;
+      }
+      
+      //Append data to the local data file
+      fwrite(buffer.data(), 1, bytesRead, fdata);      
     }
+    if(bytesRead != 0){
+      printf("Error in 'sumTally'. Data size in both files missmatch "
+	     "or the file is corrupted: '%s'\n",
+	     tally.fDataPaths[det].c_str());
+    }
+
+    //Update last history
+    lastHist = globalLastHist;
     
     fclose(fdata);      
     fclose(fdata2);      
@@ -593,7 +665,7 @@ void pen_Singles::orderDetectorData(const unsigned idet, FILE* fout) const {
     single s = *firstS;
     size_t firstSChunk = std::distance(toProcess.cbegin(), firstS);
 
-    //Load another single from first single file
+    //Load another single from the file "firstS" belongs
     if(!toProcess[firstSChunk].read(dataFile, chunksInfo[firstSChunk].first)){
       printf("Error: Unexpected end of file '%s' replacing opening single\n",
 	     fDataPaths[det].c_str());
@@ -602,56 +674,55 @@ void pen_Singles::orderDetectorData(const unsigned idet, FILE* fout) const {
       chunksInfo.erase(chunksInfo.begin() + firstSChunk);
       toProcess.erase(toProcess.begin() + firstSChunk);
     }else if(chunksInfo[firstSChunk].first >= chunksInfo[firstSChunk].second){
+      
       //The chunk limit has been reached
       //Remove this chunk data
       chunksInfo.erase(chunksInfo.begin() + firstSChunk);
       toProcess.erase(toProcess.begin() + firstSChunk);
     }
 
-    //Go chunk by chunk adding singles close enough
-    iChunk = 0;
-    while(iChunk < (int)chunksInfo.size()){
-      single& nextSingle = toProcess[iChunk];
-      //Add the singles in this file which are in join time range
-      while(nextSingle.t - s.t <= joinTime){
+    //Check if pileup is enabled
+    if(pileup){
+      //Go chunk by chunk adding singles close enough
+      iChunk = 0;
+      while(iChunk < (int)chunksInfo.size()){
+	single& nextSingle = toProcess[iChunk];
+	//Add the singles in this file which are in join time range
+	while(nextSingle.t - s.t <= joinTime){
 
-	//Add single
-	single aux = s;
-	s.add(nextSingle);
+	  //Add single
+	  s.add(nextSingle);
 
-	const vector3D<double> p = s.pos();
-	if(std::fabs(p.x) > 6.86){
-	  ::printf("CACA6 (%s -> %s): %E -> %E\n      %E %s\n",
-		   aux.pos().stringify().c_str(), p.stringify().c_str(), 
-		   aux.E, s.E, nextSingle.E, nextSingle.pos().stringify().c_str());	    
-	}
+	  //Flag pileup
+	  s.info[0] |= single::PILEUP;
 	  
-	//Read the next single in the file
-	if(!nextSingle.read(dataFile, chunksInfo[iChunk].first)){
-	  printf("Error: Unexpected end of file '%s' searching singles in window\n",
-		 fDataPaths[det].c_str());
-	  fflush(stdout);
-	  //Remove this chunk data
-	  chunksInfo.erase(chunksInfo.begin() + iChunk);
-	  toProcess.erase(toProcess.begin() + iChunk);	  
-	  --iChunk; //Compensate index increment
-	  break;
-	} else if(chunksInfo[iChunk].first >= chunksInfo[iChunk].second){
-	  //The chunk limit has been reached
-	  //Remove this chunk data
-	  chunksInfo.erase(chunksInfo.begin() + iChunk);
-	  toProcess.erase(toProcess.begin() + iChunk);
+	  //Read the next single in the file
+	  if(!nextSingle.read(dataFile, chunksInfo[iChunk].first)){
+	    printf("Error: Unexpected end of file '%s' searching singles in window\n",
+		   fDataPaths[det].c_str());
+	    fflush(stdout);
+	    //Remove this chunk data
+	    chunksInfo.erase(chunksInfo.begin() + iChunk);
+	    toProcess.erase(toProcess.begin() + iChunk);	  
+	    --iChunk; //Compensate index increment
+	    break;
+	  } else if(chunksInfo[iChunk].first >= chunksInfo[iChunk].second){
+	    //The chunk limit has been reached
+	    //Remove this chunk data
+	    chunksInfo.erase(chunksInfo.begin() + iChunk);
+	    toProcess.erase(toProcess.begin() + iChunk);
 
-	  --iChunk; //Compensate index increment
-	  break;
+	    --iChunk; //Compensate index increment
+	    break;
+	  }
 	}
+	//Increase data file index
+	++iChunk;
       }
-      //Increase data file index
-      ++iChunk;
     }
 
     //All singles in join time added.
-    //Save the final single in the corresponding detector data, if it is in energy range
+    //Save the final single in the corresponding detector data, if it falls within energy range
     if(s.E >= singleEmin && s.E <= singleEmax){
       if(binary){
 	unsigned char auxBuff[single::dataSize];
@@ -675,6 +746,73 @@ void pen_Singles::orderDetectorData(const unsigned idet, FILE* fout) const {
     std::remove(fDataPaths[det].c_str());
   }    
     
+}
+
+void pen_Singles::singlesBuffer::reduce(const size_t start, const bool saveScatter,
+					const double dt, const double tmin, const double tmax){
+
+  if(n <= start+1)
+    return;      
+
+  //Sort specified data range
+  std::sort(buffer.begin() + start, buffer.begin() + n);
+
+  // Add singles within the same time window
+  
+  //Create auxiliary single
+  single auxSing;
+  size_t iAux = start;
+  
+  //Get the first single with positive energy
+  size_t ifirst = iAux;
+  auxSing = buffer[ifirst];
+  while(auxSing.E < 0.0 && ifirst < n-1){
+    //Get the next one
+    auxSing = buffer[++ifirst]; 
+  }
+      
+  if(ifirst != iAux){
+    //The first single with positive energy is not at the first position, correct it
+    buffer[ifirst] = buffer[iAux];
+  }
+
+  if(auxSing.E < 0.0){
+    penred::logs::logger::printf(penred::logs::SIMULATION,
+				 "Error: Only singles with negative energy found!\n"
+				 "   First Energy: %15.5E. Pleae, report this case\n",
+				 buffer[ifirst].E);
+  }
+
+  for(size_t i = iAux+1; i < n; ++i){
+    if(buffer[i].E < 0.0){ //Check if the next pulse has a negative energy 	  
+      auxSing.addEnergy(buffer[i].E, buffer[i].weight/buffer[i].E);
+    }
+    else if(buffer[i].t - auxSing.t < dt){ //Check time window
+      auxSing.add(buffer[i]);	  
+    }else{
+      //Pulse with positive energy outside the join window
+
+      //Save the current single
+      if(saveScatter || !auxSing.isScattered()){
+	if(auxSing.E > 0.0){
+	  if(auxSing.t >= tmin && auxSing.t <= tmax)
+	    buffer[iAux++] = auxSing;
+	}
+      }
+	  
+      //Get the next one
+      auxSing = buffer[i];
+    }
+	
+  }
+      
+  //Save the last single
+  if(auxSing.E > 0.0){
+    buffer[iAux++] = auxSing;
+  }
+      
+  //Update the number of elements in the buffer
+  n = iAux;      
 }
 
 REGISTER_COMMON_TALLY(pen_Singles, SINGLES)

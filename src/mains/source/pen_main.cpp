@@ -467,14 +467,6 @@ int main(int argc, char** argv){
     }
     auxThreads = 1;
   }
-  // ************************** MULTI-THREADING ***************************** //
-#ifndef _PEN_USE_THREADS_
-  else{
-    log.printf("\n\nMulti-threading has not been activated during compilation"
-	   ", only one thread will be used\n\n");
-  }
-  auxThreads = 1;
-#else
 
   if(auxThreads <= 0){
 
@@ -491,9 +483,6 @@ int main(int argc, char** argv){
       auxThreads = 1;
     }
   }
-  
-#endif
-  // ************************ MULTI-THREADING END *************************** //
 
   // ******************************* MPI ************************************ //
 #ifdef _PEN_USE_MPI_
@@ -1226,11 +1215,7 @@ int main(int argc, char** argv){
 
   fflush(stdout);
   
-  // ************************** MULTI-THREADING ***************************** //
-#ifdef _PEN_USE_THREADS_
   std::vector<std::thread> simThreads;
-#endif
-  // ************************ MULTI-THREADING END *************************** //
 
   //Set default log to simulation
   log.setDefaultLog(penred::logs::SIMULATION);  
@@ -1265,8 +1250,6 @@ int main(int argc, char** argv){
       break; //Finish the simulation
     
 
-  // ************************** MULTI-THREADING ***************************** //
-#ifdef _PEN_USE_THREADS_
     //Run simulations for each thread
     if(nthreads > 1){
       // Multi-thread
@@ -1324,9 +1307,6 @@ int main(int argc, char** argv){
     }
     else{
 
-#endif
-  // ************************ MULTI-THREADING END *************************** //
-
       // Single thread
       //****************
       
@@ -1336,10 +1316,7 @@ int main(int argc, char** argv){
 						   talliesVect[0],
 						   genericVR, photonVR);
       
-#ifdef _PEN_USE_THREADS_
-    }
-#endif
-    
+    }    
   }
 
   //Iterate over polarized sources
@@ -1351,9 +1328,6 @@ int main(int argc, char** argv){
 
     
     //Run simulations for each thread
-
-  // ************************** MULTI-THREADING ***************************** //
-#ifdef _PEN_USE_THREADS_
     if(nthreads > 1){
       // Multi-thread
       //***************
@@ -1411,8 +1385,6 @@ int main(int argc, char** argv){
       
     }
     else{
-#endif
-  // ************************ MULTI-THREADING END *************************** //
 
       // Single thread
       //****************
@@ -1423,11 +1395,7 @@ int main(int argc, char** argv){
 						   talliesVect[0],
 						   genericVR,
 						   photonVR);
-      
-#ifdef _PEN_USE_THREADS_
-    }
-#endif
-    
+    }    
   }
 
   
@@ -1902,19 +1870,13 @@ int createTallies(std::vector<pen_commonTallyCluster>& tallyGroups,
     return -2;
   }
 
-  // ************************** MULTI-THREADING ***************************** //
-#ifdef _PEN_USE_THREADS_
   //Create a vector of threads
   std::vector<std::thread> threads;
-#endif
-  // ************************** MULTI-THREADING ***************************** //
 
   //Get materials array
   const abc_material* mats[constants::MAXMAT];
   context.getMatBaseArray(mats);
   
-  // ************************** MULTI-THREADING ***************************** //
-#ifdef _PEN_USE_THREADS_
   //Configure non zero threads with no verbose
   for(unsigned j = 1; j < nthreads; j++){
     tallyGroups[j].name.assign("common");
@@ -1925,8 +1887,6 @@ int createTallies(std::vector<pen_commonTallyCluster>& tallyGroups,
 						     talliesSection,
 						     std::min(verbose,unsigned(1))));
   }
-#endif
-  // ************************** MULTI-THREADING ***************************** //
   
   //Configure main thread with verbose option
   tallyGroups[0].name.assign("common");    
@@ -1937,14 +1897,10 @@ int createTallies(std::vector<pen_commonTallyCluster>& tallyGroups,
 			   talliesSection,
 			   verbose);
   
-  // ************************** MULTI-THREADING ***************************** //
-#ifdef _PEN_USE_THREADS_
   //Sincronize all threads
   for(unsigned j = 0; j < nthreads-1; j++){
     threads[j].join();
   }
-#endif
-  // ************************** MULTI-THREADING ***************************** //
   
   //Check errors
   unsigned failedClusters = 0;

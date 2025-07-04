@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -494,6 +495,10 @@ public:
   virtual int shareConfig(const pen_genericTally<stateType>&) = 0;
   int sharedConfig(const pen_genericTally<stateType>&){return 0;}
   virtual void flush() = 0;
+
+  //Define a set of functions to get tally results
+  virtual void getResults(std::vector<double>& r) {r.clear();}
+  virtual void getResults(std::vector<int>& r) {r.clear();}
   
   inline __usedFunc readFlags() const {return usedFunctions;}
   
@@ -651,13 +656,55 @@ public:
     return genericTallies().addSubType<subclass>(typeID);
   }
 
-#ifdef _PEN_USE_THREADS_
+  inline int getTallyIndex(const std::string& tallyName){
+    for(unsigned i = 0; i < tallies.size(); ++i){
+      if(tallies[i]->readName().compare(tallyName) == 0)
+	return static_cast<int>(i);
+    }
+    return -1;
+  }
+  inline void getResults(const std::string& tallyName, std::vector<double>& r){
+    for(pen_genericTally<pen_particleState>* t : tallies){
+      if(t->readName().compare(tallyName) == 0){
+	t->getResults(r);
+	return;
+      }
+    }
+    //Not found
+    r.clear();
+  }
+  inline void getResults(const size_t i, std::vector<double>& r){
+    if(i > tallies.size()){
+      r.clear();
+      return;
+    }
+
+    tallies[i]->getResults(r);
+  }
+  inline void getResults(const std::string& tallyName, std::vector<int>& r){
+    for(pen_genericTally<pen_particleState>* t : tallies){
+      if(t->readName().compare(tallyName) == 0){
+	t->getResults(r);
+	return;
+      }
+    }
+    //Not found
+    r.clear();
+  }
+  inline void getResults(const size_t i, std::vector<int>& r){
+    if(i > tallies.size()){
+      r.clear();
+      return;
+    }
+
+    tallies[i]->getResults(r);
+  }
+
   std::thread configure_async(const wrapper_geometry* geometry,
 			      const abc_material* const materials[constants::MAXMAT],
 			      const unsigned threadNum,
 			      const pen_parserSection& config,
 			      const unsigned verbose = 0);
-#endif
   
   void configure(const wrapper_geometry* geometry,
 		 const abc_material* const materials[constants::MAXMAT],

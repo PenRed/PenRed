@@ -60,7 +60,7 @@ CMAKE_DEPENDENT_OPTION(PENRED_2_IAEA "Compile PENRED to IAEA conversor" OFF
 CMAKE_DEPENDENT_OPTION(GEO_2_VOXEL "Compile conversor to voxelized geometry" ON
                        "BUILD_UTILITIES" OFF)
 CMAKE_DEPENDENT_OPTION(GEO_2_MESH "Compile conversor to mesh obj" ON
-                       "BUILD_UTILITIES;WITH_MULTI_THREADING" OFF)
+                       "BUILD_UTILITIES" OFF)
 CMAKE_DEPENDENT_OPTION(LB_SERVER "Compile RUPER_LB basic server program" ON
                        "BUILD_UTILITIES;WITH_LB" OFF)
                        

@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019 Universitat de València - UV
 //    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -41,7 +42,47 @@ enum pen_KPAR{
   ALWAYS_AT_END
 };
 
+//Interactions enumerations
+
+enum pen_betaE_interact{
+  BETAe_HARD_ELASTIC = 0,
+  BETAe_HARD_INELASTIC,
+  BETAe_HARD_BREMSSTRAHLUNG,
+  BETAe_HARD_INNER_SHELL,
+  BETAe_DELTA,
+  BETAe_SOFT_INTERACTION,
+  BETAe_HARD_TOTAL
+};
+
+enum pen_gamma_interact{
+  GAMMA_RAYLEIGH = 0,
+  GAMMA_COMPTON,
+  GAMMA_PHOTOELECTRIC,
+  GAMMA_PAIR_PRODUCTION,
+  GAMMA_DELTA  
+};
+
+enum pen_betaP_interact{
+  BETAp_HARD_ELASTIC = 0,
+  BETAp_HARD_INELASTIC,
+  BETAp_HARD_BREMSSTRAHLUNG,
+  BETAp_HARD_INNER_SHELL,
+  BETAp_ANNIHILATION,
+  BETAp_DELTA,
+  BETAp_SOFT_INTERACTION,
+  BETAp_HARD_TOTAL
+};
+
 inline bool isKpar(const unsigned kpar){return (kpar < ALWAYS_AT_END);}
+
+inline bool isRealInteraction(unsigned kpar, unsigned inter) {
+  switch(kpar){
+  case PEN_ELECTRON: return inter != BETAe_DELTA && inter <= BETAe_HARD_TOTAL;
+  case PEN_PHOTON: return inter < GAMMA_DELTA;
+  case PEN_POSITRON: return inter != BETAp_DELTA && inter <= BETAp_HARD_TOTAL;
+  default: return false;
+  }
+}
 
 inline const char* particleName(const unsigned kpar){
   switch(kpar){

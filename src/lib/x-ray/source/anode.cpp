@@ -344,20 +344,10 @@ namespace penred{
 
       //Get the number of threads to use
       unsigned nThreads = threads2Use;
-#ifdef _PEN_USE_THREADS_
       if(nThreads == 0){
 	nThreads = std::max(static_cast<unsigned int>(2),
 			    std::thread::hardware_concurrency());
       }
-#else
-      if(nThreads != 0){
-	if(verbose > 1)
-	  printf("simAnode: Warning: Number of threads has been specified,"
-		 " but the code has been compiled with no multithreading support.\n"
-		 " Only one thread will be used.\n");
-      }
-      nThreads = 1;
-#endif
 
       //Calculate beam radius
       const double beamRad = focalSpot*tan(pi05-angleRad);
@@ -542,7 +532,6 @@ namespace penred{
       // ** Run simulations
       //*********************
 
-#ifdef _PEN_USE_THREADS_
       std::vector<std::thread> threads;
       for(size_t ith = 0; ith < nThreads; ++ith){
 	threads.emplace_back(runAnodeSimulation,
@@ -565,14 +554,7 @@ namespace penred{
 		       localResults[ith].begin(), localResults[ith].end());
 	localResults[ith].clear();
       }
-#else
-      //Simulate using a single thread
-      runAnodeSimulation(nHists, maxParticles,
-			 eEnergy, beamRad, context, photonVR,
-			 results, seeds1[0], seeds2[0],
-			 colAngle,
-			 onlyPhotons);
-#endif
+
       delete geometry;
       return errors::SUCCESS;
     }
@@ -673,20 +655,10 @@ namespace penred{
 
       //Get the number of threads to use
       unsigned nThreads = threads2Use;
-#ifdef _PEN_USE_THREADS_
       if(nThreads == 0){
 	nThreads = std::max(static_cast<unsigned int>(2),
 			    std::thread::hardware_concurrency());
       }
-#else
-      if(nThreads != 0){
-	if(verbose > 1)
-	  printf("simAnodeDistrib: Warning: Number of threads has been specified,"
-		 " but the code has been compiled with no multithreading support.\n"
-		 " Only one thread will be used.\n");
-      }
-      nThreads = 1;
-#endif
 
       //Set dreg according to anode geometry
       dReg = 0.6;
@@ -920,7 +892,6 @@ namespace penred{
       // ** Run simulations
       //*********************
 
-#ifdef _PEN_USE_THREADS_
       std::vector<std::thread> threads;
       for(size_t ith = 0; ith < nThreads; ++ith){
 	threads.emplace_back(runAnodeDistribSimulation,
@@ -940,16 +911,7 @@ namespace penred{
 	spectrum.add(spectrums[ith]);
 	spatialDistrib.add(spatialDistribs[ith]);
       }
-#else
-      //Simulate using a single thread
-      runAnodeDistribSimulation(nHists, eEnergy, context, photonVR,
-				spectrums[0], spatialDistribs[0],
-				seeds1[0], seeds2[0],
-				verbose);
 
-      spectrum.add(spectrums[0]);
-      spatialDistrib.add(spatialDistribs[0]);
-#endif
       delete geometry;
       return errors::SUCCESS;
     }

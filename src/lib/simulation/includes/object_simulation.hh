@@ -38,10 +38,65 @@
 #include <thread>
 #include <future>
 #include <chrono>
+#include <queue>
+#include <condition_variable>
 
 namespace penred{
 
   namespace simulation{
+
+    namespace InstructionTypes{
+      enum InstructionTypes{
+	SIMULATE_SOURCE = 0,
+	GET_TALLY_RESULTS,
+	FINISH_SIMULATION,
+	UNKNOWN,
+      };
+
+      inline const char* description(unsigned i) noexcept {
+	switch(i){
+	case SIMULATE_SOURCE: return "simulate source";
+	case GET_TALLY_RESULTS: return "get tally results";
+	case FINISH_SIMULATION: return "finish simulation";
+	default: return "unknown";
+	}
+      }      
+    }
+
+    namespace InstructionOperations{
+      enum InstructionOperations{
+	NONE = 0,
+	MOVE,
+	ROTATE,
+	MOVE_AND_ROTATE,
+	INTEGER,
+	DOUBLE,
+	UNKNOWN,
+      };
+
+      inline const char* description(unsigned i) noexcept {
+	switch(i){
+	case NONE: return "none";
+	case MOVE: return "move";
+	case ROTATE: return "rotate";
+	case MOVE_AND_ROTATE: return "move and rotate";
+	case INTEGER: return "integer";
+	case DOUBLE: return "double";
+	default: return "unknown";
+	}
+      }
+    }
+
+    struct InteractiveInstruction{
+      unsigned type;
+      std::string name;
+      unsigned operation;
+      std::vector<double> parameters;
+
+      InteractiveInstruction() :
+	type(InstructionTypes::UNKNOWN),
+	operation(InstructionOperations::NONE){}
+    };
 
     template<class contextType, class stateType>
     inline void _simulate(penred::simulation::simConfig& config,
@@ -55,8 +110,21 @@ namespace penred{
       penred::simulation::sampleAndSimulateContext(config, context, source, tallies,
 						   genericVR, photonVR);
   
+    }
+    template<class contextType, class stateType, size_t... I>
+    inline void _simulateParticles(penred::simulation::simConfig& config,
+				   pen_specificStateGen<stateType>& source,
+				   pen_commonTallyCluster& tallies,
+				   std::shared_ptr<penred::context::particles<contextType>> particles,
+				   const std::index_sequence<I...>&){
+
+      //Perform the simulation
+      penred::simulation::sampleAndSimulate(config,
+					    source,
+					    tallies,
+					    particles->template getParticle<I>()...);
     }    
-  
+    
     template <class contextType>
     class simulator : public logs::logger{
 
@@ -69,8 +137,18 @@ namespace penred{
       std::array<bool,pen_imageExporter::nFormats()> enabledFormats;
       unsigned nThreads;
       int nSeedPair;
-      bool ASCIIResults, finalDump;
+      bool ASCIIResults, finalDump, interactive;
+      //Instructions for interactive execution on each thead
+      std::queue<InteractiveInstruction> instructions; 
+      std::condition_variable instructionsCondition;
 
+      //Results variables
+      std::mutex resultsMutex;
+      bool resultsAvailable;
+      std::condition_variable resultsCondition;
+      std::vector<std::vector<double>> auxResultsDoub;
+      std::vector<std::vector<int>> auxResultsInt;
+      
       pen_parserSection contextConfig;
       pen_parserSection particleSourcesConfig;
       pen_parserSection geometryConfig;
@@ -81,6 +159,57 @@ namespace penred{
       simConfig baseSimConfig;
       //Simulation configuration for each running thread
       std::vector<penred::simulation::simConfig> simConfigs;
+
+      template<class stateType>
+      int _applyInstruction(const InteractiveInstruction& inst,
+			    pen_specificStateGen<stateType>& source,
+			    const unsigned verbose){
+      
+	if(inst.operation == InstructionOperations::MOVE_AND_ROTATE){
+	  if(inst.parameters.size() >= 7){
+	    source.setPostTranslation(inst.parameters[1],
+				      inst.parameters[2],
+				      inst.parameters[3]);
+	    source.setPostRotationZYZ(inst.parameters[4],
+				      inst.parameters[5],
+				      inst.parameters[6]);
+	  }
+	}
+	else if(inst.operation == InstructionOperations::MOVE){
+	  //Move the source
+	  if(inst.parameters.size() >= 4){
+	    source.setPostTranslation(inst.parameters[1],
+				      inst.parameters[2],
+				      inst.parameters[3]);
+	  }
+	}
+	else if(inst.operation == InstructionOperations::ROTATE){
+	  //Rotate the source
+	  if(inst.parameters.size() >= 4){
+	    source.setPostRotationZYZ(inst.parameters[1],
+				      inst.parameters[2],
+				      inst.parameters[3]);
+	  }
+	}
+
+	if(inst.parameters.size() > 0 && inst.parameters[0] > 0.0){
+	  unsigned long long uihists =
+	    static_cast<unsigned long long>(inst.parameters[0]+0.1);
+	  int errTask = source.initTask(nThreads, uihists, verbose);
+	  if(errTask != 0){
+	    if(verbose > 0){
+	      cout << "Simulate: Interactive: Error on generic source "
+		   << source.name
+		   << ". Unable to init source task\n   Error code: "
+		   << errTask << std::endl;
+	    }
+	    return -1;
+	  }
+	  return 0;
+	}
+
+	return 1;
+      }
       
       template<class stateType>
       int configureSource(pen_specificStateGen<stateType>& source,
@@ -254,7 +383,7 @@ namespace penred{
 						     nextTag,nextTag+1,verbose);
 	    nextTag += 2;
 #else
-	    int errTask = genericSources[i].initTask(nThreads,uihists,verbose);      
+	    int errTask = genericSources[i].initTask(nThreads,uihists,verbose);
 #endif
 	    // ***************************** LB END ********************************** //
 	    if(errTask != 0){
@@ -427,19 +556,13 @@ namespace penred{
 	  return errors::ERROR_MISSING_TALLY_CONFIGURATION;
 	}
 
-	// ************************** MULTI-THREADING ***************************** //
-#ifdef _PEN_USE_THREADS_
 	//Create a vector of threads
 	std::vector<std::thread> threads;
-#endif
-	// ************************** MULTI-THREADING ***************************** //
 
 	//Get materials array
 	const abc_material* mats[constants::MAXMAT];
 	context.getMatBaseArray(mats);
   
-	// ************************** MULTI-THREADING ***************************** //
-#ifdef _PEN_USE_THREADS_
 	//Configure non zero threads with no verbose
 	for(unsigned j = 1; j < nThreads; j++){
 	  tallyGroups[j].name.assign("common");
@@ -450,8 +573,6 @@ namespace penred{
 							   talliesConfig,
 							   std::min(verbose,unsigned(1))));
 	}
-#endif
-	// ************************** MULTI-THREADING ***************************** //
   
 	//Configure main thread with verbose option
 	tallyGroups[0].name.assign("common");    
@@ -462,14 +583,10 @@ namespace penred{
 				 talliesConfig,
 				 verbose);
   
-	// ************************** MULTI-THREADING ***************************** //
-#ifdef _PEN_USE_THREADS_
 	//Sincronize all threads
 	for(unsigned j = 0; j < nThreads-1; j++){
 	  threads[j].join();
 	}
-#endif
-	// ************************** MULTI-THREADING ***************************** //
   
 	//Check errors
 	unsigned failedClusters = 0;
@@ -676,7 +793,30 @@ namespace penred{
 	}
 	   
 	return setSimConfigTrusted(configSect, prefix);	
-      }      
+      }
+
+      inline int setThreadsTrusted(const unsigned nThreadsIn){
+
+	if(simulating){
+	  return errors::ERROR_SIMULATION_RUNNING;
+	}
+	
+	if(nThreadsIn == nThreads)
+	  return errors::SUCCESS;
+		
+	if(nThreadsIn == 0){
+	  unsigned int nConcurrency = std::thread::hardware_concurrency();
+	  if(nConcurrency > 0)
+	    nThreads = nConcurrency;
+	  else
+	    nThreads = 1;
+	}
+	else{
+	  nThreads = nThreadsIn;
+	}
+
+	return errors::SUCCESS;
+      }
       
     public:
 
@@ -707,7 +847,8 @@ namespace penred{
 		    nThreads(1),
 		    nSeedPair(-1),
 		    ASCIIResults(true),
-		    finalDump(false)
+		    finalDump(false),
+		    interactive(false)
       {
 	//Set default log to configuration
 	setDefaultLog(penred::logs::CONFIGURATION);
@@ -739,27 +880,7 @@ namespace penred{
 	//Get lock
 	const std::lock_guard<std::mutex> lock(simMutex);
 
-	if(simulating){
-	  return errors::ERROR_SIMULATION_RUNNING;
-	}
-	
-#ifndef _PEN_USE_THREADS_
-		
-	if(nThreadsIn == 0){
-	  unsigned int nConcurrency = std::thread::hardware_concurrency();
-	  if(nConcurrency > 0)
-	    nThreads = nConcurrency;
-	  else
-	    nThreads = 1;
-	}
-	else{
-	  nThreads = nThreadsIn;
-	}
-#else
-	nThreads = 1;
-#endif
-
-	return errors::SUCCESS;
+	return setThreadsTrusted(nThreadsIn);
       }
       inline int setSeedPair(const int seedPairIn){
 	
@@ -799,6 +920,18 @@ namespace penred{
 	}	
 	
 	finalDump = enable;
+	return errors::SUCCESS;
+      }
+      inline int enableInteractive(const bool enable){
+	
+	//Get lock
+	const std::lock_guard<std::mutex> lockSim(simMutex);
+
+	if(simulating){
+	  return errors::ERROR_SIMULATION_RUNNING;
+	}	
+	
+	interactive = enable;
 	return errors::SUCCESS;
       }
 
@@ -1015,22 +1148,9 @@ namespace penred{
 	int auxThreads;
 	std::string path = prefixSimConfig + "/threads";
 	if(config.read(path,auxThreads) != INTDATA_SUCCESS){
-	  if(verbose > 2){
-	    cout << "\n\nNumber of threads not specified, "
-	      "only one thread will be used.\n\n" << std::endl;
-	  }
-	  auxThreads = 1;
+	  auxThreads = nThreads;
 	}
-	// ************************** MULTI-THREADING ***************************** //
-#ifndef _PEN_USE_THREADS_
-	else{
-	  if(verbose > 2){
-	    cout << "\n\nMulti-threading has not been activated during compilation"
-	      ", only one thread will be used\n\n" << std::endl;
-	  }
-	}
-	auxThreads = 1;
-#else
+	
 	if(auxThreads <= 0){
 
 	  if(verbose > 2)
@@ -1047,11 +1167,11 @@ namespace penred{
 	  }
 	}
   
-#endif
+
 	// ************************ MULTI-THREADING END *************************** //
 
 	//Set threads
-	nThreads = static_cast<unsigned>(auxThreads);
+	setThreadsTrusted(static_cast<unsigned>(auxThreads));
 	if(verbose > 2){
 	  cout << "\nNumber of simulating threads: " << nThreads << std::endl;
 	  if(nThreads > 1){
@@ -1204,7 +1324,7 @@ namespace penred{
       int simulate(){
 
 	//Get lock until configuration finish
-	std::unique_lock<std::mutex> lock(simMutex);
+	std::unique_lock<std::mutex> lockConf(simMutex);
 
 	// Get verbose level
 	const unsigned verbose = baseSimConfig.verbose;
@@ -1434,11 +1554,7 @@ namespace penred{
 
 	cout.flush();
 
-	// ************************** MULTI-THREADING ***************************** //
-#ifdef _PEN_USE_THREADS_
 	std::vector<std::thread> simThreads;
-#endif
-	// ************************ MULTI-THREADING END *************************** //
 
 	pen_timer timer;
 	double time0 = CPUtime();
@@ -1455,143 +1571,321 @@ namespace penred{
 
 	//Flag the simulation as running
 	simulating = true;
+
+	if(interactive){
+	  //Disable maximum simulation time in interactive mode
+	  for(penred::simulation::simConfig& simConf : simConfigs){
+	    simConf.setMaxSimTime(1000000000000000);
+	  }
+	}
 	
 	//Unlock after configuration finish
-	lock.unlock();
+	lockConf.unlock();
 
-	//Substract initialization time to maximum simulation time
-	long long int initTime = static_cast<long long int>(initializationTimer.timer());
-	for(unsigned ithread = 0; ithread < nThreads; ++ithread)
-	  simConfigs[ithread].consumeMaxSimTime(initTime*1000ll);
+	if(interactive){
+	  //Interactive simulation mode
 
-	//Iterate over generic sources
-	for(unsigned iSource = simConfigs[0].getFirstSourceIndex();
-	    iSource < genericSources.size(); ++iSource){
+	  //Create a particles set for each thread
 
-	  //Check remaining simulation time
-	  if(simConfigs[0].getMaxSimTime() <= 0)
-	    break; //Finish the simulation
-    
-
-	  // ************************** MULTI-THREADING ***************************** //
-#ifdef _PEN_USE_THREADS_
-	  //Run simulations for each thread
-	  if(nThreads > 1){
-	    // Multi-thread
-	    //****************
-      
-	    for(unsigned ithread = 0; ithread < nThreads; ++ithread){
-	      // Simulate
-	      simThreads.push_back(std::thread(_simulate<contextType, pen_particleState>,
-					       std::ref(simConfigs[ithread]),
-					       std::ref(context),
-					       std::ref(genericSources[iSource]),
-					       std::ref(talliesVect[ithread]),
-					       std::ref(genericVR),
-					       std::ref(photonVR)));
-	    }
-    
-	    //Join threads
-	    for(unsigned ithread = 0; ithread < nThreads; ++ithread){
-	      simThreads[ithread].join();
-	      //Update remaining simulation time
-	      simConfigs[0].setMaxSimTime(std::min(simConfigs[0].getMaxSimTime(), simConfigs[ithread].getMaxSimTime()));
-	    }
-
-	    //Update maximum simulation times
-	    for(unsigned ithread = 0; ithread < nThreads; ++ithread){
-	      simConfigs[ithread].setMaxSimTime(simConfigs[0].getMaxSimTime());
-	    }
-      
-	    //Clear threads
-	    simThreads.clear();    
+	  //Instantiate context particles
+	  using particleIndexesIS =
+	    std::make_index_sequence<penred::context::particles<contextType>::NTypes>;
+	  std::vector<std::shared_ptr<penred::context::particles<contextType>>> particles;
+	  for(size_t ithread = 0; ithread < nThreads; ++ithread){
+	    //Create a set of particles for this thread
+	    particles.
+	      emplace_back(std::make_shared<penred::context::particles<contextType>>(context));
+	    //Register VR in particles
+	    particles.back()->registerVR(genericVR, photonVR);	    
 	  }
-	  else{
+	  	  
+	  bool waitingFinish = true;
+	  while(waitingFinish){
+	    
+	    InteractiveInstruction nextInstruction;
+	    {
+	      std::unique_lock<std::mutex> lock(simMutex);
 
-#endif
-	    // ************************ MULTI-THREADING END *************************** //
+	      //Wait until a instruction is provided
+	      instructionsCondition.wait(lock, [this]{ return !instructions.empty(); });
 
-	    // Single thread
-	    //****************
-      
-	    // Simulate
-	    penred::simulation::sampleAndSimulateContext(simConfigs[0], context,
-							 genericSources[iSource],
-							 talliesVect[0],
-							 genericVR, photonVR);
-      
-#ifdef _PEN_USE_THREADS_
+	      if(verbose > 2){
+		printf("Queued instructions: %lu\n"
+		       "Next instruction:\n"
+		       "    - type     : %s \n"
+		       "    - operation: %s \n"
+		       "    - name     : %s \n",
+		       static_cast<unsigned long>(instructions.size()),
+		       InstructionTypes::description(instructions.front().type),
+		       InstructionOperations::description(instructions.front().operation),
+		       instructions.front().name.c_str());
+		fflush(stdout);
+	      }
+
+	      //Get the next instruction
+	      nextInstruction = std::move(instructions.front());
+	      instructions.pop();
+	    }
+	    
+	    // Process the instruction
+	    int tallyIndex = -1;
+	    bool sourceFound = false;
+	    switch(nextInstruction.type){
+	    case InstructionTypes::SIMULATE_SOURCE:
+
+	      //Simulating source
+	      if(verbose > 2){
+		printf("Simulate source '%s' instruction received\n",
+		       nextInstruction.name.c_str());
+	      }
+
+	      //Search the source to simulate
+	      sourceFound = false;
+	      for(unsigned iSource = 0; iSource < genericSources.size(); ++iSource){
+		if(genericSources[iSource].name.compare(nextInstruction.name) == 0){
+		  sourceFound = true;
+		  if(_applyInstruction(nextInstruction, genericSources[iSource], verbose) != 0){
+		    break;
+		  }
+
+		  if(nThreads > 1){
+		    for(unsigned ithread = 0; ithread < nThreads; ++ithread){
+		      // Run simulation in each thread
+		      simThreads.push_back(std::thread([](auto&&... args) {
+			_simulateParticles<contextType, pen_particleState>
+			  (std::forward<decltype(args)>(args)...,
+			   particleIndexesIS{});
+		      },
+			  std::ref(simConfigs[ithread]),
+			  std::ref(genericSources[iSource]),
+			  std::ref(talliesVect[ithread]),
+			  particles[ithread]
+			  )
+			);
+		    }
+		    //Join threads
+		    for(unsigned ithread = 0; ithread < nThreads; ++ithread){
+		      simThreads[ithread].join();
+		    }
+		    simThreads.clear();
+		  }
+		  else{
+		    _simulateParticles<contextType, pen_particleState>
+		      (simConfigs[0],
+		       genericSources[iSource],
+		       talliesVect[0],
+		       particles[0],
+		       particleIndexesIS{});
+		  }
+		  
+		  break;
+		}
+	      }
+
+	      for(unsigned iSource = 0; iSource < polarisedGammaSources.size(); iSource++){
+		if(polarisedGammaSources[iSource].name.compare(nextInstruction.name) == 0){
+		  sourceFound = true;
+		  if(_applyInstruction(nextInstruction, polarisedGammaSources[iSource], verbose) != 0){
+		    break;
+		  }
+
+		  if(nThreads > 1){
+		    for(unsigned ithread = 0; ithread < nThreads; ++ithread){
+		      // Run simulation in each thread
+		      simThreads.push_back(std::thread([](auto&&... args) {
+			_simulateParticles<contextType, pen_state_gPol>
+			  (std::forward<decltype(args)>(args)...,
+			   particleIndexesIS{});
+		      },
+			  std::ref(simConfigs[ithread]),
+			  std::ref(polarisedGammaSources[iSource]),
+			  std::ref(talliesVect[ithread]),
+			  particles[ithread]));
+		    }
+		    //Join threads
+		    for(unsigned ithread = 0; ithread < nThreads; ++ithread){
+		      simThreads[ithread].join();
+		    }
+		    simThreads.clear();
+		  }
+		  else{
+		    _simulateParticles<contextType, pen_state_gPol>
+		      (simConfigs[0],
+		       polarisedGammaSources[iSource],
+		       talliesVect[0],
+		       particles[0],
+		       particleIndexesIS{});
+		  }
+		  
+		  break;
+		}		
+	      }
+
+	      if(!sourceFound && verbose > 1){
+		printf("Simulate source '%s' not found!\n",
+		       nextInstruction.name.c_str());
+	      }
+	    
+	      break;
+	    case InstructionTypes::GET_TALLY_RESULTS:
+
+	      //Find the tally by name
+	      tallyIndex = talliesVect[0].getTallyIndex(nextInstruction.name);
+	      if(tallyIndex < 0){
+		auxResultsDoub.clear();
+		auxResultsInt.clear();
+		resultsAvailable = true;
+		resultsCondition.notify_one();
+		continue;
+	      }
+
+	      if(nextInstruction.operation == InstructionOperations::INTEGER){
+		auxResultsInt.resize(nThreads);
+		for(size_t ith = 0; ith < nThreads; ++ith){
+		  talliesVect[ith].getResults(tallyIndex, auxResultsInt[ith]);
+		}
+	      }
+	      else{	      
+		auxResultsDoub.resize(nThreads);
+		for(size_t ith = 0; ith < nThreads; ++ith){
+		  talliesVect[ith].getResults(tallyIndex, auxResultsDoub[ith]);
+		}
+	      }
+
+	      //Get simulation lock and notify to getResults
+	      resultsAvailable = true;
+	      resultsCondition.notify_one();
+	      
+	      break;
+	    case InstructionTypes::FINISH_SIMULATION:
+	      waitingFinish = false;
+	      break;
+	    default:
+	      //Unknown instruction type
+	      break;
+	    }
 	  }
-#endif
-
 	}
+	else{
+	  //Regular simulation
 
-	//Iterate over polarized sources
-	for(unsigned iSource = 0; iSource < polarisedGammaSources.size(); iSource++){
+	  //Substract initialization time to maximum simulation time
+	  long long int initTime = static_cast<long long int>(initializationTimer.timer());
+	  for(unsigned ithread = 0; ithread < nThreads; ++ithread)
+	    simConfigs[ithread].consumeMaxSimTime(initTime*1000ll);
 
-	  //Check remaining simulation time
-	  if(simConfigs[0].getMaxSimTime() <= 0)
-	    break; //Finish the simulation
+	  //Iterate over generic sources
+	  for(unsigned iSource = simConfigs[0].getFirstSourceIndex();
+	      iSource < genericSources.size(); ++iSource){
+
+	    //Check remaining simulation time
+	    if(simConfigs[0].getMaxSimTime() <= 0)
+	      break; //Finish the simulation
+    
+
+	    //Run simulations for each thread
+	    if(nThreads > 1){
+	      // Multi-thread
+	      //****************
+      
+	      for(unsigned ithread = 0; ithread < nThreads; ++ithread){
+		// Simulate
+		simThreads.push_back(std::thread(_simulate<contextType, pen_particleState>,
+						 std::ref(simConfigs[ithread]),
+						 std::cref(context),
+						 std::ref(genericSources[iSource]),
+						 std::ref(talliesVect[ithread]),
+						 std::cref(genericVR),
+						 std::cref(photonVR)));
+	      }
+    
+	      //Join threads
+	      for(unsigned ithread = 0; ithread < nThreads; ++ithread){
+		simThreads[ithread].join();
+		//Update remaining simulation time
+		simConfigs[0].setMaxSimTime(std::min(simConfigs[0].getMaxSimTime(), simConfigs[ithread].getMaxSimTime()));
+	      }
+
+	      //Update maximum simulation times
+	      for(unsigned ithread = 0; ithread < nThreads; ++ithread){
+		simConfigs[ithread].setMaxSimTime(simConfigs[0].getMaxSimTime());
+	      }
+      
+	      //Clear threads
+	      simThreads.clear();    
+	    }
+	    else{
+
+	      // Single thread
+	      //****************
+      
+	      // Simulate
+	      penred::simulation::sampleAndSimulateContext(simConfigs[0], context,
+							   genericSources[iSource],
+							   talliesVect[0],
+							   genericVR, photonVR);
+      
+	    }
+	  }
+
+	  //Iterate over polarized sources
+	  for(unsigned iSource = 0; iSource < polarisedGammaSources.size(); iSource++){
+
+	    //Check remaining simulation time
+	    if(simConfigs[0].getMaxSimTime() <= 0)
+	      break; //Finish the simulation
 
     
-	  //Run simulations for each thread
+	    //Run simulations for each thread
 
-	  // ************************** MULTI-THREADING ***************************** //
-#ifdef _PEN_USE_THREADS_
-	  if(nThreads > 1){
-	    // Multi-thread
-	    //***************
+	    if(nThreads > 1){
+	      // Multi-thread
+	      //***************
       
-	    for(unsigned ithread = 0; ithread < nThreads; ++ithread){
-	      // Simulate
-	      simThreads.push_back(std::thread(_simulate<contextType, pen_state_gPol>,
-					       std::ref(simConfigs[ithread]),
-					       std::ref(context),
-					       std::ref(polarisedGammaSources[iSource]),
-					       std::ref(talliesVect[ithread]),
-					       std::ref(genericVR),
-					       std::ref(photonVR)));
+	      for(unsigned ithread = 0; ithread < nThreads; ++ithread){
+		// Simulate
+		simThreads.push_back(std::thread(_simulate<contextType, pen_state_gPol>,
+						 std::ref(simConfigs[ithread]),
+						 std::cref(context),
+						 std::ref(polarisedGammaSources[iSource]),
+						 std::ref(talliesVect[ithread]),
+						 std::cref(genericVR),
+						 std::cref(photonVR)));
 	
-	    }
+	      }
 
-	    //Join threads
-	    for(unsigned ithread = 0; ithread < nThreads; ++ithread){
-	      simThreads[ithread].join();
-	      //Update remaining simulation time
-	      simConfigs[0].setMaxSimTime(std::min(simConfigs[0].getMaxSimTime(), simConfigs[ithread].getMaxSimTime()));
+	      //Join threads
+	      for(unsigned ithread = 0; ithread < nThreads; ++ithread){
+		simThreads[ithread].join();
+		//Update remaining simulation time
+		simConfigs[0].setMaxSimTime(std::min(simConfigs[0].getMaxSimTime(), simConfigs[ithread].getMaxSimTime()));
 
-	    }
+	      }
 
-	    //Update maximum simulation times
-	    for(unsigned ithread = 0; ithread < nThreads; ++ithread){
-	      simConfigs[ithread].setMaxSimTime(simConfigs[0].getMaxSimTime());
-	    }
+	      //Update maximum simulation times
+	      for(unsigned ithread = 0; ithread < nThreads; ++ithread){
+		simConfigs[ithread].setMaxSimTime(simConfigs[0].getMaxSimTime());
+	      }
 
-	    //Clear threads
-	    simThreads.clear();
+	      //Clear threads
+	      simThreads.clear();
       
+	    }
+	    else{
+	      // Single thread
+	      //****************
+      
+	      // Simulate 
+	      penred::simulation::sampleAndSimulateContext(simConfigs[0], context,
+							   polarisedGammaSources[iSource],
+							   talliesVect[0],
+							   genericVR,
+							   photonVR);
+	    }
 	  }
-	  else{
-#endif
-	    // ************************ MULTI-THREADING END *************************** //
-
-	    // Single thread
-	    //****************
-      
-	    // Simulate 
-	    penred::simulation::sampleAndSimulateContext(simConfigs[0], context,
-							 polarisedGammaSources[iSource],
-							 talliesVect[0],
-							 genericVR,
-							 photonVR);
-      
-#ifdef _PEN_USE_THREADS_
-	  }
-#endif
-    
+	
 	}
-
-
+	
 	//Calculate the total number of simulated hists
 	unsigned long long totalHists = 0.0;
 	for(unsigned ithread = 0; ithread < nThreads; ++ithread){
@@ -1602,7 +1896,7 @@ namespace penred{
 	for(unsigned ithread = 0; ithread < nThreads; ithread++){
 	  talliesVect[ithread].run_endSim(simConfigs[ithread].getSimulatedInFinished());
 	}
-
+	  
 	double simtime = timer.timer();
 	double CPUendSim = CPUtime();
 	double usertime = CPUendSim-time0;
@@ -1688,7 +1982,7 @@ namespace penred{
 #endif
 
 	//Get lock to flag simulation as completed
-	const std::lock_guard<std::mutex> lock2(simMutex);
+	const std::lock_guard<std::mutex> lockEnd(simMutex);
 	
 	//Return to configuration log
 	setDefaultLog(penred::logs::CONFIGURATION);
@@ -1698,7 +1992,6 @@ namespace penred{
 	return errors::SUCCESS;
       }
 
-#ifdef _PEN_USE_THREADS_
       inline int simulateAsync(){
 
 	//Launch the simulation asynchronously. This function will block the
@@ -1729,7 +2022,6 @@ namespace penred{
 	//Return the 'simulate' return value
 	return simFuture.get();
       }
-#endif
 
       //Simulation status functions
       inline std::vector<double> simSpeeds() const {
@@ -1771,14 +2063,242 @@ namespace penred{
 	const std::lock_guard<std::mutex> lock(simMutex);	
 	return simulating;
       }
-      inline void forceFinish() {
+      inline bool isInteractive() const{
 	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);	
+	return interactive;
+      }
+      inline int forceFinish() {
+	
+	//Get simulation lock
 	const std::lock_guard<std::mutex> lock(simMutex);
-	if(simulating){
-	  for(penred::simulation::simConfig& simConf : simConfigs){
-	    simConf.setMaxSimTime(simConf.simTime());
+	
+	if(!simulating){
+	  return errors::ERROR_SIMULATION_NOT_RUNNING;
+	}
+	
+	if(interactive){
+	  return errors::ERROR_SIMULATION_RUNNING_INTERACTIVE;
+	}
+	
+	for(penred::simulation::simConfig& simConf : simConfigs){
+	  simConf.setMaxSimTime(simConf.simTime());
+	}
+
+	return errors::SUCCESS;
+      }
+
+      //Instructions functions
+      inline int instructionEnd(){
+	InteractiveInstruction aux;
+	aux.type = InstructionTypes::FINISH_SIMULATION;
+	
+	const std::lock_guard<std::mutex> lock(simMutex);
+
+	if(!interactive){
+	  return errors::ERROR_SIMULATION_NOT_RUNNING_INTERACTIVE;
+	}
+	
+	instructions.push(std::move(aux));
+	instructionsCondition.notify_one();
+
+	return errors::SUCCESS;
+      }
+      inline int instructionSimulate(const std::string& sourceName,
+				     const double nhists,
+				     const std::vector<double>& trans = {},
+				     const std::vector<double>& rot = {}){
+	InteractiveInstruction inst;
+	inst.type = InstructionTypes::SIMULATE_SOURCE;
+	inst.name = sourceName;
+	if(trans.size() >= 3){
+	  if(rot.size() >= 3){
+	    inst.operation = InstructionOperations::MOVE_AND_ROTATE;
+	    
+	    inst.parameters.resize(7);
+	    inst.parameters[0] = nhists;
+	    
+	    inst.parameters[1] = trans[0];
+	    inst.parameters[2] = trans[1];
+	    inst.parameters[3] = trans[2];
+	    
+	    inst.parameters[4] = rot[0];
+	    inst.parameters[5] = rot[1];
+	    inst.parameters[6] = rot[2];
+	  }else{
+	    inst.operation = InstructionOperations::MOVE;
+
+	    inst.parameters.resize(4);
+	    inst.parameters[0] = nhists;
+	    
+	    inst.parameters[1] = trans[0];
+	    inst.parameters[2] = trans[1];
+	    inst.parameters[3] = trans[2];	    
 	  }
 	}
+	else if(rot.size() >= 3){
+	  inst.operation = InstructionOperations::ROTATE;
+	  
+	  inst.parameters.resize(4);
+	  inst.parameters[0] = nhists;
+	    
+	  inst.parameters[1] = rot[0];
+	  inst.parameters[2] = rot[1];
+	  inst.parameters[3] = rot[2];	    	  
+	}
+	else{
+	  inst.operation = InstructionOperations::NONE;
+	  
+	  inst.parameters.resize(1);
+	  inst.parameters[0] = nhists;
+	}
+
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
+
+	if(!interactive){
+	  return errors::ERROR_SIMULATION_NOT_RUNNING_INTERACTIVE;
+	}
+	
+	instructions.push(std::move(inst));
+	instructionsCondition.notify_one();
+	
+	return errors::SUCCESS;
+      }
+      inline int getResults(const std::string& tallyName,
+			    std::vector<std::vector<double>>& results){
+	
+	//Get results lock
+	const std::lock_guard<std::mutex> lockResults(resultsMutex);
+	
+	InteractiveInstruction inst;
+	inst.type = InstructionTypes::GET_TALLY_RESULTS;
+	inst.name = tallyName;
+	inst.operation = InstructionOperations::DOUBLE;
+	
+	//Get simulation lock
+	{
+	  std::unique_lock<std::mutex> lock(simMutex);
+
+	  //Check if the simulation is running
+	  if(!simulating){
+	    return errors::ERROR_SIMULATION_NOT_RUNNING;
+	  }
+	  if(!interactive){
+	    return errors::ERROR_SIMULATION_NOT_RUNNING_INTERACTIVE;
+	  }
+	
+	  resultsAvailable = false;
+	  instructions.push(std::move(inst));
+	  instructionsCondition.notify_one();
+
+	  //Wait until results are available
+	  resultsCondition.wait(lock, [this]{ return resultsAvailable; });
+	}
+	
+	//Get the results
+	results = std::move(auxResultsDoub);
+
+	return errors::SUCCESS;
+      }
+      inline int getResults(const std::string& tallyName,
+			    std::vector<std::vector<int>>& results){
+	
+	//Get results lock
+	const std::lock_guard<std::mutex> lockResults(resultsMutex);
+	
+	InteractiveInstruction inst;
+	inst.type = InstructionTypes::GET_TALLY_RESULTS;
+	inst.name = tallyName;
+	inst.operation = InstructionOperations::INTEGER;
+	
+	//Get simulation lock
+	{
+	  std::unique_lock<std::mutex> lock(simMutex);
+
+	  //Check if the simulation is running
+	  if(!simulating){
+	    return errors::ERROR_SIMULATION_NOT_RUNNING;
+	  }
+	  if(!interactive){
+	    return errors::ERROR_SIMULATION_NOT_RUNNING_INTERACTIVE;
+	  }
+	  
+	  resultsAvailable = false;
+	  instructions.push(std::move(inst));
+	  instructionsCondition.notify_one();
+
+	  //Wait until results are available
+	  resultsCondition.wait(lock, [this]{ return resultsAvailable; });
+	}
+	
+	//Get the results
+	results = std::move(auxResultsInt);
+	  
+	return errors::SUCCESS;
+      }
+      inline void instructionSend(const InteractiveInstruction& i){
+	if(i.type == InstructionTypes::GET_TALLY_RESULTS){
+	  //Invalid instruction to queue, getResults must be used
+	  return;
+	}
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
+	instructions.push(i);
+	instructionsCondition.notify_one();
+      }
+      inline void instructionSend(InteractiveInstruction&& i){
+	if(i.type == InstructionTypes::GET_TALLY_RESULTS){
+	  //Invalid instruction to queue, getResults must be used
+	  return;
+	}	
+	//Get lock
+	const std::lock_guard<std::mutex> lock(simMutex);
+	instructions.push(std::move(i));
+	instructionsCondition.notify_one();
+      }
+      inline void instructionClear(){
+	//Get results and simulation locks
+	const std::lock_guard<std::mutex> lockResults(resultsMutex);	
+	const std::lock_guard<std::mutex> lock(simMutex);
+	//No thread wating for results, it is safe to clear instructions
+	std::queue<InteractiveInstruction> empty;
+	std::swap(instructions, empty);
+      }
+      inline int instructionEndAndWait(){
+
+	//Get results lock
+	const std::lock_guard<std::mutex> lockResults(resultsMutex);
+
+	//Get simulation lock
+	std::unique_lock<std::mutex> lock(simMutex);
+
+	if(!simulating){
+	  return errors::ERROR_SIMULATION_NOT_RUNNING;
+	}
+	if(!interactive){
+	  return errors::ERROR_SIMULATION_NOT_RUNNING_INTERACTIVE;
+	}
+	
+	//Add an end instruction
+	InteractiveInstruction aux;
+	aux.type = InstructionTypes::FINISH_SIMULATION;
+	
+	instructions.push(std::move(aux));
+
+	//Add a results request instruction
+	aux.type = InstructionTypes::GET_TALLY_RESULTS;
+	aux.name = "";
+	aux.operation = InstructionOperations::DOUBLE;
+	
+	resultsAvailable = false;
+	instructions.push(std::move(aux));
+	instructionsCondition.notify_one();
+
+	//Wait until results are available
+	resultsCondition.wait(lock, [this]{ return resultsAvailable; });
+
+	return errors::SUCCESS;
       }
     };
 

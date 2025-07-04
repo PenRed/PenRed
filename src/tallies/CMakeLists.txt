@@ -37,10 +37,8 @@
 #        LIBRARIES          #
 #############################
 
-if(WITH_MULTI_THREADING)
-    #Find threads package
-    find_package (Threads REQUIRED)
-endif(WITH_MULTI_THREADING)
+#Find threads package
+find_package (Threads REQUIRED)
 
 if(WITH_MPI)
     #Find MPI package
@@ -92,10 +90,8 @@ target_link_libraries(tallies pen_grids)
 target_link_libraries(tallies pen_image)
 target_link_libraries(tallies pen_muen)
 
-if(WITH_MULTI_THREADING)
-    #Link thread libs
-    target_link_libraries (tallies ${CMAKE_THREAD_LIBS_INIT})
-endif(WITH_MULTI_THREADING)
+#Link thread libs
+target_link_libraries (tallies ${CMAKE_THREAD_LIBS_INIT})
 
 if(WITH_MPI)
     target_link_libraries(tallies ${MPI_LIBRARIES})

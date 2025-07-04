@@ -3,6 +3,7 @@
 #
 #    Copyright (C) 2019-2021 Universitat de València - UV
 #    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+#    Copyright (C) 2025 Vicent Gimenez Alventosa
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -34,10 +35,8 @@
 #  GEOMETRY 
 #############################
 
-if(WITH_MULTI_THREADING)
-    #Find threads package
-    find_package (Threads REQUIRED)
-endif(WITH_MULTI_THREADING)
+#Find threads package
+find_package (Threads REQUIRED)
 
 # Create geo lib
 add_library(pen_geos STATIC ${PROJECT_SOURCE_DIR}/geometry/source/pen_geometries.cpp)
@@ -68,10 +67,8 @@ target_link_libraries (pen_geos pen_math)
 target_link_libraries (pen_geos pen_dump)
 target_link_libraries (pen_geos pen_image)
 
-if(WITH_MULTI_THREADING)
-    #Link thread libs
-    target_link_libraries (pen_geos ${CMAKE_THREAD_LIBS_INIT})
-endif(WITH_MULTI_THREADING)
+#Link thread libs
+target_link_libraries (pen_geos ${CMAKE_THREAD_LIBS_INIT})
 
 #Check if DICOM option has been enabled
 if(WITH_DICOM)

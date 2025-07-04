@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2023 Universitat de València - UV
 //    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -36,7 +37,6 @@ instantiator<pen_genericTally<pen_particleState>>& pen_commonTallyCluster::gener
   return *ans;  
 }
 
-#ifdef _PEN_USE_THREADS_
 std::thread pen_commonTallyCluster::configure_async(const wrapper_geometry* geometry,
 						    const abc_material* const materials[constants::MAXMAT],
 						    const unsigned threadNum,
@@ -45,7 +45,6 @@ std::thread pen_commonTallyCluster::configure_async(const wrapper_geometry* geom
   return std::thread(&pen_commonTallyCluster::configure,this,
 		     geometry,materials,threadNum,config,verbose);
 }
-#endif
 
 void pen_commonTallyCluster::configure(const wrapper_geometry* geometry,
 				       const abc_material* const materials[constants::MAXMAT],

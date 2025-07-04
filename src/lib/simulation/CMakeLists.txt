@@ -34,10 +34,8 @@
 #  Simulation lib
 #############################
 
-if(WITH_MULTI_THREADING)
-    #Find threads package
-    find_package (Threads REQUIRED)
-endif(WITH_MULTI_THREADING)
+#Find threads package
+find_package (Threads REQUIRED)
 
 # Create lib
 add_library(pen_sim STATIC ${CMAKE_CURRENT_SOURCE_DIR}/source/base_simulation_functions.cpp ${CMAKE_CURRENT_SOURCE_DIR}/source/detector_simulation.cpp)
@@ -50,6 +48,4 @@ target_link_libraries(pen_sim pen_VR)
 target_link_libraries(pen_sim pen_timer)
 
 #Link thread libs
-if(WITH_MULTI_THREADING)
-    target_link_libraries(pen_sim ${CMAKE_THREAD_LIBS_INIT})
-endif(WITH_MULTI_THREADING)
+target_link_libraries(pen_sim ${CMAKE_THREAD_LIBS_INIT})
