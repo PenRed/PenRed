@@ -25,9 +25,33 @@ Cutoff parameters specify when the simulation of a specific particle type ends. 
         
 ### Composition
 
-To define a material, its composition must be specified via the atomic number (*Z*) and the corresponding weight fraction for each element present in the compound. Additionally, the material density must be set in \( \text{g/cm}^3 \). The user can include as many elements as needed to define the compound using the *Add Element* button or remove the last one with the *Remove Element* button.
+Material composition can be defined using either of two methods: selecting a predefined composition from a database or manually specifying the composition. The desired method can be chosen by selecting either **Database** or **Composition** from the Definition dropdown menu.
 
-The weight fractions of elements composing the material do not need to be normalized.
+<img src="../../simulation-configuration/images/materialCompositionType.png" alt="Material Composition Definition" width="350" style="display: block; margin: 0 auto"/>
+
+#### Manual Definition
+
+To define a material manually, specify:
+
+- The atomic number (*Z*) and corresponding weight fraction for each element in the compound.
+- The material density in \( \text{g/cm}^3 \)
+
+Users can add elements using the *Add Element* button or remove the last added element with the *Remove Element* button. Note that weight fractions do not require normalization.
+
+#### Material Databases
+
+Alternatively, users can select a predefined material from either:
+
+- The internal PENELOPE material database
+- An external database. Currently the following are included:
+    + ICRP Adult Female (*ICRP_AF*)
+    + ICRP Adult Male (*ICRP_AM*)
+
+<img src="../../simulation-configuration/images/materialDBSelection.png" alt="Material DB Selection" width="350" style="display: block; margin: 0 auto"/>
+
+After selecting the database, the available materials appear in a list below the selection menu. A search function allows users to filter materials by name.
+
+<img src="../../simulation-configuration/images/materialsDBSearch.png" alt="Material DB Selection" width="350" style="display: block; margin: 0 auto"/>
 
 ### Advanced Parameters
 

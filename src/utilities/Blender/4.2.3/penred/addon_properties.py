@@ -27,7 +27,7 @@
 #
 
 import bpy
-from . import tracks
+from . import tracks, materialDB
 
 materialRows = 20
 materialColumns = 20
@@ -839,6 +839,33 @@ class materialProperties(bpy.types.PropertyGroup):
     name : bpy.props.StringProperty(name = "Material Name", default = "material")
     show : bpy.props.BoolProperty(name = "Show Material Properties", default = True)
     index : bpy.props.IntProperty(name = "Index", min = 1, default = 1)
+
+    definitionType : bpy.props.EnumProperty(
+        name = "Definition Type",
+        description = "Choose how the material is defined",
+        items = [
+            ("COMPOSITION" , "Composition", "Defined specifying the fraction by weight composition"),
+            ("DB", "Database", "Select predefined materials from available databases"),
+        ],
+        default = "COMPOSITION"
+    )
+
+    nameMatDB : bpy.props.StringProperty(name = "DB Material Name", default = "")
+    indexMatDB : bpy.props.IntProperty(
+        name = "Material Database Index",
+        min = 0,
+        default = 0,
+        description = "Index of the selected material within the specified database",
+        update=lambda self, context: setattr(self, "nameMatDB", materialDB.getMatName(self.matDB, self.indexMatDB))
+    )
+    matDB : bpy.props.EnumProperty(
+        name = "Selected Material DB",
+        description = "Choose the database where the material is defined",
+        items = materialDB.categories,
+        default = "PENELOPE",
+        update=lambda self, context: setattr(self, "indexMatDB", 0)
+    )
+    
     composition : bpy.props.CollectionProperty(type=elementProperties)
     density : bpy.props.FloatProperty(
         name = "Density",
@@ -1332,6 +1359,9 @@ def ensureCleanState(dummy):
     
 def register():
 
+    # Register material databases
+    materialDB.register()
+
     # Register source properties
     bpy.utils.register_class(sourceProperties)
     
@@ -1382,6 +1412,9 @@ def register():
         
 def unregister():
 
+    # Unregister material databases
+    materialDB.unregister()
+    
     # Unregister source properties
     bpy.utils.unregister_class(sourceProperties)
     

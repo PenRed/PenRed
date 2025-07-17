@@ -30,6 +30,8 @@ def createMaterial(f, name, index,
                    gammaCutoffType, gammaCutoffValue,
                    electronCutoffType, electronCutoffValue,
                    positronCutoffType, positronCutoffValue,
+                   definitionType,
+                   db, dbmat,
                    density, composition,
                    advanced,
                    C1, C2, WCC, WCR):
@@ -61,8 +63,15 @@ def createMaterial(f, name, index,
         f.write(f"materials/{name}/WCC {WCC:.3e}\n")
         f.write(f"materials/{name}/WCR {WCR:.3e}\n")
 
+
+    if definitionType == "COMPOSITION":
+        # Define material by weight fraction
+        f.write(f"materials/{name}/density {density:.4e}\n")
+        for e in composition:
+            f.write(f"materials/{name}/elements/{e[0]} {e[1]:.4e}\n")
+    else:
+        # Create a predefined DB material
+        f.write(f"materials/{name}/DB \"{db}\"\n")
+        f.write(f"materials/{name}/DB-material \"{dbmat}\"\n")        
         
-    f.write(f"materials/{name}/density {density:.4e}\n")
-    for e in composition:
-        f.write(f"materials/{name}/elements/{e[0]} {e[1]:.4e}\n")
     f.write("\n")
