@@ -100,7 +100,7 @@ def createMaterials(context, f):
             else:
                 pCutoff = item.positronRange
 
-            # Create composition list
+            # Create composition list (Only used if COMPOSITION is the definition type)
             compo = []
             for e in item.composition:
                 compo.append([e.z, e.wFraction])
@@ -109,6 +109,8 @@ def createMaterials(context, f):
                                      item.gammaCutoffType, gCutoff,
                                      item.electronCutoffType, eCutoff,
                                      item.positronCutoffType, pCutoff,
+                                     item.definitionType,
+                                     item.matDB, item.nameMatDB,
                                      item.density, compo,
                                      item.enableAdvanced,
                                      item.C1, item.C2, item.WCC, item.WCR)

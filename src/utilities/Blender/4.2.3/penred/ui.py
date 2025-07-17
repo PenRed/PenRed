@@ -29,7 +29,7 @@
 import bpy
 from mathutils import Vector
 from mathutils import Color
-from . import addon_properties, utils, tracks
+from . import addon_properties, materialDB, utils, tracks
 from math import pi, cos, sin
 import os
 
@@ -1339,34 +1339,65 @@ class PenredMaterialPropertiesPanel(bpy.types.Panel):
                         row.prop(item, "WCREdit",
                                  text="", icon="GREASEPENCIL",
                                  toggle=True)
-                
-                # Material composition
-                elementsBox = box.box()
-                elementsBox.label(text="Composition")
-                row = elementsBox.row()
-                row.label(text="Density")
-                row.prop(item, "density", text="")
-                row.label(text="g/cm^3")
-                for ie, element in enumerate(item.composition):
+
+                # Definition type
+                row = box.row()
+                row.prop(item, "definitionType", text="Definition")
+
+                if item.definitionType == "COMPOSITION":
+                    
+                    # Define material by composition (fraction by weight)
+                    elementsBox = box.box()
+                    elementsBox.label(text="Composition")
                     row = elementsBox.row()
-                    split = row.split(factor=0.35)
-                    col = split.column()
-                    col.prop(element, "z", text="Z")
-                    col = split.column()
-                    col.prop(element, "wFraction", text="Weight fraction")
+                    row.label(text="Density")
+                    row.prop(item, "density", text="")
+                    row.label(text="g/cm^3")
+                    for ie, element in enumerate(item.composition):
+                        row = elementsBox.row()
+                        split = row.split(factor=0.35)
+                        col = split.column()
+                        col.prop(element, "z", text="Z")
+                        col = split.column()
+                        col.prop(element, "wFraction", text="Weight fraction")
 
-                # Operators to add and remove composition elements
-                row = elementsBox.row()
-                row.operator("materials_composition.add_item", text="Add Element").imat = i
-                row = elementsBox.row()
-                row.operator("materials_composition.remove_item", text="Remove Element").imat = i
+                    # Operators to add and remove composition elements
+                    row = elementsBox.row()
+                    row.operator("materials_composition.add_item", text="Add Element").imat = i
+                    row = elementsBox.row()
+                    row.operator("materials_composition.remove_item", text="Remove Element").imat = i
+                else:
 
+                    # Get scene
+                    scene = context.scene
+                    
+                    # Define the material as a predefined database material
+                    boxDB = box.box()
+                    row = boxDB.row()
+
+                    # DB
+                    row.prop(item, "matDB", text="Database")
+
+                    # Displat the UIList for materials of this DB
+                    boxDB.template_list(
+                        "PENRED_MATERIAL_UL_DB_List",
+                        "",
+                        materialDB.getCategory(item.matDB),
+                        "materials",
+                        item,
+                        "indexMatDB"
+                    )
+                    
             # Operators to add and remove composition elements
             row = layout.row()
             row.operator("materials_material.add_item", text="Add Material")
             row = layout.row()
             row.operator("materials_material.remove_item", text="Remove Material")
 
+class PENRED_MATERIAL_UL_DB_List(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
+        layout.label(text=item.name)
+            
 class penred_PT_SimulationPanel(bpy.types.Panel):
     """Creates a panel in the 3D Viewport sidebar to run simulations"""
     bl_label = "PenRed"
@@ -1654,7 +1685,11 @@ def drawHintsHandler():
                     utils.draw_arrow(obj, worldZ, color)
 
 # Register functions
-def register():    
+def register():
+
+    # Register material UIList
+    bpy.utils.register_class(PENRED_MATERIAL_UL_DB_List)
+    
     bpy.types.TOPBAR_MT_file_export.append(menu_func_penred_export)
     bpy.types.VIEW3D_MT_transform_object.append(menu_func_quadric_transform)
 
@@ -1696,6 +1731,10 @@ def register():
         drawHintsHandler, (), 'WINDOW', 'POST_VIEW')
     
 def unregister():
+
+    # Unregister material UIList
+    bpy.utils.unregister_class(PENRED_MATERIAL_UL_DB_List)
+    
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_penred_export)
     bpy.types.VIEW3D_MT_transform_object.remove(menu_func_quadric_transform)
         
