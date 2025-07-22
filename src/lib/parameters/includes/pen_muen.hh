@@ -85,6 +85,12 @@ namespace pen_muen{
 		std::vector<pen_muen::muData>& muenData,
 		unsigned verbose = 1);
   
+    int calculate(const std::vector<double>& energies,
+		const double tolerance,
+		const double simTime,
+		const char* matFilename,
+		std::vector<double>& muenData);
+  
   double simulate(const pen_context& context,
 		  const double E0,
 		  const double simTime,
