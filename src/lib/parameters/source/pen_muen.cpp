@@ -91,7 +91,7 @@ int pen_muen::calculate(const double Emin,
 
   //Configure dummy geometry
   pen_parserSection dummySection;
-  geometry.configure(dummySection,2);
+  geometry.configure(dummySection,1);
     
   //Set context geometry
   context.setGeometry(&geometry);
@@ -181,6 +181,161 @@ int pen_muen::calculate(const double Emin,
 	  pen_muen::simulate(context,E0,simTime,tolerance,seed1,seed2,ith);
 
 	EData[ibin] = E0;
+	muenData[ibin] = muenVal;
+	ibin = atomicCount++;
+      }
+	
+    }));
+  }
+
+  for(size_t ith = 0; ith < nCalcThreads; ++ith){
+    calcThreads[ith].join();
+  }
+  
+  return 0;
+}
+
+int pen_muen::calculate(const std::vector<double>& energies,
+			const double tolerance,
+			const double simTime,
+			const char* matFilename,
+			std::vector<double>& muenData){
+
+  // Calculates the muen values for the specified energy
+  // interval in a single material
+  //
+  // Input:
+  //
+  // energies  -> List of energies to be calculated
+  // tolerance -> Threshold for the muen calculation
+  // simTime -> Time limit for the calculus of a single point
+  // matFilename -> Material file path
+  //
+  // Output:
+  //
+  // muenData -> Muen values for each calculated bin
+
+  if(matFilename == nullptr){
+    printf("pen_muen:calculate:Error: Material filename not provided\n");
+    return -1;
+  }
+
+  //Check configuration parameters
+  if(tolerance <= 1.0e-6){
+    printf("pen_muen:calculate:Error: Tolerance must be positive and"
+	   " greater than zero: %E\n",tolerance);
+    return -2;
+  }
+
+  //Create simulation context
+  std::shared_ptr<pen_context> pcontext = createContext<pen_context>();
+  //Get context reference. Notice that pcontext will
+  //not be released until the function ends
+  pen_context& context = *pcontext.get();  
+  
+  //Set the number of materials to context (1 per thread)
+  unsigned int nCalcThreads = 1;
+  
+  nCalcThreads = std::max(static_cast<unsigned int>(2),
+			  std::thread::hardware_concurrency());
+  
+  int errmat = context.setMats<pen_material>(nCalcThreads);
+  if(errmat != 0){
+    printf("pen_muen:calculate:Error: Unable to create material context: %d.\n",errmat);
+    return -3;
+  }
+
+  //Create a dummy geometry
+  pen_dummyGeo geometry;
+
+  //Configure dummy geometry
+  pen_parserSection dummySection;
+  geometry.configure(dummySection,1);
+    
+  //Set context geometry
+  context.setGeometry(&geometry);
+
+  //Init materials parameters
+  std::string PMFILEstr[constants::MAXMAT];
+  for(unsigned int ith = 0; ith < nCalcThreads; ++ith){
+
+    //Get the material
+    pen_material& mat = context.getBaseMaterial(ith);
+  
+    //Configure the material
+    mat.C1=0.2;
+    mat.C2=0.2;
+    mat.WCC=1.0e3;
+    mat.WCR=1.0e3;
+
+    mat.EABS[PEN_ELECTRON] = 50.0E0;
+    mat.EABS[PEN_PHOTON]   = 50.0E0;
+    mat.EABS[PEN_POSITRON] = 50.0E0;
+    PMFILEstr[ith].assign(matFilename);
+  }
+  
+  FILE* fcontext = nullptr;
+  fcontext = fopen("muen-context.rep","w");
+  if(fcontext == nullptr){
+    printf("pen_muen:calculate:Error: Unable to create file 'muen-context.rep'\n");
+    return -4;
+  }
+
+  double EMAX=1.0E9;
+  int INFO = 0;
+  int err = context.init(EMAX,fcontext,INFO,PMFILEstr);
+  if(err != 0){
+    printf("pen_muen:calculate:Error: Unable to configure context."
+	   " Check 'muen-context.rep'.\n");
+    return -5;
+  }
+
+  fclose(fcontext);
+
+  muenData.resize(energies.size());
+  
+  std::vector<std::thread> calcThreads;
+
+  std::atomic<unsigned int> atomicCount{0};
+    
+  for(size_t ith = 0; ith < nCalcThreads; ++ith){
+    calcThreads.push_back(std::thread([&,ith](){
+
+      //Get initial random seeds
+      int seed1, seed2;
+      rand0(ith,seed1,seed2);	
+
+      //Get local material
+      pen_material& mat = context.getBaseMaterial(ith);
+      double EABS1 = mat.EABS[PEN_ELECTRON];
+      
+      unsigned int ibin = atomicCount++;
+      while(ibin < energies.size()){
+
+	//Get energy
+	double E0 = energies[ibin];
+
+	if(E0 < 50.0){
+	  printf("pen_muen:calculate:Warning: Energy %E is too low. "
+		 "Skipping.\n",E0);
+	  continue;
+	}
+
+	//Ensure to include electron significant radiative yield
+	for(long int i = static_cast<long int>(constants::NEGP)-1; i >= 0; --i){
+	  if(exp(mat.EBRY[i])*context.grid.ET[i] < 1.0e-4*E0){
+	    mat.EABS[PEN_ELECTRON] = std::max(context.grid.ET[i],EABS1);
+	    break;
+	  }
+	}
+
+	mat.EABS[PEN_POSITRON] =
+	  std::min(std::max(1.0e-4*E0,5.0e3),mat.EABS[PEN_ELECTRON]);	
+
+	
+	double muenVal =
+	  pen_muen::simulate(context,E0,simTime,tolerance,seed1,seed2,ith);
+
 	muenData[ibin] = muenVal;
 	ibin = atomicCount++;
       }

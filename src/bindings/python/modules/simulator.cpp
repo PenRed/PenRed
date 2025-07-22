@@ -812,6 +812,331 @@ Returns:
     None
 )");
   
+  
+  materials.def("range",
+		[](const std::vector<double>& energies,
+		   const double density,
+		   MaterialComposition& comp,
+		   const unsigned verbose)->py::tuple{
+
+		  // Create material
+		  std::vector<penred::massFraction> composition;
+		  for(const CompositionPair& e : comp){
+		    composition.emplace_back(e.first, e.second);
+		  }
+		  std::string errorString;
+		  if(penred::penMaterialCreator::createMat("_range_", density, composition, errorString) != 0)
+		    throw py::value_error(errorString);
+
+		  // Create context
+		  std::shared_ptr<pen_context> pcontext = createContext<pen_context>();
+
+		  // Create context configuration
+		  pen_parserSection contextConfig;
+		  contextConfig.set("materials/mat1/number", 1);
+		  contextConfig.set("materials/mat1/eabs/electron", 50.0);
+		  contextConfig.set("materials/mat1/eabs/positron", 50.0);
+		  contextConfig.set("materials/mat1/eabs/gamma", 50.0);
+		  contextConfig.set("materials/mat1/C1", 0.2);
+		  contextConfig.set("materials/mat1/C2", 0.2);
+		  contextConfig.set("materials/mat1/WCC", 1.0e3);
+		  contextConfig.set("materials/mat1/WCR", 1.0e3);
+		  contextConfig.set("materials/mat1/filename", "_range_.mat");
+
+		  // Context configuration
+		  pen_parserSection matInfoSection;
+		  if(pcontext->configure(1.0E9,
+					contextConfig,
+					matInfoSection,
+					verbose) != pen_context::SUCCESS){
+		    throw py::value_error("Error during configuration. Check context reports (context.rep)");
+		  }
+
+		  //Create the resulting python tuple
+		  py::tuple results(constants::nParTypes);
+		    
+		  for(unsigned i = 0; i < constants::nParTypes; ++i)
+		    {
+		      std::vector<double> ranges(energies.size());
+		      for(unsigned j = 0; j < energies.size(); ++j)
+			{
+			  ranges[j] = pcontext->range(energies[j], pen_KPAR(i), 0);
+			}
+		      results[i] = py::tuple(py::cast(ranges));		      
+		    }
+	     
+		  return results;
+		},
+		py::arg("energies"),
+		py::arg("density"),
+		py::arg("composition"),
+		py::arg("verbose") = 1,
+  	   R"doc(
+Calculates the particle ranges (in cm) for a given material composition at specified energies.
+
+Args:
+    energies (double): List of energies, in eV, at which to calculate particle ranges.
+    density (float): Material density in g/cm^3.
+    composition (list[tuple[int, float]]): Material composition specified as a list of (Z, weight fraction) tuples.
+										   For example, [(Z1, weight1), (Z2, weight2), ...].
+    verbose (int, optional): Verbosity level.
+
+Returns:
+    tuple: A tuple containing the n tuples (one for each particle type), where each inner tuple contains ranges, in cm, for all input   energies. the order is: (electron_ranges, gamma_ranges, positron_ranges)
+		   For example, for three introduced energies (E1, E2, E3), considering R as the range in cm, returns:
+			((R(E1, electron), R(E2, electron), R(E3, electron)),(R(E1, gamma), R(E2, gamma), R(E3, gamma)),(R(E1, positron), R(E2, positron), R(E3, positron)))
+
+Example:
+	.. code-block:: python
+
+		# Run the simulation and store the results
+			results = pyPenred.simulation.materials.range(energies=[100e3, 200e3, 50e3], density=1.0, composition=((1,0.112), (8,0.888)), verbose=1)
+)doc");
+  
+ 
+  materials.def("rangeFromFile",
+		[](const std::vector<double>& energies,
+		   const std::string& filename,
+		   const unsigned verbose)->py::tuple{
+		   
+		  // Create context
+		  std::shared_ptr<pen_context> pcontext = createContext<pen_context>();
+
+		  // Create context configuration
+		  pen_parserSection contextConfig;
+		  contextConfig.set("materials/mat1/number", 1);
+		  contextConfig.set("materials/mat1/eabs/electron", 50.0);
+		  contextConfig.set("materials/mat1/eabs/positron", 50.0);
+		  contextConfig.set("materials/mat1/eabs/gamma", 50.0);
+		  contextConfig.set("materials/mat1/C1", 0.2);
+		  contextConfig.set("materials/mat1/C2", 0.2);
+		  contextConfig.set("materials/mat1/WCC", 1.0e3);
+		  contextConfig.set("materials/mat1/WCR", 1.0e3);
+		  contextConfig.set("materials/mat1/filename",filename);
+
+		  // Context configuration
+		  pen_parserSection matInfoSection;
+		  if(pcontext->configure(1.0E9,
+					contextConfig,
+					matInfoSection,
+					verbose) != pen_context::SUCCESS){
+		    throw py::value_error("Error during configuration. Check context reports (context.rep)");
+		  }
+		  
+		  //Create the resulting python tuple
+		  py::tuple results(constants::nParTypes);
+		    
+		  for(unsigned i = 0; i < constants::nParTypes; ++i)
+		    {
+		      std::vector<double> ranges(energies.size());
+		      for(unsigned j = 0; j < energies.size(); ++j)
+			{
+			  ranges[j] = pcontext->range(energies[j], pen_KPAR(i), 0);
+			}
+		      results[i] = py::tuple(py::cast(ranges));		      
+		    }
+	     
+		  return results;
+		},
+		py::arg("energies"),
+		py::arg("filename"),
+		py::arg("verbose") = 1,
+  	   R"doc(
+Calculates the particle ranges (in cm) for a given material file at specified energies.
+
+Args:
+	energies (double): List of energies, in eV, at which to calculate particle ranges.
+    filename (str): Path to the material definition file.
+    verbose (int, optional): Verbosity level.
+
+Returns:
+    tuple:  tuple: A tuple containing the n tuples (one for each particle type), where each inner tuple contains ranges, in cm, for all input   energies. the order is: (electron_ranges, gamma_ranges, positron_ranges)
+		   For example, for three introduced energies (E1, E2, E3), considering R as the range in cm, returns:
+			((R(E1, electron), R(E2, electron), R(E3, electron)),(R(E1, gamma), R(E2, gamma), R(E3, gamma)),(R(E1, positron), R(E2, positron), R(E3, positron)))
+
+Example:
+	.. code-block:: python
+
+		# Run the simulation and store the results
+			results = pyPenred.simulation.materials.rangeFromFile(energies=[100e3, 200e3, 50e3], filename=water.mat, verbose=1)
+)doc");
+  
+  
+ materials.def("mutrenInterval",
+		[](const double density,
+		   MaterialComposition& comp,
+		   double emin,
+		   double emax,
+		   unsigned ebins, 
+		   const double tolerance,
+		   const double simTime)->py::tuple{
+			   
+		  // Create material
+		  std::vector<penred::massFraction> composition;
+		  for(const CompositionPair& e : comp){
+		    composition.emplace_back(e.first, e.second);
+		  }
+		  std::string errorString;
+		  if(penred::penMaterialCreator::createMat("_mutren_", density, composition, errorString) != 0)
+		    throw py::value_error(errorString);
+		 
+		  if(emin<50.0)
+			 emin=50.0;
+			   
+		  if(emax>1.0E9)
+			 emax=1.0E9;
+		
+		  std::vector<double> muenData(ebins);
+		  std::vector<double> EData(ebins);
+		  
+		  pen_muen::calculate(emin, emax, ebins, tolerance, simTime, "_mutren_.mat", EData, muenData);
+		  
+		  //Create the resulting python tuple
+		  py::tuple results(2);
+		  
+		  results[0] = py::tuple(py::cast(EData));
+		  results[1] = py::tuple(py::cast(muenData));
+		 
+		  return results;
+		  		},
+		py::arg("density"),
+		py::arg("composition"),
+		py::arg("emin") = 50.0,
+		py::arg("emax") = 1.0E9,
+		py::arg("ebins") = 100,
+		py::arg("tolerance") = 0.1,
+		py::arg("simTime") = 30,
+  	   R"doc(
+Calculates the mu_en coefficients for the specified material composition across a defined energy interval.
+
+Args:
+    
+    density (float): Material density in g/cm^3.
+	composition (list[tuple[int, float]]): Material composition as a list of (Z, weight fraction).
+										   For example, [(Z1, weight1), (Z2, weight2), ...]. 
+	emin (double, optional): Lower bound of energy range in eV. 
+	emax (double, optional): Upper bound of energy range in eV. 
+    ebins (unsigned, optional): Number of linear-spaced energy bins between emin and emax.
+	tolerance (double, optional): Relative error to stop the simulation (0 < tolerance < 1).
+	simTime (double, optional): Allowed time (in seconds) to simulate each provided energy.
+    
+Returns:
+    tuple: A tuple of two tuples: the first with the energy bins and the second with the muen coefficients for the specified material.
+		   For example, for a emin = E1, emax = En, returns:
+			((E1, E2, ..., En),(muen(E1), muen(E2), ..., muen(En))
+
+Example:
+	.. code-block:: python
+
+		# Run the simulation and store the results
+			results = pyPenred.simulation.materials.mutrenInterval(density=1.0, composition=((1,0.112), (8,0.888)), emin=100e3, emax=200e3, ebins=120, tolerance=0.1, simTime=30)
+
+)doc");
+			
+ materials.def("mutren",
+		[](const std::vector<double>& energies,
+		   const double density,
+		   MaterialComposition& comp,
+		   const double tolerance,
+		   const double simTime)->py::tuple{
+			   
+		  // Create material
+		  std::vector<penred::massFraction> composition;
+		  for(const CompositionPair& e : comp){
+		    composition.emplace_back(e.first, e.second);
+		  }
+		  std::string errorString;
+		  if(penred::penMaterialCreator::createMat("_mutren_", density, composition, errorString) != 0)
+		    throw py::value_error(errorString);
+		
+		  std::vector<double> muenData(energies.size());
+		  
+		  pen_muen::calculate(energies, tolerance, simTime, "_mutren_.mat", muenData);
+		  
+		  //Create the resulting python tuple
+		  py::tuple results;
+		  
+		  results = py::tuple(py::cast(muenData));
+		 
+		  return results;
+		  		},
+		py::arg("energies"),
+		py::arg("density"),
+		py::arg("composition"),
+		py::arg("tolerance") = 0.1,
+		py::arg("simTime") = 30,
+  	   R"doc(
+Calculates the mu_en coefficients for the given material composition at specified energies.
+
+Args:
+    energies (list[double]): Array of energies, in eV.
+    density (float): Material density in g/cm^3.
+	composition (list[tuple[int, float]]): Material composition as a list of (Z, weight fraction).
+										   For example, [(Z1, weight1), (Z2, weight2), ...]. 
+	tolerance (double, optional): Relative error to stop the simulation (0 < tolerance < 1).
+	simTime (double, optional): Allowed time (in seconds) to simulate each provided energy.
+    
+
+Returns:
+    tuple: A tuple with the muen coefficients for the specified material corresponding to the input energies.
+		   For example, for a energy array provided with E1, E2, ..., En, returns:
+			(muen(E1), muen(E2), ..., muen(En))
+
+Example:
+	.. code-block:: python
+
+		# Run the simulation and store the results
+			results = pyPenred.simulation.materials.mutren(energies=muenE, density=1.0, composition=((1,0.112), (8,0.888)), tolerance=0.1, simTime=30)
+
+)doc");
+			
+			
+			  
+ materials.def("mutrenFromFile",
+		[](const std::vector<double>& energies, 
+		   const std::string& filename,
+		   const double tolerance,
+		   const double simTime)->py::tuple{
+		
+		  std::vector<double> muenData(energies.size());
+		
+		  pen_muen::calculate(energies, tolerance, simTime, filename.c_str(), muenData);
+		  
+		  //Create the resulting python tuple
+		  		  //Create the resulting python tuple
+		  py::tuple results;
+		  
+		  results = py::tuple(py::cast(muenData));
+		 
+		  return results;
+		  		},
+		py::arg("energies"),
+		py::arg("filename"),
+		py::arg("tolerance") = 0.1,
+		py::arg("simTime") = 30,
+  	   R"doc(
+Calculates the mu_en coefficients for a given material file at specified energies.
+
+Args:
+	energies (list[double]): Array of energies, in eV.
+	filename (str): Path to the material definition file.
+	tolerance (double, optional): Relative error to stop the simulation (0 < tolerance < 1).
+	simTime (double, optional): Allowed time (in seconds) to simulate each provided energy.
+
+
+Returns:
+    tuple: A tuple with the muen coefficients for the specified material corresponding to the input energies.
+		    For example, for a energy array provided with E1, E2, ..., En, returns:
+			(muen(E1), muen(E2), ..., muen(En))
+
+Example:
+	.. code-block:: python
+
+		# Run the simulation and store the results
+			results = pyPenred.simulation.materials.mutrenFromFile(energies=muenE, filename=water.mat, tolerance=0.1, simTime=30)
+
+)doc");
+  
 #else
   // If embedded data base is not enabled, override submodule 'materials' to raise an exception on access
   m.def_submodule("materials").attr("__getattr__") =
