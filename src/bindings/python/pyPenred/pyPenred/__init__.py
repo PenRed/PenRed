@@ -3,6 +3,7 @@ import importlib
 import yaml
 import time
 from pyPenred import simulation
+from pyPenred import psf
 
 simulation.create = simulation.simulator
 
