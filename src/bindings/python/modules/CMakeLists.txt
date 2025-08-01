@@ -65,7 +65,7 @@ else()
     set(MODULE_SUFFIX ${PYTHON_EXTENSION_SUFFIX})
 endif()
 
-# Create an extension module
+# Create extension modules
 add_library(simulator MODULE ${CMAKE_CURRENT_SOURCE_DIR}/simulator.cpp)
 target_link_libraries(simulator PUBLIC pybind11::module)
 target_link_libraries(simulator PUBLIC pen_sim)
@@ -76,11 +76,24 @@ set_target_properties(simulator PROPERTIES
       OUTPUT_NAME simulation${MODULE_SUFFIX}
       SUFFIX ""
       PREFIX "")
+      
+add_library(pyPSF MODULE ${CMAKE_CURRENT_SOURCE_DIR}/psf.cpp)
+target_link_libraries(pyPSF PUBLIC pybind11::module)
+target_link_libraries(pyPSF PUBLIC pen_psf)
+set_target_properties(pyPSF PROPERTIES
+      OUTPUT_NAME psf${MODULE_SUFFIX}
+      SUFFIX ""
+      PREFIX "")
 
 #-----------------------------------------------------------------------------
-# Install penred executable
+# Install python modules
 install(
   TARGETS simulator
+  DESTINATION ${PROJECT_SOURCE_DIR}/bindings/python/pyPenred/pyPenred
+  )
+  
+install(
+  TARGETS pyPSF
   DESTINATION ${PROJECT_SOURCE_DIR}/bindings/python/pyPenred/pyPenred
   )
 #-----------------------------------------------------------------------------
