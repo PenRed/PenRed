@@ -136,20 +136,18 @@ Extracts the energy spectrum distribution of the particles from a Phase Space Fi
 
 Args:
     filename (str): Path to the Phase Space File.
-    emin (double): Lower bound of energy range in eV (must be >= 0).
-emax (double): Upper bound of energy range in eV (must be > emin).
-nbins (unsigned): Number of linear-spaced energy bins between emin and emax.
+    emin (float): Lower bound of energy range in eV (must be >= 0).
+    emax (float): Upper bound of energy range in eV (must be > emin).
+    nbins (unsigned): Number of linear-spaced energy bins between emin and emax.
 
 Returns:
-    tuple: A tuple containing four tuples in the following order: energy bin edges, electron, gamma and positron spectrum.
-		   For example, for a emin = E1, emax = En, and n bins, returns:
-			((E1, E2, ..., En),(e- (E1), ..., e- (En)), (gamma (E1), ..., gamma (En)), (e+ (E1), ..., e+ (En)))
+    tuple: A tuple containing four tuples with the following information, in order: energy bin lower edges, electron, gamma and positron spectra.
 
 Example:
-	.. code-block:: python
+    .. code-block:: python
 
-		# Read the Phase space File and store the results
-			results = pyPenred.psf.psfSpectre('psf.dat', 0, 7e5, 200)
+        # Read the Phase space File and store the results
+        results = pyPenred.psf.psfSpectre('psf.dat', 0, 7e5, 200)
 
 )doc");
 
@@ -214,20 +212,20 @@ m.def("psf2ascii",
 		py::arg("filenameIn"),
 		py::arg("filenameOut"),
 		R"doc(
-	Converts the binary Phase Space File into an ASCII file format.
+Converts the binary Phase Space File into an ASCII file format.
 
-	Args:
-		filenameIn (str): Path to the Phase Space File.
-		filenameOut (str): Path to the converted Phase Space File into an ASCII format.
+Args:
+    filenameIn (str): Path to the Phase Space File.
+    filenameOut (str): Path to the converted Phase Space File into an ASCII format.
 
-	Returns:
-		tuple: A tuple containing the number of histories in the Phase Space File and the number of particle chuncks.
+Returns:
+    tuple: A tuple containing, in order, the number of histories in the Phase Space File and the number of particle chuncks.
 
-	Example:
-		.. code-block:: python
+Example:
+    .. code-block:: python
 
-			# Read the Phase space File and store the results
-				results = pyPenred.psf.psf2ascii('psf.dat', 'psfASCII.dat')
+        # Read the Phase space File and store the results
+        results = pyPenred.psf.psf2ascii('psf.dat', 'psfASCII.dat')
 
 )doc");
 }
