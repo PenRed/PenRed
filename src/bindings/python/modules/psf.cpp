@@ -43,90 +43,88 @@ PYBIND11_MODULE(psf,m){
         [](const std::string& filename,
            const double emin,
            const double emax,
-           const int nbins)->py::tuple{
+           const unsigned nbins)->py::tuple{
 
-		//Create tally variables
-		const int maxBins = 20000;
-		double spectre[constants::nParTypes][maxBins];
+	  //Check parameters
+	  if(emin < 0){
+	    throw py::value_error("Error:'emin' must be >= 0");
+	  }
 
-		//Check parameters
-		if(emin < 0){
-			throw py::value_error("Error:'emin' must be >= 0");
-		}
+	  //Check parameters
+	  if(emin >= emax){
+	    throw py::value_error("Error:'emin' must be greater than 'emax'");
+	  }
 
-		//Check parameters
-		if(emin >= emax){
-			throw py::value_error("Error:'emin' must be greater than 'emax'");
-		}
+	  //Calculate bin width
+	  double de = (emax - emin) / (double)nbins;
+	  double ide = 1.0/de;
 
-		if(nbins <= 0 || nbins > maxBins){
-			throw py::value_error("Error: Invalid number of bins:" + std::to_string(nbins));
-		}
-
-		//Calculate bin width
-		double de = (emax - emin) / (double)nbins;
-		double ide = 1.0/de;
-
-		//Create a phase space file
-		pen_psfreader psf;
+	  //Create a phase space file
+	  pen_psfreader psf;
 
 
-		//Open specified input file
-		FILE* fin = nullptr;
-		fin = fopen(filename.c_str(),"rb");
-		if(fin == nullptr){
-			throw py::value_error("Error: unable to open file: " + filename);
-			}
+	  //Open specified input file
+	  FILE* fin = nullptr;
+	  fin = fopen(filename.c_str(),"rb");
+	  if(fin == nullptr){
+	    throw py::value_error("Error: unable to open file: " + filename);
+	  }
 
+	  //Create tally variables
+	  std::array<std::vector<double>, constants::nParTypes> spectre;
+	  for(std::vector<double>& s : spectre){
+	    s.resize(nbins, 0.0);
+	  }	  
 
-		//Read input file until the end
-		unsigned nchunks = 0;
-		long long unsigned nhists = 0;
-		while(psf.read(fin,1) == PEN_PSF_SUCCESS){
-			nchunks++;
-			//Iterate over read states
-			pen_particleState state;
-			unsigned long dhist;
-			unsigned kpar;
-			while(psf.get(dhist,kpar,state) > 0){
+	  //Read input file until the end
+	  unsigned nchunks = 0;
+	  long long unsigned nhists = 0;
+	  while(psf.read(fin,1) == PEN_PSF_SUCCESS){
+	    nchunks++;
+	    //Iterate over read states
+	    pen_particleState state;
+	    unsigned long dhist;
+	    unsigned kpar;
+	    while(psf.get(dhist,kpar,state) > 0){
 
-			//Calculate bin index
-			int ibin = (state.E-emin)*ide;
+	      //Calculate bin index
+	      int ibin = (state.E-emin)*ide;
 
-			nhists += dhist;
-			//Check bin index
-			if(ibin >= 0 && ibin < nbins){
-			spectre[kpar][ibin] += state.WGHT;
-			}
-			}
-		}
+	      nhists += dhist;
+	      //Check bin index
+	      if(ibin >= 0 && ibin < (int)nbins){
+		spectre[kpar][ibin] += state.WGHT;
+	      }
+	    }
+	  }
 
-		//Close files
-		fclose(fin);
+	  //Close files
+	  fclose(fin);
 		
 
-		//Create the resulting python tuple
-		py::tuple results(constants::nParTypes+1);
+	  //Create the resulting python tuple
+	  py::tuple results(constants::nParTypes+1);
 
-		std::vector<double> energies(nbins);
+	  std::vector<double> energies(nbins);
+	  for(unsigned j = 0; j < nbins; j++)
+	    {
+	      energies[j] = double(j)*de+emin;
+	    }
 
-
-			for(unsigned i = 0; i < constants::nParTypes; i++)
-			{
-			std::vector<double> spectPSF(nbins);
-			for(int j = 0; j < nbins; j++)
-			{
-				spectPSF[j] = spectre[i][j];
-				energies[j] = double(j)*de+emin;
-			}
-			results[i+1] = py::tuple(py::cast(spectPSF));
-			}
+	  for(unsigned i = 0; i < constants::nParTypes; i++)
+	    {
+	      std::vector<double> spectPSF(nbins);
+	      for(unsigned j = 0; j < nbins; j++)
+		{
+		  spectPSF[j] = spectre[i][j];
+		}
+	      results[i+1] = py::tuple(py::cast(spectPSF));
+	    }
 
 		
-		results[0]= energies;
-		return results;
-	},
-    
+	  results[0] = py::tuple(py::cast(energies));
+	  return results;
+	},    
 	py::arg("filename"),
 	py::arg("emin"),
 	py::arg("emax"),
@@ -136,96 +134,98 @@ Extracts the energy spectrum distribution of the particles from a Phase Space Fi
 
 Args:
     filename (str): Path to the Phase Space File.
-    emin (float): Lower bound of energy range in eV (must be >= 0).
-    emax (float): Upper bound of energy range in eV (must be > emin).
-    nbins (unsigned): Number of linear-spaced energy bins between emin and emax.
+    emin (double): Lower bound of energy range in eV (must be >= 0).
+emax (double): Upper bound of energy range in eV (must be > emin).
+nbins (unsigned): Number of linear-spaced energy bins between emin and emax.
 
 Returns:
-    tuple: A tuple containing four tuples with the following information, in order: energy bin lower edges, electron, gamma and positron spectra.
+    tuple: A tuple containing four tuples in the following order: energy bin edges, electron, gamma and positron spectrum.
+		   For example, for a emin = E1, emax = En, and n bins, returns:
+			((E1, E2, ..., En),(e- (E1), ..., e- (En)), (gamma (E1), ..., gamma (En)), (e+ (E1), ..., e+ (En)))
 
 Example:
-    .. code-block:: python
+	.. code-block:: python
 
-        # Read the Phase space File and store the results
-        results = pyPenred.psf.psfSpectre('psf.dat', 0, 7e5, 200)
+		# Read the Phase space File and store the results
+			results = pyPenred.psf.psfSpectre('psf.dat', 0, 7e5, 200)
 
 )doc");
 
 
 m.def("psf2ascii",
-        [](const std::string& filenameIn,
-           const std::string& filenameOut)->py::tuple{
+      [](const std::string& filenameIn,
+	 const std::string& filenameOut)->py::tuple{
 		   
-		if(filenameIn == filenameOut)
-		throw py::value_error("Error: output ASCII filename (" + filenameOut + ") must be different from input binary filename (" + filenameIn + ")");
+	if(filenameIn == filenameOut)
+	  throw py::value_error("Error: output ASCII filename (" + filenameOut + ") must be different from input binary filename (" + filenameIn + ")");
 
-		//Create a phase space file
-	  	pen_psfreader psf;	
+	//Create a phase space file
+	pen_psfreader psf;	
 		
 
-		//Open specified input file
-	  	FILE* fin = nullptr;
-	  	fin = fopen(filenameIn.c_str(),"rb");
-	  	if(fin == nullptr){
-	    	throw py::value_error("Error: unable to open input file: " + filenameIn);
-	    }
+	//Open specified input file
+	FILE* fin = nullptr;
+	fin = fopen(filenameIn.c_str(),"rb");
+	if(fin == nullptr){
+	  throw py::value_error("Error: unable to open input file: " + filenameIn);
+	}
 		
-		//Open output file
-	  	FILE* fout = nullptr;
-	  	fout = fopen(filenameOut.c_str(),"w");
-	  	if(fout == nullptr){
-	    	throw py::value_error("Error: unable to open output file: " + filenameOut);
-	    }
+	//Open output file
+	FILE* fout = nullptr;
+	fout = fopen(filenameOut.c_str(),"w");
+	if(fout == nullptr){
+	  throw py::value_error("Error: unable to open output file: " + filenameOut);
+	}
 		
-		//Print header
-		fprintf(fout,"# DHIST  KPAR %s\n",baseStateHeaderNoGeo());
+	//Print header
+	fprintf(fout,"# DHIST  KPAR %s\n",baseStateHeaderNoGeo());
 
-		//Read input file until the end
-		unsigned nchunks = 0;
-		long long unsigned nhists = 0;
-		while(psf.read(fin,1) == PEN_PSF_SUCCESS){
-			nchunks++;
-			//Iterate over read states
-			pen_particleState state;
-			unsigned long dhist;
-			unsigned kpar;
-			while(psf.get(dhist,kpar,state) > 0){
-			nhists += dhist;
-			//Print base state without body and material information
-			fprintf(fout,"  %5lu  %4u %s\n",dhist,kpar,state.stringifyBaseNoGeo().c_str());
-			}
-		}
+	//Read input file until the end
+	unsigned nchunks = 0;
+	long long unsigned nhists = 0;
+	while(psf.read(fin,1) == PEN_PSF_SUCCESS){
+	  nchunks++;
+	  //Iterate over read states
+	  pen_particleState state;
+	  unsigned long dhist;
+	  unsigned kpar;
+	  while(psf.get(dhist,kpar,state) > 0){
+	    nhists += dhist;
+	    //Print base state without body and material information
+	    fprintf(fout,"  %5lu  %4u %s\n",dhist,kpar,state.stringifyBaseNoGeo().c_str());
+	  }
+	}
 
-		//Close files
-		fclose(fin);
-		fclose(fout);  
+	//Close files
+	fclose(fin);
+	fclose(fout);  
 
-		//Create the resulting python tuple
-		py::tuple results(2);
+	//Create the resulting python tuple
+	py::tuple results(2);
 
-		results[0]= py::cast(nhists);
-		results[1]= py::cast(nchunks);
+	results[0]= py::cast(nhists);
+	results[1]= py::cast(nchunks);
 
-		return results;
-		},
+	return results;
+      },
 
 		py::arg("filenameIn"),
 		py::arg("filenameOut"),
 		R"doc(
-Converts the binary Phase Space File into an ASCII file format.
+	Converts the binary Phase Space File into an ASCII file format.
 
-Args:
-    filenameIn (str): Path to the Phase Space File.
-    filenameOut (str): Path to the converted Phase Space File into an ASCII format.
+	Args:
+		filenameIn (str): Path to the Phase Space File.
+		filenameOut (str): Path to the converted Phase Space File into an ASCII format.
 
-Returns:
-    tuple: A tuple containing, in order, the number of histories in the Phase Space File and the number of particle chuncks.
+	Returns:
+		tuple: A tuple containing the number of histories in the Phase Space File and the number of particle chuncks.
 
-Example:
-    .. code-block:: python
+	Example:
+		.. code-block:: python
 
-        # Read the Phase space File and store the results
-        results = pyPenred.psf.psf2ascii('psf.dat', 'psfASCII.dat')
+			# Read the Phase space File and store the results
+				results = pyPenred.psf.psf2ascii('psf.dat', 'psfASCII.dat')
 
 )doc");
 }

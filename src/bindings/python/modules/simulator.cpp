@@ -164,7 +164,6 @@ Args:
     
 Returns:
     None
-
     )");
   
   m.def("setSimulationLog",
@@ -199,7 +198,6 @@ Args:
     
 Returns:
     String containing the error message
-
     )");
 
   m.def("dict2SectionString", &dict2SectionString,
@@ -213,7 +211,6 @@ Args:
     
 Returns:
     String containing the converted dictionary
-
     )");
 
   m.def("configFile2YAML",
@@ -250,7 +247,6 @@ Args:
     
 Returns:
     String containing the information in YAML format
-
     )");
 
   py::class_<penred::simulation::simulator<pen_context>>(m, "simulator")
@@ -301,7 +297,6 @@ Returns:
 
 Raises:
     ValueError: If file parsing fails.
-
     )")
     
     .def("configure",
@@ -327,7 +322,6 @@ Returns:
 
 Raises:
     ValueError: If configuraiton set fails.
-
     )")
     
     .def("configContext",
@@ -353,7 +347,6 @@ Returns:
 
 Raises:
     ValueError: If configuraiton set fails.
-
     )")
     
     .def("configSource",
@@ -380,7 +373,6 @@ Returns:
 
 Raises:
     ValueError: If configuraiton set fails.
-
     )")
     
     .def("configGeometry",
@@ -405,8 +397,7 @@ Returns:
     None
 
 Raises:
-    ValueError: If configuraiton set fails.
-
+    ValueError: If configuraiton set fails.    
     )")
     
     .def("configTally",
@@ -460,7 +451,6 @@ Returns:
 
 Raises:
     ValueError: If configuraiton set fails.
-
     )")
     
     .def("setSimConfig",
@@ -487,7 +477,6 @@ Returns:
 
 Raises:
     ValueError: If configuraiton set fails.
-
     )")
     
     .def("simulate",
@@ -579,7 +568,6 @@ Args:
 
 Returns:
     tuple: A tuple containing the simulation speed of each thead
-
     )")
     
     .def("simulated",
@@ -595,7 +583,6 @@ Args:
 
 Returns:
     tuple: A tuple with the the pairs (simulated, to simulate) histories for each thread at the current source
-
 )")
     .def("stringifyStatus",
 	 [](penred::simulation::simulator<pen_context>& obj) -> py::tuple{
@@ -610,7 +597,6 @@ Args:
 
 Returns:
     tuple: A tuple with a string for each thread describing its status.
-
 )")
     
     .def("isSimulating",
@@ -626,7 +612,6 @@ Args:
 
 Returns:
     Bool: True if a simulation is running, false otherwise.
-
 )")
 
     .def("forceFinish",
@@ -648,7 +633,6 @@ Returns:
 
 Raises:
     ValueError: Simulation running in interactive mode.
-
 )")
     .def("instructionEnd",
 	 [](penred::simulation::simulator<pen_context>& obj) -> void{
@@ -663,7 +647,6 @@ Args:
 
 Returns:
     None
-
 )")
     .def("instructionSimulate",
 	 [](penred::simulation::simulator<pen_context>& obj,
@@ -685,15 +668,13 @@ Args:
     hists (float): Number of histories to simulate
     translation (list[float,float,float]): Specify the translation, in cm, to be applied to the original source position before the simulation starts. If no specified, no translation will be applied
     rotZYZ (list[float,float,float]): Specify the rotation angles, in rad, to be applied to the original source before the simulation starts. The resulting rotation is the product of three rotations around the Z,Y and Z axis. The angles are, in order:
-                                          - omega -> rotation angle around the z axis (rad)
-                                          - theta -> rotation angle around the y axis (rad)
-                                          - phi   -> rotation angle around the z axis (rad)
-
+                                        omega -> rotation angle around the z axis (rad)
+                                        theta -> rotation angle around the y axis (rad)
+                                        phi   -> rotation angle around the z axis (rad)
                                       If not provided, no extra rotation is applied to the original source.
 
 Returns:
     None
-
 )")
     .def("getResults",
 	 [](penred::simulation::simulator<pen_context>& obj,
@@ -760,7 +741,6 @@ Args:
 
 Returns:
     None
-
 )")    
     .def("__repr__",
 	 [](const penred::simulation::simulator<pen_context>& /*obj*/){
@@ -809,8 +789,7 @@ Args:
 
 Returns:
     None
-
-)");
+    )");
 
   materials.def("createListed",
 		[](const unsigned matID, const std::string& filename) -> void{
@@ -831,7 +810,6 @@ Args:
 
 Returns:
     None
-
 )");
   
   
@@ -899,20 +877,20 @@ Calculates the particle ranges (in cm) for a given material composition at speci
 Args:
     energies (double): List of energies, in eV, at which to calculate particle ranges.
     density (float): Material density in g/cm^3.
-    composition (list of tuple) : Material composition list. Each element consists 
-                                  of a 2D tuple with the corresponding element atomic number (Z) and weight fraction.
-                                  For example, [(Z1, weight1), (Z2, weight2), ...].
+    composition (list[tuple[int, float]]): Material composition specified as a list of (Z, weight fraction) tuples.
+										   For example, [(Z1, weight1), (Z2, weight2), ...].
     verbose (int, optional): Verbosity level.
 
 Returns:
-    tuple: A tuple containing the n tuples (one for each particle type), where each inner tuple contains the ranges, in cm, for all input energies. The order is: ((electron ranges), (gamma ranges), (positron ranges))
+    tuple: A tuple containing the n tuples (one for each particle type), where each inner tuple contains ranges, in cm, for all input   energies. the order is: (electron_ranges, gamma_ranges, positron_ranges)
+		   For example, for three introduced energies (E1, E2, E3), considering R as the range in cm, returns:
+			((R(E1, electron), R(E2, electron), R(E3, electron)),(R(E1, gamma), R(E2, gamma), R(E3, gamma)),(R(E1, positron), R(E2, positron), R(E3, positron)))
 
 Example:
-    .. code-block:: python
+	.. code-block:: python
 
-        # Run the simulation and store the results
-        results = pyPenred.simulation.materials.range(energies=[100e3, 200e3, 50e3], density=1.0, composition=((1,0.112), (8,0.888)), verbose=1)
-
+		# Run the simulation and store the results
+			results = pyPenred.simulation.materials.range(energies=[100e3, 200e3, 50e3], density=1.0, composition=((1,0.112), (8,0.888)), verbose=1)
 )doc");
   
  
@@ -939,9 +917,9 @@ Example:
 		  // Context configuration
 		  pen_parserSection matInfoSection;
 		  if(pcontext->configure(1.0E9,
-					contextConfig,
-					matInfoSection,
-					verbose) != pen_context::SUCCESS){
+					 contextConfig,
+					 matInfoSection,
+					 verbose) != pen_context::SUCCESS){
 		    throw py::value_error("Error during configuration. Check context reports (context.rep)");
 		  }
 		  
@@ -967,19 +945,20 @@ Example:
 Calculates the particle ranges (in cm) for a given material file at specified energies.
 
 Args:
-    energies (double): List of energies, in eV, at which to calculate particle ranges.
+	energies (double): List of energies, in eV, at which to calculate particle ranges.
     filename (str): Path to the material definition file.
     verbose (int, optional): Verbosity level.
 
 Returns:
-    tuple: A tuple containing the n tuples (one for each particle type), where each inner tuple contains the ranges, in cm, for all input energies. The order is: ((electron ranges), (gamma ranges), (positron ranges))
+    tuple:  tuple: A tuple containing the n tuples (one for each particle type), where each inner tuple contains ranges, in cm, for all input   energies. the order is: (electron_ranges, gamma_ranges, positron_ranges)
+		   For example, for three introduced energies (E1, E2, E3), considering R as the range in cm, returns:
+			((R(E1, electron), R(E2, electron), R(E3, electron)),(R(E1, gamma), R(E2, gamma), R(E3, gamma)),(R(E1, positron), R(E2, positron), R(E3, positron)))
 
 Example:
-    .. code-block:: python
+	.. code-block:: python
 
-        # Run the simulation and store the results
-        results = pyPenred.simulation.materials.rangeFromFile(energies=[100e3, 200e3, 50e3], filename=water.mat, verbose=1)
-
+		# Run the simulation and store the results
+			results = pyPenred.simulation.materials.rangeFromFile(energies=[100e3, 200e3, 50e3], filename=water.mat, verbose=1)
 )doc");
   
   
@@ -1002,10 +981,10 @@ Example:
 		    throw py::value_error(errorString);
 		 
 		  if(emin<50.0)
-			 emin=50.0;
+		    emin=50.0;
 			   
 		  if(emax>1.0E9)
-			 emax=1.0E9;
+		    emax=1.0E9;
 		
 		  std::vector<double> muenData(ebins);
 		  std::vector<double> EData(ebins);
@@ -1019,7 +998,7 @@ Example:
 		  results[1] = py::tuple(py::cast(muenData));
 		 
 		  return results;
-		  		},
+		},
 		py::arg("density"),
 		py::arg("composition"),
 		py::arg("emin") = 50.0,
@@ -1031,24 +1010,26 @@ Example:
 Calculates the mu_en coefficients for the specified material composition across a defined energy interval.
 
 Args:
+    
     density (float): Material density in g/cm^3.
-    composition (list of tuple) : Material composition list. Each element consists 
-                                  of a 2D tuple with the corresponding element atomic number (Z) and weight fraction.
-                                  For example, [(Z1, weight1), (Z2, weight2), ...].
-    emin (float, optional): Lower bound of energy range in eV. 
-    emax (float, optional): Upper bound of energy range in eV. 
+	composition (list[tuple[int, float]]): Material composition as a list of (Z, weight fraction).
+										   For example, [(Z1, weight1), (Z2, weight2), ...]. 
+	emin (double, optional): Lower bound of energy range in eV. 
+	emax (double, optional): Upper bound of energy range in eV. 
     ebins (unsigned, optional): Number of linear-spaced energy bins between emin and emax.
-    tolerance (float, optional): Relative error to stop the simulation.
-    simTime (float, optional): Allowed time (in seconds) to simulate each provided energy.
+	tolerance (double, optional): Relative error to stop the simulation (0 < tolerance < 1).
+	simTime (double, optional): Allowed time (in seconds) to simulate each provided energy.
     
 Returns:
-    tuple: A tuple containing two tuples: The first with the energy bins and the second with the muen coefficients for the specified material.
+    tuple: A tuple of two tuples: the first with the energy bins and the second with the muen coefficients for the specified material.
+		   For example, for a emin = E1, emax = En, returns:
+			((E1, E2, ..., En),(muen(E1), muen(E2), ..., muen(En))
 
 Example:
-    .. code-block:: python
+	.. code-block:: python
 
-        # Run the simulation and store the results
-        results = pyPenred.simulation.materials.mutrenInterval(density=1.0, composition=((1,0.112), (8,0.888)), emin=100e3, emax=200e3, ebins=120, tolerance=0.1, simTime=30)
+		# Run the simulation and store the results
+			results = pyPenred.simulation.materials.mutrenInterval(density=1.0, composition=((1,0.112), (8,0.888)), emin=100e3, emax=200e3, ebins=120, tolerance=0.1, simTime=30)
 
 )doc");
 			
@@ -1078,7 +1059,7 @@ Example:
 		  results = py::tuple(py::cast(muenData));
 		 
 		  return results;
-		  		},
+		},
 		py::arg("energies"),
 		py::arg("density"),
 		py::arg("composition"),
@@ -1088,24 +1069,24 @@ Example:
 Calculates the mu_en coefficients for the given material composition at specified energies.
 
 Args:
-    energies (list[float]): Array of energies, in eV.
+    energies (list[double]): Array of energies, in eV.
     density (float): Material density in g/cm^3.
-    composition (list of tuple) : Material composition list. Each element consists 
-                                  of a 2D tuple with the corresponding element atomic number (Z) and weight fraction.
-                                  For example, [(Z1, weight1), (Z2, weight2), ...].
-    tolerance (float, optional): Relative error to stop the simulation.
-    simTime (float, optional): Allowed time (in seconds) to simulate each provided energy.
+	composition (list[tuple[int, float]]): Material composition as a list of (Z, weight fraction).
+										   For example, [(Z1, weight1), (Z2, weight2), ...]. 
+	tolerance (double, optional): Relative error to stop the simulation (0 < tolerance < 1).
+	simTime (double, optional): Allowed time (in seconds) to simulate each provided energy.
+    
 
 Returns:
     tuple: A tuple with the muen coefficients for the specified material corresponding to the input energies.
-	   For example, for a energy array provided with E1, E2, ..., En, returns:
-	   (muen(E1), muen(E2), ..., muen(En))
+		   For example, for a energy array provided with E1, E2, ..., En, returns:
+			(muen(E1), muen(E2), ..., muen(En))
 
 Example:
-    .. code-block:: python
+	.. code-block:: python
 
-        # Run the simulation and store the results
-        results = pyPenred.simulation.materials.mutren(energies=muenE, density=1.0, composition=((1,0.112), (8,0.888)), tolerance=0.1, simTime=30)
+		# Run the simulation and store the results
+			results = pyPenred.simulation.materials.mutren(energies=muenE, density=1.0, composition=((1,0.112), (8,0.888)), tolerance=0.1, simTime=30)
 
 )doc");
 			
@@ -1122,13 +1103,12 @@ Example:
 		  pen_muen::calculate(energies, tolerance, simTime, filename.c_str(), muenData);
 		  
 		  //Create the resulting python tuple
-		  		  //Create the resulting python tuple
 		  py::tuple results;
 		  
 		  results = py::tuple(py::cast(muenData));
 		 
 		  return results;
-		  		},
+		},
 		py::arg("energies"),
 		py::arg("filename"),
 		py::arg("tolerance") = 0.1,
@@ -1137,21 +1117,22 @@ Example:
 Calculates the mu_en coefficients for a given material file at specified energies.
 
 Args:
-    energies (list[float]): Array of energies, in eV.
-    filename (str): Path to the material definition file.
-    tolerance (float, optional): Relative error to stop the simulation.
-    simTime (float, optional): Allowed time (in seconds) to simulate each provided energy.
+	energies (list[double]): Array of energies, in eV.
+	filename (str): Path to the material definition file.
+	tolerance (double, optional): Relative error to stop the simulation (0 < tolerance < 1).
+	simTime (double, optional): Allowed time (in seconds) to simulate each provided energy.
+
 
 Returns:
     tuple: A tuple with the muen coefficients for the specified material corresponding to the input energies.
-           For example, for a energy array provided with E1, E2, ..., En, returns:
-           (muen(E1), muen(E2), ..., muen(En))
+		    For example, for a energy array provided with E1, E2, ..., En, returns:
+			(muen(E1), muen(E2), ..., muen(En))
 
 Example:
-    .. code-block:: python
+	.. code-block:: python
 
-        # Run the simulation and store the results
-        results = pyPenred.simulation.materials.mutrenFromFile(energies=muenE, filename=water.mat, tolerance=0.1, simTime=30)
+		# Run the simulation and store the results
+			results = pyPenred.simulation.materials.mutrenFromFile(energies=muenE, filename=water.mat, tolerance=0.1, simTime=30)
 
 )doc");
   
