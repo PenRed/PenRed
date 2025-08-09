@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019 Universitat de València - UV
 //    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -35,7 +36,10 @@
 
 class pen_AngularDet : public
 pen_genericTally<pen_particleState> {
-  DECLARE_TALLY(pen_AngularDet,pen_particleState)
+  DECLARE_TALLY(pen_AngularDet,pen_particleState,ANGULAR_DET,
+		std::pair<double, penred::tally::Dim<1>>, //Electron
+		std::pair<double, penred::tally::Dim<1>>, //Gamma
+		std::pair<double, penred::tally::Dim<1>>) //Positron
   
 private:
     bool isLinScale;
@@ -54,17 +58,33 @@ private:
            
 public:
     
-  pen_AngularDet() : pen_genericTally( USE_ENDHIST |
-				       USE_MOVE2GEO |
-				       USE_MATCHANGE),
-		     nBinsE(0),
-		     ebin(0.0),
-		     iebin(1.0e35)		     
-    {}
-    
+  inline pen_AngularDet() : pen_genericTally( USE_ENDHIST |
+					      USE_MOVE2GEO |
+					      USE_MATCHANGE),
+			    nBinsE(0),
+			    ebin(0.0),
+			    iebin(1.0e35)		     
+  {
+    //Register results functions
+    setResultsGenerator<0>
+      ([this](const unsigned long long nhists) -> penred::measurements::results<double, 1>{
+	return this->generateResults(PEN_ELECTRON, nhists);
+      });
+    setResultsGenerator<1>
+      ([this](const unsigned long long nhists) -> penred::measurements::results<double, 1>{
+	return this->generateResults(PEN_PHOTON, nhists);
+      });
+    setResultsGenerator<2>
+      ([this](const unsigned long long nhists) -> penred::measurements::results<double, 1>{
+	return this->generateResults(PEN_POSITRON, nhists);
+      });
+  }
+  
+  penred::measurements::results<double, 1> generateResults(const pen_KPAR kpar,
+							   const unsigned long long nhists);
       
   void scapedParticle(const pen_KPAR kpar,
-				 const pen_particleState& state);
+		      const pen_particleState& state);
   
   void tally_move2geo(const unsigned long long /*nhist*/,
 		      const unsigned /*kdet*/,

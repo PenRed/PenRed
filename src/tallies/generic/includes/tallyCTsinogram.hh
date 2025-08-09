@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2020-2021 Universitat de València - UV
 //    Copyright (C) 2020-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -43,7 +44,8 @@ struct CTsinogram_point
 };
 
 class pen_CTsinogram : public pen_genericTally<pen_particleState> {
-  DECLARE_TALLY(pen_CTsinogram,pen_particleState)
+  DECLARE_TALLY(pen_CTsinogram,pen_particleState,CT_SINOGRAM,
+		std::pair<double, penred::tally::Dim<2>>)
   
   private:
   //Position of the center of the virtual ring
@@ -112,7 +114,75 @@ public:
 		     sino2Norm(nullptr),
 		     sinotempNorm(nullptr),
 		     lasthistNorm(nullptr)     
-  {}
+  {
+    setResultsGenerator<0>
+      ([this](const unsigned long long nhists) -> penred::measurements::results<double, 2>{
+	
+	double invn = 1.0/static_cast<double>(nhists);
+	    
+	//Create results
+	penred::measurements::results<double, 2> results;
+	results.initFromLists({static_cast<unsigned>(npixs), nphi},
+			      {penred::measurements::limitsType(0.0, phi*180.0/M_PI),
+			       penred::measurements::limitsType(phi0*180.0/M_PI, phif*180.0/M_PI)});
+
+	results.description =
+	  "PenRed: CT Sinogram Report\n\n"
+	  "  This tally estimates the product of the linear attenuation coefficient (\u03BC)\n"
+	  "  and the path length (x) through the object (\u03BC\u00B7x) for each detector bin\n"
+	  "  and projection.\n"
+	  "  The value is derived from the Beer-Lambert law: \u03BC\u00B7x = ln(N\u2080/N),\n"
+	  "  where N\u2080 is the fluence at the source and N is the detected fluence.\n"
+	  "  The detector geometry is simplified as an arc, with angular positions for each\n"
+	  "  bin reported in degrees.\n\n";
+	results.description += " Histories simulated: " + std::to_string(nhists) + "\n\n";
+
+	results.setDimHeader(0, "Detection angle (deg)");
+	results.setDimHeader(1, "Projection Angle (deg)");
+	results.setValueHeader("  \u03BC\u00B7x  ");
+
+	for(size_t j = 0; j < sinoDim; ++j){
+	  double q, q2,sigma;
+	  double qNorm, q2Norm,sigmaNorm;
+	  double sigmaMux;
+            
+	  q = sino[j]*invn;
+	  q2 = sino2[j]*invn;
+	  sigma = (q2-(q*q))*invn;
+	  if(sigma > 0.0){ sigma = sqrt(sigma);}
+	  else{sigma = 0.0;}
+            
+	  qNorm = sinoNorm[j]*invn;
+	  q2Norm = sino2Norm[j]*invn;
+	  sigmaNorm = (q2Norm-(qNorm*qNorm))*invn;
+	  if(sigmaNorm > 0.0){ sigmaNorm = sqrt(sigmaNorm);}
+	  else{sigmaNorm = 0.0;}
+
+	  //Estimate mu*x as ln(qNorm/q)
+	  //
+	  //  N=N0*e^(-mu*x) -> ln(N/N0) = -mu*x -> ln(N0/N) = mu*x
+	  //
+	  double mux = 0.0E0;
+	  if(q > 0.0E0){
+	    mux = qNorm/q;
+	    if(mux > 0.0){
+	      mux = log(mux);
+	    } else{
+	      mux = 0.0;
+	    }   
+	    sigmaMux = sqrt(pow(sigmaNorm/qNorm,2) + pow(sigma/q,2));
+	  }
+	  else{
+	    sigmaMux = 0.0;
+	  }
+
+	  results.data[j] = mux;
+	  results.sigma[j] = sigmaMux;
+	}
+
+	return results;
+      });    
+  }
     
         
   bool detIndexes(const pen_particleState& state,

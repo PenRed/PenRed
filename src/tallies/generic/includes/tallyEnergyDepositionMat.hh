@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2021 Universitat de València - UV
 //    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -34,7 +35,8 @@
 #include "pen_constants.hh"
 
 class pen_EdepMat : public pen_genericTally<pen_particleState> {
-  DECLARE_TALLY(pen_EdepMat,pen_particleState)
+  DECLARE_TALLY(pen_EdepMat,pen_particleState,EDEP_MAT,
+		std::pair<double, penred::tally::Dim<1>>)
 
 private:
     double edptmp[constants::MAXMAT];
@@ -44,14 +46,7 @@ private:
   
 public:
 
-  pen_EdepMat() : pen_genericTally( USE_LOCALEDEP |
-				    USE_BEGINPART |
-				    USE_SAMPLEDPART |
-				    USE_STEP |
-				    USE_ENDHIST |
-				    USE_MOVE2GEO),
-		  nmat(0)
-  {}
+  pen_EdepMat();
   
   void tally_localEdep(const unsigned long long /*nhist*/,
 		       const pen_KPAR /*kpar*/,

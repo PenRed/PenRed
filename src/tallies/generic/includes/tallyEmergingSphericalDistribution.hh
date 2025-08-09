@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2024 Universitat de València - UV
 //    Copyright (C) 2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -32,7 +33,14 @@
 #include "pen_constants.hh" 
 
 class pen_EmergingSphericalDistrib : public pen_genericTally<pen_particleState> {
-  DECLARE_TALLY(pen_EmergingSphericalDistrib,pen_particleState)
+  DECLARE_TALLY(pen_EmergingSphericalDistrib,pen_particleState,EMERGING_SPHERICAL_DISTRIB,
+		std::pair<double, penred::tally::Dim<3>>, //Electrons emerging
+		std::pair<double, penred::tally::Dim<3>>, //Gamma emerging
+		std::pair<double, penred::tally::Dim<3>>, //Positron emerging
+		std::pair<double, penred::tally::Dim<3>>, //Electrons last interaction
+		std::pair<double, penred::tally::Dim<3>>, //Gamma last interaction
+		std::pair<double, penred::tally::Dim<3>>  //Positron last interaction
+		)
   
 private:
 
@@ -49,12 +57,7 @@ private:
   
 public:
     
-  pen_EmergingSphericalDistrib() : pen_genericTally( USE_MOVE2GEO |
-						     USE_JUMP |
-						     USE_MATCHANGE |
-						     USE_ENDSIM){
-    std::fill(enabled.begin(), enabled.end(), false);    
-  }
+  pen_EmergingSphericalDistrib();
   
   void tally_move2geo(const unsigned long long nhist,
 		      const unsigned /*kdet*/,

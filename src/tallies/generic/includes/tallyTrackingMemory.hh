@@ -31,7 +31,8 @@
 #include "pen_constants.hh"
 
 class pen_tallyTrackingMemory : public pen_genericTally<pen_particleState> {
-  DECLARE_TALLY(pen_tallyTrackingMemory,pen_particleState)
+  DECLARE_TALLY(pen_tallyTrackingMemory,pen_particleState,TRACK_MEMORY,
+		std::pair<int, penred::tally::Dim<0>>)
 
 private:
   unsigned long long nhists;
@@ -65,7 +66,16 @@ public:
 			      sampledToPrint(false),
 			      tracks(STATESIZE*MAXSTATES),
 			      nStates(0)
-  {}
+  {
+    //Register results functions
+    setResultsGenerator<0>([this](const unsigned long long) -> std::vector<int>{
+      this->tracks[0] = this->nStates;
+      std::vector<int> results = std::move(this->tracks);
+      this->tracks.resize(this->STATESIZE*this->MAXSTATES);
+      this->nStates = 0;
+      return results;
+    });
+  }
   
   
   void tally_beginSim();
@@ -121,12 +131,14 @@ public:
     }
   }
 
+  /*
   inline void getResults(std::vector<int>& results) override {
     tracks[0] = nStates;
     results = std::move(tracks);
     tracks.resize(STATESIZE*MAXSTATES);
     nStates = 0;
   }
+  */
   
 };
 

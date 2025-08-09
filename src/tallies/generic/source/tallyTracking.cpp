@@ -295,4 +295,4 @@ int pen_tallyTracking::sumTally(const pen_tallyTracking& /*tally*/){return 0;}
 
 
 
-REGISTER_COMMON_TALLY(pen_tallyTracking, TRACK)
+REGISTER_COMMON_TALLY(pen_tallyTracking)

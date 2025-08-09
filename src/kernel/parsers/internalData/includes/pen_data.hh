@@ -31,8 +31,18 @@
 #ifndef __PENRED_INTERNAL_DATA_CLASSES__
 #define __PENRED_INTERNAL_DATA_CLASSES__
 
+#include <utility>
+
 #include "pen_parser.hh"
 #include "pen_reader.hh"
 #include "logger.hh"
+
+//Constexpr string comparison
+constexpr bool constexpr_strcmp(const char* a, const char* b) {
+    return (*a == '\0' && *b == '\0') ? true :
+           (*a == '\0' || *b == '\0') ? false :
+           (*a != *b) ? false :
+           constexpr_strcmp(a + 1, b + 1);
+}
 
 #endif

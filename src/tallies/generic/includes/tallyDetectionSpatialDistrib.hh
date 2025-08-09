@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2024 Universitat de València - UV
 //    Copyright (C) 2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -32,7 +33,9 @@
 #include "pen_constants.hh"
 
 class pen_DetectionSpatialDistrib: public pen_genericTally<pen_particleState> {
-  DECLARE_TALLY(pen_DetectionSpatialDistrib,pen_particleState)
+  DECLARE_TALLY(pen_DetectionSpatialDistrib,pen_particleState,DETECTION_SPATIAL_DISTRIB,
+		std::pair<double, penred::tally::Dim<4>>
+		)
     
   private:
 
@@ -47,7 +50,15 @@ public:
     
   pen_DetectionSpatialDistrib() : pen_genericTally(USE_INTERFCROSS |
 						   USE_MOVE2GEO)    
-  {}
+  {
+    //Register results functions
+    setResultsGenerator<0>
+      ([this](const unsigned long long nhists) -> penred::measurements::results<double, 4>{
+	penred::measurements::results<double, 4> generated;
+	results.results(nhists, generated);
+	return generated;
+      });
+  }
     
   void tally_interfCross(const unsigned long long nhist,
 			 const unsigned kdet,

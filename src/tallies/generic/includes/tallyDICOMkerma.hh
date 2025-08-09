@@ -36,7 +36,10 @@
 #include "tallyKermaTrackLength.hh"
 
 class pen_tallyDICOMkerma: public pen_genericTally<pen_particleState> {
-  DECLARE_TALLY(pen_tallyDICOMkerma,pen_particleState)
+  DECLARE_TALLY(pen_tallyDICOMkerma,pen_particleState,DICOM_KERMA_TRACK_LENGTH,
+		std::pair<double, penred::tally::Dim<3>>, //Kerma
+		std::pair<double, penred::tally::Dim<2>>  //DVH
+		)
   
   private: 
   
@@ -65,11 +68,7 @@ class pen_tallyDICOMkerma: public pen_genericTally<pen_particleState> {
   
 public:
     
-  pen_tallyDICOMkerma() : pen_genericTally(USE_JUMP | USE_STEP),
-			  contVol(nullptr),
-			  contourVox(nullptr),
-			  ncontours(0)
-  {}
+  pen_tallyDICOMkerma();
 
   void tally_step(const unsigned long long nhist,
 		  const pen_KPAR kpar,

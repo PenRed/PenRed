@@ -187,4 +187,4 @@ int pen_tallyTrackingMemory::sumTally(const pen_tallyTrackingMemory& /*tally*/){
 
 
 
-REGISTER_COMMON_TALLY(pen_tallyTrackingMemory, TRACK_MEMORY)
+REGISTER_COMMON_TALLY(pen_tallyTrackingMemory)

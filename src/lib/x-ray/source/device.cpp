@@ -615,7 +615,7 @@ namespace penred{
 	}
 	
 	const double distrib2source = reader.distrib2source;
-	maxE = energyDistrib.readLimits()[0].second+50;
+	maxE = energyDistrib.readLimits()[0].second;
 	
 	fsample = [tanAnodeAngle, pi2, beamRad, sourcePos, distrib2source, &spatialSampler, &energySampler]
 	  (pen_particleState& state,    //Generated state
@@ -992,7 +992,7 @@ namespace penred{
       for(size_t i = 0; i < nThreads; ++i){
 	detectedSpectrum[i].
 	  initFromLists({reader.eBins},
-			{std::pair<double,double>(reader.minEnergy,maxE+50)});
+			{std::pair<double,double>(reader.minEnergy,maxE)});
 	detectedSpectrum[i].setDimHeader(0, "Energy (eV)");
 	detectedSpectrum[i].setValueHeader("Value (prob)");
       }

@@ -34,7 +34,7 @@
 #include "pen_constants.hh"
 
 class pen_tallyTracking : public pen_genericTally<pen_particleState> {
-  DECLARE_TALLY(pen_tallyTracking,pen_particleState)
+  DECLARE_TALLY(pen_tallyTracking,pen_particleState,TRACK)
 
 private:
   FILE* fout;

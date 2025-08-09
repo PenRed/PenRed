@@ -36,7 +36,7 @@
 #include <cstdint>
 
 class pen_Singles : public pen_genericTally<pen_particleState> {
-  DECLARE_TALLY(pen_Singles,pen_particleState)
+  DECLARE_TALLY(pen_Singles,pen_particleState,SINGLES)
 
 public:
 

@@ -38,6 +38,10 @@
 #include <thread>
 #include <stdexcept>
 #include <functional>
+#include <tuple>
+#include <type_traits>
+#include <typeinfo>
+#include <utility>
 
 #include "pen_auxiliar.hh"
 
@@ -56,6 +60,9 @@
 #include "pen_image.hh"
 #include "pen_geometries.hh"
 #include "pen_states.hh"
+
+
+template <class stateType> class pen_genericTally;
 
 // Auxiliar structures
 //////////////////////////
@@ -80,37 +87,221 @@ struct tally_StepData{
   
 };
 
+namespace penred{
+  namespace tally{
+
+    template <size_t N>
+    struct Dim{
+      static constexpr size_t value = N;
+    };
+
+    // ++ Results types extraction
+    // Primary template (handles empty case)
+    template <typename... Args>
+    struct ResultsTypeSelector {
+      using type = void;  // Default to void
+      static_assert(sizeof...(Args) == 0,
+		    "Tally return types require either no types or std::pair<T,dim>");
+    };
+    
+    // Specialization for valid pairs
+    template <typename T, typename D>
+    struct ResultsTypeSelector<std::pair<T, D>> {
+      static constexpr size_t dim = D::value;
+      using value_type = T;
+      
+      using type = std::conditional_t<
+        (std::is_arithmetic<T>::value && dim > 0),
+        measurements::results<T, dim>,
+        std::vector<T>
+	>;
+    };
+
+    // + Results Tuple builder
+    template <typename... Pairs>
+    struct ResultsTupleBuilder {
+      using type = std::tuple<typename ResultsTypeSelector<Pairs>::type...>;
+    };
+
+    // Empty case specialization
+    template <>
+    struct ResultsTupleBuilder<> {
+      using type = std::tuple<>;
+    };    
+        
+    template <typename... Args>
+    using ResultsType = typename ResultsTupleBuilder<Args...>::type;
+    
+    // + Results generation tuple builder
+    template <typename... Pairs>
+    struct ResultsGeneratorTupleBuilder{
+      using type = std::tuple<std::function<typename ResultsTypeSelector<Pairs>::type (const unsigned long long)>...>;
+    };
+
+    // Empty case specialization
+    template <>
+    struct ResultsGeneratorTupleBuilder<> {
+      using type = std::tuple<>;
+    };    
+
+    template <typename... Args>
+    using ResultsGeneratorType = typename ResultsGeneratorTupleBuilder<Args...>::type;
+    
+    // ++ Printing results types functions
+
+    template <typename T>
+    constexpr const char* typeNames(){
+      if(std::is_same<T, double>::value)
+	return "double";
+      if(std::is_same<T, float>::value)
+	return "float";
+      if(std::is_same<T, int>::value)
+	return "int";
+      if(std::is_same<T, unsigned>::value)
+	return "unsigned";
+      if(std::is_same<T, long int>::value)
+	return "long int";
+      if(std::is_same<T, long unsigned>::value)
+	return "long unsigned";
+      if(std::is_same<T, long long int>::value)
+	return "long long int";
+      if(std::is_same<T, long long unsigned>::value)
+	return "long long unsigned";
+      if(std::is_same<T, char>::value)
+	return "char";
+      if(std::is_same<T, unsigned char>::value)
+	return "unsigned char";
+      return nullptr;
+    }
+
+    template <typename T>
+    typename std::enable_if_t<measurements::is_results<T>::value, void>
+    resultsTypeInfo(){
+      using ValueType = typename measurements::is_results<T>::value_type;
+      constexpr const char* mapName = typeNames<ValueType>();
+      if(mapName != nullptr){
+	std::cout << "   - measurements::results<" 
+		  << mapName << ", " 
+		  << measurements::is_results<T>::dimension << ">\n";
+      }
+      else{
+	std::cout << "   - measurements::results<" 
+		  << typeid(ValueType).name() << ", " 
+		  << measurements::is_results<T>::dimension << ">\n";
+      }
+    }
+
+    template <typename T>
+    typename std::enable_if_t<measurements::is_vector<T>::value, void>
+    resultsTypeInfo(){
+      constexpr const char* mapName = typeNames<measurements::vector_value_type_t<T>>();
+      if(mapName != nullptr){
+	std::cout << "   - std::vector<" 
+		  << mapName << ">\n";
+      }
+      else{
+	std::cout << "   - std::vector<" 
+		  << typeid(T).name() << ">\n";
+      }
+    }    
+    
+    template <typename T>
+    typename std::enable_if_t<!measurements::is_results<T>::value && !measurements::is_vector<T>::value, void>
+    resultsTypeInfo(){
+      std::cout << "   - " << typeid(T).name() << "\n";	
+    }
+
+    // Recursive results type printer
+    template <size_t I = 0, typename Tuple>
+    typename std::enable_if<I == std::tuple_size<Tuple>::value>::type
+    printResultsTypes(const Tuple&) {
+      if(I == 0){
+	std::cout << "   - Null \n" << std::endl;
+      }
+    }
+    
+    template <size_t I = 0, typename Tuple>
+    typename std::enable_if<I < std::tuple_size<Tuple>::value>::type
+    printResultsTypes(const Tuple& t) {
+      //Print type information
+      resultsTypeInfo<std::tuple_element_t<I, Tuple>>();
+      // Process next element
+      printResultsTypes<I+1>(t);
+    }
+
+    // Print results types for a specific tally
+    template<class TallyType>
+    void printResultsTypes(){
+      std::cout << TallyType::___ID << ":\n";
+      const typename TallyType::ResultsTypes aux;
+      printResultsTypes(aux);
+    }
+    
+  } //End of tally namespace
+} //End of penred namespace
 
 // Register macros
 ///////////////////////
 
-#define DECLARE_TALLY(Class,State)			   \
-  public:						   \
-  static int registerStatus();				   \
-  const char* readID() const;				   \
-  static const char* ___ID;\
-  static volatile const int ___register_return;\
-  inline int sum(const pen_genericTally<State>& sumtally){\
-  const Class& derived = dynamic_cast<const Class&>(sumtally);\
-  return sumTally(derived);\
-  }\
-  inline int shareConfig(const pen_genericTally<State>& sharingTally){ \
-  const Class& derived = dynamic_cast<const Class&>(sharingTally);\
-  return sharedConfig(derived);\
-  }\
-  private:
+#define DECLARE_TALLY(Class, State, ID, ...)				\
+  public:								\
+  using ResultsTypes = penred::tally::ResultsType<__VA_ARGS__>;		\
+  using ResultsMapType = std::map<std::string, ResultsTypes>;		\
+  using ResultsGeneratorType = penred::tally::ResultsGeneratorType<__VA_ARGS__>; \
+  ResultsGeneratorType resultsGenerators;				\
+  static int registerStatus();						\
+  const char* readID() const;						\
+  static constexpr const char* ___ID = static_cast<const char *>(#ID);	\
+  static constexpr const char* tallyID() { return ___ID; }		\
+  static volatile const int ___register_return;				\
+  inline int sum(const pen_genericTally<State>& sumtally){		\
+    const Class& derived = dynamic_cast<const Class&>(sumtally);	\
+    return sumTally(derived);						\
+  }									\
+  inline int shareConfig(const pen_genericTally<State>& sharingTally){	\
+    const Class& derived = dynamic_cast<const Class&>(sharingTally);	\
+    return sharedConfig(derived);					\
+  }									\
+  static inline void printResultsTypes(){				\
+    penred::tally::printResultsTypes<Class>();				\
+  }									\
+  /* Results generators */						\
+  template<size_t I>							\
+  std::tuple_element_t<I, ResultsTypes> generateResults(const unsigned long long __nhists){ \
+  auto generator = std::get<I>(resultsGenerators);			\
+  if(generator)								\
+    return generator(__nhists);							\
+  else									\
+    return std::tuple_element_t<I, ResultsTypes>();			\
+  }									\
+   template<size_t I>							\
+   inline void updateResult(ResultsTypes& r, const unsigned long long __nhists){ \
+     std::get<I>(r) = generateResults<I>(__nhists);				\
+   }									\
+   template <size_t... I>						\
+   inline void updateResults(ResultsTypes& r, const unsigned long long __nhists, const std::index_sequence<I...>&){ \
+     int dummy[] = {0, (updateResult<I>(r, __nhists), 0)...};		\
+     (void)dummy;							\
+     (void)__nhists;							\
+   }									\
+   inline void updateResults(ResultsTypes& r, const unsigned long long __nhists){	\
+     updateResults(r, __nhists, std::make_index_sequence<std::tuple_size<ResultsTypes>::value>{}); \
+   }									\
+   inline ResultsTypes getResults(const unsigned long long __nhists){	\
+     ResultsTypes r;							\
+     updateResults(r, __nhists);							\
+     return r;								\
+   }									\
+   template<size_t I>							\
+   inline void setResultsGenerator(std::tuple_element_t<I, ResultsGeneratorType> f){ \
+     std::get<I>(resultsGenerators) = f;				\
+   }									\
+private:
 
-#define REGISTER_COMMON_TALLY(Class, ID) \
-  volatile const int Class::___register_return = pen_commonTallyCluster::addTally<Class>(static_cast<const char *>(#ID)); \
-  const char* Class::___ID = static_cast<const char *>(#ID);		\
+#define REGISTER_COMMON_TALLY(Class) \
+  volatile const int Class::___register_return = pen_commonTallyCluster::addTally<Class>(Class::tallyID()); \
   int Class::registerStatus() { return ___register_return;}		\
-  const char* Class::readID() const { return ___ID;}
-
-#define REGISTER_SPECIFIC_TALLY(Class, ID) \
-  volatile const int Class::___register_return = pen_specificTallyCluster::addTally<Class>(static_cast<const char *>(#ID)); \
-  const char* Class::___ID = static_cast<const char *>(#ID);		\
-  int Class::registerStatus() { return ___register_return;}		\
-  const char* Class::readID() const { return ___ID;}
+  const char* Class::readID() const { return tallyID();}
 
 // Enumeration flags
 //////////////////////////
@@ -495,10 +686,6 @@ public:
   virtual int shareConfig(const pen_genericTally<stateType>&) = 0;
   int sharedConfig(const pen_genericTally<stateType>&){return 0;}
   virtual void flush() = 0;
-
-  //Define a set of functions to get tally results
-  virtual void getResults(std::vector<double>& r) {r.clear();}
-  virtual void getResults(std::vector<int>& r) {r.clear();}
   
   inline __usedFunc readFlags() const {return usedFunctions;}
   
@@ -573,6 +760,16 @@ namespace penred{
     //Check registered types
     template <class stateType>
     bool checkRegistered(const unsigned verbose);
+
+    // ++ Downcasting via unique ID check
+    template<class TallyType>
+    typename std::enable_if_t<std::is_base_of<pen_genericTally<pen_particleState>, TallyType>::value, TallyType>*
+    downcast(pen_genericTally<pen_particleState>* ptally){
+      if(ptally->readID() == TallyType::tallyID())
+	return static_cast<TallyType*>(ptally);
+      else
+	return nullptr;
+    }        
   }
 }
 
@@ -663,41 +860,67 @@ public:
     }
     return -1;
   }
-  inline void getResults(const std::string& tallyName, std::vector<double>& r){
+  inline std::string getTallyName(const size_t i){
+    if(i > tallies.size())
+      return std::string();
+
+    return tallies[i]->readName();
+  }
+
+  //Define a set of functions to get tally results
+  template<class TallyType>
+  inline bool isCreated(const std::string& tallyName){
     for(pen_genericTally<pen_particleState>* t : tallies){
-      if(t->readName().compare(tallyName) == 0){
-	t->getResults(r);
-	return;
+      TallyType* derived = penred::tally::downcast<TallyType>(t);
+      if(derived != nullptr){
+	if(derived->readName().compare(tallyName) == 0){
+	  return true;
+	}
       }
     }
     //Not found
-    r.clear();
+    return false;
   }
-  inline void getResults(const size_t i, std::vector<double>& r){
-    if(i > tallies.size()){
-      r.clear();
-      return;
+  template<class TallyType>
+  inline bool isCreated(const size_t i){
+    if(i > tallies.size())
+      return false;
+    
+    TallyType* derived = penred::tally::downcast<TallyType>(tallies[i]);
+    if(derived != nullptr){
+	return true;
     }
-
-    tallies[i]->getResults(r);
+    
+    //Not found
+    return false;
   }
-  inline void getResults(const std::string& tallyName, std::vector<int>& r){
+  
+  template<class TallyType>
+  inline typename TallyType::ResultsTypes getResults(const std::string& tallyName, const unsigned long long nhists){
     for(pen_genericTally<pen_particleState>* t : tallies){
-      if(t->readName().compare(tallyName) == 0){
-	t->getResults(r);
-	return;
+      TallyType* derived = penred::tally::downcast<TallyType>(t);
+      if(derived != nullptr){
+	if(derived->readName().compare(tallyName) == 0){
+	  return derived->getResults(nhists);
+	}
       }
     }
     //Not found
-    r.clear();
+    return typename TallyType::ResultsTypes();
   }
-  inline void getResults(const size_t i, std::vector<int>& r){
-    if(i > tallies.size()){
-      r.clear();
-      return;
+  template<class TallyType>
+  inline typename TallyType::ResultsTypes getResults(const size_t i, const unsigned long long nhists){
+
+    if(i > tallies.size())
+      return typename TallyType::ResultsTypes();
+
+    TallyType* derived = penred::tally::downcast<TallyType>(tallies[i]);
+    if(derived != nullptr){
+      return derived->getResults(nhists);
     }
 
-    tallies[i]->getResults(r);
+    //Not found
+    return typename TallyType::ResultsTypes();
   }
 
   std::thread configure_async(const wrapper_geometry* geometry,
@@ -914,837 +1137,335 @@ public:
   
 };
 
-template <class stateType>
-class pen_specificTallyCluster : public penred::logs::logger{
-
-private:
-  unsigned nthread;
-protected:
-
-  typedef pen_genericTally<stateType>* ptallyType;
-  typedef typename std::vector<ptallyType>::iterator tallyIterator;
-  
-  //Tallies instantiators
-  static instantiator<pen_genericTally<stateType>>& specificTallies(){
-    static instantiator<pen_genericTally<stateType>>* ans =
-      new instantiator<pen_genericTally<stateType>>;
-    return *ans;  
-  }
-  
-  //Registered tallies vector
-  std::vector<pen_genericTally<stateType>*> tallies;
-
-  //Vectors containing tally pointers with specific collection functions
-  std::vector<pen_genericTally<stateType>*> tallies_beginSim;
-  std::vector<pen_genericTally<stateType>*> tallies_endSim;
-  std::vector<pen_genericTally<stateType>*> tallies_sampledPart;
-  std::vector<pen_genericTally<stateType>*> tallies_endHist;
-  std::vector<pen_genericTally<stateType>*> tallies_move2geo;
-  std::vector<pen_genericTally<stateType>*> tallies_beginPart;
-  std::vector<pen_genericTally<stateType>*> tallies_endPart;
-  std::vector<pen_genericTally<stateType>*> tallies_localEdep;
-  std::vector<pen_genericTally<stateType>*> tallies_step;
-  std::vector<pen_genericTally<stateType>*> tallies_interfCross;
-  std::vector<pen_genericTally<stateType>*> tallies_matChange;
-  std::vector<pen_genericTally<stateType>*> tallies_jump;
-  std::vector<pen_genericTally<stateType>*> tallies_knock;
-  std::vector<pen_genericTally<stateType>*> tallies_lastHist;
-  int configStatus;
-
-  pen_commonTallyCluster* mpiBuffer;
-  
-  int createTally(const char* ID,
-		  const char* tallyname,
-		  const wrapper_geometry& geometry,
-		  const abc_material* const materials[constants::MAXMAT],
-		  const pen_parserSection& config,
-		  const unsigned verbose){
-
-  
-    //Check if tally name already exists
-    std::string strName;
-    if(tallyname == nullptr || strName.assign(tallyname).length() == 0){
-      if(verbose > 0){
-	printf("specificTallyCluster: createTally: Error: empty tally name.\n");
-      }
-      return -3;
-    }
-    for(unsigned i = 0; i < tallies.size(); i++){
-      if(strName.compare(tallies[i]->readName()) == 0){
-	if(verbose > 0){
-	  printf("specificTallyCluster: createTally: Error: Tally name '%s' already used.\n", tallyname);
-	}
-	return -4;
-      }
-    }
-  
-    //Create specified tally by ID
-    pen_genericTally<stateType>* ptally = nullptr;  
-    ptally = specificTallies().createInstance(ID);
-    if(ptally == nullptr){
-      if(verbose > 0){
-	printf("specificTallyCluster: createTally: Error: unable to create a tally of type '%s'.\n",ID);
-      }
-      return -1;
-    }
-
-    //Set tally name
-    ptally->setName(tallyname);
-    
-    //Set thread
-    ptally->setThread(nthread);
-
-    //Configure tally
-    int errConfig = ptally->configure(geometry,materials,config,verbose);
-    if(errConfig != 0){
-      delete ptally;
-      if(verbose > 0){
-	printf("specificTallyCluster: createTally: Error: tally '%s' of type '%s' failed on configuration step.\n",tallyname,ID);
-      }
-      return -2;
-    }
-  
-    //Append tally pointer to necessary vectors
-    tallies.push_back(ptally);
-    
-    if(ptally->has_beginSim()){ tallies_beginSim.push_back(ptally);}
-    if(ptally->has_endSim()){ tallies_endSim.push_back(ptally);}
-    if(ptally->has_sampledPart()){ tallies_sampledPart.push_back(ptally);}
-    if(ptally->has_endHist()){ tallies_endHist.push_back(ptally);}
-    if(ptally->has_move2geo()){ tallies_move2geo.push_back(ptally);}
-    if(ptally->has_beginPart()){ tallies_beginPart.push_back(ptally);}
-    if(ptally->has_endPart()){ tallies_endPart.push_back(ptally);}
-    if(ptally->has_localEdep()){ tallies_localEdep.push_back(ptally);}
-    if(ptally->has_step()){ tallies_step.push_back(ptally);}
-    if(ptally->has_interfCross()){ tallies_interfCross.push_back(ptally);}
-    if(ptally->has_matChange()){ tallies_matChange.push_back(ptally);}
-    if(ptally->has_jump()){ tallies_jump.push_back(ptally);}
-    if(ptally->has_knock()){ tallies_knock.push_back(ptally);}
-    if(ptally->has_lastHist()){ tallies_lastHist.push_back(ptally);}
-    
-    //Sort vector tallies by name
-    std::sort(tallies.begin(), tallies.end(), __tallySort);
-    
-    return 0;
-  
-  }
-  
-public:
-
-  std::string name;
-
-  pen_specificTallyCluster() : nthread(0),
-			       configStatus(0),
-			       mpiBuffer(nullptr),
-			       name("unnamed")
-  {}
-
-  inline unsigned numTallies(){return tallies.size();}
-  inline int configureStatus(){return configStatus;}
-
-  inline unsigned getThread() const {return nthread;}
-  
-  template <class subclass>
-  static int addTally(const char* typeID){
-    return specificTallies().template addSubType<subclass>(typeID);
-  }
-
-  int sum(pen_specificTallyCluster<stateType>& cluster, const unsigned verbose = 0){
-    //Check if both clusters have the same ammount of tallies
-    unsigned size1 = tallies.size();
-    unsigned size2 = cluster.tallies.size();
-    if(size1 != size2){
-      if(verbose > 0){
-	printf("pen_specificTallyCluster: sum: Number of tallies doesn't match.\n");
-      }      
-      return -1;
-    }
-
-    //Check if both clusters have the same tally types and names
-    for(unsigned i = 0; i < size1; i++){
-      if(tallies[i]->readName().compare(cluster.tallies[i]->readName()) != 0){
-	if(verbose > 0){
-	  printf("pen_specificTallyCluster: sum: Tallies names doesn't match:\n");
-	  printf("                          %s\n",tallies[i]->readName().c_str());
-	  printf("                          %s\n",cluster.tallies[i]->readName().c_str());	  
-	}      	
-	return i+1;
-      }
-      if(strcmp(tallies[i]->readID(), cluster.tallies[i]->readID()) != 0){
-	if(verbose > 0){
-	  printf("pen_specificTallyCluster: sum: Tallies IDs doesn't match:\n");
-	  printf("                          %s\n",tallies[i]->readID());
-	  printf("                          %s\n",cluster.tallies[i]->readID());
-	}
-	return i+1;
-      }
-    }
-
-    //Sum all tallies
-    int err = 0;
-    for(unsigned i = 0; i < size1; ++i){
-
-      //Flush both tallies
-      tallies[i]->flush();
-      cluster.tallies[i]->flush();
-
-      //Sum tallies
-      int err2 = tallies[i]->sum(*(cluster.tallies[i]));
-      if(err2 != 0){ 
-	if(verbose > 0){
-	  printf("pen_specificTallyCluster: sum: Error adding up tallies %s (position %d)\n",tallies[i]->readName().c_str(),i);
-	  printf("                               Error code: %d\n", err2);
-	}
-	++err;
-      }
-    }
-    return err;
-  }
-  
-  void clear(){
-    for(std::size_t i = 0; i < tallies.size(); i++){
-      delete tallies[i];
-    }
-    tallies.clear();
-    tallies_beginSim.clear();
-    tallies_endSim.clear();
-    tallies_sampledPart.clear();
-    tallies_endHist.clear();
-    tallies_move2geo.clear();
-    tallies_beginPart.clear();
-    tallies_endPart.clear();
-    tallies_localEdep.clear();
-    tallies_step.clear();
-    tallies_interfCross.clear();
-    tallies_matChange.clear();
-    tallies_jump.clear();
-    tallies_knock.clear();
-    tallies_lastHist.clear();
-
-    if(mpiBuffer != nullptr)
-      delete mpiBuffer;
-    mpiBuffer = nullptr;
-    
-    nthread = 0;
-    configStatus = 0;
-  }  
-  
-  void configure(const wrapper_geometry* geometry,
-		 const abc_material* const materials[constants::MAXMAT],
-		 const unsigned threadNum,
-		 const pen_parserSection config,
-		 const unsigned verbose = 0){
-
-    int err = 0;
-    
-    //Clear previous configuration
-    clear();
-
-    if(verbose > 1){
-      printf("\n **** Tally group '%s'\n",name.c_str());
-    }
-    
-    //Set thread
-    nthread = threadNum;
-  
-    //Extract tally names
-    std::vector<std::string> tallyNames;
-    config.ls(tallyNames);
-  
-    //Iterate for each tally name
-    for(unsigned i = 0; i < tallyNames.size(); i++){
-
-      if(verbose > 1){
-	printf("\n------------------------------------\n\n");
-	printf("\nTally '%s':\n\n",tallyNames[i].c_str());
-      }
-    
-      //Get subsection for tally 'i'
-      pen_parserSection tallySec;
-      if(config.readSubsection(tallyNames[i],tallySec) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  printf("specificTallyCluster: configure: Error: unable to read section '%s' to configure tally.\n",tallyNames[i].c_str());
-	}
-	err++;
-	continue;
-      }
-
-      //Try to read tally type ID
-      std::string tallyID;
-      if(tallySec.read("type",tallyID) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  printf("specificTallyCluster: configure: Error: unable to read field %s/type. String expected\n",tallyNames[i].c_str());
-	  err++;
-	  continue;
-	}
-      }
-
-      if(verbose > 1){
-	printf("Tally type: '%s'\n\n",tallyID.c_str());
-      }
-      
-      //Try to create and configure tally 'i'
-      if(createTally(tallyID.c_str(),tallyNames[i].c_str(),*geometry,materials,tallySec,verbose) != 0){
-	if(verbose > 0){
-	  printf("specificTallyCluster: configure: Error: Unable to create and configure tally '%s' of type '%s'.\n",tallyNames[i].c_str(),tallyID.c_str());
-	  err++;
-	  continue;
-	}
-      }    
-    }
-    if(verbose > 1){printf("\n------------------------------------\n\n");}
-
-    if(err > 0){
-      if(verbose > 0){
-	printf("specificTallyCluster: configure: Error: %d tallies creation failed.\n",err);
-      }
-    }
-
-    //Print created tallies
-    if(verbose > 1){
-      printf("\nCreated specific tallies (name and type):\n\n");
-      for(unsigned i = 0; i < tallies.size(); i++){
-	printf("  %20s -> %20s\n",
-	       tallies[i]->readName().c_str(),
-	       tallies[i]->readID());
-      }
-    }
-
-    configStatus = err;
-
-  // ******************************* MPI ************************************ //
-#ifdef _PEN_USE_MPI_
-  //If this tally cluster runs on thread 0, we need a buffer cluster
-  //to reduce the results of all MPI processes
-  if(nthread == 0){
-    mpiBuffer = new pen_commonTallyCluster;
-    mpiBuffer->name = std::string("MPI_buffer_") + name;
-    //Configure tally cluster with no verbose and a non zero thread
-    //to avoid recursive creation of mpi buffers
-    mpiBuffer->configure(geometry,
-			 materials,
-			 1,
-			 config,
-			 0);
-    if(mpiBuffer->configureStatus() > 0){
-      if(verbose > 0){
-	printf("commonTallyCluster: configure: Error creating %d tallies on MPI buffer cluster.\n",err);
-      }
-    }
-  }
-#endif
-  // ***************************** MPI END ********************************** //
-    
-  }
-
-  std::thread configure_async(const wrapper_geometry* geometry,
-			      const abc_material* const materials[constants::MAXMAT],
-			      const unsigned threadNum,
-			      const pen_parserSection& config,
-			      const unsigned verbose = 0){
-    return std::thread(configure(&pen_specificTallyCluster::configure,this,
-				 geometry,materials,threadNum,config,verbose));
-  }
-
-  inline void run_beginSim(){
-
-    //Default all tally logs to simulation log
-    for(auto t : tallies)
-      t->setDefaultLog(penred::logs::SIMULATION);
-    
-    for(tallyIterator i = tallies_beginSim.begin();
-	i != tallies_beginSim.end(); ++i)
-      (*i)->tally_beginSim();
-  }
-
-  inline void run_endSim(const unsigned long long nhist){
-
-    //Default all tally logs to configuration log
-    for(auto t : tallies)
-      t->setDefaultLog(penred::logs::CONFIGURATION);
-    
-    for(tallyIterator i = tallies_endSim.begin();
-	i != tallies_endSim.end(); ++i)
-      (*i)->tally_endSim(nhist);
-  }
-  
-  inline void run_sampledPart(const unsigned long long nhist,
-			      const unsigned long long dhist,
-			      const unsigned kdet,
-			      const pen_KPAR kpar,
-			      const stateType& state){
-
-    for(tallyIterator i = tallies_sampledPart.begin();
-	i != tallies_sampledPart.end(); ++i)
-      (*i)->tally_sampledPart(nhist,dhist,kdet,kpar,state);
-  }
-  
-  
-  inline void run_endHist(const unsigned long long nhist){
-
-    for(tallyIterator i = tallies_endHist.begin();
-	i != tallies_endHist.end(); ++i)
-      (*i)->tally_endHist(nhist);
-  }
-
-  inline void run_move2geo(const unsigned long long nhist,
-			   const unsigned kdet,
-			   const pen_KPAR kpar,
-			   const stateType& state,
-			   const double dsef,
-			   const double dstot){
-    
-    for(tallyIterator i = tallies_move2geo.begin();
-	i != tallies_move2geo.end(); ++i)
-      (*i)->tally_move2geo(nhist,kdet,kpar,state,dsef,dstot);
-  }
-  
-  inline void run_beginPart(const unsigned long long nhist,
-			    const unsigned kdet,
-			    const pen_KPAR kpar,
-			    const stateType& state){
-
-    for(tallyIterator i = tallies_beginPart.begin();
-	i != tallies_beginPart.end(); ++i)
-      (*i)->tally_beginPart(nhist,kdet,kpar,state);
-  }
-  
-  inline void run_endPart(const unsigned long long nhist,
-			  const pen_KPAR kpar,
-			  const stateType& state){
-
-    for(tallyIterator i = tallies_endPart.begin();
-	i != tallies_endPart.end(); ++i)
-      (*i)->tally_endPart(nhist,kpar,state);
-  }
-  
-  inline void run_localEdep(const unsigned long long nhist,
-			const pen_KPAR kpar,
-			const stateType& state,
-			const double dE){
-
-    for(tallyIterator i = tallies_localEdep.begin();
-	i != tallies_localEdep.end(); ++i)
-      (*i)->tally_localEdep(nhist,kpar,state,dE);
-  }
-  
-  inline void run_step(const unsigned long long nhist,
-		       const pen_KPAR kpar,
-		       const stateType& state,
-		       const tally_StepData& stepData){
-
-    for(tallyIterator i = tallies_step.begin();
-	i != tallies_step.end(); ++i)
-      (*i)->tally_step(nhist,kpar,state,stepData);    
-  }
-  
-  inline void run_interfCross(const unsigned long long nhist,
-			      const unsigned kdet,
-			      const pen_KPAR kpar,
-			      const stateType& state){
-
-    for(tallyIterator i = tallies_interfCross.begin();
-	i != tallies_interfCross.end(); ++i)
-      (*i)->tally_interfCross(nhist,kdet,kpar,state);
-  }
-  
-  inline void run_matChange(const unsigned long long nhist,
-			    const pen_KPAR kpar,
-			    const stateType& state,
-			    const unsigned prevMat){
-
-    for(tallyIterator i = tallies_matChange.begin();
-	i != tallies_matChange.end(); ++i)
-      (*i)->tally_matChange(nhist,kpar,state,prevMat);
-  }
-  
-  inline void run_jump(const unsigned long long nhist,
-		       const pen_KPAR kpar,
-		       const stateType& state,
-		       const double ds){
-
-    for(tallyIterator i = tallies_jump.begin();
-	i != tallies_jump.end(); ++i)
-      (*i)->tally_jump(nhist,kpar,state,ds);
-  }
-  
-  inline void run_knock(const unsigned long long nhist,
-			const pen_KPAR kpar,
-			const stateType& state,
-			const int icol){
-
-    for(tallyIterator i = tallies_knock.begin();
-	i != tallies_knock.end(); ++i)
-      (*i)->tally_knock(nhist,kpar,state,icol);
-  }
-
-  inline void run_lastHist(const unsigned long long lastHist){
-
-    for(tallyIterator i = tallies_lastHist.begin();
-	i != tallies_lastHist.end(); ++i)
-      (*i)->tally_lastHist(lastHist);
-  }
-  
-  inline void saveData(const unsigned long long nhist, const bool doflush = true){
-
-    for(tallyIterator i = tallies.begin();
-	i != tallies.end(); ++i){
-      if(doflush)
-	(*i)->flush();
-      (*i)->saveData(nhist);
-    }
-  }
-
-  inline void exportImage(const unsigned long long nhist,
-			  const pen_imageExporter::formatTypes format,
-			  const bool doflush = true){
-
-    for(tallyIterator i = tallies.begin();
-	i != tallies.end(); ++i){
-      if(doflush)
-	(*i)->flush();
-      (*i)->exportImage(nhist,format);
-    }
-  }  
-
-  int writeDump(unsigned char*& pdump,
-		size_t& dim,
-		const pen_rand& random ,
-		const unsigned verbose = 0) {
-
-    if(tallies.size() < 1){
-      if(verbose > 0){
-	printf("commontallyCluster: writeDump: Error: Any tally has been registered.\n");
-      }
-      return -1;
-    }
-    
-    //Create a pointers to store dumped data of each tally
-    std::vector<unsigned char*> vdumps;
-    std::vector<size_t> dumpsDim;
-    vdumps.resize(tallies.size());
-    dumpsDim.resize(tallies.size());
-
-    size_t dumpSize = 0;
-    dumpSize += 2*sizeof(int32_t); //To store last random seeds
-    //Get seeds
-    int32_t seeds[2]; 
-    random.getSeeds(seeds[0],seeds[1]);
-      
-      
-    //Write all dumps and get its size, name and ID size
-    for(unsigned i = 0; i < tallies.size(); i++){
-      int err;
-      err = tallies[i]->writeDump(vdumps[i],dumpsDim[i],verbose);
-      if(err != PEN_DUMP_SUCCESS){
-	//Free allocated data
-	for(unsigned j = 0; j < i; j++){
-	  free(vdumps[i]);
-	  vdumps[i] = nullptr;
-	}
-	if(verbose > 0){
-	  printf("Error dumping data of tally %s with name %s (position %d)\n",
-		 tallies[i]->readID(),tallies[i]->readName().c_str(), i);
-	}
-	return -2;
-      }
-      dumpSize += dumpsDim[i];
-      dumpSize += 2*sizeof(uint32_t); //To store name and ID length
-      dumpSize += tallies[i]->readName().length(); //To store name
-      dumpSize += strlen(tallies[i]->readID()); //To store ID      
-    }
-    
-    //Allocate memory
-    if(dumpSize < 1){
-      if(verbose > 0){
-	printf("commontallyCluster: writeDump: Error: No data to dump.\n");
-      }      
-      return -3;
-    }
-
-    pdump = nullptr;
-    pdump = (unsigned char*) malloc(dumpSize);
-    if(pdump == nullptr){
-      if(verbose > 0){
-	printf("commontallyCluster: writeDump: Error: Allocation fail.\n");
-      }      
-      return -4;
-    }
-
-    //Write all data to dump buffer
-    size_t pos = 0;
-
-    //  last random seeds
-    memcpy(&pdump[pos],seeds,2*sizeof(int32_t));
-    pos += 2*sizeof(int32_t);
-    
-    for(unsigned i = 0; i < tallies.size(); i++){
-      uint32_t nameSize = (uint32_t)tallies[i]->readName().length();
-      uint32_t IDsize = (uint32_t)strlen(tallies[i]->readID());
-
-      //Save name size
-      memcpy(&pdump[pos],&nameSize,sizeof(uint32_t));
-      pos += sizeof(uint32_t);
-      //Save name
-      if(nameSize > 0){
-	memcpy(&pdump[pos],tallies[i]->readName().c_str(),nameSize);
-	pos += nameSize;
-      }
-
-      //Save ID size
-      memcpy(&pdump[pos],&IDsize,sizeof(uint32_t));
-      pos += sizeof(uint32_t);
-      //Save ID
-      if(IDsize > 0){
-	memcpy(&pdump[pos],tallies[i]->readID(),IDsize);
-	pos += IDsize;
-      }
-
-      //Store dump
-      memcpy(&pdump[pos],vdumps[i],dumpsDim[i]);
-      pos += dumpsDim[i];
-    }
-
-    //Check dumped data
-    if(pos != dumpSize){
-      if(verbose > 0){
-	printf("commontallyCluster: writeDump: Error: Dumped data size doesn't match with allocated.\n");
-	printf("                                dumped: %lu\n",pos);
-	printf("                                dumped: %lu\n",dumpSize);
-      }
-      free(pdump);
-      pdump = nullptr;
-      return -5;      
-    }
-
-    //Free memory
-    for(unsigned i = 0; i < tallies.size(); i++)
-      free(vdumps[i]);
-
-    //Store final dimension
-    dim = dumpSize;
-    
-    return 0;
-  }
-  int readDump(const unsigned char* const pdump,
-	       size_t& pos,
-	       int& seed1, int& seed2,
-	       const unsigned verbose = 0){
-
-    if(tallies.size() < 1){
-      if(verbose > 0){
-	printf("commontallyCluster: readDump: Error: Any tally has been registered.\n");
-      }
-      return -1;
-    }
-
-    //Read seeds
-    int32_t seeds[2];
-    memcpy(seeds,&pdump[pos],2*sizeof(int32_t));
-    pos += 2*sizeof(int32_t);
-
-    seed1 = seeds[0];
-    seed2 = seeds[1];
-
-    //Read tally dumped data
-    for(unsigned i = 0; i < tallies.size(); i++){
-      uint32_t nameSize, IDsize;
-
-      //Read name size
-      memcpy(&nameSize,&pdump[pos],sizeof(uint32_t));
-      pos += sizeof(uint32_t);      
-      if(nameSize < 1){
-	if(verbose > 0){
-	  printf("commontallyCluster: readDump: Error: Dumped tally %d has null name size.\n",i);
-	}
-	return -2;
-      }
-      
-      //Compare names
-      if(memcmp(&pdump[pos], tallies[i]->readName().c_str(),nameSize) != 0){
-	if(verbose > 0){
-	  printf("commontallyCluster: readDump: Error: Tally names doesn't match at read tally number %d.\n",i);
-	  printf("                             Dumped name: %*s\n",nameSize,&pdump[pos]);
-	  printf("                           Expected name: %s\n",tallies[i]->readName().c_str());
-	}
-	return -2;	
-      }
-      pos += nameSize;
-      
-
-      //Read ID size
-      memcpy(&IDsize,&pdump[pos],sizeof(uint32_t));
-      pos += sizeof(uint32_t);      
-      if(IDsize < 1){
-	if(verbose > 0){
-	  printf("commontallyCluster: readDump: Error: Dumped tally %d has null ID size.\n",i);
-	}
-	return -3;
-      }
-
-      //Compare IDs
-      if(memcmp(&pdump[pos], tallies[i]->readID(),IDsize) != 0){
-	if(verbose > 0){
-	  printf("commontallyCluster: readDump: Error: Tally IDs doesn't match at read tally number %d.\n",i);
-	  printf("                             Dumped ID: %*s\n",IDsize,&pdump[pos]);
-	  printf("                           Expected ID: %s\n",tallies[i]->readID());
-	}
-	return -3;	
-      }
-      pos += IDsize;      
-
-      int err = tallies[i]->readDump(pdump,pos,verbose);
-      if(err != PEN_DUMP_SUCCESS){
-	printf("commontallyCluster: readDump: Error reading dumped data of tally %d.\n",i);
-	return -4;
-      }
-    }
-
-    return 0;
-  }
-
-  int dump2file(const char* filename,
-		const pen_rand& random,
-		const unsigned verbose = 0){
-
-    unsigned char* pdump = nullptr;
-    size_t dumpSize;
-
-    int err;
-    
-    //Create dump
-    err = writeDump(pdump,dumpSize,random,verbose);
-    if(err != 0){
-      if(verbose > 0){
-	printf("commontallyCluster: dump2file: Error creating dump.\n");
-      }
-      return -1;
-    }
-
-    std::string auxstr(filename);
-    std::size_t found = auxstr.find_last_of("/\\");
-
-    std::string dumpFilename;
-
-    
-    if(found != std::string::npos){
-      dumpFilename = auxstr.substr(0,found+1) + std::string("th") + std::to_string(nthread) + auxstr.substr(found+1);
-    }else{
-      dumpFilename = std::string("th") + std::to_string(nthread) + filename;
-    }
-
-    FILE* fdump = nullptr;
-    fdump = fopen(dumpFilename.c_str(), "wb");
-    if(fdump == nullptr){
-      if(verbose > 0){
-	printf("commontallyCluster: dump2file: Error creating dump file %s.\n",dumpFilename.c_str());
-      }
-      free(pdump);
-      return -2;
-    }
-
-    //Write data
-    size_t nwrite = fwrite(pdump,1,dumpSize,fdump);
-    if(nwrite != dumpSize){
-      if(verbose > 0){
-	printf("commontallyCluster: dump2file: Failed to write all data.\n");
-      }
-      free(pdump);
-      return -3;
-    }
-
-    //Close file
-    fclose(fdump);
-    
-    //Free memory
-    free(pdump);
-    
-    return 0;
-  }
-
-  int readDumpfile(const char* filename,
-		   int& seed1, int& seed2,
-		   const unsigned verbose = 0){
-
-    unsigned char* pdump = nullptr;
-    size_t dumpSize;
-
-    int err;
-
-    //Read data
-    FILE* fdump = nullptr;
-    fdump = fopen(filename, "rb");
-    if(fdump == nullptr){
-      if(verbose > 0){
-	printf("commontallyCluster: readDumpfile: Error opening dump file %s.\n",filename);
-      }
-      return -2;
-    }
-
-    // Get file size
-    //***************
-
-    unsigned char buffer[5000];
-    dumpSize = 0;
-    size_t nread = 0;
-    while((nread = fread(buffer,sizeof(unsigned char),5000,fdump)) > 0){
-      dumpSize += nread;
-    }
-
-    //Return to file beginning
-    rewind(fdump);
-
-    // Allocate memory to store the entire file
-    //*******************************************
-
-    pdump = (unsigned char*) malloc(dumpSize);
-    if(pdump == nullptr){
-      if(verbose > 0){
-	printf("commontallyCluster: readDumpfile: Bad alloc.\n");
-      }
-      return -4;
-    }
-    
-    // Read data
-    //*************
-    nread = fread(pdump,1,dumpSize,fdump);
-    if(nread != dumpSize){
-      if(verbose > 0){
-	printf("commontallyCluster: readDumpfile: Failed to read all data file.\n");
-      }
-      free(pdump);
-      return -5;
-    }
-
-    //Close file
-    fclose(fdump);
-
-
-    // Extract data
-    //***************
-    
-    nread = 0;
-    err = readDump(pdump,nread,seed1,seed2,verbose);
-    if(err != 0){
-      if(verbose > 0){
-	printf("commontallyCluster: readDumpfile: Failed to extract data.\n");
-      }
-      free(pdump);
-      return -6;
-    }
-
-    //Free memory
-    free(pdump);
-    
-    return 0;
-  }
-  
-  ~pen_specificTallyCluster(){clear();}
-  
-};
-
 //Include defined tallies
 #include "genericTallies.hh"
 #include "specificTallies.hh"
+
+// Define a complete results map handler class
+
+namespace penred{
+  namespace tally{
+
+    // ++ Results type printing
+    template<size_t T>
+    typename std::enable_if_t<T >= std::tuple_size<typesGenericTallies>::value, void>
+    printTalliesResultsTypes(){}
+    
+    template<size_t T = 0>
+    typename std::enable_if_t<T < std::tuple_size<typesGenericTallies>::value, void>
+    printTalliesResultsTypes(){
+      using tupleType = typename std::tuple_element<T, typesGenericTallies>::type;
+      
+      //Print information for this tally type
+      printResultsTypes<tupleType>();
+      
+      //Go to the next tally type
+      printTalliesResultsTypes<T+1>();
+    }
+
+    // ++ Global results maps
+      
+    template <typename... TallyTypes>
+    struct GlobalResultsMapTupleBuilder{
+      using type = void;
+      static_assert(false,
+		    "Tally Results map require tallies specified within a tuple std::tuple<Type1,Type2,...>");
+    };
+    
+    template <typename... TallyTypes>
+    struct GlobalResultsMapTupleBuilder<std::tuple<TallyTypes...>>{
+      using type = std::tuple<typename TallyTypes::ResultsMapType...>;
+    };
+
+    template <typename... TallyTypes>
+    using GlobalResultsMapType = typename GlobalResultsMapTupleBuilder<TallyTypes...>::type;
+    
+    
+    class Results{
+      
+    public:
+      using Maps = GlobalResultsMapType<typesGenericTallies>;
+
+    private:
+      Maps maps;
+
+      // ++ Extract results functions
+      template<size_t I>
+      typename std::enable_if<I >= std::tuple_size<typesGenericTallies>::value, void>::type      
+      extractResults(pen_commonTallyCluster&, const unsigned, const unsigned long long){}
+      
+      template<size_t I = 0>
+      typename std::enable_if<I < std::tuple_size<typesGenericTallies>::value, void>::type      
+      extractResults(pen_commonTallyCluster& tallies, const unsigned iTally, const unsigned long long nhists){
+
+	using TallyType = typename std::tuple_element<I, typesGenericTallies>::type;	
+	
+	if(tallies.isCreated<TallyType>(iTally)){
+	  //The tally type match, get the name
+	  std::string tallyName = tallies.getTallyName(iTally);
+
+	  //Save the results
+	  std::get<I>(maps)[tallyName] = tallies.getResults<TallyType>(iTally, nhists);
+	}
+	else{
+	  //Try with the next tally type
+	  extractResults<I+1>(tallies, iTally, nhists);
+	}
+      }
+
+      // ++ Clear functions
+      template<size_t I>
+      typename std::enable_if<I >= std::tuple_size<typesGenericTallies>::value, void>::type      
+      clearInner(){}
+      
+      template<size_t I = 0>
+      typename std::enable_if<I < std::tuple_size<typesGenericTallies>::value, void>::type      
+      clearInner(){
+	std::get<I>(maps).clear();
+	clearInner<I+1>();
+      }
+	
+      // ++ Print functions
+
+      // - Print results element
+      template<class T>
+      typename std::enable_if<measurements::is_results<T>::value, void>::type
+      printResult(const T& v,
+		  const char* filename,
+		  const unsigned nSigma,
+		  const bool coordinates,
+		  const bool binNumber,
+		  const bool onlyEffective) const {
+	FILE* fout = fopen(filename, "w");
+	if(fout != nullptr){
+	  v.print(fout,nSigma,coordinates,binNumber,onlyEffective);
+	  fclose(fout);
+	}
+      }
+      
+      template<class T>
+      typename std::enable_if<std::is_arithmetic<T>::value, void>::type
+      printResult(const std::vector<T>& v,
+		  const char* filename,
+		  const unsigned ,
+		  const bool ,
+		  const bool binNumber,
+		  const bool ) const {
+	FILE* fout = fopen(filename, "w");
+	if(fout != nullptr){
+
+	  if(std::is_floating_point<T>::value){
+
+	    if(binNumber){
+	      for(size_t i = 0; i < v.size(); ++i){
+		fprintf(fout,"%4lu %15.5E\n",
+			static_cast<unsigned long>(i),
+			static_cast<double>(v[i]));
+	      }
+	    }
+	    else{
+	      for(size_t i = 0; i < v.size(); ++i){
+		fprintf(fout,"%15.5E\n",
+			static_cast<double>(v[i]));
+	      }
+	    }
+	
+	  }else{
+	    if(std::is_signed<T>::value){
+	  
+	      if(binNumber){
+		for(size_t i = 0; i < v.size(); ++i){
+		  fprintf(fout,"%4lu %lld\n",
+			  static_cast<unsigned long>(i),
+			  static_cast<long long int>(v[i]));
+		}
+	      }
+	      else{
+		for(size_t i = 0; i < v.size(); ++i){
+		  fprintf(fout,"%lld\n",
+			  static_cast<long long int>(v[i]));
+		}
+	      }	      
+	    }
+	    else{
+
+	      if(binNumber){
+		for(size_t i = 0; i < v.size(); ++i){
+		  fprintf(fout,"%4lu %lld\n",
+			  static_cast<unsigned long>(i),
+			  static_cast<long long unsigned>(v[i]));
+		}
+	      }
+	      else{
+		for(size_t i = 0; i < v.size(); ++i){
+		  fprintf(fout,"%lld\n",
+			  static_cast<long long unsigned>(v[i]));
+		}
+	      }	      
+	    }
+	  }	  
+	  fclose(fout);
+	}
+      }
+
+      template<class T>
+      typename std::enable_if<!std::is_arithmetic<T>::value, void>::type
+      printResult(const std::vector<T>& ,
+		  const char* ,
+		  const unsigned ,
+		  const bool ,
+		  const bool ,
+		  const bool ) const {
+	//Avoid printing non arithmetic types
+      }
+
+      // - Print all results for a specific tally type
+      template<class TallyType, size_t I = 0>
+      typename std::enable_if<I >= std::tuple_size<typename TallyType::ResultsTypes>::value, void>::type
+      printTypeInner(const char*,
+		     const unsigned ,
+		     const bool ,
+		     const bool ,
+		     const bool ,
+		     const typename TallyType::ResultsTypes&) const {}
+
+      template<class TallyType, size_t I = 0>
+      typename std::enable_if<I < std::tuple_size<typename TallyType::ResultsTypes>::value, void>::type
+      printTypeInner(const char* prefix,
+		     const unsigned nSigma,
+		     const bool coordinates,
+		     const bool binNumber,
+		     const bool onlyEffective,
+		     const typename TallyType::ResultsTypes& results) const {
+	
+	std::string filename(prefix);
+	filename += "_";
+	filename += TallyType::tallyID();
+	filename += "_" + std::to_string(I) + ".dat";
+
+	printResult(std::get<I>(results),
+		    filename.c_str(),
+		    nSigma,
+		    coordinates,
+		    binNumber,
+		    onlyEffective);
+	printTypeInner<TallyType, I+1>(prefix,
+				       nSigma,
+				       coordinates,
+				       binNumber,
+				       onlyEffective,
+				       results);
+      }
+
+      // - Print all results for all tally types
+      template<size_t I>
+      typename std::enable_if<I >= std::tuple_size<typesGenericTallies>::value, void>::type      
+      printInner(const char*,
+		 const unsigned ,
+		 const bool ,
+		 const bool ,
+		 const bool) const {}
+      
+      template<size_t I = 0>
+      typename std::enable_if<I < std::tuple_size<typesGenericTallies>::value, void>::type      
+      printInner(const char* prefix,
+		 const unsigned nSigma,
+		 const bool coordinates,
+		 const bool binNumber,
+		 const bool onlyEffective) const {
+
+	using TallyType = typename std::tuple_element<I, typesGenericTallies>::type;	
+
+	//Iterate over the results map for this tally type and write the results
+	for(auto it = std::get<I>(maps).cbegin(); it != std::get<I>(maps).end(); ++it){
+	  std::string filename(prefix);
+	  filename += it->first;
+	  printTypeInner<TallyType>(filename.c_str(),
+				    nSigma,
+				    coordinates,
+				    binNumber,
+				    onlyEffective,
+				    it->second);
+	}
+
+	printInner<I+1>(prefix,
+			nSigma,
+			coordinates,
+			binNumber,
+			onlyEffective);
+      }
+      
+    public:
+
+      template<size_t T>
+      constexpr const auto& read() const{	
+	static_assert(T < std::tuple_size<typesGenericTallies>::value,
+		      "Invalid tally index. Unable to get tally results maps");
+	
+	return std::get<T>(maps);
+      }
+      
+      template<size_t T>
+      constexpr auto& get(){	
+	static_assert(T < std::tuple_size<typesGenericTallies>::value,
+		      "Invalid tally index. Unable to get tally results maps");
+	
+	return std::get<T>(maps);
+      }
+      
+      template<class TallyType>
+      constexpr auto getType(){
+	
+	//Get the tally index within the tuple
+	constexpr const unsigned index = typeIndex<TallyType>();
+	static_assert(index < std::tuple_size<typesGenericTallies>::value,
+		      "Invalid tally type. Unable to get tally results maps");
+	
+	return std::get<index>(maps);
+      }
+
+      inline void update(pen_commonTallyCluster& tallies, const unsigned long long nhists){
+	const unsigned nTallies = tallies.numTallies();
+
+	//Extract all tallies' results
+	for(unsigned iTally = 0; iTally < nTallies; ++iTally){
+	  extractResults(tallies, iTally, nhists);
+	}
+      }
+
+      inline bool update(pen_commonTallyCluster& tallies, const size_t iTally, const unsigned long long nhists){
+	const unsigned nTallies = tallies.numTallies();
+
+	if(iTally < nTallies){
+	  extractResults(tallies, iTally, nhists);
+	  return true;
+	}
+	return false;
+      }
+      
+      inline bool update(pen_commonTallyCluster& tallies, const std::string tallyName, const unsigned long long nhists){
+	int iTally = tallies.getTallyIndex(tallyName);
+	if(iTally >= 0){
+	  extractResults(tallies, iTally, nhists);
+	  return true;
+	}
+	return false;
+      }
+      
+      inline void print(const char* prefix,
+			const unsigned nSigma,
+			const bool coordinates,
+			const bool binNumber,
+			const bool onlyEffective = false) const {
+	printInner(prefix,nSigma,coordinates,binNumber,onlyEffective);
+      }
+
+      inline void clear(){
+	clearInner();
+      }
+      
+    };
+  } //namespace tally
+} // namespace penred
 
 #endif

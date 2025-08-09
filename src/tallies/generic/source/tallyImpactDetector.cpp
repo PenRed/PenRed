@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2025 Universitat de València - UV
 //    Copyright (C) 2019-2025 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -29,6 +30,218 @@
 
 
 #include "tallyImpactDetector.hh"
+
+pen_ImpactDetector::pen_ImpactDetector() :
+  pen_genericTally( USE_STEP |
+		    USE_LOCALEDEP |
+		    USE_INTERFCROSS |
+		    USE_MOVE2GEO |
+		    USE_BEGINPART |
+		    USE_ENDHIST),
+  isLinScaleFlu(true), isLinScaleSpc(true),
+  isLinScaleAge(true), isLinScaleDep(true),
+  inside(false), spc(false), ageActive(false),
+  fln(false), eDepActive(false),			 
+  nbin(0),
+  nbinAge(0)			 
+    
+    
+{
+  //Fluences
+  setResultsGenerator<0>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 1>{
+      return this->generateFluence(PEN_ELECTRON, nhists);
+    });
+  setResultsGenerator<1>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 1>{
+      return this->generateFluence(PEN_PHOTON, nhists);
+    });
+  setResultsGenerator<2>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 1>{
+      return this->generateFluence(PEN_POSITRON, nhists);
+    });
+
+  //Spectrums
+  setResultsGenerator<3>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 1>{
+      return this->generateSpectrum(PEN_ELECTRON, nhists);
+    });
+  setResultsGenerator<4>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 1>{
+      return this->generateSpectrum(PEN_PHOTON, nhists);
+    });
+  setResultsGenerator<5>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 1>{
+      return this->generateSpectrum(PEN_POSITRON, nhists);
+    });
+
+  //Energy deposition spectrum
+  setResultsGenerator<6>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 1>{
+
+      if(!eDepActive)
+	return penred::measurements::results<double, 1>();
+  
+      if(!isLinScaleDep){
+	penred::measurements::results<double, 1> results;
+	results.description = "Error: Results can only be generated for linear scale";
+	return results;
+      }
+  
+      const double invn = 1.0/static_cast<double>(nhists);
+	  
+      //Create results
+      penred::measurements::results<double, 1> results;
+      results.initFromLists({static_cast<unsigned long>(nbin)},
+			    {penred::measurements::limitsType(configEmin, configEmax)});
+	  
+      results.description =
+	"PenRed: Deposited energy spectrum\n\n"
+	"Units are 1/(eV history).\n\n"
+	"Detector:\n" + std::to_string(idet) + "\n\n";
+  
+      results.setDimHeader(0, "Deposited (eV)");
+      results.setValueHeader("Prob (1/eV history)");
+
+      for(int j = 0; j < nbin; j++){
+
+        double qEDEP = detected[j]*invn;
+        double sigmaEDEP = fabs(qEDEP*(1.0 - qEDEP))*invn;
+        if (sigmaEDEP > 0.0){sigmaEDEP = sqrt(sigmaEDEP);}
+        else{sigmaEDEP = 0.0;}
+
+	results.data[j] = qEDEP*iconfigEBin;
+	results.sigma[j] = sigmaEDEP*iconfigEBin;
+      }
+	  
+      return results;          
+    });
+
+  //Age spectrum
+  setResultsGenerator<7>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 1>{
+
+      if(!ageActive)
+	return penred::measurements::results<double, 1>();
+  
+      if(!isLinScaleAge){
+	penred::measurements::results<double, 1> results;
+	results.description = "Error: Results can only be generated for linear scale";
+	return results;
+      }
+  
+      const double invn = 1.0/static_cast<double>(nhists);
+	  
+      //Create results
+      penred::measurements::results<double, 1> results;
+      results.initFromLists({static_cast<unsigned long>(nbinAge)},
+			    {penred::measurements::limitsType(ageMin, ageMax)});
+	  
+      results.description =
+	"PenRed: Age distribution report\n\n"
+	"Units are 1/(s history).\n\n"
+	"Detector:\n" + std::to_string(idet) + "\n\n";
+  
+      results.setDimHeader(0, "Age (s)");
+      results.setValueHeader("Prob (1/s history)");
+
+      for(int j = 0; j < nbinAge; j++){
+      
+	double qAGE = age[j]*invn;
+	double q2AGE = age2[j]*invn;
+	double sigmaAGE = (q2AGE - qAGE*qAGE)*invn;
+	if(sigmaAGE > 0.0){sigmaAGE = sqrt(sigmaAGE);}
+	else{sigmaAGE = 0.0;}
+
+	results.data[j] = qAGE*iageBinW;
+	results.sigma[j] = sigmaAGE*iageBinW;
+      }
+	  
+      return results;          
+    });  
+}
+
+penred::measurements::results<double, 1>
+pen_ImpactDetector::generateFluence(const pen_KPAR kpar,
+				    const unsigned long long nhists){
+
+  if(!fln)
+    return penred::measurements::results<double, 1>();
+
+  if(!isLinScaleFlu){
+    penred::measurements::results<double, 1> results;
+    results.description = "Error: Results can only be generated for linear scale";
+    return results;
+  }
+  
+  const double invn = 1.0/static_cast<double>(nhists);
+	  
+  //Create results
+  penred::measurements::results<double, 1> results;
+  results.initFromLists({static_cast<unsigned long>(nbin)},
+			{penred::measurements::limitsType(configEmin, configEmax)});
+	  
+  results.description =
+    "PenRed: Integrated fluence spectrum\n\n"
+    "The spectral fluence is integrated over the detector volume. Its units are cm/eV.\n\n"
+    "Detector:\n" + std::to_string(idet) + "\n\n";
+  
+  results.setDimHeader(0, "Energy (eV)");
+  results.setValueHeader("Fluence (cm/eV hist)");
+
+  for(int i = 0; i < nbin; i++){
+    double qFLU = flu[kpar][i]*invn;
+    double sigmaFLU = (flu2[kpar][i]*invn - qFLU*qFLU)*invn;
+    sigmaFLU = sqrt((sigmaFLU > 0.0 ? sigmaFLU : 0.0));
+
+    results.data[i] = qFLU*iconfigEBin;
+    results.sigma[i] = sigmaFLU*iconfigEBin;
+  }
+	  
+  return results;    
+}
+
+penred::measurements::results<double, 1>
+pen_ImpactDetector::generateSpectrum(const pen_KPAR kpar,
+				     const unsigned long long nhists){
+
+  if(!spc)
+    return penred::measurements::results<double, 1>();
+  
+  if(!isLinScaleSpc){
+    penred::measurements::results<double, 1> results;
+    results.description = "Error: Results can only be generated for linear scale";
+    return results;
+  }
+  
+  const double invn = 1.0/static_cast<double>(nhists);
+	  
+  //Create results
+  penred::measurements::results<double, 1> results;
+  results.initFromLists({static_cast<unsigned long>(nbin)},
+			{penred::measurements::limitsType(configEmin, configEmax)});
+	  
+  results.description =
+    "PenRed: Energy spectrum report\n\n"
+    "The spectrum units are 1/(eV*history).\n\n"
+    "Detector:\n" + std::to_string(idet) + "\n\n";
+  
+  results.setDimHeader(0, "Energy (eV)");
+  results.setValueHeader("Spectrum (particles/eV history)");
+
+  for(int j = 0; j < nbin; j++){
+    double qSPC = spectrum[kpar][j]*invn;
+    double q2SPC = spectrum2[kpar][j]*invn;
+    double sigmaSPC = (q2SPC-qSPC*qSPC)*invn;
+    if (sigmaSPC > 0.0){sigmaSPC = sqrt(sigmaSPC);}
+    else{sigmaSPC = 0.0;}
+
+    results.data[j] = qSPC*iconfigEBin;
+    results.sigma[j] = sigmaSPC*iconfigEBin;
+  }
+	  
+  return results;    
+}
 
 void pen_ImpactDetector::flush(){
     
@@ -1307,4 +1520,4 @@ int pen_ImpactDetector::sumTally(const pen_ImpactDetector& tally){
   
 }
 
-REGISTER_COMMON_TALLY(pen_ImpactDetector, IMPACT_DET)
+REGISTER_COMMON_TALLY(pen_ImpactDetector)

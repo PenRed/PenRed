@@ -30,7 +30,188 @@
 
 #include "tallyKermaTrackLength.hh"
 
-#include <array>
+
+pen_tallyKermaTrackLength::pen_tallyKermaTrackLength() :
+  pen_genericTally(USE_JUMP | USE_STEP),
+  kparTrig(PEN_PHOTON),
+  muen(constants::MAXMAT+1),
+  cartesian(nullptr),
+  cartesian2(nullptr),
+  cartesianTmp(nullptr),
+  cartesianLastHist(nullptr),
+  activeCart(false),
+  cylindrical(nullptr),
+  cylindrical2(nullptr),
+  cylindricalTmp(nullptr),
+  cylindricalLastHist(nullptr),
+  activeCyl(false),
+  spherical(nullptr),
+  spherical2(nullptr),
+  sphericalTmp(nullptr),
+  sphericalLastHist(nullptr),
+  pvolumesSph(nullptr),
+  activeSph(false)
+{
+  //Register results functions
+  setResultsGenerator<0>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 3>{
+	
+      double invn = 1.0/static_cast<double>(nhists);
+      //Create results
+      penred::measurements::results<double, 3> results;
+      results.initFromLists
+	({static_cast<unsigned long>(nbinsCart.x),
+	   static_cast<unsigned long>(nbinsCart.y),
+	   static_cast<unsigned long>(nbinsCart.z)},
+	  {penred::measurements::limitsType(minsCart.x, maxsCart.x),
+	   penred::measurements::limitsType(minsCart.y, maxsCart.y),
+	   penred::measurements::limitsType(minsCart.z, maxsCart.z)
+	  });
+	  
+      results.description =
+	"PenRed: Cartesian kerma report";
+  
+      results.setDimHeader(0, "x (cm)");
+      results.setDimHeader(1, "y (cm)");
+      results.setDimHeader(2, "z (cm)");
+      results.setValueHeader("Kerma (eV/g hist)");
+
+      const size_t nBins = nbinsCart.x*nbinsCart.y*nbinsCart.z;
+      for(size_t i = 0; i < nBins; ++i){
+	double q = cartesian[i]*invn;
+	double sigma = (cartesian2[i]*invn - q*q)*invn;
+	sigma = sqrt((sigma > 0.0 ? sigma : 0.0));
+
+	q /= volumeCart;
+	sigma /= volumeCart;
+
+	results.data[i] = q;
+	results.sigma[i] = sigma;
+      }
+
+      return results;
+    });
+
+  setResultsGenerator<1>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 3>{	
+      double invn = 1.0/static_cast<double>(nhists);
+
+      long int modI = 0;
+      if(radCylmin > 1.0e-9){
+	modI = -1;
+      }
+	
+      //Create results
+      penred::measurements::results<double, 3> results;
+      results.initFromLists
+	({static_cast<unsigned long>(nbinsCyl.x + modI),
+	   static_cast<unsigned long>(nbinsCyl.y),
+	   static_cast<unsigned long>(nbinsCyl.z)},
+	  {penred::measurements::limitsType(radCylmin, radCyl),
+	   penred::measurements::limitsType(0.0, 360.0),
+	   penred::measurements::limitsType(zminCyl, zmaxCyl)
+	  });
+	  
+      results.description =
+	"PenRed: Cylindrical kerma report";
+  
+      results.setDimHeader(0, "r (cm)");
+      results.setDimHeader(1, "phi (deg)");
+      results.setDimHeader(2, "z (cm)");
+      results.setValueHeader("Kerma (eV/g hist)");
+	
+      unsigned long t = 0;
+      unsigned long skips = 0;
+      for(long int k = 0; k < nbinsCyl.z; ++k){
+	for(long int j = 0; j < nbinsCyl.y; ++j){
+	  for(long int i = 0; i < nbinsCyl.x; ++i){
+	    if(i == 0){
+	      if(radCylmin > 1.0e-9){
+		++t;
+		++skips;
+		continue; //Skip [0.0,rmin) bin
+	      }
+	    }
+	      
+	    double q = cylindrical[t]*invn;
+	    double sigma = (cylindrical2[t]*invn - q*q)*invn;
+	    sigma = sqrt((sigma > 0.0 ? sigma : 0.0));
+
+	    const double volume = pvolumesCyl[i];
+	    q /= volume;
+	    sigma /= volume;
+
+	    results.data[t-skips] = q;
+	    results.sigma[t-skips] = sigma;
+	    ++t;
+	  }
+	}
+      }
+
+      return results;
+    });    
+
+  setResultsGenerator<2>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 3>{	
+      double invn = 1.0/static_cast<double>(nhists);
+
+      long int modI = 0;
+      if(radSphmin > 1.0e-9){
+	modI = -1;
+      }
+	
+      //Create results
+      penred::measurements::results<double, 3> results;
+      results.initFromLists
+	({static_cast<unsigned long>(nbinsSph.x + modI),
+	   static_cast<unsigned long>(nbinsSph.y),
+	   static_cast<unsigned long>(nbinsSph.z)},
+	  {penred::measurements::limitsType(radSphmin, radSph),
+	   penred::measurements::limitsType(0.0, 180.0),
+	   penred::measurements::limitsType(0.0, 360.0)
+	  });
+	  
+      results.description =
+	"PenRed: Spherical kerma report";
+  
+      results.setDimHeader(0, "r (cm)");
+      results.setDimHeader(1, "polar (deg)");
+      results.setDimHeader(2, "azimuth (deg)");
+      results.setValueHeader("Kerma (eV/g hist)");
+	
+      unsigned long t = 0;
+      unsigned long skips = 0;
+      for(long int k = 0; k < nbinsSph.z; ++k){
+	for(long int j = 0; j < nbinsSph.y; ++j){
+	  long int itheta = j*nbinsSph.x;	    
+	  for(long int i = 0; i < nbinsSph.x; ++i){
+	    if(i == 0){
+	      if(radSphmin > 1.0e-9){
+		++t;
+		++skips;
+		continue; //Skip [0.0,rmin) bin
+	      }
+	    }
+	      
+	    double q = spherical[t]*invn;
+	    double sigma = (spherical2[t]*invn - q*q)*invn;
+	    sigma = sqrt((sigma > 0.0 ? sigma : 0.0));
+	  
+	    double volume = pvolumesSph[itheta+i];
+	    q /= volume;
+	    sigma /= volume;
+
+	    results.data[t-skips] = q;
+	    results.sigma[t-skips] = sigma;
+	    ++t;
+	  }
+	}
+      }
+
+      return results;
+    });    
+}
+    
 
 inline void pen_tally_KTL::cart2CylSph(const vect3d& pos,
 				       vect3d& cyl,
@@ -2520,8 +2701,8 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& geometry,
 			 size_t i, double& sigma) -> double{
 
 		       const double dhists = static_cast<double>(nhist);
-		       const size_t itheta = i % nbinsCyl.y;
-		       const size_t ir = i % nbinsCyl.x;
+		       const size_t itheta = i % nbinsSph.y;
+		       const size_t ir = i % nbinsSph.x;
 
 		       double q = spherical[i]/dhists;
 		       sigma = (spherical2[i]/dhists - q*q);
@@ -2814,4 +2995,4 @@ int pen_tallyKermaTrackLength::sumTally(const pen_tallyKermaTrackLength& tally){
   
 }
 
-REGISTER_COMMON_TALLY(pen_tallyKermaTrackLength, KERMA_TRACK_LENGTH)
+REGISTER_COMMON_TALLY(pen_tallyKermaTrackLength)

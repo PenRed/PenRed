@@ -97,6 +97,9 @@ namespace penred{
 					   pen_tallyTrackingMemory>;    
 #endif
 
+    // ++ Auxiliary tally type based functions
+
+    // Register checking
     template<size_t T>
     typename std::enable_if<T >= std::tuple_size<typesGenericTallies>::value, bool>::type
     checkRegistersGeneric(const unsigned){ return true; }
@@ -121,6 +124,23 @@ namespace penred{
     
     template<>
     bool checkRegistered<pen_particleState>(const unsigned verbose);
+
+    // Index finding by ID
+    template<class ObjectiveType, size_t T = 0>
+    constexpr typename std::enable_if_t<T >= std::tuple_size<typesGenericTallies>::value, unsigned>
+    typeIndex(){return std::tuple_size<typesGenericTallies>::value;}
+    
+    template<class ObjectiveType, size_t T = 0>
+    constexpr typename std::enable_if_t<T < std::tuple_size<typesGenericTallies>::value, unsigned>
+    typeIndex(){
+      using TallyType = typename std::tuple_element<T, typesGenericTallies>::type;
+
+      //Perform the explicit comparison rather than comparing just the pointers
+      if(std::is_same<ObjectiveType, TallyType>::value)
+	return T;
+      else
+	return typeIndex<ObjectiveType, T+1>();
+    }
   }
 }
 

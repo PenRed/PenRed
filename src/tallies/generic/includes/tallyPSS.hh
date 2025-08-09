@@ -34,7 +34,7 @@
 #include "pen_constants.hh"
 
 class pen_PSS: public pen_genericTally<pen_particleState> {
-  DECLARE_TALLY(pen_PSS,pen_particleState)
+  DECLARE_TALLY(pen_PSS,pen_particleState,PSS)
   
   private:
 

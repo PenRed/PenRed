@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2021 Universitat de València - UV
 //    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -29,6 +30,52 @@
 
 
 #include "tallyEnergyDepositionMat.hh"
+
+pen_EdepMat::pen_EdepMat() : pen_genericTally( USE_LOCALEDEP |
+					       USE_BEGINPART |
+					       USE_SAMPLEDPART |
+					       USE_STEP |
+					       USE_ENDHIST |
+					       USE_MOVE2GEO),
+			     nmat(0)
+{
+  setResultsGenerator<0>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 1>{
+
+      if(nmat <= 0){
+	penred::measurements::results<double, 1> results;
+	results.description = "Error: No material provided. "
+	  "Configure the tally before getting results.";
+	return results;
+      }
+
+      double invn = 1.0/static_cast<double>(nhists);
+	
+      //Create results
+      penred::measurements::results<double, 1> results;
+      results.initFromLists({static_cast<unsigned long>(nmat)},
+			    {penred::measurements::limitsType(0.0, static_cast<double>(nmat))});
+	  
+      results.description = "PenRed: Material energy deposition report.\n\n";
+  
+      results.setDimHeader(0, "Material");
+      results.setValueHeader("Energy (eV/hist)");
+
+      for(int i = 0; i < nmat; i++)
+	{
+	  double q  = edep[i]*invn;
+	  double q2 = edep2[i]*invn;
+	  double sigma = (q2-(q*q))*invn;
+	  if(sigma > 0.0){ sigma = sqrt(sigma);}
+	  else{sigma = 0.0;}
+
+	  results.data[i] = q;
+	  results.sigma[i] = sigma;
+	}
+
+      return results;
+    });      
+}
 
 void pen_EdepMat::flush()
 {
@@ -185,4 +232,4 @@ int pen_EdepMat::sumTally(const pen_EdepMat& tally){
   return 0;
 }
 
-REGISTER_COMMON_TALLY(pen_EdepMat, EDEP_MAT)
+REGISTER_COMMON_TALLY(pen_EdepMat)

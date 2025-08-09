@@ -31,6 +31,76 @@
  
 #include "tallySpatialDoseDistrib.hh"
 
+pen_SpatialDoseDistrib::pen_SpatialDoseDistrib() :
+  pen_genericTally( USE_LOCALEDEP |
+		    USE_BEGINPART |
+		    USE_SAMPLEDPART |
+		    USE_STEP |
+		    USE_ENDSIM |
+		    USE_MOVE2GEO)
+{
+  nx = ny = nz = nxy = nbin = 0;
+  dx = dy = dz = 0.0;
+  idx = idy = idz = 1.0e35;
+  xmin = ymin = zmin = 0.0;
+      
+  nlast = nullptr;
+  edptmp = nullptr;
+  edep = nullptr;
+  edep2 = nullptr;
+  ivoxMass = nullptr;
+
+  nlastdepth = nullptr;
+  edepthtmp = nullptr;
+  edepth = nullptr;
+  edepth2 = nullptr;
+
+  printDepthDose = false;
+
+  setResultsGenerator<0>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 3>{
+
+      const double invn = 1.0/static_cast<double>(nhists);
+
+      //Create results
+      penred::measurements::results<double, 3> results;
+      results.initFromLists
+	({static_cast<unsigned long>(nx),
+	   static_cast<unsigned long>(ny),
+	   static_cast<unsigned long>(nz)},
+	  {penred::measurements::limitsType(xmin, xmin + static_cast<double>(nx)*dx),
+	   penred::measurements::limitsType(ymin, ymin + static_cast<double>(ny)*dy),
+	   penred::measurements::limitsType(zmin, zmin + static_cast<double>(nz)*dz)});
+	  
+      results.description =
+	"PenRed: Spatial dose distribution report\n"
+	"Dose units are: eV/g per history\n";
+  
+      results.setDimHeader(0, "x (cm)");
+      results.setDimHeader(1, "y (cm)");
+      results.setDimHeader(2, "z (cm)");
+      results.setValueHeader("Dose (eV/g hist)");
+
+      size_t nbins = static_cast<size_t>(nx*ny*nz);
+      for(size_t i = 0; i < nbins; ++i){
+	const double fact = ivoxMass[i];
+	const double q = edep[i]*invn;
+	double sigma = edep2[i]*invn - q*q;
+	if(sigma > 0.0){
+	  sigma = sqrt(sigma*invn);
+	}
+	else{
+	  sigma = 0.0;
+	}
+
+	results.data[i] = q*fact;
+	results.sigma[i] = sigma*fact;
+      }
+
+      return results;
+    });  
+}
+
 void pen_SpatialDoseDistrib::updateEdepCounters(const double dE,
 						const unsigned long long nhist,
 						const double X,
@@ -800,34 +870,4 @@ int pen_SpatialDoseDistrib::sumTally(const pen_SpatialDoseDistrib& tally){
     
 }
 
-REGISTER_COMMON_TALLY(pen_SpatialDoseDistrib, SPATIAL_DOSE_DISTRIB)
-
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+REGISTER_COMMON_TALLY(pen_SpatialDoseDistrib)
