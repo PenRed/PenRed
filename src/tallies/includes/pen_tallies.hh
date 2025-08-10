@@ -1168,8 +1168,6 @@ namespace penred{
     template <typename... TallyTypes>
     struct GlobalResultsMapTupleBuilder{
       using type = void;
-      static_assert(false,
-		    "Tally Results map require tallies specified within a tuple std::tuple<Type1,Type2,...>");
     };
     
     template <typename... TallyTypes>
