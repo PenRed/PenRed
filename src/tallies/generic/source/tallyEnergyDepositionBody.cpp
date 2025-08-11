@@ -168,7 +168,18 @@ int pen_EdepBody::configure(const wrapper_geometry& geometry,
 
   geo = &geometry;
   
-  nBody = geometry.getElements();
+  nBody = geometry.getBodies();
+  
+  if(nBody > pen_geoconst::NB){
+    if(verbose > 0){
+          
+      printf(" *********************************************\n");
+      printf(" EdepBody:configure:ERROR:nBody must be lesser than: %u\n",pen_geoconst::NB);
+      printf(" *********************************************\n");
+    }
+    return 1;
+  }
+
     
   //Clear counters:
   for(unsigned int j = 0; j < pen_geoconst::NB; j++){
