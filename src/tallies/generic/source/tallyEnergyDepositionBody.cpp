@@ -2,7 +2,7 @@
 //
 //
 //    Copyright (C) 2019-2023 Universitat de València - UV
-//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2025 Universitat Politècnica de València - UPV
 //    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
@@ -170,7 +170,7 @@ int pen_EdepBody::configure(const wrapper_geometry& geometry,
   
   nBody = geometry.getBodies();
   
-  if(nBody > pen_geoconst::NB){
+  if(static_cast<unsigned long>(nBody) > pen_geoconst::NB){
     if(verbose > 0){
           
       printf(" *********************************************\n");
