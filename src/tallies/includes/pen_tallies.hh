@@ -861,7 +861,7 @@ public:
     return -1;
   }
   inline std::string getTallyName(const size_t i){
-    if(i > tallies.size())
+    if(i >= tallies.size())
       return std::string();
 
     return tallies[i]->readName();
@@ -883,7 +883,7 @@ public:
   }
   template<class TallyType>
   inline bool isCreated(const size_t i){
-    if(i > tallies.size())
+    if(i >= tallies.size())
       return false;
     
     TallyType* derived = penred::tally::downcast<TallyType>(tallies[i]);
@@ -911,7 +911,7 @@ public:
   template<class TallyType>
   inline typename TallyType::ResultsTypes getResults(const size_t i, const unsigned long long nhists){
 
-    if(i > tallies.size())
+    if(i >= tallies.size())
       return typename TallyType::ResultsTypes();
 
     TallyType* derived = penred::tally::downcast<TallyType>(tallies[i]);
