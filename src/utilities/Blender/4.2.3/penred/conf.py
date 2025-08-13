@@ -167,12 +167,18 @@ def createSources(context, f, toRound):
                         sourceMat = source.sourceMat
                     else:
                         sourceMat = -1
+
+                    genericSourcePos = (x,y,z)
+                    if source.ctEnable:
+                        # The translation is already applied by the CT source
+                        genericSourcePos = (0.0,0.0,0.0)
+
                     sources.createGeneric(f, name, source.nHists,
                                           source.particleType,
                                           source.energyType,
                                           source.energy, source.spcFile,
                                           source.aperture, source.direction,
-                                          source.spatialType, (x,y,z), spatialSize,
+                                          source.spatialType, genericSourcePos, spatialSize,
                                           sourceMat, toRound)
 
                 # Check time sampling
