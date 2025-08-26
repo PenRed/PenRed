@@ -110,15 +110,13 @@ int image_spatialSampling::configure(const pen_parserSection& config,
 	if(verbose > 0){
 	  printf("image_spatialSampling:configure: source sampling data will be saved to %s.\n",samplingoutfilename.c_str());
 	}
-	char buffer[81];  
-	strcpy(buffer,samplingoutfilename.c_str());
-	outsampling = fopen(buffer,"w");
-	if (outsampling == NULL)
+
+	outsampling = fopen(samplingoutfilename.c_str(),"w");
+	if (outsampling == nullptr)
 	  {
 	    printf("\n********************************************************************************\n");
 	    printf("image_spatialSampling: Error: Cannot open source sampling output data file\n");
 	    printf("********************************************************************************\n");
-	    fclose(outsampling);                            
 	    return 6;                      
 	  }
       }
@@ -284,12 +282,11 @@ int image_spatialSampling::configure(const pen_parserSection& config,
     {
       //Init walker algorithm
       printf("Reading initialization Walker algorithm ... ");fflush(stdout);
-      char buffer[81];
+
       FILE* in = nullptr;
       char BLINE[100];  
   
-      strcpy(buffer,walkersfilename.c_str());
-      in = fopen(buffer,"r");
+      in = fopen(walkersfilename.c_str(),"r");
       if(in == nullptr){
 	printf("\n*************************************************************************\n");
 	printf("image_spatialSampling: Error: Cannot open Walker initialization data file\n");
@@ -323,12 +320,8 @@ int image_spatialSampling::configure(const pen_parserSection& config,
       if(verbose > 0){
 	printf("image_spatialSampling:configure: the ActivityDistribution data will be saved to %s ... ",walkersoutfilename.c_str());
       }    
-      char buffer[81];
       FILE* out = nullptr;
-  
-      strcpy(buffer,walkersoutfilename.c_str());
-     
-      out = fopen(buffer,"w");
+      out = fopen(walkersoutfilename.c_str(),"w");
       if (out == nullptr)
 	{
 	  printf("\n********************************************************************************\n");

@@ -40,6 +40,7 @@
 #include <chrono>
 #include <queue>
 #include <condition_variable>
+#include <functional>
 
 namespace penred{
 
@@ -69,8 +70,6 @@ namespace penred{
 	MOVE,
 	ROTATE,
 	MOVE_AND_ROTATE,
-	INTEGER,
-	DOUBLE,
 	UNKNOWN,
       };
 
@@ -80,8 +79,6 @@ namespace penred{
 	case MOVE: return "move";
 	case ROTATE: return "rotate";
 	case MOVE_AND_ROTATE: return "move and rotate";
-	case INTEGER: return "integer";
-	case DOUBLE: return "double";
 	default: return "unknown";
 	}
       }
@@ -92,10 +89,13 @@ namespace penred{
       std::string name;
       unsigned operation;
       std::vector<double> parameters;
+      unsigned long long id;
 
       InteractiveInstruction() :
 	type(InstructionTypes::UNKNOWN),
-	operation(InstructionOperations::NONE){}
+	operation(InstructionOperations::NONE),
+	id(0)
+      {}
     };
 
     template<class contextType, class stateType>
@@ -141,13 +141,8 @@ namespace penred{
       //Instructions for interactive execution on each thead
       std::queue<InteractiveInstruction> instructions; 
       std::condition_variable instructionsCondition;
-
-      //Results variables
-      std::mutex resultsMutex;
-      bool resultsAvailable;
-      std::condition_variable resultsCondition;
-      std::vector<std::vector<double>> auxResultsDoub;
-      std::vector<std::vector<int>> auxResultsInt;
+      unsigned long long nextInstructionID;
+      unsigned long long lastProcessedInstructionID;
       
       pen_parserSection contextConfig;
       pen_parserSection particleSourcesConfig;
@@ -159,6 +154,31 @@ namespace penred{
       simConfig baseSimConfig;
       //Simulation configuration for each running thread
       std::vector<penred::simulation::simConfig> simConfigs;
+
+      //Save last simulation results
+      penred::tally::Results lastSimResults;
+      
+      inline unsigned long long sendInstructionTrusted(InteractiveInstruction&& inst){
+
+	//Set the ID for this instruction
+	inst.id = nextInstructionID;
+
+	instructions.push(std::move(inst));
+	instructionsCondition.notify_all();
+
+	return nextInstructionID++;
+      }
+
+      inline unsigned long long sendInstructionTrusted(InteractiveInstruction& inst){
+
+	//Set the ID for this instruction
+	inst.id = nextInstructionID;
+
+	instructions.push(inst);
+	instructionsCondition.notify_all();
+
+	return nextInstructionID++;
+      }
 
       template<class stateType>
       int _applyInstruction(const InteractiveInstruction& inst,
@@ -829,7 +849,7 @@ namespace penred{
       static std::string versionMessage(){
 
 	return std::string("***************************************************************\n"
-			   " PenRed version: 1.13.0 (28-May-2025) \n"
+			   " PenRed version: 1.14.0 (08-Aug-2025) \n"
 			   " Copyright (c) 2019-2025 Universitat Politecnica de Valencia\n"
 			   " Copyright (c) 2019-2025 Universitat de Valencia\n"
 			   " Copyright (c) 2024-2025 Vicent Giménez Alventosa\n"
@@ -848,7 +868,9 @@ namespace penred{
 		    nSeedPair(-1),
 		    ASCIIResults(true),
 		    finalDump(false),
-		    interactive(false)
+		    interactive(false),
+		    nextInstructionID(1),
+		    lastProcessedInstructionID(0)
       {
 	//Set default log to configuration
 	setDefaultLog(penred::logs::CONFIGURATION);
@@ -1628,7 +1650,6 @@ namespace penred{
 	    }
 	    
 	    // Process the instruction
-	    int tallyIndex = -1;
 	    bool sourceFound = false;
 	    switch(nextInstruction.type){
 	    case InstructionTypes::SIMULATE_SOURCE:
@@ -1729,32 +1750,27 @@ namespace penred{
 	      break;
 	    case InstructionTypes::GET_TALLY_RESULTS:
 
-	      //Find the tally by name
-	      tallyIndex = talliesVect[0].getTallyIndex(nextInstruction.name);
-	      if(tallyIndex < 0){
-		auxResultsDoub.clear();
-		auxResultsInt.clear();
-		resultsAvailable = true;
-		resultsCondition.notify_one();
-		continue;
+	      if(verbose > 2){
+		printf("Updating results from tally '%s'\n", nextInstruction.name.c_str());
 	      }
 
-	      if(nextInstruction.operation == InstructionOperations::INTEGER){
-		auxResultsInt.resize(nThreads);
-		for(size_t ith = 0; ith < nThreads; ++ith){
-		  talliesVect[ith].getResults(tallyIndex, auxResultsInt[ith]);
-		}
-	      }
-	      else{	      
-		auxResultsDoub.resize(nThreads);
-		for(size_t ith = 0; ith < nThreads; ++ith){
-		  talliesVect[ith].getResults(tallyIndex, auxResultsDoub[ith]);
-		}
-	      }
+	      {
+		//Get the lock
+		const std::lock_guard<std::mutex> lock(simMutex);
+	      
+		//Get simulated histories
+		const unsigned long long simulatedHists = simConfigs[0].getTotalSimulated();
 
-	      //Get simulation lock and notify to getResults
-	      resultsAvailable = true;
-	      resultsCondition.notify_one();
+		//Update results from thread 0
+		bool found = lastSimResults.update(talliesVect[0],
+						   nextInstruction.name,
+						   simulatedHists);
+
+		if(verbose > 1 && !found){
+		  printf("Unable to update results. Tally '%s' not found!\n",
+			 nextInstruction.name.c_str());
+		}
+	      }
 	      
 	      break;
 	    case InstructionTypes::FINISH_SIMULATION:
@@ -1764,6 +1780,11 @@ namespace penred{
 	      //Unknown instruction type
 	      break;
 	    }
+
+	    //Update last processed instruction
+	    std::unique_lock<std::mutex> lock(simMutex);
+	    lastProcessedInstructionID = nextInstruction.id;
+	    instructionsCondition.notify_all();
 	  }
 	}
 	else{
@@ -1981,8 +2002,12 @@ namespace penred{
 	}
 #endif
 
-	//Get lock to flag simulation as completed
+	//Get lock to flag simulation as completed and save results
 	const std::lock_guard<std::mutex> lockEnd(simMutex);
+
+	//Save simulation results
+	lastSimResults.clear();
+	lastSimResults.update(talliesVect[0], totalHists);
 	
 	//Return to configuration log
 	setDefaultLog(penred::logs::CONFIGURATION);
@@ -2089,25 +2114,41 @@ namespace penred{
       }
 
       //Instructions functions
-      inline int instructionEnd(){
-	InteractiveInstruction aux;
-	aux.type = InstructionTypes::FINISH_SIMULATION;
-	
+      inline unsigned long long instructionSend(const InteractiveInstruction& i){
+	//Get lock and send instruction
+	const std::lock_guard<std::mutex> lock(simMutex);
+	return sendInstructionTrusted(i);
+      }
+      inline unsigned long long instructionSend(InteractiveInstruction&& i){
+	//Get lock and send instruction
+	const std::lock_guard<std::mutex> lock(simMutex);
+	return sendInstructionTrusted(std::forward<InteractiveInstruction>(i));
+      }
+      inline unsigned long long instructionClear(){
+	//Get simulation lock
 	const std::lock_guard<std::mutex> lock(simMutex);
 
-	if(!interactive){
-	  return errors::ERROR_SIMULATION_NOT_RUNNING_INTERACTIVE;
-	}
+	//Update last processed instruction
+	lastProcessedInstructionID = instructions.back().id;
 	
-	instructions.push(std::move(aux));
-	instructionsCondition.notify_one();
+	//Clear queue
+	std::queue<InteractiveInstruction> empty;
+	std::swap(instructions, empty);
 
-	return errors::SUCCESS;
+	instructionsCondition.notify_all();
+	  
+	return nextInstructionID;
       }
-      inline int instructionSimulate(const std::string& sourceName,
-				     const double nhists,
-				     const std::vector<double>& trans = {},
-				     const std::vector<double>& rot = {}){
+      inline unsigned long long instructionEnd(){
+	InteractiveInstruction aux;
+	aux.type = InstructionTypes::FINISH_SIMULATION;
+
+	return instructionSend(std::move(aux));
+      }
+      inline unsigned long long instructionSimulate(const std::string& sourceName,
+						    const double nhists,
+						    const std::vector<double>& trans = {},
+						    const std::vector<double>& rot = {}){
 	InteractiveInstruction inst;
 	inst.type = InstructionTypes::SIMULATE_SOURCE;
 	inst.name = sourceName;
@@ -2153,152 +2194,62 @@ namespace penred{
 	  inst.parameters[0] = nhists;
 	}
 
-	//Get lock
-	const std::lock_guard<std::mutex> lock(simMutex);
-
-	if(!interactive){
-	  return errors::ERROR_SIMULATION_NOT_RUNNING_INTERACTIVE;
-	}
-	
-	instructions.push(std::move(inst));
-	instructionsCondition.notify_one();
-	
-	return errors::SUCCESS;
+	return instructionSend(std::move(inst));
       }
-      inline int getResults(const std::string& tallyName,
-			    std::vector<std::vector<double>>& results){
-	
-	//Get results lock
-	const std::lock_guard<std::mutex> lockResults(resultsMutex);
-	
+      inline unsigned long long instructionUpdateResults(const std::string& tallyName){
+		
 	InteractiveInstruction inst;
 	inst.type = InstructionTypes::GET_TALLY_RESULTS;
 	inst.name = tallyName;
-	inst.operation = InstructionOperations::DOUBLE;
+	inst.operation = InstructionOperations::NONE;
 	
-	//Get simulation lock
-	{
-	  std::unique_lock<std::mutex> lock(simMutex);
-
-	  //Check if the simulation is running
-	  if(!simulating){
-	    return errors::ERROR_SIMULATION_NOT_RUNNING;
-	  }
-	  if(!interactive){
-	    return errors::ERROR_SIMULATION_NOT_RUNNING_INTERACTIVE;
-	  }
-	
-	  resultsAvailable = false;
-	  instructions.push(std::move(inst));
-	  instructionsCondition.notify_one();
-
-	  //Wait until results are available
-	  resultsCondition.wait(lock, [this]{ return resultsAvailable; });
-	}
-	
-	//Get the results
-	results = std::move(auxResultsDoub);
-
-	return errors::SUCCESS;
+	return instructionSend(std::move(inst));
       }
-      inline int getResults(const std::string& tallyName,
-			    std::vector<std::vector<int>>& results){
-	
-	//Get results lock
-	const std::lock_guard<std::mutex> lockResults(resultsMutex);
-	
-	InteractiveInstruction inst;
-	inst.type = InstructionTypes::GET_TALLY_RESULTS;
-	inst.name = tallyName;
-	inst.operation = InstructionOperations::INTEGER;
-	
-	//Get simulation lock
-	{
-	  std::unique_lock<std::mutex> lock(simMutex);
 
-	  //Check if the simulation is running
-	  if(!simulating){
-	    return errors::ERROR_SIMULATION_NOT_RUNNING;
-	  }
-	  if(!interactive){
-	    return errors::ERROR_SIMULATION_NOT_RUNNING_INTERACTIVE;
-	  }
-	  
-	  resultsAvailable = false;
-	  instructions.push(std::move(inst));
-	  instructionsCondition.notify_one();
+      inline bool instructionWait(const unsigned long long instructionID,
+				  const unsigned long timeout){
 
-	  //Wait until results are available
-	  resultsCondition.wait(lock, [this]{ return resultsAvailable; });
-	}
-	
-	//Get the results
-	results = std::move(auxResultsInt);
-	  
-	return errors::SUCCESS;
-      }
-      inline void instructionSend(const InteractiveInstruction& i){
-	if(i.type == InstructionTypes::GET_TALLY_RESULTS){
-	  //Invalid instruction to queue, getResults must be used
-	  return;
-	}
-	//Get lock
-	const std::lock_guard<std::mutex> lock(simMutex);
-	instructions.push(i);
-	instructionsCondition.notify_one();
-      }
-      inline void instructionSend(InteractiveInstruction&& i){
-	if(i.type == InstructionTypes::GET_TALLY_RESULTS){
-	  //Invalid instruction to queue, getResults must be used
-	  return;
-	}	
-	//Get lock
-	const std::lock_guard<std::mutex> lock(simMutex);
-	instructions.push(std::move(i));
-	instructionsCondition.notify_one();
-      }
-      inline void instructionClear(){
-	//Get results and simulation locks
-	const std::lock_guard<std::mutex> lockResults(resultsMutex);	
-	const std::lock_guard<std::mutex> lock(simMutex);
-	//No thread wating for results, it is safe to clear instructions
-	std::queue<InteractiveInstruction> empty;
-	std::swap(instructions, empty);
-      }
-      inline int instructionEndAndWait(){
+	//Waits until the specific instruction ID is completed or the timeout is reached.
+	//Returns true or false respectivelly
 
-	//Get results lock
-	const std::lock_guard<std::mutex> lockResults(resultsMutex);
-
-	//Get simulation lock
 	std::unique_lock<std::mutex> lock(simMutex);
 
-	if(!simulating){
-	  return errors::ERROR_SIMULATION_NOT_RUNNING;
+	auto timeoutChrono = std::chrono::seconds(timeout);
+
+	if(instructionsCondition.wait_for(lock, timeoutChrono, [this, instructionID]{
+	  return lastProcessedInstructionID >= instructionID;
+	})){
+	  return true;
 	}
-	if(!interactive){
-	  return errors::ERROR_SIMULATION_NOT_RUNNING_INTERACTIVE;
+	else{
+	  return false;
 	}
-	
-	//Add an end instruction
-	InteractiveInstruction aux;
-	aux.type = InstructionTypes::FINISH_SIMULATION;
-	
-	instructions.push(std::move(aux));
+      }
+      
+      inline int instructionEndAndWait(const unsigned long timeout){
+	const unsigned long long endID = instructionEnd();
+	return instructionWait(endID, timeout);
+      }
 
-	//Add a results request instruction
-	aux.type = InstructionTypes::GET_TALLY_RESULTS;
-	aux.name = "";
-	aux.operation = InstructionOperations::DOUBLE;
-	
-	resultsAvailable = false;
-	instructions.push(std::move(aux));
-	instructionsCondition.notify_one();
+      //Results functions
+      inline penred::tally::Results copyResults() const {
+	const std::lock_guard<std::mutex> lockEnd(simMutex);
+	return lastSimResults;
+      }
 
-	//Wait until results are available
-	resultsCondition.wait(lock, [this]{ return resultsAvailable; });
+      template <typename ReturnType>
+      ReturnType processResults(std::function<ReturnType(const penred::tally::Results&)> f) const {
+	const std::lock_guard<std::mutex> lockEnd(simMutex);
+	return f(lastSimResults);
+      }
 
-	return errors::SUCCESS;
+      inline void printResults(const char* prefix,
+			       const unsigned nSigma,
+			       const bool coordinates,
+			       const bool binNumber,
+			       const bool onlyEffective = false) const {
+	const std::lock_guard<std::mutex> lockEnd(simMutex);
+	lastSimResults.print(prefix,nSigma,coordinates,binNumber,onlyEffective);	
       }
     };
 

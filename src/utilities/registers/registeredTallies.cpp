@@ -33,7 +33,8 @@
 int main(){
   //Ensure register variables are linked from the static library
   penred::tally::checkRegistered<pen_particleState>(1);
-  printf("Registered common tallies:\n");
-  printf("%s",pen_commonTallyCluster::typesList().c_str());
+  printf("Registered common tallies with their results types:\n\n");
+  //printf("%s",pen_commonTallyCluster::typesList().c_str());
+  penred::tally::printTalliesResultsTypes();
   return 0;
 }

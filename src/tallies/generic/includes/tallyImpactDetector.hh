@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2025 Universitat de València - UV
 //    Copyright (C) 2019-2025 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -34,7 +35,16 @@
 #include "pen_constants.hh"
 
 class pen_ImpactDetector: public pen_genericTally<pen_particleState> {
-  DECLARE_TALLY(pen_ImpactDetector,pen_particleState)
+  DECLARE_TALLY(pen_ImpactDetector,pen_particleState,IMPACT_DET,
+		std::pair<double, penred::tally::Dim<1>>, //Electron fluence
+		std::pair<double, penred::tally::Dim<1>>, //Gamma fluence
+		std::pair<double, penred::tally::Dim<1>>, //Positron fluence
+		std::pair<double, penred::tally::Dim<1>>, //Electron spectrum
+		std::pair<double, penred::tally::Dim<1>>, //Gamma spectrum
+		std::pair<double, penred::tally::Dim<1>>, //Positron spectrum
+		std::pair<double, penred::tally::Dim<1>>, //Energy deposition
+		std::pair<double, penred::tally::Dim<1>>  //Particle age
+		)
     
   private:
   
@@ -78,21 +88,13 @@ class pen_ImpactDetector: public pen_genericTally<pen_particleState> {
     
 public:
     
-  pen_ImpactDetector() : pen_genericTally( USE_STEP |
-					   USE_LOCALEDEP |
-					   USE_INTERFCROSS |
-					   USE_MOVE2GEO |
-					   USE_BEGINPART |
-					   USE_ENDHIST),
-			 isLinScaleFlu(true), isLinScaleSpc(true),
-			 isLinScaleAge(true), isLinScaleDep(true),
-			 inside(false), spc(false), ageActive(false),
-			 fln(false), eDepActive(false),			 
-			 nbin(0),
-			 nbinAge(0)			 
-    
-    
-  {}
+  pen_ImpactDetector();
+
+  penred::measurements::results<double, 1> generateFluence(const pen_KPAR kpar,
+							   const unsigned long long nhists);
+
+  penred::measurements::results<double, 1> generateSpectrum(const pen_KPAR kpar,
+							    const unsigned long long nhists);
     
   //void trackl(double ds, double energy, double de, const pen_KPAR kpar);
   void discreteTrackL(const pen_KPAR kpar,

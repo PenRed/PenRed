@@ -398,4 +398,4 @@ int pen_tallySecondary::sumTally(const pen_tallySecondary& tally){
 
 
 
-REGISTER_COMMON_TALLY(pen_tallySecondary, SECONDARY_GEN)
+REGISTER_COMMON_TALLY(pen_tallySecondary)

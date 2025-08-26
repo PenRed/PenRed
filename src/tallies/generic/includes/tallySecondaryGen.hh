@@ -33,7 +33,7 @@
 #include "pen_constants.hh"
 
 class pen_tallySecondary : public pen_genericTally<pen_particleState> {
-  DECLARE_TALLY(pen_tallySecondary,pen_particleState)
+  DECLARE_TALLY(pen_tallySecondary,pen_particleState,SECONDARY_GEN)
 
   private:
   double absSec[constants::nParTypes],

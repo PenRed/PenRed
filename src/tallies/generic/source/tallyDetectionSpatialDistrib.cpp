@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2024 Universitat de València - UV
 //    Copyright (C) 2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -199,4 +200,4 @@ int pen_DetectionSpatialDistrib::sumTally(const pen_DetectionSpatialDistrib& tal
   
 }
 
-REGISTER_COMMON_TALLY(pen_DetectionSpatialDistrib, DETECTION_SPATIAL_DISTRIB)
+REGISTER_COMMON_TALLY(pen_DetectionSpatialDistrib)

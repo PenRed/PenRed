@@ -573,7 +573,7 @@ class sourceProperties(bpy.types.PropertyGroup):
                                       description = "Source aperture in degrees",
                                       default = 0.0,
                                       min=0.0,
-                                      max=180.0)
+                                      max=360.0)
     direction: bpy.props.FloatVectorProperty(name = "Direction",
                                              description = "Source direction vector",
                                              size = 3,

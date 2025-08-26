@@ -1030,6 +1030,8 @@ int pen_dicomGeo::printImage(const char* filename) const{
     fprintf(OutVox,"\n\n\n");    
   }
 
+  fclose(OutVox);
+  
   return 0;
 }
 

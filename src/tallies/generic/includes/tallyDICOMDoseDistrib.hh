@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2021 Universitat de València - UV
 //    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -33,7 +34,8 @@
 #ifdef _PEN_USE_DICOM_
 
 class pen_DICOMDoseDistrib: public pen_genericTally<pen_particleState> {
-  DECLARE_TALLY(pen_DICOMDoseDistrib,pen_particleState)
+  DECLARE_TALLY(pen_DICOMDoseDistrib,pen_particleState,DICOM_DOSE_DISTRIB,
+		std::pair<double, penred::tally::Dim<3>>)
   
   private:
   long int  nx,ny,nz;
@@ -65,38 +67,7 @@ class pen_DICOMDoseDistrib: public pen_genericTally<pen_particleState> {
   std::vector<std::string> contNames;
 public:
     
-      pen_DICOMDoseDistrib() : pen_genericTally( USE_LOCALEDEP |
-						   USE_BEGINPART |
-						   USE_SAMPLEDPART |
-						   USE_STEP |
-						   USE_ENDSIM |
-						   USE_MOVE2GEO |
-						   USE_ENDHIST )
-                         
-
-  {
-      nx = ny = nz = nxy = nbin = 0;
-      dx = dy = dz = 0.0;
-      idx = idy = idz = 1.0e35;
-      xmin = ymin = zmin = 0.0;
-      
-      nlast = nullptr;
-      edptmp = nullptr;
-      edep = nullptr;
-      edep2 = nullptr;
-      ivoxMass = nullptr;
-
-      contEdptmp = nullptr;
-      contEdep = nullptr;
-      contEdep2 = nullptr;
- 
-      contMass = nullptr;
-      contVol  = nullptr;
-
-      contourVox = nullptr;
-      ncontours = 0;
-      
-}
+  pen_DICOMDoseDistrib();
   
   void updateEdepCounters(const double dE,
                           const unsigned long long nhist,

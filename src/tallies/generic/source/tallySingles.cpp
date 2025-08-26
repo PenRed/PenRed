@@ -815,4 +815,4 @@ void pen_Singles::singlesBuffer::reduce(const size_t start, const bool saveScatt
   n = iAux;      
 }
 
-REGISTER_COMMON_TALLY(pen_Singles, SINGLES)
+REGISTER_COMMON_TALLY(pen_Singles)

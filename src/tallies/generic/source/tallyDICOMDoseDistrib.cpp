@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2022 Universitat de València - UV
 //    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -30,6 +31,82 @@
 #ifdef _PEN_USE_DICOM_
  
 #include "tallyDICOMDoseDistrib.hh"
+
+pen_DICOMDoseDistrib::pen_DICOMDoseDistrib() :
+  pen_genericTally( USE_LOCALEDEP |
+		    USE_BEGINPART |
+		    USE_SAMPLEDPART |
+		    USE_STEP |
+		    USE_ENDSIM |
+		    USE_MOVE2GEO |
+		    USE_ENDHIST )                         
+{
+  nx = ny = nz = nxy = nbin = 0;
+  dx = dy = dz = 0.0;
+  idx = idy = idz = 1.0e35;
+  xmin = ymin = zmin = 0.0;
+      
+  nlast = nullptr;
+  edptmp = nullptr;
+  edep = nullptr;
+  edep2 = nullptr;
+  ivoxMass = nullptr;
+
+  contEdptmp = nullptr;
+  contEdep = nullptr;
+  contEdep2 = nullptr;
+ 
+  contMass = nullptr;
+  contVol  = nullptr;
+
+  contourVox = nullptr;
+  ncontours = 0;
+
+  //Register results functions
+  setResultsGenerator<0>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 3>{
+	  
+      double invn = 1.0/static_cast<double>(nhists);
+      constexpr double ev2Gy = 1.60217662E-16;
+	  
+      penred::measurements::results<double, 3> results;
+      results.initFromLists
+	({static_cast<long unsigned>(nx),
+	   static_cast<long unsigned>(ny),
+	   static_cast<long unsigned>(nz)},
+	 {penred::measurements::limitsType(xmin, xmin + dx*static_cast<double>(nx)),
+	  penred::measurements::limitsType(ymin, ymin + dy*static_cast<double>(ny)),
+	  penred::measurements::limitsType(zmin, zmin + dz*static_cast<double>(nz))
+	 });
+	  
+      results.description = "PenRed: DICOM dose per voxel distribution report\n";
+  
+      results.setDimHeader(0, "x (cm)");
+      results.setDimHeader(1, "y (cm)");
+      results.setDimHeader(2, "z (cm)");
+      results.setValueHeader("dose (eV/g hist)");
+
+      for(long int i = 0; i < nbin; ++i){
+	double fact = ivoxMass[i]*ev2Gy;
+	double q = edep[i]*invn;
+	double sigma = edep2[i]*invn - q*q;
+	if(sigma > 0.0)
+	  {
+	    sigma = sqrt(sigma*invn)*fact;
+	  }
+	else
+	  {
+	    sigma = 0.0;
+	  }
+	q = q*fact;
+
+	results.data[i] = q;
+	results.sigma[i] = sigma;
+      }
+	  
+      return results;
+    });
+}
 
 void pen_DICOMDoseDistrib::updateEdepCounters(const double dE,
 					      const unsigned long long nhist,
@@ -588,7 +665,7 @@ int pen_DICOMDoseDistrib::sumTally(const pen_DICOMDoseDistrib& tally){
     
 }
 
-REGISTER_COMMON_TALLY(pen_DICOMDoseDistrib, DICOM_DOSE_DISTRIB)
+REGISTER_COMMON_TALLY(pen_DICOMDoseDistrib)
 
 #endif
  

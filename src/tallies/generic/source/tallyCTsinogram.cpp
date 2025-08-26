@@ -1117,4 +1117,4 @@ int pen_CTsinogram::sumTally(const pen_CTsinogram& tally){
   return 0;
 }
 
-REGISTER_COMMON_TALLY(pen_CTsinogram, CT_SINOGRAM)
+REGISTER_COMMON_TALLY(pen_CTsinogram)
