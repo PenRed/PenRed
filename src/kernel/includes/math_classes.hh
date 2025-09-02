@@ -1505,9 +1505,10 @@ namespace penred{
 
       //Headers functions
       inline const std::string& readDimHeader(const unsigned idim) const {
+	static const std::string emptyString("");
 	if(idim > dim){
-	  return "";
-	}	
+	  return emptyString;
+	}
 	return headers[idim];
       }
       inline const std::string& readValueHeader() const {

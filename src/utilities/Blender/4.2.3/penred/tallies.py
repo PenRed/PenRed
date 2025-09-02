@@ -29,6 +29,7 @@
 def createTallyCylDoseDistrib(f, name, output, rmax, nr, zmin, zmax, nz, nphi, toRound):
     f.write(f"# Cylindrical dose tally configuration for '{name}'\n")
     f.write(f"tallies/{name}/type \"CYLINDRICAL_DOSE_DISTRIB\"\n")
+    f.write(f"tallies/{name}/print-xyz true\n")
     f.write(f"tallies/{name}/rmin 0.0\n")
     f.write(f"tallies/{name}/rmax {round(rmax,toRound)}\n")
     f.write(f"tallies/{name}/nbinsr {nr}\n")
@@ -248,6 +249,7 @@ def createTallyAngularDet(f, name, output, det, emin, emax, ebins,
                           theta1, theta2, phi1, phi2, logSale):
     f.write(f"# Angular detector tally configuration for '{name}'\n")
     f.write(f"tallies/{name}/type \"ANGULAR_DET\"\n")
+    f.write(f"tallies/{name}/detector {det}\n")
     f.write(f"tallies/{name}/emin {emin:.3e}\n")
     f.write(f"tallies/{name}/emax {emax:.3e}\n")
     f.write(f"tallies/{name}/nBinsE {ebins}\n")

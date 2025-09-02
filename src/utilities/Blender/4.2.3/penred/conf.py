@@ -239,7 +239,8 @@ def createTallies(context, f, toRound):
             zmin = z-bsize[2]/2.0
             zmax = z+bsize[2]/2.0
             
-            rIn = min((bsize[0],bsize[1],bsize[2]))/2.0
+            rcylIn = min((bsize[0],bsize[1]))/2.0
+            rsphIn = min((bsize[0],bsize[1],bsize[2]))/2.0
             rcylOut = sqrt(bsize[0]*bsize[0] + bsize[1]*bsize[1])/2.0
             rsphOut = sqrt(bsize[0]*bsize[0] + bsize[1]*bsize[1] + bsize[2]*bsize[2])/2.0
             
@@ -247,7 +248,7 @@ def createTallies(context, f, toRound):
             for i, item in enumerate(obj.penred_settings.talliesCylDose):
                 tallyName = f"{obj.name}_{i}_{item.name}"
                 if item.spatialBBFit:
-                    radius = rIn
+                    radius = rcylIn
                 else:
                     radius = rcylOut
                 
@@ -271,7 +272,7 @@ def createTallies(context, f, toRound):
             for i, item in enumerate(obj.penred_settings.talliesSphericalDoseDistrib):
                 tallyName = f"{obj.name}_{i}_{item.name}"
                 if item.spatialBBFit:
-                    radius = rIn
+                    radius = rsphIn
                 else:
                     radius = rsphOut
                 
@@ -320,7 +321,7 @@ def createTallies(context, f, toRound):
                     meshType = 1
 
                     if item.spatialBBFit:
-                        radius = rIn
+                        radius = rcylIn
                     else:
                         radius = rcylOut
                     
@@ -341,7 +342,7 @@ def createTallies(context, f, toRound):
                     meshType = 2
                     
                     if item.spatialBBFit:
-                        radius = rIn
+                        radius = rsphIn
                     else:
                         radius = rsphOut
                     

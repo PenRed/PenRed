@@ -134,17 +134,15 @@ Extracts the energy spectrum distribution of the particles from a Phase Space Fi
 
 Args:
     filename (str): Path to the Phase Space File.
-    emin (double): Lower bound of energy range in eV (must be >= 0).
-emax (double): Upper bound of energy range in eV (must be > emin).
-nbins (unsigned): Number of linear-spaced energy bins between emin and emax.
+    emin (float): Lower bound of energy range in eV (must be >= 0).
+    emax (float): Upper bound of energy range in eV (must be > emin).
+    nbins (unsigned): Number of linear-spaced energy bins between emin and emax.
 
 Returns:
     tuple: A tuple containing four tuples in the following order: energy bin edges, electron, gamma and positron spectrum.
-		   For example, for a emin = E1, emax = En, and n bins, returns:
-			((E1, E2, ..., En),(e- (E1), ..., e- (En)), (gamma (E1), ..., gamma (En)), (e+ (E1), ..., e+ (En)))
 
 Example:
-	.. code-block:: python
+    .. code-block:: python
 
 		# Read the Phase space File and store the results
 			results = pyPenred.psf.psfSpectre('psf.dat', 0, 7e5, 200)
