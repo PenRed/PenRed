@@ -29,6 +29,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
+#include <algorithm>
 #include "pen_simulation.hh"
 
 #ifdef _PEN_XRAY_LIBS_
@@ -143,19 +144,51 @@ inline int dict2section(const py::dict& dict,
   return parseString(text, result, errorString, errorLine);
 }
 
-template<typename T, size_t dim>
-py::tuple result2numpy(const penred::measurements::results<T, dim>& results){
+// + Results value extraction
 
-  py::tuple pyRes(2);  
-  const std::array<unsigned long, dim> nBins = results.readDimBins();
+template<typename T, size_t dim>
+py::tuple result2numpy(const penred::measurements::results<T, dim>& results, const bool extractInfo){
+
+  size_t resTupleSize = 2;
+  if(extractInfo){
+    resTupleSize += dim + 2;
+  }
+  
+  py::tuple pyRes(resTupleSize);
+
+  //Get bins in each dimension
+  std::array<unsigned long, dim> nBins = results.readDimBins();
+  //Reverse bins to fit the numpy ordering for dimensions
+  std::reverse(nBins.begin(), nBins.end());
+  
   pyRes[0] = py::array_t<T>(nBins, results.data.data());
   pyRes[1] = py::array_t<T>(nBins, results.sigma.data());
+  
+  if(extractInfo){
+    //Get interval and description information for each dimension
+    const std::array<std::pair<double, double>, dim> limits = results.readLimits();
+
+    for(int i = static_cast<int>(dim)-1; i >= 0; --i){
+      py::tuple dimInfo(3);
+      dimInfo[0] = limits[i].first;
+      dimInfo[1] = limits[i].second;
+      const std::string header = results.readDimHeader(i);
+      dimInfo[2] = header;
+
+      //Append this dimension to returned results
+      pyRes[2+dim-(i+1)] = dimInfo;
+    }
+
+    //Append value and description info
+    pyRes[2+dim] = results.readValueHeader();
+    pyRes[2+dim+1] = results.description;
+  }
 
   return pyRes;
 }
 
 template<typename T>
-py::array_t<T> result2numpy(const std::vector<T>& results){
+py::array_t<T> result2numpy(const std::vector<T>& results, const bool){
 
   py::tuple pyRes(1);  
   pyRes[0] = py::array_t<T>(results.size(), results.data());
@@ -165,34 +198,36 @@ py::array_t<T> result2numpy(const std::vector<T>& results){
 
 template<class TallyType, size_t I>
 typename std::enable_if<I >= std::tuple_size<typename TallyType::ResultsTypes>::value, void>::type
-tallyResults2numpy(const typename TallyType::ResultsTypes&, py::tuple&){}
+tallyResults2numpy(const typename TallyType::ResultsTypes&, py::tuple&, const bool){}
 
 template<class TallyType, size_t I>
 typename std::enable_if<I < std::tuple_size<typename TallyType::ResultsTypes>::value, void>::type
-tallyResults2numpy(const typename TallyType::ResultsTypes& r, py::tuple& pyRes){
-  pyRes[I] = result2numpy(std::get<I>(r));
-  tallyResults2numpy<TallyType, I+1>(r, pyRes);
+tallyResults2numpy(const typename TallyType::ResultsTypes& r, py::tuple& pyRes, const bool extractInfo){
+  pyRes[I] = result2numpy(std::get<I>(r), extractInfo);
+  tallyResults2numpy<TallyType, I+1>(r, pyRes, extractInfo);
 }
 
 template<class TallyType>
-py::tuple tallyExtractResults(const typename TallyType::ResultsTypes& r){
+py::tuple tallyExtractResults(const typename TallyType::ResultsTypes& r, const bool extractInfo){
 
   py::tuple pyRes(std::tuple_size<typename TallyType::ResultsTypes>::value);
 
-  tallyResults2numpy<TallyType, 0>(r, pyRes);
+  tallyResults2numpy<TallyType, 0>(r, pyRes, extractInfo);
 
   return pyRes;
 }
 
+// + Tally search functions
+
 template<size_t I = 0>
 typename std::enable_if<I >= std::tuple_size<penred::tally::typesGenericTallies>::value, py::tuple>::type
-getResults(const penred::tally::Results&, const std::string&){
+getResults(const penred::tally::Results&, const std::string&, const unsigned){
   return py::tuple();
 }  
 
 template<size_t I = 0>
 typename std::enable_if<I < std::tuple_size<penred::tally::typesGenericTallies>::value, py::tuple>::type
-getResults(const penred::tally::Results& results, const std::string& tallyName){
+getResults(const penred::tally::Results& results, const std::string& tallyName, const bool extractInfo){
 
   using TallyType = typename std::tuple_element<I, penred::tally::typesGenericTallies>::type;
 
@@ -200,10 +235,10 @@ getResults(const penred::tally::Results& results, const std::string& tallyName){
   for(const auto& element : tallyMap){
     if(element.first.compare(tallyName) == 0){
       const typename TallyType::ResultsTypes& tallyResults = element.second;
-      return tallyExtractResults<TallyType>(tallyResults);
+      return tallyExtractResults<TallyType>(tallyResults, extractInfo);
     }
   }
-  return getResults<I+1>(results, tallyName);
+  return getResults<I+1>(results, tallyName, extractInfo);
 }
 
 PYBIND11_MODULE(simulation,m){
@@ -760,22 +795,23 @@ Returns:
 )")
     .def("getResults",
 	 [](penred::simulation::simulator<pen_context>& obj,
-	    const std::string& tallyName) -> py::tuple{
+	    const std::string& tallyName, const bool extractInfo) -> py::tuple{
 
 	   py::tuple toRet = obj.processResults<py::tuple>
-	     ([tallyName](const penred::tally::Results& results){
-	       return getResults<0>(results, tallyName);
+	     ([tallyName, extractInfo](const penred::tally::Results& results){
+	       return getResults<0>(results, tallyName, extractInfo);
 	     });
 	   return toRet;
 	 },
 	 py::arg("tally_name"),
+	 py::arg("extract_info") = false,
 	 R"(
 
 Gets the simulation results from the specified tally.
 
 Args:
     tally_name (str): Name of the tally to get the results from.
-
+    extract_info (bool): If enabled, the limits and dimensions information will be returned along with results values. 
 Returns:
     On success, a tuple of numpy vectors storing the tally's specific results is returned. If the requested tally does not support retrieving results in that format, returned vectors will be empty.
 
