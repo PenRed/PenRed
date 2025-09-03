@@ -22,9 +22,9 @@ jobs:
     strategy:
       matrix:
         os:
-          - { runner: ubuntu-latest, container: 'quay.io/pypa/manylinux_2_28_x86_64', name: manylinux }
-          - { runner: windows-latest, container: '', name: windows }
-          - { runner: macos-latest, container: '', name: macos}
+          - { runner: ubuntu-24.04, container: 'quay.io/pypa/manylinux_2_28_x86_64', name: manylinux }
+          - { runner: windows-2022, container: '', name: windows }
+          - { runner: macos-14, container: '', name: macos}
           - { runner: macos-13, container: '', name: macos}
         python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
     container: ${{ matrix.os.container }}
