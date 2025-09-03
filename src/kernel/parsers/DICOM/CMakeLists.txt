@@ -190,7 +190,7 @@ if(FORCE_DICOM_DOWNLOAD OR NOT DCMTK_FOUND)
     ExternalProject_Add(
         dcmtk
         GIT_REPOSITORY https://github.com/DCMTK/dcmtk.git
-        GIT_TAG        DCMTK-3.6.7  # DCMTK version
+        GIT_TAG        DCMTK-3.6.9  # DCMTK version
         INSTALL_DIR "${DCMTK_INSTALL_DIR}"                 # Installation directory
         CMAKE_CACHE_ARGS ${DCMTK_CMAKE_COMMON_ARGS}
         BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> -- ${PARALLEL_FLAG}
