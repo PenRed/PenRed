@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019 Universitat de València - UV
 //    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -29,6 +30,68 @@
  
 #include "tallyEmergingParticlesDistribution.hh"
 
+pen_EmergingPartDistrib::pen_EmergingPartDistrib() :
+  pen_genericTally( USE_MOVE2GEO |
+		    USE_MATCHANGE |
+		    USE_ENDSIM),
+  nBinsE(0),
+  nBinsTheta(0),
+  nBinsPhi(0),
+  nAngBins(0),
+  pmin(0.0),
+  pmax(2.0*constants::PI)
+				  
+				  
+{
+  for(unsigned int i = 0; i < constants::nParTypes; i++){
+    angHist[i] = nullptr;
+    angHistTmp[i] = nullptr;
+    angHist2[i] = nullptr;
+    angnlast[i] = nullptr;
+  }
+
+  //Upbound generators
+  setResultsGenerator<0>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 1>{
+      return this->generateUpbound(PEN_ELECTRON, nhists);
+    });
+  setResultsGenerator<1>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 1>{
+      return this->generateUpbound(PEN_PHOTON, nhists);
+    });
+  setResultsGenerator<2>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 1>{
+      return this->generateUpbound(PEN_POSITRON, nhists);
+    });
+
+  //Downbound generators
+  setResultsGenerator<3>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 1>{
+      return this->generateDownbound(PEN_ELECTRON, nhists);
+    });
+  setResultsGenerator<4>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 1>{
+      return this->generateDownbound(PEN_PHOTON, nhists);
+    });
+  setResultsGenerator<5>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 1>{
+      return this->generateDownbound(PEN_POSITRON, nhists);
+    });
+
+  //Angular generators
+  setResultsGenerator<6>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 2>{
+      return this->generateAngular(PEN_ELECTRON, nhists);
+    });
+  setResultsGenerator<7>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 2>{
+      return this->generateAngular(PEN_PHOTON, nhists);
+    });
+  setResultsGenerator<8>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 2>{
+      return this->generateAngular(PEN_POSITRON, nhists);
+    });        
+}
 
 void pen_EmergingPartDistrib::scapedParticle(const unsigned long long nhist,
 					    const pen_KPAR kpar,
@@ -500,7 +563,126 @@ int pen_EmergingPartDistrib::configure(const wrapper_geometry& /*geometry*/,
   
 }
                
+penred::measurements::results<double, 1>
+pen_EmergingPartDistrib::generateUpbound(const pen_KPAR kpar,
+					 const unsigned long long nhist){
 
+  if(energyLogscale){
+    penred::measurements::results<double, 1> results;
+    results.description = "Error: Results can only be generated for linear scale";
+    return results;
+  }
+  
+  const double invn = 1.0/static_cast<double>(nhist);
+  
+  penred::measurements::results<double, 1> results;
+  results.initFromLists({static_cast<unsigned>(nBinsE)},
+			{penred::measurements::limitsType(emin, emax)});
+	  
+  results.description = "PenRed: Upbound (W > 0) emerging ";
+  results.description += particleName(kpar);
+  
+  results.setDimHeader(0, "Energy (eV)");
+  results.setValueHeader("Particles (1/eV history)");
+
+  for(long int i = 0; i < nBinsE; i++){
+    double qUp  = eHistUp[kpar][i]*invn;
+    double q2Up = eHist2Up[kpar][i]*invn;
+    double sigmaUp = (q2Up-qUp*qUp)*invn;
+    if(sigmaUp > 0.0){ sigmaUp = sqrt(sigmaUp);}
+    else{sigmaUp = 0.0;}
+
+    results.data[i] = qUp*iebin;
+    results.sigma[i] = sigmaUp*iebin;
+  }
+  
+  return results;
+}
+
+penred::measurements::results<double, 1>
+pen_EmergingPartDistrib::generateDownbound(const pen_KPAR kpar,
+					   const unsigned long long nhist){
+
+  if(energyLogscale){
+    penred::measurements::results<double, 1> results;
+    results.description = "Error: Results can only be generated for linear scale";
+    return results;
+  }
+  
+  const double invn = 1.0/static_cast<double>(nhist);
+  
+  penred::measurements::results<double, 1> results;
+  results.initFromLists({static_cast<unsigned>(nBinsE)},
+			{penred::measurements::limitsType(emin, emax)});
+	  
+  results.description = "PenRed: Downbound (W < 0) emerging ";
+  results.description += particleName(kpar);
+  
+  results.setDimHeader(0, "Energy (eV)");
+  results.setValueHeader("Particles (1/eV history)");
+
+  for(long int i = 0; i < nBinsE; i++){
+    double qDown  = eHistDown[kpar][i]*invn;
+    double q2Down = eHist2Down[kpar][i]*invn;
+    double sigmaDown = (q2Down-qDown*qDown)*invn;
+    if(sigmaDown > 0.0){ sigmaDown = sqrt(sigmaDown);}
+    else{sigmaDown = 0.0;}
+
+    results.data[i] = qDown*iebin;
+    results.sigma[i] = sigmaDown*iebin;
+  }
+  
+  return results;
+}
+
+penred::measurements::results<double, 2>
+pen_EmergingPartDistrib::generateAngular(const pen_KPAR kpar,
+					 const unsigned long long nhist){
+
+  if(angularLogscale){
+    penred::measurements::results<double, 2> results;
+    results.description = "Error: Results can only be generated for linear scale";
+    return results;
+  }
+  
+  const double invn = 1.0/static_cast<double>(nhist);
+  
+  penred::measurements::results<double, 2> results;
+  results.initFromLists
+    ({static_cast<unsigned long>(nBinsPhi),
+       static_cast<unsigned long>(nBinsTheta)},
+      {penred::measurements::limitsType(0.0, 180.0),
+       penred::measurements::limitsType(0.0, 360.0)
+      });
+	  
+  results.description = "PenRed: Angular distribution of emerging ";
+  results.description += particleName(kpar);
+  
+  results.setDimHeader(0, "azimuth (deg)");
+  results.setDimHeader(1, "polar (deg)");
+  results.setValueHeader("Particles (1/sr history)");
+
+  for(long int i = 0; i < nBinsTheta; i++){
+    double binTlow = tmin+double(i)*tbin;
+    double binTtop = tmin+double(i+1)*tbin;
+    
+    double dsang = (cos(binTlow) - cos(binTtop))*pbin;
+    double idsang = 1.0/dsang;
+
+    for(int k = 0; k < nBinsPhi; k++){
+      double qAng  = angHist[kpar][i*nBinsPhi+k]*invn;
+      double q2Ang = angHist2[kpar][i*nBinsPhi+k]*invn;
+      double sigmaAng = (q2Ang-qAng*qAng)*invn;
+      if(sigmaAng > 0.0){ sigmaAng = sqrt(sigmaAng);}
+      else{sigmaAng = 0.0;}
+
+      results.data[i*nBinsPhi+k] = qAng*idsang;
+      results.sigma[i*nBinsPhi+k] = sigmaAng*idsang;
+    }
+  }
+  
+  return results;
+}
 
 void pen_EmergingPartDistrib::saveData(const unsigned long long nhist) const{
 
@@ -787,7 +969,7 @@ int pen_EmergingPartDistrib::sumTally(const pen_EmergingPartDistrib& tally){
 }
 
 
-REGISTER_COMMON_TALLY(pen_EmergingPartDistrib, EMERGING_PART_DISTRIB)
+REGISTER_COMMON_TALLY(pen_EmergingPartDistrib)
  
         
     

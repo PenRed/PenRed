@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2021 Universitat de València - UV
 //    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -35,7 +36,9 @@
 #include "pen_constants.hh"
 
 class pen_CylindricalDoseDistrib: public pen_genericTally<pen_particleState> {
-    DECLARE_TALLY(pen_CylindricalDoseDistrib,pen_particleState)
+  DECLARE_TALLY(pen_CylindricalDoseDistrib,pen_particleState,CYLINDRICAL_DOSE_DISTRIB,
+		std::pair<double, penred::tally::Dim<3>>, //Dose
+		std::pair<double, penred::tally::Dim<3>>) //Energy
     
 private:
 
@@ -53,18 +56,7 @@ private:
     
 public:
     
-  pen_CylindricalDoseDistrib() : pen_genericTally( USE_LOCALEDEP |
-						   USE_BEGINPART |
-						   USE_SAMPLEDPART |
-						   USE_STEP |
-						   USE_ENDSIM |
-						   USE_MOVE2GEO),
-				 nr(0),
-				 nphi(0),
-				 nz(0),
-				 nbins(0)
-				 
-  {}
+  pen_CylindricalDoseDistrib();
   
   void updateEdepCounters(const double dE,
                           const unsigned long long nhist,

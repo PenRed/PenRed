@@ -100,7 +100,7 @@ def createMaterials(context, f):
             else:
                 pCutoff = item.positronRange
 
-            # Create composition list
+            # Create composition list (Only used if COMPOSITION is the definition type)
             compo = []
             for e in item.composition:
                 compo.append([e.z, e.wFraction])
@@ -109,6 +109,8 @@ def createMaterials(context, f):
                                      item.gammaCutoffType, gCutoff,
                                      item.electronCutoffType, eCutoff,
                                      item.positronCutoffType, pCutoff,
+                                     item.definitionType,
+                                     item.matDB, item.nameMatDB,
                                      item.density, compo,
                                      item.enableAdvanced,
                                      item.C1, item.C2, item.WCC, item.WCR)
@@ -165,12 +167,18 @@ def createSources(context, f, toRound):
                         sourceMat = source.sourceMat
                     else:
                         sourceMat = -1
+
+                    genericSourcePos = (x,y,z)
+                    if source.ctEnable:
+                        # The translation is already applied by the CT source
+                        genericSourcePos = (0.0,0.0,0.0)
+
                     sources.createGeneric(f, name, source.nHists,
                                           source.particleType,
                                           source.energyType,
                                           source.energy, source.spcFile,
                                           source.aperture, source.direction,
-                                          source.spatialType, (x,y,z), spatialSize,
+                                          source.spatialType, genericSourcePos, spatialSize,
                                           sourceMat, toRound)
 
                 # Check time sampling
@@ -231,7 +239,8 @@ def createTallies(context, f, toRound):
             zmin = z-bsize[2]/2.0
             zmax = z+bsize[2]/2.0
             
-            rIn = min((bsize[0],bsize[1],bsize[2]))/2.0
+            rcylIn = min((bsize[0],bsize[1]))/2.0
+            rsphIn = min((bsize[0],bsize[1],bsize[2]))/2.0
             rcylOut = sqrt(bsize[0]*bsize[0] + bsize[1]*bsize[1])/2.0
             rsphOut = sqrt(bsize[0]*bsize[0] + bsize[1]*bsize[1] + bsize[2]*bsize[2])/2.0
             
@@ -239,7 +248,7 @@ def createTallies(context, f, toRound):
             for i, item in enumerate(obj.penred_settings.talliesCylDose):
                 tallyName = f"{obj.name}_{i}_{item.name}"
                 if item.spatialBBFit:
-                    radius = rIn
+                    radius = rcylIn
                 else:
                     radius = rcylOut
                 
@@ -263,7 +272,7 @@ def createTallies(context, f, toRound):
             for i, item in enumerate(obj.penred_settings.talliesSphericalDoseDistrib):
                 tallyName = f"{obj.name}_{i}_{item.name}"
                 if item.spatialBBFit:
-                    radius = rIn
+                    radius = rsphIn
                 else:
                     radius = rsphOut
                 
@@ -312,7 +321,7 @@ def createTallies(context, f, toRound):
                     meshType = 1
 
                     if item.spatialBBFit:
-                        radius = rIn
+                        radius = rcylIn
                     else:
                         radius = rcylOut
                     
@@ -333,7 +342,7 @@ def createTallies(context, f, toRound):
                     meshType = 2
                     
                     if item.spatialBBFit:
-                        radius = rIn
+                        radius = rsphIn
                     else:
                         radius = rsphOut
                     

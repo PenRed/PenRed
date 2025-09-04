@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0] - 2025-09-04
+
+### Added
+- New interactive simulation mode
+- Runtime extraction of in-memory tally results
+- pyPenred functions to extract and plot tally results
+- Post-processing for sampled states (rotations and translations).
+- Integrated the PENELOPE material database for use during material definition in the configuration file
+- Added available material databases for use within the Blender plugin.
+- Material range and absorption coefficient calculation utilities for the pyPenred module
+- PSF utilities for the pyPenred module
+- Added Blender files for some quadrics-based examples, including execution notebooks
+
+### Chaned
+- Multithreading is now permanently enabled in all builds and can no longer be disabled via CMake options
+- Both the user guide and implementation documentation have been updated and reviewed
+
+### Fixed
+- Several configuration exporting bugs in the Blender plugin
+- An issue where tally energy deposition in bodies failed for voxelized and DICOM geometries
+- Incomplete printing of processed DICOM information
+
+
 ## [1.13.0] - 2025-05-28
 
 ### Added

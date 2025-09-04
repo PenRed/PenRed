@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -29,6 +30,60 @@
 
  
 #include "tallySphericalDoseDistrib.hh"
+
+pen_SphericalDoseDistrib::pen_SphericalDoseDistrib() :
+  pen_genericTally( USE_LOCALEDEP |
+		    USE_BEGINPART |
+		    USE_SAMPLEDPART |
+		    USE_STEP |
+		    USE_ENDSIM |
+		    USE_MOVE2GEO),
+  nbins(0)
+
+{
+  setResultsGenerator<0>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 3>{
+
+      const double invn = 1.0/static_cast<double>(nhists);
+
+      //Create results
+      penred::measurements::results<double, 3> results;
+      results.initFromLists
+	({static_cast<unsigned long>(nr),
+	   static_cast<unsigned long>(ntheta),
+	   static_cast<unsigned long>(nphi)},
+	  {penred::measurements::limitsType(rmin, rmin + static_cast<double>(nr)*dr),
+	   penred::measurements::limitsType(0.0, 180.0),
+	   penred::measurements::limitsType(0.0, 360.0)});
+	  
+      results.description =
+	"PenRed: Spherical dose distribution report\n"
+	"Dose units are: eV/g per history\n";
+  
+      results.setDimHeader(0, "r (cm)");
+      results.setDimHeader(1, "polar (deg)");
+      results.setDimHeader(2, "azimuth (deg)");
+      results.setValueHeader("Dose (eV/g hist)");
+
+      for(unsigned long i = 0; i < nbins; ++i){
+	
+	const double fact = imass[i];
+	const double q = edep[i]*invn;
+	double sigma = (edep2[i]*invn-(q*q))*invn;
+	if(sigma > 0.0){
+	  sigma = sqrt(sigma);
+	}
+	else{
+	  sigma = 0.0;
+	}
+
+	results.data[i] = q*fact;
+	results.sigma[i] = sigma*fact;
+      }
+
+      return results;
+    });
+}
 
 void pen_SphericalDoseDistrib::updateEdepCounters(const double dE,
 						  const unsigned long long nhist,
@@ -513,4 +568,4 @@ int pen_SphericalDoseDistrib::sumTally(const pen_SphericalDoseDistrib& tally){
 }
 
 
-REGISTER_COMMON_TALLY(pen_SphericalDoseDistrib, SPHERICAL_DOSE_DISTRIB)
+REGISTER_COMMON_TALLY(pen_SphericalDoseDistrib)

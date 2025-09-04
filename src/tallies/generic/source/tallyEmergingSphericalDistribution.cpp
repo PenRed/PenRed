@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2024 Universitat de València - UV
 //    Copyright (C) 2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -28,6 +29,54 @@
 
  
 #include "tallyEmergingSphericalDistribution.hh"
+
+pen_EmergingSphericalDistrib::pen_EmergingSphericalDistrib() :
+  pen_genericTally( USE_MOVE2GEO |
+		    USE_JUMP |
+		    USE_MATCHANGE |
+		    USE_ENDSIM){
+  std::fill(enabled.begin(), enabled.end(), false);
+
+  //Register results functions
+  setResultsGenerator<0>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 3>{
+      penred::measurements::results<double, 3> r;
+      results[PEN_ELECTRON].results(nhists, r);
+      return r;
+    });
+  setResultsGenerator<1>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 3>{
+      penred::measurements::results<double, 3> r;
+      results[PEN_PHOTON].results(nhists, r);
+      return r;
+    });
+  setResultsGenerator<2>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 3>{
+      penred::measurements::results<double, 3> r;
+      results[PEN_POSITRON].results(nhists, r);
+      return r;
+    });
+
+  setResultsGenerator<3>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 3>{
+      penred::measurements::results<double, 3> r;
+      lastInter[PEN_ELECTRON].results(nhists, r);
+      return r;
+    });
+  setResultsGenerator<4>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 3>{
+      penred::measurements::results<double, 3> r;
+      lastInter[PEN_PHOTON].results(nhists, r);
+      return r;
+    });
+  setResultsGenerator<5>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 3>{
+      penred::measurements::results<double, 3> r;
+      lastInter[PEN_POSITRON].results(nhists, r);
+      return r;
+    });    
+}
+
 
 //Reader functions
 
@@ -383,4 +432,4 @@ int pen_EmergingSphericalDistrib::sumTally(const pen_EmergingSphericalDistrib& t
 }
 
 
-REGISTER_COMMON_TALLY(pen_EmergingSphericalDistrib, EMERGING_SPHERICAL_DISTRIB)
+REGISTER_COMMON_TALLY(pen_EmergingSphericalDistrib)

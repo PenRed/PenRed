@@ -136,6 +136,8 @@ namespace penred{
 
   namespace penMaterialCreator{
 
+    constexpr const std::array<const char*, 280> PenelopeMats::names;
+
     constexpr const char materialCreator::LASYMB[99][3];
     constexpr const double materialCreator::ATW[99];
     constexpr const double materialCreator::EPX[99];

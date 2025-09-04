@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2021-2023 Universitat de València - UV
 //    Copyright (C) 2021-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -31,6 +32,97 @@
 #ifdef _PEN_USE_DICOM_
 #include "tallyDICOMkerma.hh"
 
+pen_tallyDICOMkerma::pen_tallyDICOMkerma() : pen_genericTally(USE_JUMP | USE_STEP),
+					     contVol(nullptr),
+					     contourVox(nullptr),
+					     ncontours(0)
+{
+  //Kerma
+  setResultsGenerator<0>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 3>{
+      return this->tallyKerma.generateResults<0>(nhists);
+    });
+
+  //DVH
+  setResultsGenerator<1>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 2>{
+
+      double invn = 1.0/static_cast<double>(nhists);
+
+      //Create results
+      const unsigned long nCont = static_cast<unsigned long>(ncontours);
+      penred::measurements::results<double, 2> results;
+      results.initFromLists
+	({DVHnbins, nCont},
+	 {penred::measurements::limitsType(0.0, DVHmaxDose),
+	  penred::measurements::limitsType(0.0, static_cast<double>(nCont))
+	 });
+	  
+      results.description =
+	"PenRed: DVH report\n\n"
+	"  Contours:\n";
+      for(unsigned long j = 0; j < nCont; ++j){
+	results.description += std::to_string(j) + " " + contNames[j] + "\n";
+      }
+      results.description += "\n";
+  
+      results.setDimHeader(0, "Dose (Gy)");
+      results.setDimHeader(1, "Contour");
+      results.setValueHeader("Volume (%)");
+
+      //Read kerma value from tallyKermaTrackLength
+      const double* kermaValue;
+      kermaValue = nullptr;
+  
+      if(tallyKerma.enabledCart())
+	{
+	  kermaValue = tallyKerma.readCartesians();
+	}
+      else
+	{
+	  results.description +=
+	    "Error at kerma tally reading. \n"
+	    "Kerma value can not be read from tallyKermaTrackLength.\n";
+	      
+	    printf("pen_DICOMkerma: Error at kerma tally reading. "
+		   "Kerma value can not be read from tallyKermaTrackLength.\n");
+	  return results;
+	}
+
+      //Cartesian element volume
+      const double volumeCart = dx*dy*dz;
+
+      //Calculate number of voxels in each energy interval for each contour
+      for(long int i = 0; i < nbin; ++i){
+	//Get voxel contour index
+	int icont = contourVox[i];
+	if(icont < 0)
+	  continue; //This voxel is not in any contour
+          
+	for(long int j = DVHnbins-1; j >= 0; --j){
+	  if(kermaValue[i]*DVHfactor*invn/volumeCart >= static_cast<double>(j)*DVHbinWidth-1.0e-20){
+	    results.data[icont*DVHnbins + j] += 1.0;
+	    break;
+	  }
+	}
+      }
+
+      //Get the cummulative DVH
+      for(unsigned icont = 0; icont < nCont; ++icont){
+	for(long int j = DVHnbins-2; j >= 0; --j){
+	  results.data[icont*DVHnbins + j] += results.data[icont*DVHnbins + j+1];
+	}
+      }
+	
+      for(long unsigned icont = 0; icont < nCont; ++icont){
+	for(long unsigned j = 0; j < DVHnbins; ++j){
+	  results.data[icont*DVHnbins + j] *= 100.0*voxVol/contVol[icont];
+	}
+      }
+	
+      return results;	
+    });    
+}
 
 void pen_tallyDICOMkerma::flush(){
     tallyKerma.flush();
@@ -345,6 +437,6 @@ void pen_tallyDICOMkerma::saveData(const unsigned long long nhist) const{
 
 }
 
-REGISTER_COMMON_TALLY(pen_tallyDICOMkerma, DICOM_KERMA_TRACK_LENGTH)
+REGISTER_COMMON_TALLY(pen_tallyDICOMkerma)
 
 #endif

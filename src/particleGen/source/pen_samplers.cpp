@@ -110,6 +110,8 @@ pen_genericStateGen::pen_genericStateGen() : spatialSampler(nullptr),
 					     geometry(nullptr),
 					     configStatus(0),
 					     Emax(0.0),
+					     rotate(false),
+					     translation{0.0,0.0,0.0},
 					     sourceBody(-1),
 					     sourceMat(0),
 					     name("unamed"),
@@ -117,6 +119,8 @@ pen_genericStateGen::pen_genericStateGen() : spatialSampler(nullptr),
 					     kpar(PEN_PHOTON)
 {}
 
+#ifdef _PEN_USE_LB_
+//Define handlefinish for load balance compiled source
 bool pen_genericStateGen::handleFinish(const unsigned iw,
 				       const unsigned long long nDone,
 				       unsigned long long& assigned,
@@ -186,6 +190,7 @@ bool pen_genericStateGen::handleFinish(const unsigned iw,
     return false;
   }
 }
+#endif
       
 
 std::string pen_genericStateGen::samplersList(){
@@ -393,9 +398,31 @@ void pen_genericStateGen::sample(pen_particleState& state, pen_rand& random) con
 
   //Perform direction sampling
   directionSampler->sample(state,random);
+  if(rotate){
+    //Rotate sampled direction
+    double dir[3] = {state.U,state.V,state.W};
+    matmul3D(rotation, dir);
+    state.U = dir[0];
+    state.V = dir[1];
+    state.W = dir[2];
+  }
   
   //Perform spatial sampling and locate the particle
   spatialSampler->sample(state,random);
+  if(rotate){
+    //Rotate and move sampled position
+    double pos[3] = {state.X,state.Y,state.Z};
+    matmul3D(rotation, pos);
+    state.X = pos[0] + translation[0];
+    state.Y = pos[1] + translation[1];
+    state.Z = pos[2] + translation[2];
+  }else{
+    //Apply post-translation
+    state.X += translation[0];
+    state.Y += translation[1];
+    state.Z += translation[2];
+  }
+  
   geometry->locate(state);
 
   //Check if source is restricted to specified body

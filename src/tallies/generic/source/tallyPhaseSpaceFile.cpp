@@ -306,4 +306,4 @@ void pen_tallyPhaseSpaceFile::saveData(const unsigned long long /*nhist*/) const
 int pen_tallyPhaseSpaceFile::sumTally(const pen_tallyPhaseSpaceFile& /*tally*/){return 0;}
 
 
-REGISTER_COMMON_TALLY(pen_tallyPhaseSpaceFile, PSF)
+REGISTER_COMMON_TALLY(pen_tallyPhaseSpaceFile)

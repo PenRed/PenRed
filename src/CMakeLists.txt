@@ -41,18 +41,16 @@ option(WITH_DICOM "Build PenRed DICOM " OFF)
 CMAKE_DEPENDENT_OPTION(FORCE_DICOM_DOWNLOAD "Build PenRed with DICOM support building dependencies from source" OFF
                        "WITH_DICOM" OFF)
 
-option(WITH_MULTI_THREADING "Build PenRed with multi-threading " ON)
 option(WITH_MPI "Build PenRed with MPI " OFF)
 option(WITH_TCP "Compile PenRed with TCP support for communications" OFF)
 
 option(WITH_NATIVE "Compile PenRed with native architecture optimizations" ON)
 
-CMAKE_DEPENDENT_OPTION(WITH_LB "Build PenRed with load balancing support" OFF
-                       "WITH_MULTI_THREADING" OFF)
+option(WITH_LB "Build PenRed with load balancing support" OFF)
 
 CMAKE_DEPENDENT_OPTION(WITH_SSL "Build TCP with SSL support" OFF
                        "WITH_LB" OFF)
-                       
+
 CMAKE_DEPENDENT_OPTION(WITH_HTTP "Build LB with HTTP support" OFF
                        "WITH_LB" OFF)
 
@@ -214,11 +212,6 @@ endif(WITH_TCP)
 if(WITH_DICOM)
   add_definitions(-D_PEN_USE_DICOM_=1) #enable DICOM   
 endif(WITH_DICOM)
-
-# Check if multi-threading option has been enabled
-if(WITH_MULTI_THREADING)
-  add_definitions(-D_PEN_USE_THREADS_=1) #enable Threads     
-endif(WITH_MULTI_THREADING)
 
 # Check if MPI option has been enabled
 if(WITH_MPI)

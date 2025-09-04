@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019 Universitat de València - UV
 //    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -561,8 +562,59 @@ int pen_AngularDet::sumTally(const pen_AngularDet& tally){
     
 }
 
+penred::measurements::results<double, 1> pen_AngularDet::generateResults(const pen_KPAR kpar,
+									 const unsigned long long nhists){
 
-REGISTER_COMMON_TALLY(pen_AngularDet, ANGULAR_DET)
+  if(!isLinScale){
+    penred::measurements::results<double, 1> results;
+    results.description = "Error: Results can only be generated for linear scale";
+    return results;
+  }
+  
+  const double rad2deg = 180.0/constants::PI;
+  const double solidAngle = (phi2 - phi1)*(cos(theta1) - cos(theta2));
+  const double deBin = ebin;
+  const double factor = 1.0/(deBin*solidAngle);
+  double invn = 1.0/static_cast<double>(nhists);
+  const unsigned ebins = static_cast<unsigned>(nBinsE);
+	  
+  std::string description("PenRed: Angular detector energy spectrum for ");
+  description += particleName(kpar);
+  description += "\n";
+  description += "  - Angular intervals :  theta1 = " + std::to_string(theta1*rad2deg);
+  description += ",  theta2 = " + std::to_string(theta2*rad2deg) + "\n";
+  description += "                         phi1 = " + std::to_string(phi1*rad2deg);
+  description += ",  phi2 = " + std::to_string(phi2*rad2deg) + "\n";
+  description += " Histories simulated: " + std::to_string(nhists) + "\n";
+  description += " Energy spectra of emerging particles (1/(eV*sr*particle)).\n";
+  
+  //Create results
+  penred::measurements::results<double, 1> results;
+  results.initFromLists({ebins},
+			{penred::measurements::limitsType(emin, emax)});
+	  
+  results.description = description;
+  
+  results.setDimHeader(0, "Energy (eV)");
+  results.setValueHeader("Particles (1/hist)");
+
+  for(unsigned j = 0; j < ebins; ++j)
+    {
+      double q = angDetSpc[kpar][j]*invn;
+      double q2 = angDetSpc2[kpar][j]*invn;
+      double sigma = (q2 - q*q)*invn;
+      if(sigma > 0.0){sigma = sqrt(sigma);}
+      else{sigma = 0.0;}
+
+      results.data[j] = q*factor;
+      results.sigma[j] = sigma*factor;
+    }
+	  
+  return results;    
+}
+
+
+REGISTER_COMMON_TALLY(pen_AngularDet)
 
 
 

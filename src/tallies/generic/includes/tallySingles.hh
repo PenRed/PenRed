@@ -33,34 +33,64 @@
 
 #include "pen_constants.hh"
 #include <algorithm>
+#include <cstdint>
 
 class pen_Singles : public pen_genericTally<pen_particleState> {
-  DECLARE_TALLY(pen_Singles,pen_particleState)
+  DECLARE_TALLY(pen_Singles,pen_particleState,SINGLES)
 
-private:
+public:
 
   struct single{
 
-    static constexpr const size_t maxBuffSize = 150;
-    static constexpr const size_t dataSize = sizeof(float)*5 + sizeof(double) + sizeof(unsigned long long);
+    enum boolMaskEnum : uint8_t{
+      SCATTERED            = 1 << 0, //The particle has been scattered outside detectors after production
+      PRODUCED_IN_DETECTOR = 1 << 1, //The particle has been produced in a detector
+      FIRST_GENERATION     = 1 << 2, //The particle belongs to the first genertion  (ILB[0]=1) 
+      SECOND_GENERATION    = 1 << 3, //The particle belongs to the second genertion (ILB[0]=2)
+      FROM_ANNIHILATION    = 1 << 4, //The particle has been created from a positron annihilation
+      PILEUP               = 1 << 5, //The pulse mixes hits from different histories due pileup
+    };
+
+    static constexpr const size_t maxBuffSize = 200;
+    static constexpr const size_t dataSize =
+      sizeof(float)*5 + sizeof(double) + sizeof(uint8_t)*3 + sizeof(unsigned long long);
     
-    double E, x, y, z, t, weight;
+    double E, x, y, z, weight, t;
+    std::array<uint8_t, 3> info; // (mask, kpar, interaction)
     unsigned long long hist;
 
-    constexpr single() : E(0.0), x(0.0), y(0.0), z(0.0), t(0.0),
-			 weight(0.0), hist(0)
+    constexpr single() noexcept : E(0.0), x(0.0), y(0.0), z(0.0),
+      weight(0.0), t(0.0), info{0,0,0}, hist(0)
     {}
-    inline single(const double de,
-		  const double xIn, const double yIn, const double zIn,
-		  const double tIn, const double w, const unsigned long long histIn) noexcept :
+    constexpr single(const double de,
+		     const double xIn, const double yIn, const double zIn,
+		     const double tIn, const double w, const uint8_t boolMask,
+		     const uint8_t kpar, const uint8_t interaction,
+		     const unsigned long long histIn) noexcept :
       E(de),
       x(de*xIn),
       y(de*yIn),
       z(de*zIn),
-      t(tIn),
       weight(de*w),
+      t(tIn),
+      info{boolMask, kpar, interaction},
       hist(histIn)
     {}
+
+    //Bool mask functions
+    static constexpr bool isScattered(const uint8_t mask) noexcept {return mask & SCATTERED;}
+    static constexpr bool isProducedInDetector(const uint8_t mask) noexcept {return mask & PRODUCED_IN_DETECTOR;}
+    static constexpr bool isFirstGeneration(const uint8_t mask) noexcept {return mask & FIRST_GENERATION;}
+    static constexpr bool isSecondGeneration(const uint8_t mask) noexcept {return mask & SECOND_GENERATION;}
+    static constexpr bool isFromAnnihilation(const uint8_t mask) noexcept {return mask & FROM_ANNIHILATION;}
+    static constexpr bool isPileup(const uint8_t mask) noexcept {return mask & PILEUP;}
+
+    constexpr bool isScattered() const noexcept {return isScattered(info[0]);}
+    constexpr bool isProducedInDetector() const noexcept {return isProducedInDetector(info[0]);}
+    constexpr bool isFirstGeneration() const noexcept {return isFirstGeneration(info[0]);}
+    constexpr bool isSecondGeneration() const noexcept {return isSecondGeneration(info[0]);}
+    constexpr bool isFromAnnihilation() const noexcept {return isFromAnnihilation(info[0]);}
+    constexpr bool isPileup() const noexcept {return isPileup(info[0]);}
 
     inline std::string stringify() const noexcept {
       char auxBuff[maxBuffSize];
@@ -103,14 +133,16 @@ private:
 
     inline int toBuffer(char* b, size_t max) const {
       return snprintf(b, max, "%15.5E %15.5E %15.5E %15.5E "
-		      "%25.15E %15.5E %llu\n",
-		      E, x, y, z, t, weight, hist);
+		      "%25.15E %15.5E %u %u %u %llu\n",
+		      E, x, y, z, weight, t,
+		      info[0], info[1], info[2], hist);
     }
 
     inline int toBufferFinal(char* b, size_t max) const {
       return snprintf(b, max, "%15.5E %15.5E %15.5E %15.5E "
-		      "%25.15E %15.5E %llu\n",
-		      E, x/E, y/E, z/E, t, weight/E, hist);
+		      "%15.5E %25.15E %u %u %u %llu\n",
+		      E, x/E, y/E, z/E, weight/E, t,
+		      info[0], info[1], info[2], hist);
     }
 
     inline void toBufferB(unsigned char* b, size_t& pos){
@@ -120,6 +152,8 @@ private:
 
       memcpy(&b[pos], &t, sizeof(double));
       pos += sizeof(double);      
+      memcpy(&b[pos], info.data(), 3*sizeof(uint8_t));
+      pos += 3*sizeof(uint8_t);
       memcpy(&b[pos], &hist, sizeof(unsigned long long));
       pos += sizeof(unsigned long long);
     }
@@ -130,7 +164,9 @@ private:
       pos += sizeof(float)*5;
 
       memcpy(&b[pos], &t, sizeof(double));
-      pos += sizeof(double);      
+      pos += sizeof(double);
+      memcpy(&b[pos], info.data(), 3*sizeof(uint8_t));
+      pos += 3*sizeof(uint8_t);
       memcpy(&b[pos], &hist, sizeof(unsigned long long));
       pos += sizeof(unsigned long long);
     }
@@ -151,6 +187,7 @@ private:
       weight = auxf[4];
 
       fread(static_cast<void*>(&t), sizeof(double), 1, f);
+      fread(static_cast<void*>(info.data()), sizeof(uint8_t), 3, f);
       if(fread(static_cast<void*>(&hist), sizeof(unsigned long long), 1, f) == 1)
 	return true;
       else
@@ -167,6 +204,7 @@ private:
   };
 
   struct singlesBuffer{
+  public:
     static constexpr const size_t baseSize = 200000;
   private:
     std::vector<single> buffer;
@@ -176,126 +214,18 @@ private:
     singlesBuffer() noexcept : buffer(baseSize), n(0), nflushes(0) {}
     inline void store(const double de,
 		      const double x, const double y, const double z,
-		      const double t, const double w,
+		      const double t, const double w, const uint8_t boolMask,
+		      const uint8_t kpar, const uint8_t interaction,
 		      const unsigned long long hist) noexcept {
       
-      if(n < buffer.size()){
-	buffer[n++] = single(de, x, y, z, t, w, hist);
-      }else{
+      if(n >= buffer.size()){
 	buffer.resize(buffer.size() + baseSize/10);
-	buffer[n++] = single(de, x, y, z, t, w, hist);
       }
+      buffer[n++] = single(de, x, y, z, t, w, boolMask, kpar, interaction, hist);
     }
 
-    inline void reduce(const size_t start, const double dt, const double tmin, const double tmax){
-
-      if(n <= start+1)
-	return;      
-
-      //std::vector<single> auxBuff(buffer.cbegin() + start, buffer.cbegin() + n);
-      
-      //Sort specified data range
-      std::sort(buffer.begin() + start, buffer.begin() + n);
-
-      //std::vector<single> auxBuffSort(buffer.cbegin() + start, buffer.cbegin() + n);
-
-      // Add singles within the same time window
-      
-      //Create auxiliary single
-      single auxSing;
-      size_t iAux = start;
-      
-      //Get the first single with positive energy
-      size_t ifirst = iAux;
-      auxSing = buffer[ifirst];
-      while(auxSing.E < 0.0 && ifirst < n-1){
-	//Get the next one
-	auxSing = buffer[++ifirst]; 
-      }
-      
-      if(ifirst != iAux){
-	//The first single with positive energy is not at the first position, correct it
-	buffer[ifirst] = buffer[iAux];
-      }
-
-      if(auxSing.E < 0.0){
-	penred::logs::logger::printf(penred::logs::SIMULATION,
-				     "No non negative single found!\n"
-				     "   First Energy: %15.5E",
-				     buffer[ifirst].E);
-      }
-
-      //double lastE = auxSing.E;
-      for(size_t i = iAux+1; i < n; ++i){
-	if(buffer[i].E < 0.0){ //Check if the next pulse has a negative energy 	  
-	  auxSing.addEnergy(buffer[i].E, buffer[i].weight/buffer[i].E);
-	}
-	else if(buffer[i].t - auxSing.t < dt){ //Check time window
-	  auxSing.add(buffer[i]);	  
-	}else{
-	  //Pulse with positive energy outside the join window
-
-	  //lastE = auxSing.E;
-
-	  //Save the current single
-	  if(auxSing.E > 0.0){
-	    if(auxSing.t >= tmin && auxSing.t <= tmax)
-	      buffer[iAux++] = auxSing;
-	  }
-	  /*
-	  else if(auxSing.E <= -1.0e-6)
-	    penred::logs::logger::printf(penred::logs::SIMULATION,
-					 "Warning: Single with negative energy (%E eV)."
-					 " Previous single energy: %E eV\n"
-					 "       i first: %lu\n"					 
-					 "         Start: %lu\n"
-					 "          iAux: %lu\n"
-					 "             n: %lu\n",
-					 auxSing.E, lastE, ifirst, start, iAux, n);
-	  */
-	  
-	  //Get the next one
-	  auxSing = buffer[i];
-	}
-	
-      }
-      
-      //Save the last single
-      if(auxSing.E > 0.0){
-	buffer[iAux++] = auxSing;
-      }
-      /*
-      else if(auxSing.E <= -1.0e-6){
-
-	std::string text;
-	for(size_t k = 0; k < auxBuff.size(); ++k){
-	  text.append(auxBuffSort[k].stringify() + "  |  " + auxBuff[k].stringify());
-	  text.append("\n");
-	}
-	
-	penred::logs::logger::printf(penred::logs::SIMULATION,
-				     "Warning: Final single with negative energy (%E eV).\n"
-				     "         Previous single energy: %E eV\n"
-				     " Previous history single energy: %E eV\n"
-				     "       i first: %lu\n"					 
-				     "         Start: %lu\n"
-				     "          iAux: %lu\n"
-				     "             n: %lu\n"
-				     "         tinit: %.25E\n"				     
-				     "         tlast: %.25E\n"
-				     "         Einit: %.15E\n"				     
-				     "         Elast: %.15E\n"
-				     " Singles list (%lu):\n%s\n",
-				     auxSing.E, lastE, buffer[start > 0 ? start-1 : 0].E, ifirst, start, iAux, n,
-				     auxSing.t, buffer[n-1].t, buffer[iAux].E, buffer[n-1].E,
-				     auxBuff.size(), text.c_str());
-      }
-      */
-
-      
-      //Update the number of elements in the buffer
-      n = iAux;      
-    }
+    void reduce(const size_t start, const bool saveScatter,
+		const double dt, const double tmin, const double tmax);
     
     inline std::vector<unsigned char> flush(){
 
@@ -327,12 +257,17 @@ private:
     inline size_t flushes() const { return nflushes; }
     inline size_t size() const { return n; }
   };
+
+private:
   
   double singleEmin, singleEmax;
   double tmin, tmax;
   double dt;
 
   double joinTime;
+
+  bool pileup;
+  bool scatter;
 
   std::array<unsigned long, constants::nParTypes> nInStack;
 
@@ -351,12 +286,19 @@ private:
   //Save data files offsets (Bytes from file beggining)
   std::vector<unsigned long> offsets;
 
+  uint8_t actualMask;
   unsigned actualKdet;
   bool toDetect;
   bool simFinished;
   bool removeOnEnd;
   bool binary;
   bool skipBeginPart;
+  unsigned long long lastHist;
+
+  // Store last interaction index. Last values are for special situations:
+  // 255 Particle just created and absorbed due local body eabs
+  // 254 Particle absorbed just after entering a new material or body due local eabs
+  uint8_t lastICol;
 
   const wrapper_geometry* geo;
   
@@ -368,6 +310,7 @@ public:
 				    USE_STEP |
 				    USE_MOVE2GEO |
 				    USE_INTERFCROSS |
+				    USE_KNOCK |
 				    USE_ENDHIST |
 				    USE_ENDSIM)
   {}
@@ -382,20 +325,23 @@ public:
 
   inline void count(const double de,
 		    const double x, const double y, const double z,
-		    const double t, const double w,
+		    const double t, const double w, const pen_KPAR kpar,
 		    const unsigned long long nhist){
-
-    if(!toDetect)
+    
+    if(!toDetect){
+      if(isRealInteraction(kpar, lastICol))
+	actualMask |= single::SCATTERED;
       return;
+    }
     
     if(de == 0.0)
       return;
 
     //Get the buffer
     singlesBuffer& buffer = buffers[detInternalIndex[actualKdet]];
-    
+
     //Store single
-    buffer.store(de, x, y, z, t, w, nhist);
+    buffer.store(de, x, y, z, t, w, actualMask, static_cast<uint8_t>(kpar), lastICol, nhist);
   }
   
   void tally_localEdep(const unsigned long long nhist,
@@ -431,6 +377,14 @@ public:
 			 const pen_KPAR /*kpar*/,
 			 const pen_particleState& /*state*/);
 
+  inline void tally_knock(const unsigned long long /*nhist*/,
+			  const pen_KPAR /*kpar*/,
+			  const pen_particleState& /*state*/,
+			  const int icol){
+    //Update last interaction
+    lastICol = static_cast<uint8_t>(icol);
+  }
+
   void tally_endHist(const unsigned long long /*nhist*/);
 
   inline void tally_endSim(const unsigned long long /*nhist*/){
@@ -458,6 +412,9 @@ public:
     UNHANDLED = 1,
   };
 
+  bool pileup;
+  bool scatter;
+  
   bool removeOnEnd;
   bool binary;
   
@@ -535,6 +492,15 @@ time/join/reader-description "Minimum required time between singles signals, in 
 time/join/reader-value 1.0e-9
 time/join/reader-required/type "optional"
 time/join/reader-conditions/positive/type "positive"
+
+## Events control
+pileup/reader-description "Enable/disable pileup when joining events. If disabled, only hits proceding from the same history can be joined in a single."
+pileup/reader-value true
+pileup/reader-required/type "optional"
+
+scatter/reader-description "Enable/disable saving scattered events."
+scatter/reader-value true
+scatter/reader-required/type "optional"
 
 ## File control
 clear/reader-description "Enable/disable removing auxiliary data files after final data processing. Notice that those files are required to resume a simulation from a dump file."

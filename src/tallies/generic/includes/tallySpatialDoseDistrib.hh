@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2023 Universitat de València - UV
 //    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -34,7 +35,8 @@
 #include "pen_constants.hh"
 
 class pen_SpatialDoseDistrib: public pen_genericTally<pen_particleState> {
-  DECLARE_TALLY(pen_SpatialDoseDistrib,pen_particleState)
+  DECLARE_TALLY(pen_SpatialDoseDistrib,pen_particleState,SPATIAL_DOSE_DISTRIB,
+		std::pair<double, penred::tally::Dim<3>>)
   
   private:
   int  nx,ny,nz;
@@ -56,33 +58,7 @@ class pen_SpatialDoseDistrib: public pen_genericTally<pen_particleState> {
   double imatDens[constants::MAXMAT];
 public:
     
-      pen_SpatialDoseDistrib() : pen_genericTally( USE_LOCALEDEP |
-						   USE_BEGINPART |
-						   USE_SAMPLEDPART |
-						   USE_STEP |
-						   USE_ENDSIM |
-						   USE_MOVE2GEO)
-                         
-
-  {
-      nx = ny = nz = nxy = nbin = 0;
-      dx = dy = dz = 0.0;
-      idx = idy = idz = 1.0e35;
-      xmin = ymin = zmin = 0.0;
-      
-      nlast = nullptr;
-      edptmp = nullptr;
-      edep = nullptr;
-      edep2 = nullptr;
-      ivoxMass = nullptr;
-
-      nlastdepth = nullptr;
-      edepthtmp = nullptr;
-      edepth = nullptr;
-      edepth2 = nullptr;
-
-      printDepthDose = false;
-}
+  pen_SpatialDoseDistrib();
   
   void updateEdepCounters(const double dE,
                           const unsigned long long nhist,

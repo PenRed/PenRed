@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019 Universitat de València - UV
 //    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -33,7 +34,17 @@
 #include "pen_constants.hh" 
 
 class pen_EmergingPartDistrib : public pen_genericTally<pen_particleState> {
-  DECLARE_TALLY(pen_EmergingPartDistrib,pen_particleState)
+  DECLARE_TALLY(pen_EmergingPartDistrib,pen_particleState,EMERGING_PART_DISTRIB,
+		std::pair<double, penred::tally::Dim<1>>, //Upbound electrons
+		std::pair<double, penred::tally::Dim<1>>, //Upbound gamma
+		std::pair<double, penred::tally::Dim<1>>, //Upbound positrons
+		std::pair<double, penred::tally::Dim<1>>, //Downbound electrons
+		std::pair<double, penred::tally::Dim<1>>, //Downbound gamma
+		std::pair<double, penred::tally::Dim<1>>, //Downbound positrons
+		std::pair<double, penred::tally::Dim<2>>, //Angular electrons
+		std::pair<double, penred::tally::Dim<2>>, //Angular gamma
+		std::pair<double, penred::tally::Dim<2>>  //Angular positrons
+		)
   
 private:
   bool energyLogscale, angularLogscale;
@@ -66,26 +77,16 @@ private:
     
 public:
     
-      pen_EmergingPartDistrib() : pen_genericTally( USE_MOVE2GEO |
-						   USE_MATCHANGE |
-						    USE_ENDSIM),
-				  nBinsE(0),
-				  nBinsTheta(0),
-				  nBinsPhi(0),
-				  nAngBins(0),
-				  pmin(0.0),
-				  pmax(2.0*constants::PI)
-				  
-				  
-  {
-    for(unsigned int i = 0; i < constants::nParTypes; i++){
-	angHist[i] = nullptr;
-	angHistTmp[i] = nullptr;
-	angHist2[i] = nullptr;
-	angnlast[i] = nullptr;
-    }
-    
-  }
+  pen_EmergingPartDistrib();
+
+  penred::measurements::results<double, 1> generateUpbound(const pen_KPAR kpar,
+							   const unsigned long long nhist);
+
+  penred::measurements::results<double, 1> generateDownbound(const pen_KPAR kpar,
+							     const unsigned long long nhist);
+
+  penred::measurements::results<double, 2> generateAngular(const pen_KPAR kpar,
+							   const unsigned long long nhist);  
   
   void scapedParticle(const unsigned long long nhist,
 				 const pen_KPAR /*kpar*/,

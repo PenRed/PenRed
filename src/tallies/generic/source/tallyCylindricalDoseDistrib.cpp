@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2022 Universitat de València - UV
 //    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -29,6 +30,98 @@
 
  
 #include "tallyCylindricalDoseDistrib.hh"
+
+pen_CylindricalDoseDistrib::pen_CylindricalDoseDistrib() :
+  pen_genericTally( USE_LOCALEDEP |
+		    USE_BEGINPART |
+		    USE_SAMPLEDPART |
+		    USE_STEP |
+		    USE_ENDSIM |
+		    USE_MOVE2GEO),
+  nr(0),
+  nphi(0),
+  nz(0),
+  nbins(0)
+				 
+{
+  //Set results functions
+  setResultsGenerator<0>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 3>{
+	    
+      //Create results
+      penred::measurements::results<double, 3> results;
+      results.initFromLists
+	({static_cast<long unsigned>(nr),
+	   static_cast<long unsigned>(nphi),
+	   static_cast<long unsigned>(nz)},
+	  {penred::measurements::limitsType(rmin, rmin + dr*static_cast<double>(nr)),
+	   penred::measurements::limitsType(0.0, 360.0),
+	   penred::measurements::limitsType(zmin, zmin + dz*static_cast<double>(nz))
+	  });
+	  
+  
+      results.setDimHeader(0, "r (cm)");
+      results.setDimHeader(1, "phi (deg)");
+      results.setDimHeader(2, "z (cm)");
+      if(idz == 0.0){
+	results.description = "PenRed: Radial dose distribution\n\n";	  
+	results.setValueHeader("Dose (eV cm /g hist)");
+      }
+      else{
+	results.description = "PenRed: Cylindrical dose distribution\n\n";	  
+	results.setValueHeader("Dose (eV/g hist)");
+      }
+      results.description += " Histories simulated: " + std::to_string(nhists) + "\n";
+
+      const double invn = 1.0/static_cast<double>(nhists);
+      for(long int i = 0; i < nbins; ++i){
+	const double fact = imass[i];
+	const double q = edep[i]*invn;
+	const double sigma = sqrt((edep2[i]*invn-q*q)*invn > 0.0 ?
+				  (edep2[i]*invn-q*q)*invn : 0.0);
+	results.data[i] = q*fact;
+	results.sigma[i] = sigma*fact;
+      }
+      return results;
+    });
+
+  setResultsGenerator<1>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 3>{
+	    
+      //Create results
+      penred::measurements::results<double, 3> results;
+      results.initFromLists
+	({static_cast<long unsigned>(nr),
+	   static_cast<long unsigned>(nphi),
+	   static_cast<long unsigned>(nz)},
+	  {penred::measurements::limitsType(rmin, rmin + dr*static_cast<double>(nr)),
+	   penred::measurements::limitsType(0.0, 360.0),
+	   penred::measurements::limitsType(zmin, zmin + dz*static_cast<double>(nz))
+	  });	  
+  
+      results.setDimHeader(0, "r (cm)");
+      results.setDimHeader(1, "phi (deg)");
+      results.setDimHeader(2, "z (cm)");
+      results.setValueHeader("E (eV/hist)");
+      if(idz == 0.0){
+	results.description = "PenRed: Radial absorbed energy distribution\n\n";	  
+      }
+      else{
+	results.description = "PenRed: Cylindrical absorbed energy distribution\n\n";	  
+      }
+      results.description += " Histories simulated: " + std::to_string(nhists) + "\n";
+
+      const double invn = 1.0/static_cast<double>(nhists);  
+      for(long int i = 0; i < nbins; ++i){
+	const double q = edep[i]*invn;
+	const double sigma = sqrt((edep2[i]*invn-q*q)*invn > 0.0 ?
+				  (edep2[i]*invn-q*q)*invn : 0.0);
+	results.data[i] = q;
+	results.sigma[i] = sigma;
+      }
+      return results;
+    });
+}
 
 void pen_CylindricalDoseDistrib::updateEdepCounters(const double dE,
 						    const unsigned long long nhist,
@@ -578,4 +671,4 @@ int pen_CylindricalDoseDistrib::sumTally(const pen_CylindricalDoseDistrib& tally
 }
 
 
-REGISTER_COMMON_TALLY(pen_CylindricalDoseDistrib, CYLINDRICAL_DOSE_DISTRIB)
+REGISTER_COMMON_TALLY(pen_CylindricalDoseDistrib)

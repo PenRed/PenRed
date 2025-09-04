@@ -33,10 +33,8 @@
 #  LIBS
 #############################
 
-if(WITH_MULTI_THREADING)
-    #Find threads package
-    find_package (Threads REQUIRED)
-endif(WITH_MULTI_THREADING)
+#Find threads package
+find_package (Threads REQUIRED)
 
 
 #############################
@@ -137,24 +135,20 @@ install(
 # Example 1
 #-----------
 
-if(WITH_MULTI_THREADING)
+add_executable(split_t1 ${PROJECT_SOURCE_DIR}/tests/splittedFiles/split_t1.cpp)
 
-    add_executable(split_t1 ${PROJECT_SOURCE_DIR}/tests/splittedFiles/split_t1.cpp)
-
-    #target libs
-    target_link_libraries(split_t1 pen_splittedFile)
-    #Link thread libs
-    target_link_libraries (split_t1 ${CMAKE_THREAD_LIBS_INIT})
+#target libs
+target_link_libraries(split_t1 pen_splittedFile)
+#Link thread libs
+target_link_libraries (split_t1 ${CMAKE_THREAD_LIBS_INIT})
 
 
 #-----------------------------------------------------------------------------
-    install(
-        TARGETS split_t1
-        DESTINATION ${PROJECT_SOURCE_DIR}/compiled/tests/splittedFiles
-    )  
+install(
+    TARGETS split_t1
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/tests/splittedFiles
+)
 #-----------------------------------------------------------------------------
-
-endif(WITH_MULTI_THREADING)
 
 #   shared file tests
 #############################
@@ -162,24 +156,21 @@ endif(WITH_MULTI_THREADING)
 # Example 1
 #-----------
 
-if(WITH_MULTI_THREADING)
+add_executable(shared_t1 ${PROJECT_SOURCE_DIR}/tests/sharedFile/test1.cpp)
 
-    add_executable(shared_t1 ${PROJECT_SOURCE_DIR}/tests/sharedFile/test1.cpp)
-
-    #target libs
-    target_link_libraries(shared_t1 pen_sharedFile)
-    #Link thread libs
-    target_link_libraries (shared_t1 ${CMAKE_THREAD_LIBS_INIT})
+#target libs
+target_link_libraries(shared_t1 pen_sharedFile)
+#Link thread libs
+target_link_libraries (shared_t1 ${CMAKE_THREAD_LIBS_INIT})
 
 
 #-----------------------------------------------------------------------------
-    install(
-        TARGETS shared_t1 
-        DESTINATION ${PROJECT_SOURCE_DIR}/compiled/tests/sharedFile
-    )  
+install(
+    TARGETS shared_t1 
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/tests/sharedFile
+)
 #-----------------------------------------------------------------------------
 
-endif(WITH_MULTI_THREADING)
 
 #-----------------------------------------------------------------------------
 
@@ -204,25 +195,21 @@ install(
 # Example 2
 #-----------
 
-if(WITH_MULTI_THREADING)
+add_executable(psf_t2 ${PROJECT_SOURCE_DIR}/tests/psf/multithreadRead.cpp)
 
-    add_executable(psf_t2 ${PROJECT_SOURCE_DIR}/tests/psf/multithreadRead.cpp)
-
-    #target libs
-    target_link_libraries(psf_t2 samplers)
-    target_link_libraries(psf_t2 pen_splittedFile)
-    #Link thread libs
-    target_link_libraries(psf_t2 ${CMAKE_THREAD_LIBS_INIT})
+#target libs
+target_link_libraries(psf_t2 samplers)
+target_link_libraries(psf_t2 pen_splittedFile)
+#Link thread libs
+target_link_libraries(psf_t2 ${CMAKE_THREAD_LIBS_INIT})
 
 
 #-----------------------------------------------------------------------------
-    install(
-        TARGETS psf_t2
-        DESTINATION ${PROJECT_SOURCE_DIR}/compiled/tests/psf
-    )  
+install(
+    TARGETS psf_t2
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/tests/psf
+)
 #-----------------------------------------------------------------------------
-
-endif(WITH_MULTI_THREADING)
 
 #-----------------------------------------------------------------------------
 

@@ -29,7 +29,7 @@
 rm -fr build
 mkdir build
 cd build
-cmake -DWITH_DICOM="OFF" -DWITH_MULTI_THREADING="ON" -DWITH_MPI="OFF" -DWITH_LB="OFF" -DBUILD_PYTHON_MODULES="ON" -DBUILD_TESTS="OFF" -DBUILD_UTILITIES="OFF" -DXRAY="ON" ..
+cmake -DWITH_DICOM="OFF" -DWITH_MPI="OFF" -DWITH_LB="OFF" -DBUILD_PYTHON_MODULES="ON" -DBUILD_TESTS="OFF" -DBUILD_UTILITIES="OFF" -DXRAY="ON" ..
 cmake --build . --config Release --target install -j 4
 
 if [ $? -eq 0 ]; then

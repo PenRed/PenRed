@@ -38,7 +38,7 @@
 #include "pen_phaseSpaceFile.hh"
 
 class pen_tallyPhaseSpaceFile : public pen_genericTally<pen_particleState> {
-  DECLARE_TALLY(pen_tallyPhaseSpaceFile,pen_particleState)
+  DECLARE_TALLY(pen_tallyPhaseSpaceFile,pen_particleState,PSF)
 
 private:
 

@@ -97,6 +97,9 @@ namespace penred{
 	ERROR_ON_VR_CONFIGURATION,
 	ERROR_PARSING_CONFIG,
 	ERROR_SIMULATION_RUNNING,
+	ERROR_SIMULATION_NOT_RUNNING,
+	ERROR_SIMULATION_NOT_RUNNING_INTERACTIVE,
+	ERROR_SIMULATION_RUNNING_INTERACTIVE,
       };
 
       constexpr const char* errorMessage(const int val){
@@ -127,6 +130,9 @@ namespace penred{
 	case ERROR_ON_VR_CONFIGURATION: return "Error configuring variance reduction";
 	case ERROR_PARSING_CONFIG: return "Error parsing configuration";
 	case ERROR_SIMULATION_RUNNING: return "Simulation is running";
+	case ERROR_SIMULATION_NOT_RUNNING: return "No simulation running";
+	case ERROR_SIMULATION_NOT_RUNNING_INTERACTIVE: return "Simulation is not running in interactive mode";
+	case ERROR_SIMULATION_RUNNING_INTERACTIVE: return "Simulation is running in interactive mode";
 	default: return "Unknown error";
 	}
       }
@@ -829,39 +835,6 @@ namespace penred{
     }
 
 
-    template <class particleType,
-	      class stateType>
-    bool move2geo(const unsigned long long& nhist,
-		  particleType& particle,
-		  pen_commonTallyCluster& tallies,
-		  pen_specificTallyCluster<stateType>& specificTallies){
-
-      stateType& state = particle.getState();
-      //Check if particle has been generated at vacuum
-      if(state.MAT == 0){
-	//Move it to geometry system
-	particle.jumpVolume();
-    
-	//Call tallies with move2geo collect function
-	unsigned kdet = particle.getDET();
-	tallies.run_move2geo(nhist,kdet,particle.kpar,state,
-			     particle.DSef(),particle.DStot());
-	specificTallies.run_move2geo(nhist,kdet,particle.kpar,
-				     state,particle.DSef(),particle.DStot());
-    
-	if(state.MAT == 0){
-	  tallies.run_endPart(nhist,particle.kpar,state);
-	  specificTallies.run_endPart(nhist,particle.kpar,state);
-	  return false;
-	}
-      }
-      else{
-	particle.updateMat();
-	particle.updateBody();
-      }  
-      return true;
-    }
-
     template <class particleType>
     bool move2geo(particleType& particle){
 
@@ -907,37 +880,6 @@ namespace penred{
 	}
 	//Call tallies with end particle collect function
 	tallies.run_endPart(nhist,particle.kpar,state);
-	return true;
-      }
-
-      //Particle can't be absorbed yet
-      return false;
-    }
-
-    template <class particleType,
-	      class stateType>
-    inline bool absorb(const unsigned long long& nhist,
-		       particleType& particle,
-		       pen_commonTallyCluster& tallies,
-		       pen_specificTallyCluster<stateType>& specificTallies,
-		       pen_rand& penRand){
-
-      const stateType& state = particle.readState();
-
-      //Check if particle must be absorbed
-      if(state.E < particle.getEABS()){ 
-
-	//Check if the particle has already been annihilated
-	if(state.E > 1.0e-6){
-	  // run annihilation process
-	  double Eprod = particle.annihilationEDep;
-	  particle.annihilate(penRand);
-	  tallies.run_localEdep(nhist,particle.kpar,state,state.E+Eprod);
-	  specificTallies.run_localEdep(nhist,particle.kpar,state,state.E+Eprod);
-	}
-	//Call tallies with end particle collect function
-	tallies.run_endPart(nhist,particle.kpar,state);
-	specificTallies.run_endPart(nhist,particle.kpar,state);      
 	return true;
       }
 

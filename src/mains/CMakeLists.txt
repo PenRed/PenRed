@@ -46,14 +46,18 @@ install(
   )
 #-----------------------------------------------------------------------------
 
+# penred simulation object has no support for MPI yet
+if(NOT WITH_MPI)
 
-add_executable(penred ${PROJECT_SOURCE_DIR}/mains/source/penred.cpp)
-target_link_libraries(penred pen_sim)
+  add_executable(penred ${PROJECT_SOURCE_DIR}/mains/source/penred.cpp)
+  target_link_libraries(penred pen_sim)
 
-#-----------------------------------------------------------------------------
-# Install penred executable
-install(
-  TARGETS penred
-  DESTINATION ${PROJECT_SOURCE_DIR}/compiled/mains/penred
-  )
-#-----------------------------------------------------------------------------
+  #-----------------------------------------------------------------------------
+  # Install penred executable
+  install(
+    TARGETS penred
+    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/mains/penred
+    )
+  #-----------------------------------------------------------------------------
+
+endif(NOT WITH_MPI)

@@ -35,6 +35,8 @@
 #include "pen_grids.hh"
 #include "pen_muen.hh"
 
+#include <array>
+
 namespace pen_tally_KTL{
 
   const double inf = 1.0e35;
@@ -237,7 +239,11 @@ namespace pen_tally_KTL{
 }
 
 class pen_tallyKermaTrackLength: public pen_genericTally<pen_particleState> {
-  DECLARE_TALLY(pen_tallyKermaTrackLength,pen_particleState)
+  DECLARE_TALLY(pen_tallyKermaTrackLength,pen_particleState,KERMA_TRACK_LENGTH,
+		std::pair<double, penred::tally::Dim<3>>, //Cartesian
+		std::pair<double, penred::tally::Dim<3>>, //Cylindrical
+		std::pair<double, penred::tally::Dim<3>>  //Spherical
+		)
 
   public:
   static const size_t nbinmax = 1000;
@@ -310,26 +316,7 @@ class pen_tallyKermaTrackLength: public pen_genericTally<pen_particleState> {
 
 public:
     
-  pen_tallyKermaTrackLength() : pen_genericTally(USE_JUMP | USE_STEP),
-				kparTrig(PEN_PHOTON),
-				muen(constants::MAXMAT+1),
-				cartesian(nullptr),
-				cartesian2(nullptr),
-				cartesianTmp(nullptr),
-				cartesianLastHist(nullptr),
-				activeCart(false),
-				cylindrical(nullptr),
-				cylindrical2(nullptr),
-				cylindricalTmp(nullptr),
-				cylindricalLastHist(nullptr),
-				activeCyl(false),
-				spherical(nullptr),
-				spherical2(nullptr),
-				sphericalTmp(nullptr),
-				sphericalLastHist(nullptr),
-				pvolumesSph(nullptr),
-				activeSph(false)
-  {}
+  pen_tallyKermaTrackLength();
     
   void kermaTrackLengthCart(const unsigned long long nhist,
 			    const double wght,

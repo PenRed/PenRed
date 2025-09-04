@@ -688,34 +688,4 @@ int pen_PSS::sumTally(const pen_PSS& tally){
   return err1 + err2 + err3;
 }
 
-REGISTER_COMMON_TALLY(pen_PSS, PSS)
-
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+REGISTER_COMMON_TALLY(pen_PSS)

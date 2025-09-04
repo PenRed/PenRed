@@ -29,6 +29,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
+#include <algorithm>
 #include "pen_simulation.hh"
 
 #ifdef _PEN_XRAY_LIBS_
@@ -143,6 +144,103 @@ inline int dict2section(const py::dict& dict,
   return parseString(text, result, errorString, errorLine);
 }
 
+// + Results value extraction
+
+template<typename T, size_t dim>
+py::tuple result2numpy(const penred::measurements::results<T, dim>& results, const bool extractInfo){
+
+  size_t resTupleSize = 2;
+  if(extractInfo){
+    resTupleSize += dim + 2;
+  }
+  
+  py::tuple pyRes(resTupleSize);
+
+  //Get bins in each dimension
+  std::array<unsigned long, dim> nBins = results.readDimBins();
+  //Reverse bins to fit the numpy ordering for dimensions
+  std::reverse(nBins.begin(), nBins.end());
+  
+  pyRes[0] = py::array_t<T>(nBins, results.data.data());
+  pyRes[1] = py::array_t<T>(nBins, results.sigma.data());
+  
+  if(extractInfo){
+    //Get interval and description information for each dimension
+    const std::array<std::pair<double, double>, dim> limits = results.readLimits();
+
+    for(int i = static_cast<int>(dim)-1; i >= 0; --i){
+      py::tuple dimInfo(3);
+      dimInfo[0] = limits[i].first;
+      dimInfo[1] = limits[i].second;
+      const std::string header = results.readDimHeader(i);
+      dimInfo[2] = header;
+
+      //Append this dimension to returned results
+      pyRes[2+dim-(i+1)] = dimInfo;
+    }
+
+    //Append value and description info
+    pyRes[2+dim] = results.readValueHeader();
+    pyRes[2+dim+1] = results.description;
+  }
+
+  return pyRes;
+}
+
+template<typename T>
+py::array_t<T> result2numpy(const std::vector<T>& results, const bool){
+
+  py::tuple pyRes(1);  
+  pyRes[0] = py::array_t<T>(results.size(), results.data());
+
+  return pyRes;
+}
+
+template<class TallyType, size_t I>
+typename std::enable_if<I >= std::tuple_size<typename TallyType::ResultsTypes>::value, void>::type
+tallyResults2numpy(const typename TallyType::ResultsTypes&, py::tuple&, const bool){}
+
+template<class TallyType, size_t I>
+typename std::enable_if<I < std::tuple_size<typename TallyType::ResultsTypes>::value, void>::type
+tallyResults2numpy(const typename TallyType::ResultsTypes& r, py::tuple& pyRes, const bool extractInfo){
+  pyRes[I] = result2numpy(std::get<I>(r), extractInfo);
+  tallyResults2numpy<TallyType, I+1>(r, pyRes, extractInfo);
+}
+
+template<class TallyType>
+py::tuple tallyExtractResults(const typename TallyType::ResultsTypes& r, const bool extractInfo){
+
+  py::tuple pyRes(std::tuple_size<typename TallyType::ResultsTypes>::value);
+
+  tallyResults2numpy<TallyType, 0>(r, pyRes, extractInfo);
+
+  return pyRes;
+}
+
+// + Tally search functions
+
+template<size_t I = 0>
+typename std::enable_if<I >= std::tuple_size<penred::tally::typesGenericTallies>::value, py::tuple>::type
+getResults(const penred::tally::Results&, const std::string&, const unsigned){
+  return py::tuple();
+}  
+
+template<size_t I = 0>
+typename std::enable_if<I < std::tuple_size<penred::tally::typesGenericTallies>::value, py::tuple>::type
+getResults(const penred::tally::Results& results, const std::string& tallyName, const bool extractInfo){
+
+  using TallyType = typename std::tuple_element<I, penred::tally::typesGenericTallies>::type;
+
+  const auto& tallyMap = results.read<I>();
+  for(const auto& element : tallyMap){
+    if(element.first.compare(tallyName) == 0){
+      const typename TallyType::ResultsTypes& tallyResults = element.second;
+      return tallyExtractResults<TallyType>(tallyResults, extractInfo);
+    }
+  }
+  return getResults<I+1>(results, tallyName, extractInfo);
+}
+
 PYBIND11_MODULE(simulation,m){
 
   m.doc() = "penred simulation module";
@@ -164,6 +262,7 @@ Args:
     
 Returns:
     None
+
     )");
   
   m.def("setSimulationLog",
@@ -198,6 +297,7 @@ Args:
     
 Returns:
     String containing the error message
+
     )");
 
   m.def("dict2SectionString", &dict2SectionString,
@@ -211,6 +311,7 @@ Args:
     
 Returns:
     String containing the converted dictionary
+
     )");
 
   m.def("configFile2YAML",
@@ -247,6 +348,7 @@ Args:
     
 Returns:
     String containing the information in YAML format
+
     )");
 
   py::class_<penred::simulation::simulator<pen_context>>(m, "simulator")
@@ -297,6 +399,7 @@ Returns:
 
 Raises:
     ValueError: If file parsing fails.
+
     )")
     
     .def("configure",
@@ -322,6 +425,7 @@ Returns:
 
 Raises:
     ValueError: If configuraiton set fails.
+
     )")
     
     .def("configContext",
@@ -347,6 +451,7 @@ Returns:
 
 Raises:
     ValueError: If configuraiton set fails.
+
     )")
     
     .def("configSource",
@@ -373,6 +478,7 @@ Returns:
 
 Raises:
     ValueError: If configuraiton set fails.
+
     )")
     
     .def("configGeometry",
@@ -397,7 +503,8 @@ Returns:
     None
 
 Raises:
-    ValueError: If configuraiton set fails.    
+    ValueError: If configuraiton set fails.
+
     )")
     
     .def("configTally",
@@ -451,6 +558,7 @@ Returns:
 
 Raises:
     ValueError: If configuraiton set fails.
+
     )")
     
     .def("setSimConfig",
@@ -477,25 +585,35 @@ Returns:
 
 Raises:
     ValueError: If configuraiton set fails.
+
     )")
     
     .def("simulate",
-	 [](penred::simulation::simulator<pen_context>& obj, const bool async) -> void {
+	 [](penred::simulation::simulator<pen_context>& obj, const bool async, const bool interactive) -> void {
 	   if(async){
 	     //py::gil_scoped_release release;
-	     int err = obj.simulateAsync();
+	     int err = obj.enableInteractive(interactive);
+	     if(err != penred::simulation::errors::SUCCESS){
+	       throw py::value_error(penred::simulation::errors::errorMessage(err));
+	     }
+	     err = obj.simulateAsync();
 	     if(err != penred::simulation::errors::SUCCESS){
 	       throw py::value_error(penred::simulation::errors::errorMessage(err));
 	     }
 	   }
 	   else{
-	     int err = obj.simulate();
+	     int err = obj.enableInteractive(false);
+	     if(err != penred::simulation::errors::SUCCESS){
+	       throw py::value_error(penred::simulation::errors::errorMessage(err));
+	     }	     
+	     err = obj.simulate();
 	     if(err != penred::simulation::errors::SUCCESS){
 	       throw py::value_error(penred::simulation::errors::errorMessage(err));
 	     }
 	   }
 	 },
 	 py::arg("async") = false,
+	 py::arg("interactive") = false,
 	 R"doc(
 Executes the configured simulation in either blocking or non-blocking mode.
 
@@ -503,6 +621,9 @@ Args:
     async (bool, optional): Simulation execution mode.
         - False (default): Blocking mode (waits for completion)
         - True: Non-blocking mode (returns immediately)
+    interactive (bool, optional): Simulation executes in interactive mode. Only available on asynchronous executions
+        - False (default): The simulation starts and finish according to the configuration parameters.
+        - True: Interactive. The simulation is configured and waits further instructions.
 
 Returns:
     None
@@ -545,11 +666,7 @@ Example:
     
     .def("simSpeeds",
 	 [](penred::simulation::simulator<pen_context>& obj) -> py::tuple{
-	   auto speeds = obj.simSpeeds();
-	   py::tuple resTuple = py::tuple(speeds.size());
-	   for(size_t i = 0; i < speeds.size(); ++i)
-	     resTuple[i] = py::tuple(py::float_(speeds[i]));
-	   return resTuple;
+	   return py::tuple(py::cast(obj.simSpeeds()));
 	 },
 	 R"(
 
@@ -560,19 +677,12 @@ Args:
 
 Returns:
     tuple: A tuple containing the simulation speed of each thead
+
     )")
     
     .def("simulated",
 	 [](penred::simulation::simulator<pen_context>& obj) -> py::tuple{
-	   auto sim2sim = obj.simulated();
-	   py::tuple resTuple = py::tuple(sim2sim.size());
-	   for(size_t i = 0; i < sim2sim.size(); ++i){
-	     py::tuple element = py::tuple(2);
-	     element[0] = py::int_(sim2sim[i].first);
-	     element[1] = py::int_(sim2sim[i].second);
-	     resTuple[i] = element;
-	   }
-	   return resTuple;
+	   return py::tuple(py::cast(obj.simulated()));
 	 },
 	 R"(
 
@@ -583,14 +693,11 @@ Args:
 
 Returns:
     tuple: A tuple with the the pairs (simulated, to simulate) histories for each thread at the current source
+
 )")
     .def("stringifyStatus",
-	 [](penred::simulation::simulator<pen_context>& obj){
-	   std::vector<std::string> r = obj.stringifyStatus();
-	   auto resTuple = py::tuple(r.size());
-	   for(size_t i = 0; i < r.size(); ++i)
-	     resTuple[i] = py::str(r[i]);
-	   return resTuple;
+	 [](penred::simulation::simulator<pen_context>& obj) -> py::tuple{
+	   return py::tuple(py::cast(obj.stringifyStatus()));
 	 },
 	 R"(
 
@@ -601,6 +708,7 @@ Args:
 
 Returns:
     tuple: A tuple with a string for each thread describing its status.
+
 )")
     
     .def("isSimulating",
@@ -616,21 +724,178 @@ Args:
 
 Returns:
     Bool: True if a simulation is running, false otherwise.
+
 )")
 
     .def("forceFinish",
 	 [](penred::simulation::simulator<pen_context>& obj) -> void{
-	   obj.forceFinish();
+	   int err = obj.forceFinish();
+	   if(err != penred::simulation::errors::SUCCESS){
+	     throw py::value_error(penred::simulation::errors::errorMessage(err));
+	   }	   
 	 },
 	 R"(
 
-Forces the simulation finish reducing the number of histories to be simulated. Finishing a simulation can take some time due tally postprocessing.
+Forces the simulation finish. Only works for non interactive simulations.
 
 Args:
     None
 
 Returns:
     None
+
+Raises:
+    ValueError: Simulation running in interactive mode.
+
+)")
+    .def("instructionEnd",
+	 [](penred::simulation::simulator<pen_context>& obj) -> unsigned long long{
+	   return obj.instructionEnd();
+	 },
+	 R"(
+
+Appends a finish simulation instruction to the instructions queue. Once executed, the simulation is finished and the tally postprocessing starts.
+
+Args:
+    None
+
+Returns:
+    The numerical ID of the enqueued instruction.
+
+)")
+    .def("instructionSimulate",
+	 [](penred::simulation::simulator<pen_context>& obj,
+	    const std::string& sourceName, const double hists,
+	    const std::vector<double>& translation,
+	    const std::vector<double>& rotation) -> unsigned long long{
+	   return obj.instructionSimulate(sourceName, hists, translation, rotation);
+	 },
+	 py::arg("source_name"),
+	 py::arg("hists"),
+	 py::arg("translation") = std::vector<double>(),
+	 py::arg("rotZYZ") = std::vector<double>(),
+	 R"(
+
+Appends a simulate instruction to the instructions queue. Once executed, the specified source is simulated. If both, a rotation and a translation are provided, the former is applied first and the latter seconth. If provided, the three components must be specified.
+
+Args:
+    source_name (str): Name of the source to be simulated
+    hists (float): Number of histories to simulate
+    translation (list[float,float,float]): Specify the translation, in cm, to be applied to the original source position before the simulation starts. If no specified, no translation will be applied
+    rotZYZ (list[float,float,float]): Specify the rotation angles, in rad, to be applied to the original source before the simulation starts. The resulting rotation is the product of three rotations around the Z,Y and Z axis. The angles are, in order:
+                                          - omega -> rotation angle around the z axis (rad)
+                                          - theta -> rotation angle around the y axis (rad)
+                                          - phi   -> rotation angle around the z axis (rad)
+
+                                      If not provided, no extra rotation is applied to the original source.
+
+Returns:
+    The numerical ID of the enqueued instruction.
+
+)")
+    .def("getResults",
+	 [](penred::simulation::simulator<pen_context>& obj,
+	    const std::string& tallyName, const bool extractInfo) -> py::tuple{
+
+	   py::tuple toRet = obj.processResults<py::tuple>
+	     ([tallyName, extractInfo](const penred::tally::Results& results){
+	       return getResults<0>(results, tallyName, extractInfo);
+	     });
+	   return toRet;
+	 },
+	 py::arg("tally_name"),
+	 py::arg("extract_info") = false,
+	 R"(
+
+Gets the simulation results from the specified tally.
+
+Args:
+    tally_name (str): Name of the tally to get the results from.
+    extract_info (bool): If enabled, the limits and dimensions information will be returned along with results values. 
+Returns:
+    On success, a tuple of numpy vectors storing the tally's specific results is returned. If the requested tally does not support retrieving results in that format, returned vectors will be empty.
+
+)")    
+    .def("instructionClear",
+	 [](penred::simulation::simulator<pen_context>& obj) -> unsigned long long{
+	   return obj.instructionClear();
+	 },
+	 R"(
+
+Clears all pending instructions in queue.
+
+Args:
+    None
+
+Returns:
+    The last queued instruction numerical ID.
+
+)")
+    .def("instructionWait",
+	 [](penred::simulation::simulator<pen_context>& obj,
+	    const unsigned long long instructionID,
+	    const unsigned long timeout) -> bool{
+	   return obj.instructionWait(instructionID, timeout);
+	 },
+	 py::arg("id"),
+	 py::arg("timeout"),
+	 R"(
+
+Waits until the specified instruction ID is processed or the timeout is reached
+
+Args:
+    id (unsigned): ID of the instruction to wait.
+    timeout (unsigned): Timeout in seconds.
+
+Returns:
+    Returns True if the instruction is processed before the timeout or False otherwise.
+
+)")
+    .def("instructionEndAndWait",
+	 [](penred::simulation::simulator<pen_context>& obj,
+	    const unsigned long timeout) -> bool{
+	   return obj.instructionEndAndWait(timeout);
+	 },
+	 py::arg("timeout"),
+	 R"(
+
+Enqueue an end instruction and waits until its completion or until reaching the timeout. In anycase, the end instruction sill enqueued until it is processed or cleared using a different call. 
+
+Args:
+    timeout (unsigned): Timeout in seconds.
+
+Returns:
+    Returns True if the end instruction is processed before the timeout or False otherwise.
+
+)")
+    .def("printResults",
+	 [](penred::simulation::simulator<pen_context>& obj,
+	    const std::string& prefix,
+	    const unsigned nSigma,
+	    const bool coordinates,
+	    const bool binNumber,
+	    const bool onlyEffective) -> void{
+	   return obj.printResults(prefix.c_str(), nSigma, coordinates, binNumber, onlyEffective);
+	 },
+	 py::arg("prefix") = "",
+	 py::arg("sigma") = 2,
+	 py::arg("coordinates") = true,
+	 py::arg("bins") = true,
+	 py::arg("effective") = false,
+	 R"(
+
+Prints the latest available results to different files.
+
+Args:
+    prefix (str): Prefix applied to the filenames.
+    sigma (unsigned): Number of printed sigmas for the uncertainties.
+    coordinates (bool): Enable/disable coordinates printing.
+    bins (bool): Enable/disable bin numbering printing.
+    effective (bool): If enabled dimensions with a single bin will be ignored for printing.
+
+Returns:
+    Returns True if the end instruction is processed before the timeout or False otherwise.
+
 )")
     .def("__repr__",
 	 [](const penred::simulation::simulator<pen_context>& /*obj*/){
@@ -679,7 +944,8 @@ Args:
 
 Returns:
     None
-    )");
+
+)");
 
   materials.def("createListed",
 		[](const unsigned matID, const std::string& filename) -> void{
@@ -700,7 +966,329 @@ Args:
 
 Returns:
     None
+
 )");
+  
+  
+  materials.def("range",
+		[](const std::vector<double>& energies,
+		   const double density,
+		   MaterialComposition& comp,
+		   const unsigned verbose)->py::tuple{
+
+		  // Create material
+		  std::vector<penred::massFraction> composition;
+		  for(const CompositionPair& e : comp){
+		    composition.emplace_back(e.first, e.second);
+		  }
+		  std::string errorString;
+		  if(penred::penMaterialCreator::createMat("_range_", density, composition, errorString) != 0)
+		    throw py::value_error(errorString);
+
+		  // Create context
+		  std::shared_ptr<pen_context> pcontext = createContext<pen_context>();
+
+		  // Create context configuration
+		  pen_parserSection contextConfig;
+		  contextConfig.set("materials/mat1/number", 1);
+		  contextConfig.set("materials/mat1/eabs/electron", 50.0);
+		  contextConfig.set("materials/mat1/eabs/positron", 50.0);
+		  contextConfig.set("materials/mat1/eabs/gamma", 50.0);
+		  contextConfig.set("materials/mat1/C1", 0.2);
+		  contextConfig.set("materials/mat1/C2", 0.2);
+		  contextConfig.set("materials/mat1/WCC", 1.0e3);
+		  contextConfig.set("materials/mat1/WCR", 1.0e3);
+		  contextConfig.set("materials/mat1/filename", "_range_.mat");
+
+		  // Context configuration
+		  pen_parserSection matInfoSection;
+		  if(pcontext->configure(1.0E9,
+					contextConfig,
+					matInfoSection,
+					verbose) != pen_context::SUCCESS){
+		    throw py::value_error("Error during configuration. Check context reports (context.rep)");
+		  }
+
+		  //Create the resulting python tuple
+		  py::tuple results(constants::nParTypes);
+		    
+		  for(unsigned i = 0; i < constants::nParTypes; ++i)
+		    {
+		      std::vector<double> ranges(energies.size());
+		      for(unsigned j = 0; j < energies.size(); ++j)
+			{
+			  ranges[j] = pcontext->range(energies[j], pen_KPAR(i), 0);
+			}
+		      results[i] = py::tuple(py::cast(ranges));		      
+		    }
+	     
+		  return results;
+		},
+		py::arg("energies"),
+		py::arg("density"),
+		py::arg("composition"),
+		py::arg("verbose") = 1,
+  	   R"doc(
+Calculates the particle ranges (in cm) for a given material composition at specified energies.
+
+Args:
+    energies (double): List of energies, in eV, at which to calculate particle ranges.
+    density (float): Material density in g/cm^3.
+    composition (list of tuple) : Material composition list. Each element consists 
+                                  of a 2D tuple with the corresponding element atomic number (Z) and weight fraction.
+                                  For example, [(Z1, weight1), (Z2, weight2), ...].
+    verbose (int, optional): Verbosity level.
+
+Returns:
+    tuple: A tuple containing the n tuples (one for each particle type), where each inner tuple contains the ranges, in cm, for all input energies. The order is: ((electron ranges), (gamma ranges), (positron ranges))
+
+Example:
+    .. code-block:: python
+
+        # Run the simulation and store the results
+        results = pyPenred.simulation.materials.range(energies=[100e3, 200e3, 50e3], density=1.0, composition=((1,0.112), (8,0.888)), verbose=1)
+
+)doc");
+  
+ 
+  materials.def("rangeFromFile",
+		[](const std::vector<double>& energies,
+		   const std::string& filename,
+		   const unsigned verbose)->py::tuple{
+		   
+		  // Create context
+		  std::shared_ptr<pen_context> pcontext = createContext<pen_context>();
+
+		  // Create context configuration
+		  pen_parserSection contextConfig;
+		  contextConfig.set("materials/mat1/number", 1);
+		  contextConfig.set("materials/mat1/eabs/electron", 50.0);
+		  contextConfig.set("materials/mat1/eabs/positron", 50.0);
+		  contextConfig.set("materials/mat1/eabs/gamma", 50.0);
+		  contextConfig.set("materials/mat1/C1", 0.2);
+		  contextConfig.set("materials/mat1/C2", 0.2);
+		  contextConfig.set("materials/mat1/WCC", 1.0e3);
+		  contextConfig.set("materials/mat1/WCR", 1.0e3);
+		  contextConfig.set("materials/mat1/filename",filename);
+
+		  // Context configuration
+		  pen_parserSection matInfoSection;
+		  if(pcontext->configure(1.0E9,
+					contextConfig,
+					matInfoSection,
+					verbose) != pen_context::SUCCESS){
+		    throw py::value_error("Error during configuration. Check context reports (context.rep)");
+		  }
+		  
+		  //Create the resulting python tuple
+		  py::tuple results(constants::nParTypes);
+		    
+		  for(unsigned i = 0; i < constants::nParTypes; ++i)
+		    {
+		      std::vector<double> ranges(energies.size());
+		      for(unsigned j = 0; j < energies.size(); ++j)
+			{
+			  ranges[j] = pcontext->range(energies[j], pen_KPAR(i), 0);
+			}
+		      results[i] = py::tuple(py::cast(ranges));		      
+		    }
+	     
+		  return results;
+		},
+		py::arg("energies"),
+		py::arg("filename"),
+		py::arg("verbose") = 1,
+  	   R"doc(
+Calculates the particle ranges (in cm) for a given material file at specified energies.
+
+Args:
+    energies (double): List of energies, in eV, at which to calculate particle ranges.
+    filename (str): Path to the material definition file.
+    verbose (int, optional): Verbosity level.
+
+Returns:
+    tuple: A tuple containing the n tuples (one for each particle type), where each inner tuple contains the ranges, in cm, for all input energies. The order is: ((electron ranges), (gamma ranges), (positron ranges))
+
+Example:
+    .. code-block:: python
+
+        # Run the simulation and store the results
+        results = pyPenred.simulation.materials.rangeFromFile(energies=[100e3, 200e3, 50e3], filename=water.mat, verbose=1)
+
+)doc");
+  
+  
+ materials.def("mutrenInterval",
+		[](const double density,
+		   MaterialComposition& comp,
+		   double emin,
+		   double emax,
+		   unsigned ebins, 
+		   const double tolerance,
+		   const double simTime)->py::tuple{
+			   
+		  // Create material
+		  std::vector<penred::massFraction> composition;
+		  for(const CompositionPair& e : comp){
+		    composition.emplace_back(e.first, e.second);
+		  }
+		  std::string errorString;
+		  if(penred::penMaterialCreator::createMat("_mutren_", density, composition, errorString) != 0)
+		    throw py::value_error(errorString);
+		 
+		  if(emin<50.0)
+			 emin=50.0;
+			   
+		  if(emax>1.0E9)
+			 emax=1.0E9;
+		
+		  std::vector<double> muenData(ebins);
+		  std::vector<double> EData(ebins);
+		  
+		  pen_muen::calculate(emin, emax, ebins, tolerance, simTime, "_mutren_.mat", EData, muenData);
+		  
+		  //Create the resulting python tuple
+		  py::tuple results(2);
+		  
+		  results[0] = py::tuple(py::cast(EData));
+		  results[1] = py::tuple(py::cast(muenData));
+		 
+		  return results;
+		  		},
+		py::arg("density"),
+		py::arg("composition"),
+		py::arg("emin") = 50.0,
+		py::arg("emax") = 1.0E9,
+		py::arg("ebins") = 100,
+		py::arg("tolerance") = 0.1,
+		py::arg("simTime") = 30,
+  	   R"doc(
+Calculates the mu_en coefficients for the specified material composition across a defined energy interval.
+
+Args:
+    density (float): Material density in g/cm^3.
+    composition (list of tuple) : Material composition list. Each element consists 
+                                  of a 2D tuple with the corresponding element atomic number (Z) and weight fraction.
+                                  For example, [(Z1, weight1), (Z2, weight2), ...].
+    emin (float, optional): Lower bound of energy range in eV. 
+    emax (float, optional): Upper bound of energy range in eV. 
+    ebins (unsigned, optional): Number of linear-spaced energy bins between emin and emax.
+    tolerance (float, optional): Relative error to stop the simulation.
+    simTime (float, optional): Allowed time (in seconds) to simulate each provided energy.
+    
+Returns:
+    tuple: A tuple containing two tuples: The first with the energy bins and the second with the muen coefficients for the specified material.
+
+Example:
+    .. code-block:: python
+
+        # Run the simulation and store the results
+        results = pyPenred.simulation.materials.mutrenInterval(density=1.0, composition=((1,0.112), (8,0.888)), emin=100e3, emax=200e3, ebins=120, tolerance=0.1, simTime=30)
+
+)doc");
+			
+ materials.def("mutren",
+		[](const std::vector<double>& energies,
+		   const double density,
+		   MaterialComposition& comp,
+		   const double tolerance,
+		   const double simTime)->py::tuple{
+			   
+		  // Create material
+		  std::vector<penred::massFraction> composition;
+		  for(const CompositionPair& e : comp){
+		    composition.emplace_back(e.first, e.second);
+		  }
+		  std::string errorString;
+		  if(penred::penMaterialCreator::createMat("_mutren_", density, composition, errorString) != 0)
+		    throw py::value_error(errorString);
+		
+		  std::vector<double> muenData(energies.size());
+		  
+		  pen_muen::calculate(energies, tolerance, simTime, "_mutren_.mat", muenData);
+		  
+		  //Create the resulting python tuple
+		  py::tuple results;
+		  
+		  results = py::tuple(py::cast(muenData));
+		 
+		  return results;
+		  		},
+		py::arg("energies"),
+		py::arg("density"),
+		py::arg("composition"),
+		py::arg("tolerance") = 0.1,
+		py::arg("simTime") = 30,
+  	   R"doc(
+Calculates the mu_en coefficients for the given material composition at specified energies.
+
+Args:
+    energies (list[float]): Array of energies, in eV.
+    density (float): Material density in g/cm^3.
+    composition (list of tuple) : Material composition list. Each element consists 
+                                  of a 2D tuple with the corresponding element atomic number (Z) and weight fraction.
+                                  For example, [(Z1, weight1), (Z2, weight2), ...].
+    tolerance (float, optional): Relative error to stop the simulation.
+    simTime (float, optional): Allowed time (in seconds) to simulate each provided energy.
+
+Returns:
+    tuple: A tuple with the muen coefficients for the specified material corresponding to the input energies.
+	   For example, for a energy array provided with E1, E2, ..., En, returns:
+	   (muen(E1), muen(E2), ..., muen(En))
+
+Example:
+    .. code-block:: python
+
+        # Run the simulation and store the results
+        results = pyPenred.simulation.materials.mutren(energies=muenE, density=1.0, composition=((1,0.112), (8,0.888)), tolerance=0.1, simTime=30)
+
+)doc");
+			
+			
+			  
+ materials.def("mutrenFromFile",
+		[](const std::vector<double>& energies, 
+		   const std::string& filename,
+		   const double tolerance,
+		   const double simTime)->py::tuple{
+		
+		  std::vector<double> muenData(energies.size());
+		
+		  pen_muen::calculate(energies, tolerance, simTime, filename.c_str(), muenData);
+		  
+		  //Create the resulting python tuple
+		  		  //Create the resulting python tuple
+		  py::tuple results;
+		  
+		  results = py::tuple(py::cast(muenData));
+		 
+		  return results;
+		  		},
+		py::arg("energies"),
+		py::arg("filename"),
+		py::arg("tolerance") = 0.1,
+		py::arg("simTime") = 30,
+  	   R"doc(
+Calculates the mu_en coefficients for a given material file at specified energies.
+
+Args:
+    energies (list[float]): Array of energies, in eV.
+    filename (str): Path to the material definition file.
+    tolerance (float, optional): Relative error to stop the simulation.
+    simTime (float, optional): Allowed time (in seconds) to simulate each provided energy.
+
+Returns:
+    tuple: A tuple with the muen coefficients for the specified material corresponding to the input energies.
+           For example, for a energy array provided with E1, E2, ..., En, returns:
+           (muen(E1), muen(E2), ..., muen(En))
+
+Example:
+    .. code-block:: python
+
+        # Run the simulation and store the results
+        results = pyPenred.simulation.materials.mutrenFromFile(energies=muenE, filename=water.mat, tolerance=0.1, simTime=30)
+
+)doc");
   
 #else
   // If embedded data base is not enabled, override submodule 'materials' to raise an exception on access

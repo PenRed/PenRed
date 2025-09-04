@@ -38,6 +38,7 @@
 #include <vector>
 #include <array>
 #include <sstream>
+#include <type_traits>
 
 //--------------------------------
 // Auxiliar structs and classes
@@ -1499,14 +1500,15 @@ namespace penred{
 	}
 	
 	headers[dim] = "Value";
-	headers[dim+1] = "Sigma";	
+	headers[dim+1] = "Uncertainty";	
       }
 
       //Headers functions
       inline const std::string& readDimHeader(const unsigned idim) const {
+	static const std::string emptyString("");
 	if(idim > dim){
-	  return "";
-	}	
+	  return emptyString;
+	}
 	return headers[idim];
       }
       inline const std::string& readValueHeader() const {
@@ -1628,9 +1630,9 @@ namespace penred{
 	  std::string::size_type endLinePos = description.find('\n');
 	  fprintf(fout, "# %s\n", description.substr(0,endLinePos).c_str());
 	  while(endLinePos != std::string::npos){
-	    std::string::size_type initPos = endLinePos;
-	    endLinePos = description.find('\n',initPos+1);
-	    fprintf(fout, "# %s\n", description.substr(initPos+1,endLinePos).c_str());
+	    std::string::size_type initPos = endLinePos+1;
+	    endLinePos = description.find('\n',initPos);
+	    fprintf(fout, "# %s\n", description.substr(initPos,endLinePos-initPos).c_str());
 	  }
 	}
 	
@@ -2274,8 +2276,8 @@ namespace penred{
       }
 
       template<size_t binDims, size_t limitsDims>
-      inline int init(const unsigned long(&nBinsIn)[binDims],
-		      const std::pair<double, double>(&limitsIn)[limitsDims]){
+      inline int initFromLists(const unsigned long(&nBinsIn)[binDims],
+			       const std::pair<double, double>(&limitsIn)[limitsDims]){
 
 	static_assert(binDims == limitsDims,
 		      "Bins and limits dimensions mismatch.");
@@ -2665,6 +2667,8 @@ namespace penred{
 
 	res.init(this->nBins, this->limits);
 
+	res.description = this->description;
+
 	//Set headers
 	for(size_t idim = 0; idim < dim; ++idim){
 	  res.setDimHeader(idim, this->headers[idim]);
@@ -2801,6 +2805,40 @@ namespace penred{
       }
 
     };
+
+
+    // Define type traits to detect results
+    template <typename>
+    struct is_results : std::false_type {};
+
+    template <typename T, size_t dim>
+    struct is_results<results<T, dim>> 
+      : std::true_type {
+      using value_type = T;
+      static constexpr size_t dimension = dim;
+    };
+
+    // ++ Traits to detect vectors
+    template<typename T>
+    struct is_vector : std::false_type {};
+
+    // Specialization for std::vector (matches any allocator)
+    template<typename T, typename Alloc>
+    struct is_vector<std::vector<T, Alloc>> : std::true_type {};
+
+    // ++ Traits to extract vector type
+    template<typename T>
+    struct vector_value_type;
+
+    // Specialization for std::vector
+    template<typename T, typename Alloc>
+    struct vector_value_type<std::vector<T, Alloc>> {
+      using type = T;
+    };
+
+    // Alias
+    template<typename T>
+    using vector_value_type_t = typename vector_value_type<T>::type;
     
   } //namespace measurements
 } //namespace penred

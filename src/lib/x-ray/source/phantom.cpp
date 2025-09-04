@@ -2,6 +2,7 @@
 //
 //    Copyright (C) 2024 Universitat de València - UV
 //    Copyright (C) 2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -128,20 +129,10 @@ namespace penred{
 
       //Get the number of threads to use
       unsigned nThreads = threads2Use;
-#ifdef _PEN_USE_THREADS_
       if(nThreads == 0){
 	nThreads = std::max(static_cast<unsigned int>(2),
 			    std::thread::hardware_concurrency());
       }
-#else
-      if(nThreads != 0){
-	if(verbose > 1)
-	  printf("simCylPhantom: Warning: Number of threads has been specified,"
-		 " but the code has been compiled with no multithreading support.\n"
-		 " Only one thread will be used.\n");
-      }
-      nThreads = 1;
-#endif      
       
       // ** Create simulation context  
       //*******************************
@@ -350,8 +341,6 @@ namespace penred{
       // ** Simulate
       //--------------
 
-#ifdef _PEN_USE_THREADS_
-
       std::vector<std::thread> threads;
 
       for(size_t ith = 0; ith < nThreads; ++ith){
@@ -377,15 +366,6 @@ namespace penred{
       for(size_t ith = 0; ith < nThreads; ++ith){
 	threads[ith].join();	
       }
-      
-#else
-
-      simulateVectorAndDetect(simConf[0], context, result[0],
-			      particlesIn,
-			      nHists,
-			      "cyl-phantom",
-			      1); //Detector index      
-#endif
 
       //Clear input particles and store the resulting ones
       particlesIn.clear();

@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2023 Universitat de València - UV
 //    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -29,6 +30,76 @@
 
  
 #include "tallySpatialDoseDistrib.hh"
+
+pen_SpatialDoseDistrib::pen_SpatialDoseDistrib() :
+  pen_genericTally( USE_LOCALEDEP |
+		    USE_BEGINPART |
+		    USE_SAMPLEDPART |
+		    USE_STEP |
+		    USE_ENDSIM |
+		    USE_MOVE2GEO)
+{
+  nx = ny = nz = nxy = nbin = 0;
+  dx = dy = dz = 0.0;
+  idx = idy = idz = 1.0e35;
+  xmin = ymin = zmin = 0.0;
+      
+  nlast = nullptr;
+  edptmp = nullptr;
+  edep = nullptr;
+  edep2 = nullptr;
+  ivoxMass = nullptr;
+
+  nlastdepth = nullptr;
+  edepthtmp = nullptr;
+  edepth = nullptr;
+  edepth2 = nullptr;
+
+  printDepthDose = false;
+
+  setResultsGenerator<0>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 3>{
+
+      const double invn = 1.0/static_cast<double>(nhists);
+
+      //Create results
+      penred::measurements::results<double, 3> results;
+      results.initFromLists
+	({static_cast<unsigned long>(nx),
+	   static_cast<unsigned long>(ny),
+	   static_cast<unsigned long>(nz)},
+	  {penred::measurements::limitsType(xmin, xmin + static_cast<double>(nx)*dx),
+	   penred::measurements::limitsType(ymin, ymin + static_cast<double>(ny)*dy),
+	   penred::measurements::limitsType(zmin, zmin + static_cast<double>(nz)*dz)});
+	  
+      results.description =
+	"PenRed: Spatial dose distribution report\n"
+	"Dose units are: eV/g per history\n";
+  
+      results.setDimHeader(0, "x (cm)");
+      results.setDimHeader(1, "y (cm)");
+      results.setDimHeader(2, "z (cm)");
+      results.setValueHeader("Dose (eV/g hist)");
+
+      size_t nbins = static_cast<size_t>(nx*ny*nz);
+      for(size_t i = 0; i < nbins; ++i){
+	const double fact = ivoxMass[i];
+	const double q = edep[i]*invn;
+	double sigma = edep2[i]*invn - q*q;
+	if(sigma > 0.0){
+	  sigma = sqrt(sigma*invn);
+	}
+	else{
+	  sigma = 0.0;
+	}
+
+	results.data[i] = q*fact;
+	results.sigma[i] = sigma*fact;
+      }
+
+      return results;
+    });  
+}
 
 void pen_SpatialDoseDistrib::updateEdepCounters(const double dE,
 						const unsigned long long nhist,
@@ -453,8 +524,6 @@ int pen_SpatialDoseDistrib::configure(const wrapper_geometry& geometry,
     double ddz = dz*inDiv;
     double subVoxVol = ddx*ddy*ddz;
     
-#ifdef _PEN_USE_THREADS_
-  
     unsigned int nCalcThreads =
       std::max(static_cast<unsigned int>(2),
 	       std::thread::hardware_concurrency());
@@ -548,81 +617,7 @@ int pen_SpatialDoseDistrib::configure(const wrapper_geometry& geometry,
     //Wait until all threads have been finished
     for(std::thread& t : calcThreads){
       t.join();
-    }  
-
-#else
-
-    pen_particleState state;
-  
-    for(long int k = 0; k < nz; k++)
-      {
-	//This is to locate a point and find its material
-	double binZpos = zmin + dz*static_cast<double>(k);
-	long int ibinZ = k*nxy;
-	
-	for(long int j = 0; j < ny; j++)
-	  {
-	    double binYpos = ymin + dy*static_cast<double>(j);
-	    long int ibinY = ibinZ + j*static_cast<long int>(nx);
-	    
-	    for(long int i = 0; i < nx; i++)
-	      {
-
-		double binXpos = xmin + dx*static_cast<double>(i);
-		long int bin = ibinY + i;
-	                      
-		double localdens = 0.0;
-               
-		for (int kk = 0; kk < nDivisions; kk++)
-		  {
-		    state.Z = binZpos + ddz*((double)kk+0.5);
-
-		    //Ensure direction to bin center
-		    if(kk < nDivisions/2)
-		      state.W = 1.0;
-		    else
-		      state.W = -1.0;
-		    
-		    for (int jj = 0; jj < nDivisions; jj++)
-		      {
-			state.Y = binYpos + ddy*((double)jj+0.5);
-
-			//Ensure direction to bin center
-			if(jj < nDivisions/2)
-			  state.V = 1.0;
-			else
-			  state.V = -1.0;
-		      
-			for(int ii = 0; ii < nDivisions; ii++)
-			  {
-			    state.X = binXpos + ddx*((double)ii+0.5);
-			  
-			    //Ensure direction to bin center
-			    if(ii < nDivisions/2)
-			      state.U = 1.0;
-			    else
-			      state.U = -1.0;
-			  
-			    geometry.locate(state);
-                            
-			    if(state.MAT > 0)
-			      {
-				localdens += materials[state.MAT-1]->readDens();
-			      }
-			  }
-		      }
-		  }
-		if(localdens > 0.0){
-		  double voxMass = localdens*subVoxVol;
-		  ivoxMass[bin] = 1.0/voxMass;
-		}
-		else
-		  ivoxMass[bin] = 1.0e35;
-	      }
-	  }
-      }
-    
-#endif
+    }
     
   }
     
@@ -875,34 +870,4 @@ int pen_SpatialDoseDistrib::sumTally(const pen_SpatialDoseDistrib& tally){
     
 }
 
-REGISTER_COMMON_TALLY(pen_SpatialDoseDistrib, SPATIAL_DOSE_DISTRIB)
-
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+REGISTER_COMMON_TALLY(pen_SpatialDoseDistrib)

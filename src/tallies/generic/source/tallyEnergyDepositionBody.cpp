@@ -2,7 +2,8 @@
 //
 //
 //    Copyright (C) 2019-2023 Universitat de València - UV
-//    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2019-2025 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -29,6 +30,58 @@
 
 
 #include "tallyEnergyDepositionBody.hh"
+
+pen_EdepBody::pen_EdepBody() :
+  pen_genericTally( USE_LOCALEDEP |
+		    USE_BEGINPART |
+		    USE_SAMPLEDPART |
+		    USE_STEP |
+		    USE_ENDHIST |
+		    USE_MOVE2GEO),
+  nBody(-1)
+{
+  setResultsGenerator<0>
+    ([this](const unsigned long long nhists) -> penred::measurements::results<double, 1>{
+
+      if(nBody <= 0){
+	penred::measurements::results<double, 1> results;
+	results.description = "Error: No body provided. "
+	  "Configure the tally before getting results.";
+	return results;
+      }
+	
+      double invn = 1.0/static_cast<double>(nhists);
+  
+      //Create results
+      penred::measurements::results<double, 1> results;
+      results.initFromLists({static_cast<unsigned long>(nBody)},
+			    {penred::measurements::limitsType(0.0, static_cast<double>(nBody))});
+	  
+      results.description =
+	"PenRed: Body energy deposition report.\n\n"
+	"  Bodies (Index: Name): ";
+      for(int i = 0; i < nBody; ++i){
+	results.description += std::to_string(i) + ": " + geo->getBodyName(i) + "\n";
+      }
+  
+      results.setDimHeader(0, "Body");
+      results.setValueHeader("Energy (eV/hist)");
+
+      for(int i = 0; i < nBody; i++)
+	{
+	  double q  = edep[i]*invn;
+	  double q2 = edep2[i]*invn;
+	  double sigma = (q2-(q*q))*invn;
+	  if(sigma > 0.0){ sigma = sqrt(sigma);}
+	  else{sigma = 0.0;}
+
+	  results.data[i] = q;
+	  results.sigma[i] = sigma;
+	}
+
+      return results;
+    });    
+}
 
 void pen_EdepBody::flush()
 {
@@ -115,7 +168,18 @@ int pen_EdepBody::configure(const wrapper_geometry& geometry,
 
   geo = &geometry;
   
-  nBody = geometry.getElements();
+  nBody = geometry.getBodies();
+  
+  if(static_cast<unsigned long>(nBody) > pen_geoconst::NB){
+    if(verbose > 0){
+          
+      printf(" *********************************************\n");
+      printf(" EdepBody:configure:ERROR:nBody must be lesser than: %u\n",pen_geoconst::NB);
+      printf(" *********************************************\n");
+    }
+    return 1;
+  }
+
     
   //Clear counters:
   for(unsigned int j = 0; j < pen_geoconst::NB; j++){
@@ -187,4 +251,4 @@ int pen_EdepBody::sumTally(const pen_EdepBody& tally){
   return 0;
 }
 
-REGISTER_COMMON_TALLY(pen_EdepBody, EDEP_BODY)
+REGISTER_COMMON_TALLY(pen_EdepBody)

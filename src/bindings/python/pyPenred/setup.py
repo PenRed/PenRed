@@ -3,7 +3,7 @@ import os
 import codecs
 
 # Read the version from an environment variable or use the default
-VERSION = os.getenv("PENRED_VERSION", "1.13.0")
+VERSION = os.getenv("PENRED_VERSION", "1.14.0")
 
 ext_modules = [
     Extension(

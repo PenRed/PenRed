@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2022-2024 Universitat de València - UV
 //    Copyright (C) 2022-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -1148,8 +1149,6 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
   }
 
   //Split regions
-
-#ifdef _PEN_USE_THREADS_
   
   unsigned int nSplitThreads =
     std::max(static_cast<unsigned int>(2),
@@ -1262,51 +1261,6 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
   for(std::thread& t : splitThreads){
     t.join();
   }
-
-#else
-
-  for(std::size_t ibody = 0; ibody < getElements(); ++ibody){
-
-	if(verbose > 2){
-	  printf("   - Body %lu split begins\n",static_cast<unsigned long>(ibody));
-	  fflush(stdout);
-	}
-
-	//Split the body regions
-	pen_meshBody& body = bodies[ibody];
-    
-	//Check if a region size has been specified for this body
-	if(body.meanTrianglesRegion == 0){
-	  body.meanTrianglesRegion =
-	    std::max(static_cast<unsigned long>(40),
-		     body.nTriangles/static_cast<unsigned long>(pen_meshBody::MAX_REGIONS/2));
-	}
-
-	if(body.meanRegionsSuperRegion == 0){
-	  body.meanRegionsSuperRegion = 20;
-	}
-
-	//Check if this body requires more regions
-	pen_meshBody::superRegion& superRegion = body.regions[0];
-
-	pen_meshBody::triangleRegion::splitUntil(body.meanTrianglesRegion,
-						 pen_meshBody::crossThreshold,
-						 superRegion.elements,
-						 pen_meshBody::MAX_REGIONS);
-
-	pen_meshBody::superRegion::splitUntil(body.meanRegionsSuperRegion,
-					      pen_meshBody::crossThreshold,
-					      body.regions,
-					      pen_meshBody::MAX_SUP_REGIONS);
-
-	if(verbose > 2){
-	  printf("   + Body %lu split completed\n",static_cast<unsigned long>(ibody));
-	  fflush(stdout);
-	}
-    
-  }
-  
-#endif
   
   // Load absorption Energies
   //*************************
@@ -1566,8 +1520,6 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	    if(verbose <= 2 && localIntersectionFound) break;
 	  }
 	}
-
-#ifdef _PEN_USE_THREADS_
   
 	unsigned int nOverlapThreads =
 	  std::max(static_cast<unsigned int>(2),
@@ -1634,50 +1586,6 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	  intersectionFound = true;    
 	}
       
-  
-#else
-	
-	//Overlap bodies
-	for(unsigned iover = 0; iover < body.nOverlap; ++iover){
-	  const unsigned overlapBodyIndex = body.overlapedBodies[iover];
-	  const pen_meshBody& overlapBody = bodies[overlapBodyIndex];
-
-	  //All points should be inside the parent, check it
-	  bool overlapIntersectionFound = false;
-	  for(const pen_meshBody::superRegion& supRegion : body.regions){
-	    for(const pen_meshBody::triangleRegion& region : supRegion.elements){
-	      for(const meshBodyTriangle& triangle : region.elements){
-
-		//Check if the three triangle vertex are outside the overlapping body
-		if(overlapBody.inside(triangle.readV1()) ||
-		   overlapBody.inside(triangle.readV2()) ||
-		   overlapBody.inside(triangle.readV3())){
-		  //Intersection found
-		  if(verbose > 2){
-		    printf("      - Intersection with overlapping "
-			   "body '%s' (%u): %s\n",
-			   overlapBody.BALIAS,
-			   overlapBodyIndex,
-			   triangle.stringify().c_str());			
-		  }
-		  else if(verbose > 1){
-		    printf("      - Intersection with overlapping body '%s' (%u)\n",
-			   overlapBody.BALIAS,overlapBodyIndex);
-		  }
-		  localIntersectionFound = true;
-		  intersectionFound = true;
-		  overlapIntersectionFound = true;
-		  if(verbose <= 2)
-		    break;
-		}
-	      }
-	      if(verbose <= 2 && overlapIntersectionFound) break;
-	    }
-	    if(verbose <= 2 && overlapIntersectionFound) break;
-	  }
-	}
-	
-#endif
 
 	if(!localIntersectionFound){
 	  if(verbose > 1)

@@ -40,37 +40,6 @@
 #include "materialCreator.hh"
 #endif
 
-//Interactions enumerations
-
-enum pen_betaE_interact{
-  BETAe_HARD_ELASTIC = 0,
-  BETAe_HARD_INELASTIC,
-  BETAe_HARD_BREMSSTRAHLUNG,
-  BETAe_HARD_INNER_SHELL,
-  BETAe_DELTA,
-  BETAe_SOFT_INTERACTION,
-  BETAe_HARD_TOTAL
-};
-
-enum pen_gamma_interact{
-  GAMMA_RAYLEIGH = 0,
-  GAMMA_COMPTON,
-  GAMMA_PHOTOELECTRIC,
-  GAMMA_PAIR_PRODUCTION,
-  GAMMA_DELTA  
-};
-
-enum pen_betaP_interact{
-  BETAp_HARD_ELASTIC = 0,
-  BETAp_HARD_INELASTIC,
-  BETAp_HARD_BREMSSTRAHLUNG,
-  BETAp_HARD_INNER_SHELL,
-  BETAp_ANNIHILATION,
-  BETAp_DELTA,
-  BETAp_SOFT_INTERACTION,
-  BETAp_HARD_TOTAL
-};
-
 //-------------------
 // Context
 //-------------------

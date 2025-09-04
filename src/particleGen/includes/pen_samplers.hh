@@ -310,6 +310,11 @@ public:
   inline void setRotationZYZ(const double omega, const double theta, const double phi){
     createRotationZYZ(omega,theta,phi,rotation);
   }
+  inline void setTranslation(const double x, const double y, const double z) noexcept {
+    translation[0] = x;
+    translation[1] = y;
+    translation[2] = z;
+  }
 
   inline static const char* type() {return "SPATIAL";}
   virtual const char* readID() const = 0;
@@ -422,6 +427,11 @@ private:
   
   int configStatus;
   double Emax; //Maximum possible value for sampled energies
+
+  //Post-sampling transformations
+  double rotation[9];
+  bool rotate;
+  double translation[3];  
   
 public:
 
@@ -493,10 +503,23 @@ public:
     return task.workerFinish(iw,why,verbose);
   }
 
+#ifdef _PEN_USE_LB_
   bool handleFinish(const unsigned iw,
 		    const unsigned long long nDone,
 		    unsigned long long& assigned,
-		    const unsigned verbose);  
+		    const unsigned verbose);
+#else
+  //Finish is guaranteed if no LB is enabled during compilation
+  inline bool handleFinish(const unsigned iw,
+			   const unsigned long long nDone,
+			   unsigned long long&,
+			   const unsigned verbose) {
+    int errReport;
+    report(iw,nDone,&errReport,verbose);    
+    return true;
+  }
+#endif
+  
   inline void setCheckTime(const std::chrono::seconds::rep t){
     task.setCheckTime(t);
   }
@@ -565,6 +588,19 @@ public:
 				  std::vector<std::string>& energy,
 				  std::vector<std::string>& time);
   int setGeometry(const wrapper_geometry* geometryIn);
+
+  //Post-sampling transformations
+  inline void setPostRotationZYZ(const double omega, const double theta, const double phi){
+    createRotationZYZ(omega,theta,phi,rotation);
+    rotate = true;
+  }
+  inline void clearPostRotation(){rotate = false;}
+  inline void setPostTranslation(const double x, const double y, const double z) noexcept {
+    translation[0] = x;
+    translation[1] = y;
+    translation[2] = z;
+  }
+  ////////////////////
 
   inline int configureStatus(){return configStatus;}
   inline double maxEnergy(){return Emax;}
@@ -1084,6 +1120,16 @@ public:
     }
     return ret;
   }
+
+  //Post-sampling transformations for generic sampling
+  inline void setPostRotationZYZ(const double omega, const double theta, const double phi){
+    genericGen.setPostRotationZYZ(omega,theta,phi);
+  }
+  inline void clearPostRotation(){genericGen.clearPostRotation();}
+  inline void setPostTranslation(const double x, const double y, const double z) noexcept {
+    genericGen.setPostTranslation(x,y,z);
+  }
+  ////////////////////  
 
   inline bool usesGeneric() const {return useGeneric;}
   inline bool usesSpecific() const {return useSpecific;}
