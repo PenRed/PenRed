@@ -35,32 +35,44 @@ int tallyReader_Singles::storeElement(const std::string& pathInSection,
 				      const pen_parserData& element,
 				      const unsigned){
 
-  if(pathInSection.compare("energy/single/min") == 0){
+  if(pathInSection.compare("filters/energy/min") == 0){
     singleEmin = element;
   }
-  else if(pathInSection.compare("energy/single/max") == 0){
+  else if(pathInSection.compare("filters/energy/max") == 0){
     singleEmax = element;
   }
-  else if(pathInSection.compare("time/min") == 0){
+  else if(pathInSection.compare("filters/time/min") == 0){
     tmin = element;
   }
-  else if(pathInSection.compare("time/max") == 0){
+  else if(pathInSection.compare("filters/time/max") == 0){
     tmax = element;
+  }
+  else if(pathInSection.compare("filters/detections/min") == 0){
+    minDetections = element;
+  }
+  else if(pathInSection.compare("filters/detections/max") == 0){
+    maxDetections = element;
   }
   else if(pathInSection.compare("time/join") == 0){
     tjoin = element;
   }
-  else if(pathInSection.compare("pileup") == 0){
+  else if(pathInSection.compare("filters/pileup") == 0){
     pileup = element;
   }
-  else if(pathInSection.compare("scatter") == 0){
+  else if(pathInSection.compare("filters/scatter") == 0){
     scatter = element;
   }
   else if(pathInSection.compare("clear") == 0){
     removeOnEnd = element;
   }
-  else if(pathInSection.compare("binary") == 0){
-    binary = element;
+  else if(pathInSection.compare("save/weight") == 0){
+    saveWeight = element;
+  }
+  else if(pathInSection.compare("save/history") == 0){
+    saveHistory = element;
+  }
+  else if(pathInSection.compare("save/metadata") == 0){
+    saveMetadata = element;
   }
   else{
     return errors::UNHANDLED;
@@ -229,6 +241,22 @@ void pen_Singles::tally_interfCross(const unsigned long long /*nhist*/,
 
 void pen_Singles::tally_endHist(const unsigned long long /*nhist*/){
 
+  //Get the number of triggered detectors
+  unsigned nDetections = 0;
+  for(unsigned i = 0; i < buffers.size(); ++i){
+    if(buffers[i].size() > lastHistStart[i])
+      ++nDetections;
+  }
+
+  //Ensure the number of requested detections
+  if(nDetections < minDetections || nDetections > maxDetections){
+    //Discard this finished history in all buffers
+    for(unsigned i = 0; i < buffers.size(); ++i){
+      buffers[i].discard(lastHistStart[i]);
+    }
+    return;
+  }
+
   for(unsigned i = 0; i < buffers.size(); ++i){
 
     //Reduce last history singles
@@ -263,7 +291,9 @@ int pen_Singles::configure(const wrapper_geometry& geometry,
     return err;
   }
 
-  binary = reader.binary;
+  saveWeight = reader.saveWeight;
+  saveHistory = reader.saveHistory;
+  saveMetadata = reader.saveMetadata;
 
   joinTime = reader.tjoin;
 
@@ -279,20 +309,9 @@ int pen_Singles::configure(const wrapper_geometry& geometry,
   tmin = reader.tmin;
   tmax = reader.tmax;
 
-  if(verbose > 1){
-    printf("Output format: %s\n"
-	   "Joining time : %.5E\n"
-	   "Pileup       : %s\n"
-	   "Scatter      : %s\n"
-	   "Energy range : [%.5E, %.5E] eV\n"
-	   "Time range   : [%.5E, %.5E] s\n",
-	   binary ? "Binary" : "ASCII",
-	   joinTime,
-	   pileup ? "Enabled" : "Disabled",
-	   scatter ? "Enabled" : "Disabled",
-	   singleEmin, singleEmax,
-	   tmin, tmax);
-  }
+  //Save minimum and maximum number of triggered detectors
+  minDetections = reader.minDetections;
+  maxDetections = reader.maxDetections;
 
   //Set enabled detectors
   const unsigned maxkdet = *std::max_element(reader.kdets.cbegin(), reader.kdets.cend());
@@ -355,8 +374,26 @@ int pen_Singles::configure(const wrapper_geometry& geometry,
   //Register file paths to dump
   for(std::string& p : fDataPaths)
     dump.toDumpFile(p);
-  
+
   if(verbose > 1){
+    printf("Output format: E(float) x(float) y(float) z(float)%s t(double) %s %s\n"
+	   "Joining time : %.5E\n"
+	   "Pileup       : %s\n"
+	   "Scatter      : %s\n"
+	   "Energy range : [%.5E, %.5E] eV\n"
+	   "Time range   : [%.5E, %.5E] s\n"
+	   "Detections   : [%u, %u]\n",
+	   saveWeight ? " w(float)" : "",
+	   saveMetadata ? "metadata(3 Bytes)" : "",
+	   saveHistory ? "hist(unsigned long long)" : "",
+	   joinTime,
+	   pileup ? "Enabled" : "Disabled",
+	   scatter ? "Enabled" : "Disabled",
+	   singleEmin, singleEmax,
+	   tmin, tmax,
+	   minDetections ,
+	   maxDetections > buffers.size() ? static_cast<unsigned>(buffers.size()) : maxDetections);
+
     printf("Detection time interval (s): %15.5E - %15.5E\n"
 	   "Singles adition window  (s): %15.5E\n"
 	   "Sensible detectors:\n"
@@ -724,17 +761,10 @@ void pen_Singles::orderDetectorData(const unsigned idet, FILE* fout) const {
     //All singles in join time added.
     //Save the final single in the corresponding detector data, if it falls within energy range
     if(s.E >= singleEmin && s.E <= singleEmax){
-      if(binary){
-	unsigned char auxBuff[single::dataSize];
-	size_t pos = 0;
-	s.toBufferFinalB(auxBuff, pos);
-	fwrite(auxBuff, sizeof(unsigned char), single::dataSize, fout);
-      }
-      else{
-	char auxBuff[single::maxBuffSize];
-	int nwrite = s.toBufferFinal(auxBuff, single::maxBuffSize);
-	fwrite(auxBuff, sizeof(char), nwrite, fout);
-      }
+      unsigned char auxBuff[single::dataSize];
+      size_t pos = 0;
+      s.toBufferFinalB(auxBuff, pos, saveWeight, saveMetadata, saveHistory);
+      fwrite(auxBuff, sizeof(unsigned char), single::dataSize, fout);      
     }
   }
 
