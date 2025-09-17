@@ -248,9 +248,9 @@ PYBIND11_MODULE(simulation,m){
   m.def("setConfigurationLog",
 	[](const std::string& filename) -> void{
 	  if(filename.empty())
-	    penred::logs::logger::setConfigurationLogFile(nullptr);
+	    penred::logs::logger::closeLogFile(penred::logs::CONFIGURATION);
 	  else
-	    penred::logs::logger::setConfigurationLogFile(filename.c_str());
+	    penred::logs::logger::closeAndSetLogFile(penred::logs::CONFIGURATION, filename.c_str());
 	},
 	py::arg("filename"),
 	R"(
@@ -268,9 +268,9 @@ Returns:
   m.def("setSimulationLog",
 	[](const std::string& filename) -> void{
 	  if(filename.empty())
-	    penred::logs::logger::setSimulationLogFile(nullptr);
+	    penred::logs::logger::closeLogFile(penred::logs::SIMULATION);
 	  else
-	    penred::logs::logger::setSimulationLogFile(filename.c_str());
+	    penred::logs::logger::closeAndSetLogFile(penred::logs::SIMULATION, filename.c_str());
 	},
 	py::arg("filename"),
 	R"(
