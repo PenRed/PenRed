@@ -1234,9 +1234,14 @@ namespace penred{
 
 	bool finalDumpAux = false;
 	path = prefixSimConfig + "/finalDump"; 
-	if(config.read("simulation/finalDump",finalDumpAux) != INTDATA_SUCCESS){
+	if(config.read(path,finalDumpAux) == INTDATA_SUCCESS){
 	  finalDump = finalDumpAux;
 	}
+
+	if(verbose > 0){
+      cout << "Final dump "
+           << (finalDump ? "enabled" : "disabled") << std::endl;
+    }		  
 
 	// Save context config
 	//*******************************
