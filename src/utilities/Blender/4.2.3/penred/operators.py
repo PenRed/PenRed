@@ -2021,6 +2021,19 @@ class export_penred(Operator, ExportHelper):
         
         #Get object type
         quadType = obj.penred_settings.quadricType
+
+        #Before getting the oject properties, disable boolean modifiers for cutting planes
+        for mod in obj.modifiers:
+            if mod.type == "BOOLEAN":
+                bolObj = mod.object
+                if bolObj and hasattr(bolObj, "penred_settings"):
+                    if bolObj.penred_settings.quadricType == "CUT_PLANE":
+                        mod.show_viewport = False
+                        mod.show_render = False
+
+        # Force Blender to update the dependency graph
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        depsgraph.update()
                     
         #Get object properties
         x,y,z,dx,dy,dz,sx,sy,sz,omega,theta,phi,name,boxSize = utils.getObjInfo(obj)
@@ -2072,11 +2085,19 @@ class export_penred(Operator, ExportHelper):
                 bolObj = mod.object
                 if bolObj and hasattr(bolObj, "penred_settings"):
                     if bolObj.penred_settings.quadricType == "CUT_PLANE":
-                        # Is a cutting plane, get its properties
+                        # Is a cutting plane, reenable it in both viewport and render
+                        mod.show_viewport = True
+                        mod.show_render = True
+                        
+                        # Get its properties
                         xCut,yCut,zCut,_,_,_,_,_,_,omegaCut,thetaCut,phiCut,nameCut,_ = utils.getObjInfo(bolObj)
                         
                         nSurf = surfaces.createPlaneSurfaces(f,xCut,yCut,zCut,omegaCut,thetaCut,phiCut,nSurf,nameCut,toRound)
                         nCuttingPlanes = nCuttingPlanes+1
+
+        # Force Blender to update the dependency graph
+        depsgraph.update()
+
             
         ### Init body
         surfaces.initBody(f,nObj,name,obj.penred_settings.material,obj.penred_settings.module)
