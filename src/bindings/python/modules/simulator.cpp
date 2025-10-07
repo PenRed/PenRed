@@ -1634,26 +1634,6 @@ Example:
 	     
 	     config.set("x-ray/source/position", sourcePosArray);
 
-	     //Get the number of reserved materials
-	     unsigned reservedMats;
-	     int err = penred::xray::checkSimDevice(config, reservedMats, verbose);
-	     if(err != penred::xray::errors::SUCCESS){
-	       throw py::value_error(penred::xray::errors::message(err));	       
-	     }
-	     
-	     //Append geometry materials
-	     unsigned nextMat = reservedMats+1;
-	     for(const MaterialData& geoMat : geoMats){
-	       std::string prefix = "geometry/materials/" + std::to_string(nextMat);
-	       config.set((prefix + "/density").c_str(), geoMat.first);
-	       config.set((prefix + "/number").c_str(), static_cast<int>(nextMat++));
-	       prefix += "/elements/";
-	       for(const CompositionPair& element : geoMat.second){
-		 std::string key = prefix + std::to_string(element.first);
-		 config.set(key, element.second);		 
-	       }
-	     }
-
 	     //Append filters
 	     unsigned nextFilter = 1;
 	     for(const FilterData& filter : filters){
@@ -1675,6 +1655,13 @@ Example:
 	       ++nextFilter;
 	     }
 
+	     //Get the number of reserved materials
+	     unsigned reservedMats;
+	     int err = penred::xray::checkSimDevice(config, reservedMats, verbose);
+	     if(err != penred::xray::errors::SUCCESS){
+	       throw py::value_error(penred::xray::errors::message(err));	       
+	     }	     
+
 	     //Append geometry config
 	     if(!userGeometry.empty()){
 	       //Convert the dictionary to a configuration section
@@ -1686,6 +1673,19 @@ Example:
 	       if(config.addSubsection("geometry/config", geoConfSec) != INTDATA_SUCCESS)
 		 throw py::value_error("Unable to set user geometry configuration. "
 				       "Please, report this error");
+
+	       //Append geometry materials
+	       unsigned nextMat = reservedMats+1;
+	       for(const MaterialData& geoMat : geoMats){
+		 std::string prefix = "geometry/materials/" + std::to_string(nextMat);
+		 config.set((prefix + "/density").c_str(), geoMat.first);
+		 config.set((prefix + "/number").c_str(), static_cast<int>(nextMat++));
+		 prefix += "/elements/";
+		 for(const CompositionPair& element : geoMat.second){
+		   std::string key = prefix + std::to_string(element.first);
+		   config.set(key, element.second);		 
+		 }
+	       }	       
 	     }
 
 	     if(printConfig){
