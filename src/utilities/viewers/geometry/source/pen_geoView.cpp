@@ -166,7 +166,8 @@ int pen_geoView::init(const pen_parserSection& configIn,
 void pen_geoView::testX(std::vector<geoError>& errors,
 			const float x, const float y, const float z,
 			const float dy, const float dz,
-			const unsigned ny, const unsigned nz) const{
+			const unsigned ny, const unsigned nz,
+			const float t) const{
   
   //Calculate the image origin (top left corner)
   float oz, oy;
@@ -176,6 +177,7 @@ void pen_geoView::testX(std::vector<geoError>& errors,
   pen_particleState state;
 
   state.X = x;
+  state.PAGE = t;
   
   for(unsigned j = 0; j < nz; ++j){
     state.Z = oz - (static_cast<float>(j)+0.5)*dz;
@@ -218,6 +220,7 @@ void pen_geoView::renderX(unsigned char* renderMat,unsigned int* renderBody,
 			  const float x, const float y, const float z,
 			  const float dy, const float dz,
 			  const unsigned ny, const unsigned nz,
+			  const float t,
 			  const unsigned nthreads) const{
 
   //Calculate the image origin (top left corner)
@@ -228,6 +231,7 @@ void pen_geoView::renderX(unsigned char* renderMat,unsigned int* renderBody,
     pen_particleState state;
 
     state.X = x;
+    state.PAGE = t;
   
     for(unsigned j = 0; j < nz; ++j){
       state.Z = oz - (static_cast<float>(j)+0.5)*dz;
@@ -251,6 +255,7 @@ void pen_geoView::renderX(unsigned char* renderMat,unsigned int* renderBody,
 	pen_particleState state;
 
 	state.X = x;
+	state.PAGE = t;
   
 	for(unsigned j = ith; j < nz; j += nthreads){
 	  state.Z = oz - (static_cast<float>(j)+0.5)*dz;
@@ -279,7 +284,8 @@ void pen_geoView::renderXtoLeft(unsigned char* renderMat,
 				const unsigned nPixels,				
 				const float x, const float y, const float z,
 				const float dy, const float dz,
-				const unsigned ny, const unsigned nz) const{
+				const unsigned ny, const unsigned nz,
+				const float t) const{
 
   //Calculate the image origin (top left corner)
   float oz, oy;
@@ -289,6 +295,7 @@ void pen_geoView::renderXtoLeft(unsigned char* renderMat,
   pen_particleState state;
 
   state.X = x;
+  state.PAGE = t;
   
   for(unsigned j = 0; j < nz; ++j){
     state.Z = oz - (static_cast<float>(j)+0.5)*dz;
@@ -318,7 +325,8 @@ void pen_geoView::renderXtoRight(unsigned char* renderMat,
 				 const unsigned nPixels,
 				 const float x, const float y, const float z,
 				 const float dy, const float dz,
-				 const unsigned ny, const unsigned nz) const{
+				 const unsigned ny, const unsigned nz,
+				 const float t) const{
 
   //Calculate the image origin (top left corner)
   float oz, oy;
@@ -328,6 +336,7 @@ void pen_geoView::renderXtoRight(unsigned char* renderMat,
   pen_particleState state;
 
   state.X = x;
+  state.PAGE = t;
   
   for(unsigned j = 0; j < nz; ++j){
     state.Z = oz - (static_cast<float>(j)+0.5)*dz;
@@ -353,11 +362,12 @@ void pen_geoView::renderXtoRight(unsigned char* renderMat,
 }
 
 void pen_geoView::renderXtoUp(unsigned char* renderMat,
-				unsigned int* renderBody,
-				const unsigned nPixels,				
-				const float x, const float y, const float z,
-				const float dy, const float dz,
-				const unsigned ny, const unsigned nz) const{
+			      unsigned int* renderBody,
+			      const unsigned nPixels,				
+			      const float x, const float y, const float z,
+			      const float dy, const float dz,
+			      const unsigned ny, const unsigned nz,
+			      const float t) const{
 
   //Calculate the image origin (top left corner)
   float oz, oy;
@@ -367,6 +377,7 @@ void pen_geoView::renderXtoUp(unsigned char* renderMat,
   pen_particleState state;
 
   state.X = x;
+  state.PAGE = t;
   
   //Copy the already rendered image zone
   for(unsigned j = nz-1; j >= nPixels; --j){
@@ -394,11 +405,12 @@ void pen_geoView::renderXtoUp(unsigned char* renderMat,
 }
 
 void pen_geoView::renderXtoDown(unsigned char* renderMat,
-				 unsigned int* renderBody,
-				 const unsigned nPixels,
-				 const float x, const float y, const float z,
-				 const float dy, const float dz,
-				 const unsigned ny, const unsigned nz) const{
+				unsigned int* renderBody,
+				const unsigned nPixels,
+				const float x, const float y, const float z,
+				const float dy, const float dz,
+				const unsigned ny, const unsigned nz,
+				const float t) const{
 
   //Calculate the image origin (top left corner)
   float oz, oy;
@@ -408,6 +420,7 @@ void pen_geoView::renderXtoDown(unsigned char* renderMat,
   pen_particleState state;
 
   state.X = x;
+  state.PAGE = t;
 
   //Copy already rendered zone
   for(unsigned j = 0; j < nz-nPixels; ++j){
@@ -435,7 +448,8 @@ void pen_geoView::renderXtoDown(unsigned char* renderMat,
 void pen_geoView::testY(std::vector<geoError>& errors,
 			const float x, const float y, const float z,
 			const float dx, const float dz,
-			const unsigned nx, const unsigned nz) const{
+			const unsigned nx, const unsigned nz,
+			const float t) const{
   
   //Calculate the image origin (top left corner)
   float ox, oz;
@@ -444,7 +458,8 @@ void pen_geoView::testY(std::vector<geoError>& errors,
   
   pen_particleState state;
 
-  state.Y = y;  
+  state.Y = y;
+  state.PAGE = t;
   
   for(unsigned j = 0; j < nz; ++j){
     state.Z = oz - (static_cast<float>(j)+0.5)*dz;
@@ -487,6 +502,7 @@ void pen_geoView::renderY(unsigned char* renderMat,unsigned int* renderBody,
 			  const float x, const float y, const float z,
 			  const float dx, const float dz,
 			  const unsigned nx, const unsigned nz,
+			  const float t,
 			  const unsigned nthreads) const{
 
   //Calculate the image origin (top left corner)
@@ -498,6 +514,7 @@ void pen_geoView::renderY(unsigned char* renderMat,unsigned int* renderBody,
     pen_particleState state;
 
     state.Y = y;
+    state.PAGE = t;
   
     for(unsigned j = 0; j < nz; ++j){
       state.Z = oz - (static_cast<float>(j)+0.5)*dz;
@@ -522,6 +539,7 @@ void pen_geoView::renderY(unsigned char* renderMat,unsigned int* renderBody,
 	pen_particleState state;
 
 	state.Y = y;
+	state.PAGE = t;
       
 	for(unsigned j = ith; j < nz; j += nthreads){
 	  state.Z = oz - (static_cast<float>(j)+0.5)*dz;
@@ -549,7 +567,8 @@ void pen_geoView::renderYtoLeft(unsigned char* renderMat,
 				const unsigned nPixels,				
 				const float x, const float y, const float z,
 				const float dx, const float dz,
-				const unsigned nx, const unsigned nz) const{
+				const unsigned nx, const unsigned nz,
+				const float t) const{
 
   //Calculate the image origin (top left corner)
   float oz, ox;
@@ -559,6 +578,7 @@ void pen_geoView::renderYtoLeft(unsigned char* renderMat,
   pen_particleState state;
 
   state.Y = y;
+  state.PAGE = t;
   
   for(unsigned j = 0; j < nz; ++j){
     state.Z = oz - (static_cast<float>(j)+0.5)*dz;
@@ -588,7 +608,8 @@ void pen_geoView::renderYtoRight(unsigned char* renderMat,
 				 const unsigned nPixels,
 				 const float x, const float y, const float z,
 				 const float dx, const float dz,
-				 const unsigned nx, const unsigned nz) const{
+				 const unsigned nx, const unsigned nz,
+				 const float t) const{
 
   //Calculate the image origin (top left corner)
   float oz, ox;
@@ -598,6 +619,7 @@ void pen_geoView::renderYtoRight(unsigned char* renderMat,
   pen_particleState state;
 
   state.Y = y;
+  state.PAGE = t;
   
   for(unsigned j = 0; j < nz; ++j){
     state.Z = oz - (static_cast<float>(j)+0.5)*dz;
@@ -623,11 +645,12 @@ void pen_geoView::renderYtoRight(unsigned char* renderMat,
 }
 
 void pen_geoView::renderYtoUp(unsigned char* renderMat,
-				unsigned int* renderBody,
-				const unsigned nPixels,				
-				const float x, const float y, const float z,
-				const float dx, const float dz,
-				const unsigned nx, const unsigned nz) const{
+			      unsigned int* renderBody,
+			      const unsigned nPixels,				
+			      const float x, const float y, const float z,
+			      const float dx, const float dz,
+			      const unsigned nx, const unsigned nz,
+			      const float t) const{
 
   //Calculate the image origin (top left corner)
   float oz, ox;
@@ -637,6 +660,7 @@ void pen_geoView::renderYtoUp(unsigned char* renderMat,
   pen_particleState state;
 
   state.Y = y;
+  state.PAGE = t;
   
   //Copy the already rendered image zone
   for(unsigned j = nz-1; j >= nPixels; --j){
@@ -664,11 +688,12 @@ void pen_geoView::renderYtoUp(unsigned char* renderMat,
 }
 
 void pen_geoView::renderYtoDown(unsigned char* renderMat,
-				 unsigned int* renderBody,
-				 const unsigned nPixels,
-				 const float x, const float y, const float z,
-				 const float dx, const float dz,
-				 const unsigned nx, const unsigned nz) const{
+				unsigned int* renderBody,
+				const unsigned nPixels,
+				const float x, const float y, const float z,
+				const float dx, const float dz,
+				const unsigned nx, const unsigned nz,
+				const float t) const{
 
   //Calculate the image origin (top left corner)
   float oz, ox;
@@ -678,6 +703,7 @@ void pen_geoView::renderYtoDown(unsigned char* renderMat,
   pen_particleState state;
 
   state.Y = y;
+  state.PAGE = t;
 
   //Copy already rendered zone
   for(unsigned j = 0; j < nz-nPixels; ++j){
@@ -705,7 +731,8 @@ void pen_geoView::renderYtoDown(unsigned char* renderMat,
 void pen_geoView::testZ(std::vector<geoError>& errors,
 			const float x, const float y, const float z,
 			const float dx, const float dy,
-			const unsigned nx, const unsigned ny) const{
+			const unsigned nx, const unsigned ny,
+			const float t) const{
   
   //Calculate the image origin (top left corner)
   float ox, oy;
@@ -715,6 +742,7 @@ void pen_geoView::testZ(std::vector<geoError>& errors,
   pen_particleState state;
 
   state.Z = z;
+  state.PAGE = t;
   
   for(unsigned j = 0; j < ny; ++j){
     state.Y = oy - (static_cast<float>(j)+0.5)*dy;
@@ -757,6 +785,7 @@ void pen_geoView::renderZ(unsigned char* renderMat,unsigned int* renderBody,
 			  const float x, const float y, const float z,
 			  const float dx, const float dy,
 			  const unsigned nx, const unsigned ny,
+			  const float t,
 			  const unsigned nthreads) const{
 
   //Calculate the image origin (top left corner)
@@ -770,6 +799,7 @@ void pen_geoView::renderZ(unsigned char* renderMat,unsigned int* renderBody,
     pen_particleState state;
 
     state.Z = z;
+    state.PAGE = t;
   
     for(unsigned j = 0; j < ny; ++j){
       state.Y = oy - (static_cast<float>(j)+0.5)*dy;
@@ -794,6 +824,7 @@ void pen_geoView::renderZ(unsigned char* renderMat,unsigned int* renderBody,
 	pen_particleState state;
 
 	state.Z = z;
+	state.PAGE = t;
   
 	for(unsigned j = ith; j < ny; j += nthreads){
 	  state.Y = oy - (static_cast<float>(j)+0.5)*dy;
@@ -822,7 +853,8 @@ void pen_geoView::renderZtoLeft(unsigned char* renderMat,
 				const unsigned nPixels,				
 				const float x, const float y, const float z,
 				const float dx, const float dy,
-				const unsigned nx, const unsigned ny) const{
+				const unsigned nx, const unsigned ny,
+				const float t) const{
 
   //Calculate the image origin (top left corner)
   float oy, ox;
@@ -832,6 +864,7 @@ void pen_geoView::renderZtoLeft(unsigned char* renderMat,
   pen_particleState state;
 
   state.Z = z;
+  state.PAGE = t;
   
   for(unsigned j = 0; j < ny; ++j){
     state.Y = oy - (static_cast<float>(j)+0.5)*dy;
@@ -861,7 +894,8 @@ void pen_geoView::renderZtoRight(unsigned char* renderMat,
 				 const unsigned nPixels,
 				 const float x, const float y, const float z,
 				 const float dx, const float dy,
-				 const unsigned nx, const unsigned ny) const{
+				 const unsigned nx, const unsigned ny,
+				 const float t) const{
 
   //Calculate the image origin (top left corner)
   float oy, ox;
@@ -871,6 +905,7 @@ void pen_geoView::renderZtoRight(unsigned char* renderMat,
   pen_particleState state;
 
   state.Z = z;
+  state.PAGE = t;
   
   for(unsigned j = 0; j < ny; ++j){
     state.Y = oy - (static_cast<float>(j)+0.5)*dy;
@@ -896,11 +931,12 @@ void pen_geoView::renderZtoRight(unsigned char* renderMat,
 }
 
 void pen_geoView::renderZtoUp(unsigned char* renderMat,
-				unsigned int* renderBody,
-				const unsigned nPixels,				
-				const float x, const float y, const float z,
-				const float dx, const float dy,
-				const unsigned nx, const unsigned ny) const{
+			      unsigned int* renderBody,
+			      const unsigned nPixels,				
+			      const float x, const float y, const float z,
+			      const float dx, const float dy,
+			      const unsigned nx, const unsigned ny,
+			      const float t) const{
 
   //Calculate the image origin (top left corner)
   float oy, ox;
@@ -910,6 +946,7 @@ void pen_geoView::renderZtoUp(unsigned char* renderMat,
   pen_particleState state;
 
   state.Z = z;
+  state.PAGE = t;
   
   //Copy the already rendered image zone
   for(unsigned j = ny-1; j >= nPixels; --j){
@@ -937,11 +974,12 @@ void pen_geoView::renderZtoUp(unsigned char* renderMat,
 }
 
 void pen_geoView::renderZtoDown(unsigned char* renderMat,
-				 unsigned int* renderBody,
-				 const unsigned nPixels,
-				 const float x, const float y, const float z,
-				 const float dx, const float dy,
-				 const unsigned nx, const unsigned ny) const{
+				unsigned int* renderBody,
+				const unsigned nPixels,
+				const float x, const float y, const float z,
+				const float dx, const float dy,
+				const unsigned nx, const unsigned ny,
+				const float t) const{
 
   //Calculate the image origin (top left corner)
   float oy, ox;
@@ -951,6 +989,7 @@ void pen_geoView::renderZtoDown(unsigned char* renderMat,
   pen_particleState state;
 
   state.Z = z;
+  state.PAGE = t;
 
   //Copy already rendered zone
   for(unsigned j = 0; j < ny-nPixels; ++j){
@@ -978,6 +1017,7 @@ void pen_geoView::renderZtoDown(unsigned char* renderMat,
 int pen_geoView::render3Dortho(unsigned char* renderMat,unsigned int* renderBody,
 			       const float x, const float y, const float z,
 			       const float u, const float v, const float w,
+			       const float t,
 			       const float roll, float& phi,
 			       const float dx, const float dy,
 			       const unsigned nx, const unsigned ny,
@@ -1011,6 +1051,7 @@ int pen_geoView::render3Dortho(unsigned char* renderMat,unsigned int* renderBody
   state.U = unorm;
   state.V = vnorm;
   state.W = wnorm;
+  state.PAGE = t;
 
   float px, py;
   for(unsigned j = 0; j < ny; ++j){
@@ -1115,6 +1156,7 @@ void pen_geoView::set3DResolution(const unsigned nx, const unsigned ny,
 int pen_geoView::render3D(unsigned char* renderMat,unsigned int* renderBody,
 			  const float x, const float y, const float z,
 			  const float u, const float v, const float w,
+			  const float t,
 			  const float roll, float& phi,
 			  float* distances,
 			  float& minDistance, float& maxDistance,
@@ -1137,6 +1179,8 @@ int pen_geoView::render3D(unsigned char* renderMat,unsigned int* renderBody,
   phi = rollAlignf(unorm,vnorm,wnorm,roll,rotation,phi,threshold);
   
   pen_particleState state;
+
+  state.PAGE = t;
   
   float px, py;
   for(unsigned j = 0; j < ny3D; ++j){

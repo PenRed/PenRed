@@ -32,6 +32,10 @@
 
 bool pen_meshBody::inside(const v3D pos) const{
 
+  //Checks if the position falls within the object. The object's vertex
+  //are not transformed by the animation. Therefore, the position
+  //should be transformed previously if needed
+
   if(!boundary.in(pos, crossThreshold))
     return false;
   v3D origin(pos);
@@ -215,8 +219,16 @@ void meshBodyTriangle::refresh(){
 void pen_meshBodyGeo::locate(pen_particleState& state) const{
     
   v3D pos(state.X, state.Y, state.Z);
+
+  //Check if the world is animated
+  if(bodies[iworld].inAnimation(state.PAGE)){
+    //Get world keyframe and transform the position
+    const penred::transforms::Keyframe<double, double> kfworld =
+      bodies[iworld].getKeyframe(state.PAGE);
+    kfworld.applyInv(pos);
+  }
     
-  //Check if is inside the world
+  //Check if it is inside the world
   if(!bodies[iworld].inside(pos)){
     //The particle is outside the world
     state.IBODY = getBodies();
@@ -232,8 +244,21 @@ void pen_meshBodyGeo::locate(pen_particleState& state) const{
     //Check if it is inside of some daughter
     for(unsigned i = 0; i < bodies[nextBody].nDaughters; ++i){
       unsigned daugIndex = bodies[nextBody].daughters[i];
-      if(bodies[daugIndex].inside(pos)){
+
+      //Check if the dauther is animated and transform
+      //the position accordingly
+      v3D localPos(pos);
+      if(bodies[daugIndex].inAnimation(state.PAGE)){
+	const penred::transforms::Keyframe<double, double> kfdaugh =
+	  bodies[daugIndex].getKeyframe(state.PAGE);
+	kfdaugh.applyInv(localPos);	
+      }
+      
+      if(bodies[daugIndex].inside(localPos)){
+	//Update next body
 	nextBody = daugIndex;
+	//Update position with last transform
+	pos = localPos;
 	break;
       }
     }
@@ -252,9 +277,6 @@ void pen_meshBodyGeo::step(pen_particleState& state,
 
   const double inf = 1.0e36;
     
-  v3D pos(state.X, state.Y, state.Z);
-  v3D dir(state.U, state.V, state.W);
-
   //Create local variables for DSEF, DSTOT and NCROSS
   double dsef, dstot;
   dsef = dstot = 0.0;
@@ -262,7 +284,20 @@ void pen_meshBodyGeo::step(pen_particleState& state,
                                
   //Check if it is outside the geometry system
   if(state.IBODY >= getBodies()){
-    //Is outside. Check if aims to the world
+    //Particle is outside.
+    v3D pos(state.X, state.Y, state.Z);
+    v3D dir(state.U, state.V, state.W);
+    
+    //Check if the world is animated
+    if(bodies[iworld].inAnimation(state.PAGE)){
+      //Get world keyframe and transform both position and direction
+      const penred::transforms::Keyframe<double, double> kfworld =
+	bodies[iworld].getKeyframe(state.PAGE);
+      penred::transforms::applyInv(pos, dir, kfworld);
+    }
+    
+
+    //Check if aims to the world
     double dsIn;
     if(bodies[iworld].cross(pos,dir,dsIn,false)){
       //The particle enters the world
@@ -304,6 +339,14 @@ void pen_meshBodyGeo::step(pen_particleState& state,
   unsigned MATNext = state.MAT;
   unsigned nextBody = state.IBODY;
   double toTravel = DS;
+
+  //Save particle position and direction 
+  v3D pos(state.X, state.Y, state.Z);
+  v3D dir(state.U, state.V, state.W);
+  
+  // Compose all keyframes until this body, if needed
+  composeInvTransform(nextBody, pos, dir, state.PAGE);
+    
   for(;;){
         
     currentBody = nextBody;
@@ -313,7 +356,7 @@ void pen_meshBodyGeo::step(pen_particleState& state,
     double travel = MATNext == 0 ? inf : toTravel;
     int travelType = 0; // 0 -> Self body, 1 -> To Parent, 2 -> To Daughter
 
-    //Check if the parent can be crossed within the maximum distance
+    //Check if the current body can be crossed before reaching the maximum distance
     double ds2Up;
     if(body.cross(pos, dir, ds2Up, true, travel)){
       travelType = 1; //Flag travel as go to parent
@@ -322,14 +365,28 @@ void pen_meshBodyGeo::step(pen_particleState& state,
     }
 
     //Check if any daughter is closer
+    v3D closestDaughPos(pos);
+    v3D closestDaughDir(dir);
     for(unsigned i = 0; i< body.nDaughters; ++i){
       const unsigned iDaugh = body.daughters[i];
+      const pen_meshBody& daughter = bodies[iDaugh];
+
+      //Apply the daughter animation if needed
+      v3D posDaugh(pos);
+      v3D dirDaugh(dir);
+      if(daughter.inAnimation(state.PAGE)){
+	const penred::transforms::Keyframe<double, double> kf =
+	  daughter.getKeyframe(state.PAGE);
+	penred::transforms::applyInv(posDaugh, dirDaugh, kf);	
+      }
 
       double dsDaugh;
-      if(bodies[iDaugh].cross(pos,dir,dsDaugh,false,travel)){
+      if(daughter.cross(posDaugh,dirDaugh,dsDaugh,false,travel)){
 	travelType = 2; //Flag travel as go to daugther
 	travel = dsDaugh;
 	nextBody = iDaugh;
+	closestDaughPos = posDaugh;
+	closestDaughDir = dirDaugh;
       }
     }
 
@@ -337,7 +394,6 @@ void pen_meshBodyGeo::step(pen_particleState& state,
     if(travelType == 0){ //Remains in the same body.
       //Move the particle and stop tracking      
       dsef += travel;
-      move(travel,dir,pos);
       break;
     }
     else if(travelType == 1){ //Cross the actual body boundary
@@ -358,11 +414,22 @@ void pen_meshBodyGeo::step(pen_particleState& state,
 	return;
       }
 
-      //Remains in the geometry system. Check overlaps
-      solveOverlapsUp(travel,pos,dir,currentBody,nextBody);      
+      //Remains in the geometry system 
+      //Convert position and direction to parent local coordinate system
+      if(bodies[body.parent].inAnimation(state.PAGE)){
+	const penred::transforms::Keyframe<double, double> kf =
+	  bodies[body.parent].getKeyframe(state.PAGE);
+	penred::transforms::apply(pos, dir, kf);	
+      }
+
+      //Check overlaps
+      solveOverlapsUp(travel,pos,dir,state.PAGE,currentBody,nextBody);      
 	
     }else{ //Cross some daughter body. Check overlaps
-      solveOverlapsDown(travel,pos,dir,nextBody,nextBody);
+      //Convert position and direction to daughter local coordinates
+      pos = closestDaughPos;
+      dir = closestDaughDir;
+      solveOverlapsDown(travel,pos,dir,state.PAGE,nextBody,nextBody);
     }
 
     //Update maximum remaining distance to travel
@@ -415,10 +482,8 @@ void pen_meshBodyGeo::step(pen_particleState& state,
   else
     DSEF = dsef;
   NCROSS = ncross;
-                
-  state.X = pos.x;
-  state.Y = pos.y;
-  state.Z = pos.z;
+
+  move(dsef,state);
     
   state.MAT = MATNext;
   state.IBODY = nextBody;
@@ -1349,6 +1414,56 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
       }
     }
   }
+
+  // Load Animations
+  //*****************
+  bodiesAlias.clear();
+  err = config.ls("animation",bodiesAlias);
+  if(err != INTDATA_SUCCESS){
+    if(verbose > 1){
+      printf("No animation specified for any body\n");
+    }
+  }
+  else{
+    if(verbose > 1)
+      printf("Animation specified for %lu bodies:\n\n",bodiesAlias.size());    
+    for(unsigned i = 0; i < bodiesAlias.size(); i++){
+      std::string key("animation/");      
+      key += bodiesAlias[i];
+
+      //Get bodi index
+      unsigned bIndex = getIBody(bodiesAlias[i].c_str());
+      if(bIndex < getElements()){
+	
+	//Get animation filename
+	std::string animationFilename;
+	err = config.read(key, animationFilename);
+	if(err != INTDATA_SUCCESS){
+	  if(verbose > 0){
+	    printf("pen_meshBodyGeo:configure: Error reading 'animation' "
+		   "for body %s. String expected\n",bodies[bIndex].BALIAS);
+	    printf("                     key: %s\n",key.c_str());
+	  }
+	  configStatus = PEN_MESHBODY_GEO_INVALID_FILE;
+	  return configStatus;
+	}
+
+	//Parse animation file for this body
+	int errAnim = bodies[bIndex].parseAnimation(animationFilename.c_str());
+	if(errAnim != penred::geometry::AnimatedBody::SUCCESS){
+	  if(verbose > 0){
+	    printf("pen_meshBodyGeo:configure: Error parsing animation file "
+		   "%s for body %s: %s\n",
+		   animationFilename.c_str(),
+		   bodiesAlias[i].c_str(),
+		   penred::geometry::AnimatedBody::errorMessage(errAnim));
+	  }
+	  configStatus = PEN_MESHBODY_GEO_INVALID_FILE;
+	  return configStatus;
+	}
+      }
+    }
+  }
   
   if(verbose > 1){
     printf("\nBodies information:\n\n");
@@ -1361,6 +1476,12 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
       printf("    EABS    :\n");
       for(unsigned k = 0; k < constants::nParTypes; k++)
 	printf("  %20.20s: %14.5E\n",particleName(k),bodies[j].localEABS[k]);
+      printf("    Animated: %s\n", bodies[j].animated() ? "Yes" : "No");
+      if(bodies[j].animated()){
+	const penred::transforms::Animation<double, double>& animation =
+	  bodies[j].readAnimation();
+	printf("%s\n\n", animation.stringify(10).c_str());
+      }
     }
     printf("\n");
   }

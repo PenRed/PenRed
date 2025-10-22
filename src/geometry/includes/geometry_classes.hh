@@ -35,6 +35,7 @@
 #include <cstdio>
 #include <stdexcept>
 #include <cmath>
+#include <fstream>
 
 #include "pen_classes.hh"
 
@@ -53,7 +54,7 @@ namespace penred{
 // Base body struct
 //-------------------
 
-struct pen_baseBody{
+struct pen_baseBody : public penred::geometry::AnimatedBody{
   
   unsigned int MATER;
   unsigned int KDET;

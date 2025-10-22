@@ -721,8 +721,9 @@ public:
   
   
   inline bool solveOverlapsFlat(const double travel,
-				const v3D& pos,
-				const v3D& dir,
+				v3D& pos,
+				v3D& dir,
+				const double t,
 				const unsigned ibody, 
 				unsigned& nextBody) const {
 
@@ -736,6 +737,19 @@ public:
 
     //Get body reference
     const pen_meshBody& body = bodies[ibody];
+
+    if(body.nOverlap == 0)
+      return false;
+
+    //Apply the ibody transform if needed.
+    //This will convert the position and direction to parent local coordinates
+    v3D pPos = pos;
+    v3D pDir = dir;
+    if(bodies[body.parent].inAnimation(t)){
+      const penred::transforms::Keyframe<double, double> kf =
+	bodies[body.parent].getKeyframe(t);
+      penred::transforms::apply(pPos, pDir, kf);
+    }
     
     //Check all overlaps at the same level
     for(unsigned iover = 0; iover < body.nOverlap; ++iover){
@@ -744,10 +758,20 @@ public:
       const unsigned overIndex = body.overlapedBodies[iover];
       //Get the reference of the possible overlaping body
       const pen_meshBody& overBody = bodies[overIndex];
-        
+
+      //Apply the overBody inverse transform if needed.
+      //This will convert the position and direction from parent local
+      //coordinates to overBody local coordinates
+      v3D oPos = pPos;
+      v3D oDir = pDir;
+      if(overBody.inAnimation(t)){
+	const penred::transforms::Keyframe<double, double> kf = overBody.getKeyframe(t);
+	penred::transforms::applyInv(oPos, oDir, kf);
+      }
+      
       //Check if this body is crossed in this direction
       double dsOverlap;
-      if(overBody.cross(pos, dir, dsOverlap, false)){
+      if(overBody.cross(oPos, oDir, dsOverlap, false)){
             
 	//Is crossed, check if is crossed before the travel finish
 	if(dsOverlap - travel < threshold){
@@ -755,7 +779,11 @@ public:
 	  //next body is the crossed one. However, the cross with its
 	  //daughters must be checked
 	  nextBody = overIndex;
-	  solveOverlapsDown(travel,pos,dir,overIndex,nextBody);
+	  solveOverlapsDown(travel,oPos,oDir,t,overIndex,nextBody);
+
+	  //Save position and direction in final body's local coordinates
+	  pos = oPos;
+	  dir = oDir;
 	  return true;
 	}
       }
@@ -766,8 +794,9 @@ public:
   }
   
   inline bool solveOverlapsUp(const double travel,
-			      const v3D& pos,
-			      const v3D& dir,
+			      v3D& pos,
+			      v3D& dir,
+			      const double t,
 			      const unsigned ibody, 
 			      unsigned& nextBody) const {
     
@@ -787,35 +816,49 @@ public:
     if(body.canOverlapParent){
       //Can overlap with the parent, get parent reference
       const pen_meshBody& parent = bodies[body.parent];
-        
-      //Check if the parent is crossed in this direction
+
+      //Apply the ibody transform if needed.
+      //This will convert the position and direction to parent local coordinates
+      v3D pPos = pos;
+      v3D pDir = dir;
+      if(parent.inAnimation(t)){
+	const penred::transforms::Keyframe<double, double> kf = parent.getKeyframe(t);
+	penred::transforms::apply(pPos, pDir, kf);
+      }
+	
+      //Check if the parent is crossed in this direction.
       double dsOverlap;
-      if(parent.cross(pos, dir, dsOverlap, true)){
-            
+      if(parent.cross(pPos, pDir, dsOverlap, true)){
+      
 	//The parent is crossed, check if the parent
 	//cross is located before the travel finish
 	if(dsOverlap - travel < threshold){
                 
 	  //ibody is overlaping with its parent within the travel 
-	    //distance. Therefore, the parent is crossed and the
-	    //particle escapes to the parent of the ibody parent. 
-	    //So, update next body to grandparent
-	    nextBody = bodies[body.parent].parent;
+	  //distance. Therefore, the parent is crossed and the
+	  //particle escapes to the parent of the ibody parent. 
+	  //So, update next body to grandparent
+	  nextBody = bodies[body.parent].parent;
                 
-	  //However, overlaps of the parent must be also checked
-	  solveOverlapsUp(travel,pos,dir,body.parent,nextBody);
+	  //However, overlaps of the parent must be also checked	  
+	  solveOverlapsUp(travel,pPos,pDir,t,body.parent,nextBody);
+	  
+	  //Save position and direction in final body's local coordinates
+	  pos = pPos;
+	  dir = pDir;
 	  return true;
 	}
       }
     }
     
     //The parent is not overlpaed, check their sisters
-    return solveOverlapsFlat(travel,pos,dir,ibody,nextBody);
+    return solveOverlapsFlat(travel,pos,dir,t,ibody,nextBody);
   }
 
   inline bool solveOverlapsDown(const double travel,
-				const v3D& pos,
-				const v3D& dir,
+				v3D& pos,
+				v3D& dir,
+				const double t,
 				const unsigned ibody, 
 				unsigned& nextBody) const {
     
@@ -832,25 +875,38 @@ public:
     //Iterate over all daughters to check possible overlaps
     for(unsigned idaught = 0; idaught < body.nDaughters; ++idaught){
         
-      //Get daugther index and reference
-      const unsigned daugthIndex = body.daughters[idaught];
-      const pen_meshBody& daugth = bodies[daugthIndex];
-        
-      //Check if this daugther can overlap with ibody
-      if(daugth.canOverlapParent){
-	
-	//Can overlap, check if is crossed in this direction
+      //Get daught index and reference
+      const unsigned daughtIndex = body.daughters[idaught];
+      const pen_meshBody& daught = bodies[daughtIndex];
+
+      //Check if this daught can overlap with ibody
+      if(daught.canOverlapParent){
+
+	//Apply the daughter inverse transform if needed.
+	//This will convert the position and direction to daughter local coordinates
+	v3D dPos = pos;
+	v3D dDir = dir;
+	if(daught.inAnimation(t)){
+	  const penred::transforms::Keyframe<double, double> kf = daught.getKeyframe(t);
+	  penred::transforms::applyInv(dPos, dDir, kf);
+	}
+      
+	//Check if is crossed in this direction
 	double dsOverlap;
-	if(daugth.cross(pos, dir, dsOverlap, false)){
+	if(daught.cross(dPos, dDir, dsOverlap, false)){
 	  
 	  //Is crossed, check if the cross is before the travel end
 	  if(dsOverlap - travel < threshold){
-	    //Daugther is crossed, thus, the next body must be
+	    //Daughter is crossed, thus, the next body must be
 	    //updated to this daugher. However, Their daughters
 	    //must be checked also
 	    
-	    nextBody = daugthIndex;
-	    solveOverlapsDown(travel,pos,dir,daugthIndex,nextBody);
+	    nextBody = daughtIndex;
+	    solveOverlapsDown(travel,dPos,dDir,t,daughtIndex,nextBody);
+	    
+	    //Save position and direction in final body's local coordinates
+	    pos = dPos;
+	    dir = dDir;
 	    return true;
 	  }
 	}
@@ -859,6 +915,23 @@ public:
     
     //No overlapes
     return false;
+  }
+
+  inline void composeInvTransform(const unsigned ibody,
+				  v3D& pos,
+				  v3D& dir,
+				  const double t) const {
+
+    const pen_meshBody& body = bodies[ibody];
+    if(ibody != iworld){
+      //Apply parent inverse transform
+      composeInvTransform(body.parent, pos, dir, t);
+    }
+    //Compose current body transformation, if needed
+    if(body.inAnimation(t)){
+      const penred::transforms::Keyframe<double, double> kf = body.getKeyframe(t);
+      penred::transforms::applyInv(pos, dir, kf);
+    }
   }
   
 };

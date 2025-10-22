@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2021-2022 Universitat de València - UV
 //    Copyright (C) 2021-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -79,12 +80,14 @@ public:
   virtual void testX(std::vector<geoError>& errors,
 		     const float x, const float y, const float z,
 		     const float dy, const float dz,
-		     const unsigned ny, const unsigned nz) const = 0;
+		     const unsigned ny, const unsigned nz,
+		     const float t) const = 0;
   
   virtual void renderX(unsigned char* renderMat,unsigned int* renderBody,
 		       const float x, const float y, const float z,
 		       const float dy, const float dz,
 		       const unsigned ny, const unsigned nz,
+		       const float t,
 		       const unsigned nthreads = 1) const = 0;
 
   virtual void renderXtoLeft(unsigned char* renderMat,
@@ -92,38 +95,44 @@ public:
 			     const unsigned nPixels,				
 			     const float x, const float y, const float z,
 			     const float dy, const float dz,
-			     const unsigned ny, const unsigned nz) const = 0;
+			     const unsigned ny, const unsigned nz,
+			     const float t) const = 0;
 
   virtual void renderXtoRight(unsigned char* renderMat,
-			     unsigned int* renderBody,
-			     const unsigned nPixels,				
-			     const float x, const float y, const float z,
-			     const float dy, const float dz,
-			     const unsigned ny, const unsigned nz) const = 0;
+			      unsigned int* renderBody,
+			      const unsigned nPixels,				
+			      const float x, const float y, const float z,
+			      const float dy, const float dz,
+			      const unsigned ny, const unsigned nz,
+			      const float t) const = 0;
 
   virtual void renderXtoUp(unsigned char* renderMat,
-			     unsigned int* renderBody,
-			     const unsigned nPixels,				
-			     const float x, const float y, const float z,
-			     const float dy, const float dz,
-			     const unsigned ny, const unsigned nz) const = 0;
+			   unsigned int* renderBody,
+			   const unsigned nPixels,				
+			   const float x, const float y, const float z,
+			   const float dy, const float dz,
+			   const unsigned ny, const unsigned nz,
+			   const float t) const = 0;
 
   virtual void renderXtoDown(unsigned char* renderMat,
 			     unsigned int* renderBody,
 			     const unsigned nPixels,				
 			     const float x, const float y, const float z,
 			     const float dy, const float dz,
-			     const unsigned ny, const unsigned nz) const = 0;
+			     const unsigned ny, const unsigned nz,
+			     const float t) const = 0;
   
   virtual void testY(std::vector<geoError>& errors,
 		     const float x, const float y, const float z,
 		     const float dx, const float dz,
-		     const unsigned nx, const unsigned nz) const = 0;
+		     const unsigned nx, const unsigned nz,
+		     const float t) const = 0;
   
   virtual void renderY(unsigned char* renderMat,unsigned int* renderBody,
 		       const float x, const float y, const float z,
 		       const float dx, const float dz,
 		       const unsigned nx, const unsigned nz,
+		       const float t,
 		       const unsigned nthreads = 1) const = 0;
 
   virtual void renderYtoLeft(unsigned char* renderMat,
@@ -131,38 +140,44 @@ public:
 			     const unsigned nPixels,				
 			     const float x, const float y, const float z,
 			     const float dx, const float dz,
-			     const unsigned nx, const unsigned nz) const = 0;
+			     const unsigned nx, const unsigned nz,
+			     const float t) const = 0;
 
   virtual void renderYtoRight(unsigned char* renderMat,
 			      unsigned int* renderBody,
 			      const unsigned nPixels,
 			      const float x, const float y, const float z,
 			      const float dx, const float dz,
-			      const unsigned nx, const unsigned nz) const = 0;
+			      const unsigned nx, const unsigned nz,
+			      const float t) const = 0;
 
   virtual void renderYtoUp(unsigned char* renderMat,
 			   unsigned int* renderBody,
 			   const unsigned nPixels,				
 			   const float x, const float y, const float z,
 			   const float dx, const float dz,
-			   const unsigned nx, const unsigned nz) const = 0;
+			   const unsigned nx, const unsigned nz,
+			   const float t) const = 0;
   
   virtual void renderYtoDown(unsigned char* renderMat,
 			     unsigned int* renderBody,
 			     const unsigned nPixels,
 			     const float x, const float y, const float z,
 			     const float dx, const float dz,
-			     const unsigned nx, const unsigned nz) const = 0;
+			     const unsigned nx, const unsigned nz,
+			     const float t) const = 0;
   
   virtual void testZ(std::vector<geoError>& errors,
 		     const float x, const float y, const float z,
 		     const float dx, const float dy,
-		     const unsigned nx, const unsigned ny) const = 0;
+		     const unsigned nx, const unsigned ny,
+		     const float t) const = 0;
   
   virtual void renderZ(unsigned char* renderMat,unsigned int* renderBody,
 		       const float x, const float y, const float z,
 		       const float dx, const float dy,
 		       const unsigned nx, const unsigned ny,
+		       const float t,
 		       const unsigned nthreads = 1) const = 0;
 
   virtual void renderZtoLeft(unsigned char* renderMat,
@@ -170,32 +185,37 @@ public:
 			     const unsigned nPixels,				
 			     const float x, const float y, const float z,
 			     const float dx, const float dy,
-			     const unsigned nx, const unsigned ny) const = 0;
+			     const unsigned nx, const unsigned ny,
+			     const float t) const = 0;
 
   virtual void renderZtoRight(unsigned char* renderMat,
 			      unsigned int* renderBody,
 			      const unsigned nPixels,
 			      const float x, const float y, const float z,
 			      const float dx, const float dy,
-			      const unsigned nx, const unsigned ny) const = 0;
+			      const unsigned nx, const unsigned ny,
+			      const float t) const = 0;
 
   virtual void renderZtoUp(unsigned char* renderMat,
 			   unsigned int* renderBody,
 			   const unsigned nPixels,				
 			   const float x, const float y, const float z,
 			   const float dx, const float dy,
-			   const unsigned nx, const unsigned ny) const = 0;
+			   const unsigned nx, const unsigned ny,
+			   const float t) const = 0;
   
   virtual void renderZtoDown(unsigned char* renderMat,
 			     unsigned int* renderBody,
 			     const unsigned nPixels,
 			     const float x, const float y, const float z,
 			     const float dx, const float dy,
-			     const unsigned nx, const unsigned ny) const = 0;
+			     const unsigned nx, const unsigned ny,
+			     const float t) const = 0;
   
   virtual int render3Dortho(unsigned char* renderMat,unsigned int* renderBody,
 			    const float x, const float y, const float z,
 			    const float u, const float v, const float w,
+			    const float t,
 			    const float roll, float& phi,
 			    float* distances,
 			    float& minDistance, float& maxDistance,
@@ -204,6 +224,7 @@ public:
   virtual int render3Dortho(unsigned char* renderMat,unsigned int* renderBody,
 			    const float x, const float y, const float z,
 			    const float u, const float v, const float w,
+			    const float t,
 			    const float roll, float& phi,
 			    const float dx, const float dy,
 			    const unsigned nx, const unsigned ny,
@@ -219,6 +240,7 @@ public:
   virtual int render3D(unsigned char* renderMat,unsigned int* renderBody,
 		       const float x, const float y, const float z,
 		       const float u, const float v, const float w,
+		       const float t,
 		       const float roll, float& phi,
 		       float* distances,
 		       float& minDistance, float& maxDistance,

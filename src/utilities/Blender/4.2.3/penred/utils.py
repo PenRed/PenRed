@@ -34,7 +34,7 @@ from bpy_extras.io_utils import ExportHelper
 from bpy.types import Operator
 from bpy.props import FloatVectorProperty
 from bpy_extras.object_utils import AddObjectHelper, object_data_add
-from mathutils import Vector
+from mathutils import Vector, Quaternion
 from mathutils import Color
 from math import cos, acos, sin, asin, tan, atan2, sqrt, pi
 
@@ -44,7 +44,43 @@ def clamp(v, minV, maxV):
 def redrawView3D(context):
     for area in context.screen.areas:
         if area.type == 'VIEW_3D':
-            area.tag_redraw()    
+            area.tag_redraw()
+
+def getFCurve(action, dataPath, index):
+    for fcurve in action.fcurves:
+        if fcurve.data_path == dataPath and fcurve.array_index == index:
+            return fcurve
+    return None
+
+def getFrameHandlers(fcurve, index, origin):
+    if fcurve:
+        kp = fcurve.keyframe_points[index]
+        if kp.interpolation == "BEZIER":
+            return (kp.handle_left.x, kp.handle_left.y-origin), (kp.handle_right.x, kp.handle_right.y-origin)
+        else: # Force Linear
+            return (kp.handle_left.x, kp.handle_left.y-origin), (kp.co.x-10.0, kp.handle_right.y-origin)
+    return None
+            
+def getFrame(obj, frame):
+    
+    # Set scene frame
+    bpy.context.scene.frame_set(frame)
+
+    # Get object position
+    loc = obj.location.copy()
+
+    # Get rotation in quaternion representation
+    if obj.rotation_mode == 'QUATERNION':
+        quat = obj.rotation_quaternion.copy()
+    elif obj.rotation_mode == 'AXIS_ANGLE':
+        # Convert axis-angle to quaternion
+        angle = obj.rotation_axis_angle[0]
+        axis = obj.rotation_axis_angle[1:]
+        quat = Quaternion(axis, angle)
+    else:
+        quat = obj.rotation_euler.to_quaternion()
+
+    return loc, quat
 
 def getObjPosSize(obj):
 

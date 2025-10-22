@@ -103,6 +103,11 @@ int main(int argc, char** argv){
 	pen_parserSection planeSec;
 	if(section2Dz.read(names[i],planeSec) != INTDATA_SUCCESS)
 	  continue;
+
+	double t;
+	if(planeSec.read("time", t) != INTDATA_SUCCESS){
+	  t = 0.0;
+	}
 	
 	pen_parserArray pos;
 	if(planeSec.read("pos",pos) != INTDATA_SUCCESS){
@@ -134,7 +139,7 @@ int main(int argc, char** argv){
 	    }
 	    else{
 	      viewer.renderZ(renderMat.data(),renderBody.data(),
-			     x,y,z,
+			     x,y,z,t,
 			     dsPixel,dsPixel,
 			     static_cast<unsigned>(nx),static_cast<unsigned>(ny));
 
@@ -168,6 +173,11 @@ int main(int argc, char** argv){
 	pen_parserSection planeSec;
 	if(section2Dy.read(names[i],planeSec) != INTDATA_SUCCESS)
 	  continue;
+
+	double t;
+	if(planeSec.read("time", t) != INTDATA_SUCCESS){
+	  t = 0.0;
+	}
 	
 	pen_parserArray pos;
 	if(planeSec.read("pos",pos) != INTDATA_SUCCESS){
@@ -199,7 +209,7 @@ int main(int argc, char** argv){
 	    }
 	    else{
 	      viewer.renderY(renderMat.data(),renderBody.data(),
-			     x,y,z,
+			     x,y,z,t,
 			     dsPixel,dsPixel,
 			     static_cast<unsigned>(nx),static_cast<unsigned>(nz));
 
@@ -233,6 +243,11 @@ int main(int argc, char** argv){
 	pen_parserSection planeSec;
 	if(section2Dx.read(names[i],planeSec) != INTDATA_SUCCESS)
 	  continue;
+
+	double t;
+	if(planeSec.read("time", t) != INTDATA_SUCCESS){
+	  t = 0.0;
+	}
 	
 	pen_parserArray pos;
 	if(planeSec.read("pos",pos) != INTDATA_SUCCESS){
@@ -264,7 +279,7 @@ int main(int argc, char** argv){
 	    }
 	    else{
 	      viewer.renderX(renderMat.data(),renderBody.data(),
-			     x,y,z,
+			     x,y,z,t,
 			     dsPixel,dsPixel,
 			     static_cast<unsigned>(ny),static_cast<unsigned>(nz));
 
@@ -300,6 +315,11 @@ int main(int argc, char** argv){
 	pen_parserSection planeSec;
 	if(section3D.read(names[i],planeSec) != INTDATA_SUCCESS)
 	  continue;
+
+	double t;
+	if(planeSec.read("time", t) != INTDATA_SUCCESS){
+	  t = 0.0;
+	}
 	
 	pen_parserArray pos;
 	if(planeSec.read("pos",pos) != INTDATA_SUCCESS){
@@ -351,7 +371,7 @@ int main(int argc, char** argv){
 		float minD,maxD;
 		viewer.render3D(renderMat.data(),renderBody.data(),
 				x,y,z,
-				u,v,w,
+				u,v,w,t,
 				roll, phi, // auxiliar phi
 				distances.data(),minD,maxD);
 		//dsPixel,dsPixel,

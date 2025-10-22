@@ -39,6 +39,7 @@
 #include <algorithm>
 #include <numeric>
 #include <memory>
+#include <fstream>
 
 #include "../states/pen_baseState.hh"
 #include "pen_constants.hh"
@@ -113,6 +114,192 @@ public:
 // Geometry
 //-------------------
 
+namespace penred{
+
+  namespace transforms{
+
+    inline pen_particleState apply(const pen_particleState& state,
+				   const Keyframe<double, double>& kf){
+      vector3D<double> pos(state.X, state.Y, state.Z);
+      vector3D<double> dir(state.U, state.V, state.W);
+
+      kf.apply(pos);
+      kf.rotation.apply(dir);
+      dir.normalize();
+
+      pen_particleState out(state);
+      out.X = pos.x;
+      out.Y = pos.y;
+      out.Z = pos.z;
+
+      out.U = dir.x;
+      out.V = dir.y;
+      out.W = dir.z;      
+      return out;
+    }
+    inline vector3D<double> apply(const vector3D<double>& v,
+				  const Keyframe<double, double>& kf){
+      //Apply the keyframe transformation to the given vector
+      vector3D<double> out(v);
+      kf.apply(out);
+      return out;
+    }
+    inline vector3D<double> rotateDir(const vector3D<double>& dir,
+				      const Keyframe<double, double>& kf){
+      //Apply the keyframe rotation to a direction vector and
+      //normalize the result
+      vector3D<double> out(dir);
+      kf.rotation.apply(out);
+      out.normalize();
+      return out;
+    }
+    inline void apply(vector3D<double>& pos,
+		      vector3D<double>& dir,
+		      const Keyframe<double, double>& kf){
+      //Apply the keyframe transformation to the position vector and
+      //rotate the provided direction vector. The resulting direction
+      //is then normalized      
+      kf.apply(pos);
+      kf.rotation.apply(dir);
+      dir.normalize();
+    }
+    
+    inline pen_particleState applyInv(const pen_particleState& state,
+				      const Keyframe<double, double>& kf){
+      vector3D<double> pos(state.X, state.Y, state.Z);
+      vector3D<double> dir(state.U, state.V, state.W);
+
+      kf.applyInv(pos);
+      kf.rotation.applyInv(dir);
+      dir.normalize();
+
+      pen_particleState out(state);
+      out.X = pos.x;
+      out.Y = pos.y;
+      out.Z = pos.z;
+
+      out.U = dir.x;
+      out.V = dir.y;
+      out.W = dir.z;      
+      return out;
+    }
+    inline vector3D<double> applyInv(const vector3D<double>& v,
+				     const Keyframe<double, double>& kf){
+      //Apply the keyframe inverse transformation to the given vector
+      vector3D<double> out(v);
+      kf.applyInv(out);
+      return out;
+    }
+    inline vector3D<double> rotateInvDir(const vector3D<double>& dir,
+					 const Keyframe<double, double>& kf){
+      //Apply the keyframe inverse rotation to a direction vector and
+      //normalize the result
+      vector3D<double> out(dir);
+      kf.rotation.applyInv(out);
+      out.normalize();
+      return out;
+    }
+    inline void applyInv(vector3D<double>& pos,
+			 vector3D<double>& dir,
+			 const Keyframe<double, double>& kf){
+      //Apply the keyframe inverse transformation to the position vector and
+      //the inverse rotation to the provided direction vector.
+      //The resulting direction is then normalized      
+      kf.applyInv(pos);
+      kf.rotation.applyInv(dir);
+      dir.normalize();
+    }
+    
+    
+  } // namespace transforms
+  
+  namespace geometry{
+    
+    struct AnimatedBody{
+
+    private:
+      double animationThreshold;
+      transforms::Animation<double, double> animation;
+
+    public:
+
+      enum errors{
+	SUCCESS = 0,
+	ERROR_UNABLE_TO_OPEN_FILE,
+	ERROR_EMPTY_OR_CORRUPTED_FILE,
+      };
+
+      static constexpr const char* errorMessage(const unsigned int code){
+	switch(code){
+	case SUCCESS: return "success";
+	case ERROR_UNABLE_TO_OPEN_FILE: return "unable to open file";
+	case ERROR_EMPTY_OR_CORRUPTED_FILE: return "empty or corrupted file";
+	default: return "unknown error";
+	}
+      }
+
+      AnimatedBody() : animationThreshold(0.01) {}
+
+      const transforms::Animation<double, double>& readAnimation() const{
+	return animation;
+      }
+
+      inline double readAnimationThreshold() const { return animationThreshold; }
+      inline void setAnimationThreshold(const double t) {
+	animationThreshold = t;
+      }
+      inline size_t keyframes() const { return animation.size(); }
+      inline void setAnimation(const transforms::Animation<double, double>& newAnim){
+	animation = newAnim;
+      }
+
+      inline bool animated() const {
+	return !animation.empty(); 
+      }
+
+      inline bool inAnimation(const double t) const {
+	//If an animation is enabled, ensure time is after animation start
+	if(animated() && animation.init() < t){
+	  return true;
+	}
+	return false;
+      }
+  
+      inline int parseAnimation(std::istream& is){
+	if(is){
+	  //Read threshold
+	  double threshold;
+	  is >> threshold;
+	  if(!is){
+	    return ERROR_EMPTY_OR_CORRUPTED_FILE;
+	  }
+	  setAnimationThreshold(threshold);
+	  size_t n = animation.parse(is);
+
+	  if(n == 0)
+	    return ERROR_EMPTY_OR_CORRUPTED_FILE;
+	  return SUCCESS;
+	}
+	else{
+	  return ERROR_UNABLE_TO_OPEN_FILE;
+	}
+      }
+
+      inline int parseAnimation(const char* filename){
+	if(filename == nullptr)
+	  return ERROR_UNABLE_TO_OPEN_FILE;
+    
+	std::ifstream f(filename);
+	return parseAnimation(f);
+      }
+
+      inline transforms::Keyframe<double, double> getKeyframe(const double t) const{
+	return animation.getKeyframe(t);
+      }
+    };
+  } //namespace penred
+} //namespace geometry
+
 class wrapper_geometry : public penred::logs::logger{
 
 protected:
@@ -171,6 +358,9 @@ public:
     geoPos = nInternal;
     return nullptr;
   }
+
+  //Geometry transforms
+  virtual bool isTransformable() { return false; }
   
   virtual ~wrapper_geometry(){}
 

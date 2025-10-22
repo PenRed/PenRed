@@ -35,7 +35,7 @@ from bpy_extras.io_utils import ExportHelper, ImportHelper
 from bpy.types import Operator
 from bpy.props import FloatVectorProperty
 from bpy_extras.object_utils import AddObjectHelper, object_data_add
-from mathutils import Vector
+from mathutils import Vector, Quaternion
 from mathutils import Color
 from math import cos, acos, sin, asin, tan, atan2, sqrt, pi
 import os
@@ -1901,22 +1901,146 @@ class export_penred(Operator, ExportHelper):
             if obj.hide_get():
                 #Skip it
                 return
-
-        # Set object specific parameters
-        if fconf:
-            if obj.penred_settings.isDetector:
-                fconf.write(f"geometry/kdet/{obj.name} {obj.penred_settings.detector}\n")
-            if obj.penred_settings.dsmaxEnabled:
-                fconf.write(f"geometry/dsmax/{obj.name} {obj.penred_settings.dsmax:.5e}\n")
-
-            # Create variance reduction
-            conf.createVR(obj, obj.name, fconf)
                 
         #Get name
         name = obj.name
         name.replace(" ","_")
         if len(name) > 100:
             name = name[:100]
+
+        # Set object specific parameters
+        if fconf:
+            if obj.penred_settings.isDetector:
+                fconf.write(f"geometry/kdet/{name} {obj.penred_settings.detector}\n")
+            if obj.penred_settings.dsmaxEnabled:
+                fconf.write(f"geometry/dsmax/{name} {obj.penred_settings.dsmax:.5e}\n")
+
+            # Create variance reduction
+            conf.createVR(obj, name, fconf)
+            
+        #Check if the object has an animation
+        if obj.animation_data and obj.animation_data.action:
+            action = obj.animation_data.action
+            keyframes = set()
+
+            # Get rotation mode to know which fcurve extract
+            rotMod = obj.rotation_mode
+            if rotMod == "QUATERNION":                
+                rotPath = "rotation_quaternion"
+            elif rotMod == "AXIS_ANGLE":
+                rotPath = "rotation_axis_angle"
+            else:
+                rotPath = "rotation_euler"                
+
+            validCurvePaths = {"location", rotPath}
+
+            # Ensure at least two keyframes
+            if len(action.fcurves) > 1:
+
+                # Collect all keyframe frames from all curves
+                for fcurve in action.fcurves:
+                    if fcurve.data_path in validCurvePaths:
+                        for keyframe_point in fcurve.keyframe_points:
+                            keyframes.add(int(keyframe_point.co.x))
+
+                keyframes = sorted(list(keyframes))
+
+                # Ensure every required F-Curve has keyframes at the same frames
+                for fcurve in action.fcurves:
+                    if fcurve.data_path in validCurvePaths:
+                        existingFrames = {int(k.co.x) for k in fcurve.keyframe_points}
+                        missing = [f for f in keyframes if f not in existingFrames]
+
+                        # Insert missing frames
+                        for f in missing:
+                            val = fcurve.evaluate(f)
+                            kf = fcurve.keyframe_points.insert(frame=f, value=val, options={'FAST'})
+                            kf.handle_left_type = 'AUTO_CLAMPED'
+                            kf.handle_right_type = 'AUTO_CLAMPED'
+
+
+                # Refresh curve handles and UI
+                for fcurve in action.fcurves:
+                    fcurve.update()
+
+                # Get location curves
+                xCurve = utils.getFCurve(action, "location", 0)
+                yCurve = utils.getFCurve(action, "location", 1)
+                zCurve = utils.getFCurve(action, "location", 2)
+
+                # Create the animation file
+                filenameAnimation = f"{os.path.splitext(self.filepath)[0]}_{name}.anim"
+                fanimation = open(filenameAnimation,'w',encoding='utf-8')
+                fanimation.write("0.01\n")
+                
+                # Get the first keyframe as reference
+                loc0, quat0 = utils.getFrame(obj, keyframes[0])
+                # Get translation handlers
+                xhandlers0 = utils.getFrameHandlers(xCurve, 0, loc0.x)
+                yhandlers0 = utils.getFrameHandlers(yCurve, 0, loc0.y)
+                zhandlers0 = utils.getFrameHandlers(zCurve, 0, loc0.z)
+                
+                fanimation.write(f"{keyframes[0]} 0.0 0.0 0.0 1.0 0.0 0.0 0.0 {loc0.x} {loc0.y} {loc0.z} ")
+                if xhandlers0 or yhandlers0 or zhandlers0:
+                    if xhandlers0:
+                        fanimation.write(f"{xhandlers0[0][0]} {xhandlers0[0][1]} {xhandlers0[1][0]} {xhandlers0[1][1]} ")
+                    else:
+                        fanimation.write(f"{frame+1} 0.0 {frame-1} 0.0 ")
+
+                    if yhandlers0:
+                        fanimation.write(f"{yhandlers0[0][0]} {yhandlers0[0][1]} {yhandlers0[1][0]} {yhandlers0[1][1]} ")
+                    else:
+                        fanimation.write(f"{frame+1} 0.0 {frame-1} 0.0 ")
+
+                    if zhandlers0:
+                        fanimation.write(f"{zhandlers0[0][0]} {zhandlers0[0][1]} {zhandlers0[1][0]} {zhandlers0[1][1]} ")
+                    else:
+                        fanimation.write(f"{frame+1} 0.0 {frame-1} 0.0 ")
+                fanimation.write("\n")
+                
+                # Get and process next keyframes
+                iframe = 1
+                for frame in keyframes[1:]:
+                    # Get current frame location and translation
+                    loc, quat = utils.getFrame(obj, frame)
+                    
+                    # Get translation handlers
+                    xhandlers = utils.getFrameHandlers(xCurve, iframe, loc0.x)
+                    yhandlers = utils.getFrameHandlers(yCurve, iframe, loc0.y)
+                    zhandlers = utils.getFrameHandlers(zCurve, iframe, loc0.z)
+                    iframe = iframe+1
+
+                    # Substract first keyframe position
+                    t = loc - loc0
+
+                    # Calculate the relative rotation from the first keyframe
+                    qRel = quat @ quat0.inverted()
+
+                    # Write keyframe
+                    fanimation.write(f"{frame} {t.x} {t.y} {t.z} {qRel.w} {qRel.x} {qRel.y} {qRel.z} {loc0.x} {loc0.y} {loc0.z} ")
+                    if xhandlers or yhandlers or zhandlers:
+                        if xhandlers:
+                            fanimation.write(f"{xhandlers[0][0]} {xhandlers[0][1]} {xhandlers[1][0]} {xhandlers[1][1]} ")
+                        else:
+                            fanimation.write(f"{frame+1} 0.0 {frame-1} 0.0 ")
+                            
+                        if yhandlers:
+                            fanimation.write(f"{yhandlers[0][0]} {yhandlers[0][1]} {yhandlers[1][0]} {yhandlers[1][1]} ")
+                        else:
+                            fanimation.write(f"{frame+1} 0.0 {frame-1} 0.0 ")
+
+                        if zhandlers:
+                            fanimation.write(f"{zhandlers[0][0]} {zhandlers[0][1]} {zhandlers[1][0]} {zhandlers[1][1]} ")
+                        else:
+                            fanimation.write(f"{frame+1} 0.0 {frame-1} 0.0 ")
+                    fanimation.write("\n")
+                            
+                # Close animation file
+                fanimation.close()
+                
+                if fconf:
+                    # Set the animation file in configuration
+                    fconf.write(f"geometry/animation/{name} \"{filenameAnimation}\"\n")
         
         #Get parent name
         if forceWorld:
