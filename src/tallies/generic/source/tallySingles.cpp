@@ -482,6 +482,9 @@ int pen_Singles::sumTally(const pen_Singles& tally){
   //Check detector number
   if(tally.fInfoPaths.size() != fInfoPaths.size())
     return -1;
+
+  //Save new last history index
+  unsigned long long globalLastHist = lastHist;
   
   //Join information files
   for(unsigned det = 0; det < fInfoPaths.size(); ++det){
@@ -542,7 +545,6 @@ int pen_Singles::sumTally(const pen_Singles& tally){
     constexpr const size_t histPos = single::dataSize - sizeof(unsigned long long);
     std::vector<unsigned char> buffer(buffSize);
     size_t bytesRead;
-    unsigned long long globalLastHist = lastHist;
 
     while((bytesRead = fread(buffer.data(), 1, buffSize, fdata2)) > 0){
 
@@ -580,9 +582,6 @@ int pen_Singles::sumTally(const pen_Singles& tally){
 	     "or the file is corrupted: '%s'\n",
 	     tally.fDataPaths[det].c_str());
     }
-
-    //Update last history
-    lastHist = globalLastHist;
     
     fclose(fdata);      
     fclose(fdata2);      
@@ -593,6 +592,9 @@ int pen_Singles::sumTally(const pen_Singles& tally){
       std::remove(tally.fDataPaths[det].c_str());
     }
   }
+
+  //Update last history
+  lastHist = globalLastHist;
   
   return 0;
 }
