@@ -58,7 +58,8 @@ pen_SphericalDoseDistrib::pen_SphericalDoseDistrib() :
 	  
       results.description =
 	"PenRed: Spherical dose distribution report\n"
-	"Dose units are: eV/g per history\n";
+	"Dose units are: eV/g per history\n"
+	"Origin: " + origin.stringify() + " cm";
   
       results.setDimHeader(0, "r (cm)");
       results.setDimHeader(1, "polar (deg)");
@@ -87,10 +88,15 @@ pen_SphericalDoseDistrib::pen_SphericalDoseDistrib() :
 
 void pen_SphericalDoseDistrib::updateEdepCounters(const double dE,
 						  const unsigned long long nhist,
-						  const double X,
-						  const double Y,
-						  const double Z,
+						  double X,
+						  double Y,
+						  double Z,
 						  const double WGHT){
+
+  //Move position to origin
+  X -= origin.x;
+  Y -= origin.y;
+  Z -= origin.z;
 
   double rho2 = X*X + Y*Y;
   double r2 = rho2 + Z*Z;
@@ -233,7 +239,21 @@ int pen_SphericalDoseDistrib::configure(const wrapper_geometry& geometry,
   // A bit less than one
   const double oneminus= 1.0-1.0E-12;  
   int err; 
-    
+
+  //Read origin
+  err = config.read("origin/x", origin.x);
+  if(err != INTDATA_SUCCESS){
+    origin.x = 0.0;
+  }
+  err = config.read("origin/y", origin.y);
+  if(err != INTDATA_SUCCESS){
+    origin.y = 0.0;
+  }
+  err = config.read("origin/z", origin.z);
+  if(err != INTDATA_SUCCESS){
+    origin.z = 0.0;
+  }
+  
   err = config.read("rmin", rmin);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
@@ -392,9 +412,9 @@ int pen_SphericalDoseDistrib::configure(const wrapper_geometry& geometry,
 	double r1 = rmin + dr*static_cast<double>(i);
 	double r = r1 + dr*0.5;
 	double rstheta = r*stheta;
-	state.X = rstheta*cphi;
-	state.Y = rstheta*sphi;
-	state.Z = r*ctheta;
+	state.X = rstheta*cphi + origin.x;
+	state.Y = rstheta*sphi + origin.y;
+	state.Z = r*ctheta + origin.z;
 	geometry.locate(state);
 	if(state.MAT > 0)
 	  {
@@ -415,6 +435,7 @@ int pen_SphericalDoseDistrib::configure(const wrapper_geometry& geometry,
     printf("Number of radial bins: %ld\n",nr);
     printf("Minimum r value (cm): %12.5E\n",rmin);
     printf("Bin width (cm): %12.5E\n",dr);
+    printf("Origin (cm): %s\n",origin.stringify().c_str());
   }  
     
   //Register data to dump
@@ -436,14 +457,14 @@ int pen_SphericalDoseDistrib::configure(const wrapper_geometry& geometry,
     static_cast<float>(dtheta),
     static_cast<float>(dphi)};
 
-  // ** Calculate the origin
-  double origin[3];
+  // ** Calculate the image origin
+  double originImage[3];
   // Add the mesh origin
-  origin[0] = rmin;
-  origin[1] = 0.0;
-  origin[2] = 0.0;
+  originImage[0] = rmin;
+  originImage[1] = 0.0;
+  originImage[2] = 0.0;
 
-  addImage<double>("spatialDose",3,elements,delements,origin,
+  addImage<double>("spatialDose",3,elements,delements,originImage,
 		   [=](unsigned long long nhist,
 		       size_t i, double& sigma) -> double{
 
@@ -489,6 +510,8 @@ void pen_SphericalDoseDistrib::saveData(const unsigned long long nhist) const{
   fprintf(out,"# PenRed: Spherical dose distribution\n");
   fprintf(out,"# Dose units are eV/g per history\n");
   fprintf(out,"#\n");
+  fprintf(out,"# Origin (x,y,z):\n");
+  fprintf(out,"# %12.5E %12.5E %12.5E\n", origin.x, origin.y, origin.z);
   fprintf(out,"# No. of bins (r,theta,phi):\n");
   fprintf(out,"#  %ld %ld %ld\n",nr,ntheta,nphi);
   fprintf(out,"# Min r and bin width (cm):\n");

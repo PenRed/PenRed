@@ -71,6 +71,8 @@ pen_CylindricalDoseDistrib::pen_CylindricalDoseDistrib() :
 	results.description = "PenRed: Cylindrical dose distribution\n\n";	  
 	results.setValueHeader("Dose (eV/g hist)");
       }
+      results.description +=
+	" Origin: " + origin.stringify() + "\n";
       results.description += " Histories simulated: " + std::to_string(nhists) + "\n";
 
       const double invn = 1.0/static_cast<double>(nhists);
@@ -109,6 +111,8 @@ pen_CylindricalDoseDistrib::pen_CylindricalDoseDistrib() :
       else{
 	results.description = "PenRed: Cylindrical absorbed energy distribution\n\n";	  
       }
+      results.description +=
+	" Origin: " + origin.stringify() + "\n";      
       results.description += " Histories simulated: " + std::to_string(nhists) + "\n";
 
       const double invn = 1.0/static_cast<double>(nhists);  
@@ -125,13 +129,17 @@ pen_CylindricalDoseDistrib::pen_CylindricalDoseDistrib() :
 
 void pen_CylindricalDoseDistrib::updateEdepCounters(const double dE,
 						    const unsigned long long nhist,
-						    const double X,
-						    const double Y,
+						    double X,
+						    double Y,
 						    const double Z,
 						    const double WGHT){
 
   //Avoid count range (zmin-dz,zmin)
   if(Z < zmin) return;
+
+  //Move X and Y to local origin
+  X -= origin.x;
+  Y -= origin.y;
   
     long int i,k;
     double r2;
@@ -268,6 +276,17 @@ int pen_CylindricalDoseDistrib::configure(const wrapper_geometry& geometry,
     // A bit less than one
     const double oneminus= 1.0-1.0E-12;  
     int err; 
+
+    //Read X and Y origin
+    err = config.read("origin/x", origin.x);
+    if(err != INTDATA_SUCCESS){
+      origin.x = 0.0;
+    }
+    err = config.read("origin/y", origin.y);
+    if(err != INTDATA_SUCCESS){
+      origin.y = 0.0;
+    }
+
     
     err = config.read("rmin", rmin);
     if(err != INTDATA_SUCCESS){
@@ -463,8 +482,8 @@ int pen_CylindricalDoseDistrib::configure(const wrapper_geometry& geometry,
 	    double rho1 = rmin + dr*static_cast<double>(i);
 	    double rho  = rho1 + dr*0.5;
             //This is to locate a point and find its material
-            state.X = rho*cphi;
-            state.Y = rho*sphi;
+            state.X = rho*cphi + origin.x;
+            state.Y = rho*sphi + origin.y;
             long int bin = nr*(k*nphi + j) + i;
             geometry.locate(state);
             if(state.MAT > 0)
@@ -508,14 +527,14 @@ int pen_CylindricalDoseDistrib::configure(const wrapper_geometry& geometry,
     static_cast<float>(dphi),
     static_cast<float>(dz)};
 
-  // ** Calculate the origin
-  double origin[3] = {0.0,0.0,0.0};
+  // ** Calculate the image origin
+  double originImg[3] = {0.0,0.0,0.0};
   // Add the mesh origin
-  origin[0] = rmin;
-  origin[1] = 0.0;
-  origin[2] = zmin;
+  originImg[0] = rmin;
+  originImg[1] = 0.0;
+  originImg[2] = zmin;
 
-  addImage<double>("cylindricalDose",3,elements,delements,origin,
+  addImage<double>("cylindricalDose",3,elements,delements,originImg,
 		   [=](unsigned long long nhist,
 		       size_t i, double& sigma) -> double{
 
@@ -578,6 +597,8 @@ void pen_CylindricalDoseDistrib::saveData(const unsigned long long nhist) const{
       fprintf(out,"# Dose units are eV.cm/g per history\n");
     }
   fprintf(out,"#\n");
+  fprintf(out,"# Origin (x,y) in cm:\n");
+  fprintf(out,"# %12.5E %12.5E\n", origin.x, origin.y);
   fprintf(out,"# Radial (r) info -> Number of bins, minimum value, bin width (cm):\n");
   fprintf(out,"# %4ld %12.5E %12.5E\n",nr,rmin,dr);
   fprintf(out,"# Depth (z) info -> Number of bins, minimum value, bin width (cm):\n");

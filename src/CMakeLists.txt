@@ -56,8 +56,6 @@ CMAKE_DEPENDENT_OPTION(WITH_HTTP "Build LB with HTTP support" OFF
 
 option(BUILD_TESTS "Compile PenRed tests" OFF)
 option(BUILD_UTILITIES "Compile PenRed utilities" ON)
-option(BUILD_STATIC "Enable static compilation" OFF)
-mark_as_advanced(FORCE BUILD_STATIC)
 option(BUILD_C_BINDS "Compile C binds" OFF)
 mark_as_advanced(FORCE BUILD_C_BINDS)
 option(BUILD_PYTHON_MODULES "Compile Python modules" OFF)
@@ -84,21 +82,9 @@ endif()
 
 # set compiler flags
 
-if(BUILD_STATIC)
-    #SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-    #SET(BUILD_SHARED_LIBS OFF)
-    SET(CMAKE_EXE_LINKER_FLAGS "-static")
-    #SET(CMAKE_MODULE_LINKER_FLAGS "-static")
-    #SET(CMAKE_SHARED_LINKER_FLAGS "-static")
-    SET(CMAKE_LINK_SEARCH_START_STATIC ON)
-    SET(CMAKE_LINK_SEARCH_END_STATIC ON)
-    add_definitions(-D_PEN_BUILD_STATIC_=1) #Set Static build
-else(BUILD_STATIC)
-endif(BUILD_STATIC)
-
-if(BUILD_PYTHON_MODULES)
+if(BUILD_PYTHON_MODULES OR BUILD_C_BINDS)
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-endif(BUILD_PYTHON_MODULES)
+endif(BUILD_PYTHON_MODULES OR BUILD_C_BINDS)
 
 # Compilation options
 
