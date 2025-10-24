@@ -256,6 +256,7 @@ def createTallies(context, f, toRound):
                                                   radius, item.nr,
                                                   zmin, zmax,
                                                   item.nz, item.nPhi,
+                                                  x, y,
                                                   toRound)
 
             # Spatial Dose Distribution
@@ -279,6 +280,7 @@ def createTallies(context, f, toRound):
                 tallies.createTallySphericalDoseDistrib(f, tallyName, outputPrefix,
                                                         radius,
                                                         item.nr, item.ntheta, item.nphi,
+                                                        x, y, z,
                                                         toRound)
 
             # Kerma

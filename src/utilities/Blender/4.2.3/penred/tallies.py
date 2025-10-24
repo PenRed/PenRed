@@ -26,7 +26,7 @@
 #        vicente.gimenez@uv.es              (Vicent Giménez Gómez)
 #
 
-def createTallyCylDoseDistrib(f, name, output, rmax, nr, zmin, zmax, nz, nphi, toRound):
+def createTallyCylDoseDistrib(f, name, output, rmax, nr, zmin, zmax, nz, nphi, x, y, toRound):
     f.write(f"# Cylindrical dose tally configuration for '{name}'\n")
     f.write(f"tallies/{name}/type \"CYLINDRICAL_DOSE_DISTRIB\"\n")
     f.write(f"tallies/{name}/print-xyz true\n")
@@ -37,6 +37,8 @@ def createTallyCylDoseDistrib(f, name, output, rmax, nr, zmin, zmax, nz, nphi, t
     f.write(f"tallies/{name}/zmax {round(zmax,toRound)}\n")
     f.write(f"tallies/{name}/nbinsz {nz}\n")
     f.write(f"tallies/{name}/nbinsPhi {nphi}\n")
+    f.write(f"tallies/{name}/origin/x {round(x,toRound)}\n")
+    f.write(f"tallies/{name}/origin/y {round(y,toRound)}\n")
     if output:
         f.write(f"tallies/{name}/outputdir \"{output}\"\n")
     f.write("\n")
@@ -113,7 +115,7 @@ def createTallySpatialDoseDistrib(f, name, output,
         f.write(f"tallies/{name}/outputdir \"{output}\"\n")
     f.write("\n")
 
-def createTallySphericalDoseDistrib(f, name, output, rmax, nr, ntheta, nphi, toRound):
+def createTallySphericalDoseDistrib(f, name, output, rmax, nr, ntheta, nphi, x, y, z, toRound):
     f.write(f"# Spherical dose distribution tally configuration for '{name}'\n")
     f.write(f"tallies/{name}/type \"SPHERICAL_DOSE_DISTRIB\"\n")
     f.write(f"tallies/{name}/print-xyz true\n")
@@ -122,6 +124,9 @@ def createTallySphericalDoseDistrib(f, name, output, rmax, nr, ntheta, nphi, toR
     f.write(f"tallies/{name}/nr {nr}\n")
     f.write(f"tallies/{name}/ntheta {ntheta}\n")
     f.write(f"tallies/{name}/nphi {nphi}\n")
+    f.write(f"tallies/{name}/origin/x {round(x,toRound)}\n")
+    f.write(f"tallies/{name}/origin/y {round(y,toRound)}\n")    
+    f.write(f"tallies/{name}/origin/z {round(z,toRound)}\n")    
     if output:
         f.write(f"tallies/{name}/outputdir \"{output}\"\n")
     f.write("\n")

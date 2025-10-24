@@ -56,7 +56,9 @@ class pen_SphericalDoseDistrib: public pen_genericTally<pen_particleState> {
   std::vector<double> edep;
   std::vector<double> edep2;
   std::vector<double> imass;
-    
+
+  vector3D<double> origin;
+  
 public:
     
   pen_SphericalDoseDistrib();

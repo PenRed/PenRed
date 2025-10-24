@@ -51,7 +51,9 @@ private:
   std::vector<double> imass;
   std::vector<double> nlast;
   double dr,dphi,dz,idr,idphi,idz;
-  double rmin,zmin,r2min,r2max; 
+  double rmin,zmin,r2min,r2max;
+
+  vector2D<double> origin;
 
     
 public:
