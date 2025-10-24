@@ -27,27 +27,10 @@
 #    
 #
 
-#set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--export-all-symbols -all_load --whole-file")
-
-# Set TCP lib link flags
-##########################
-if(NOT BUILD_STATIC)
-    target_compile_options(pen_tcp PRIVATE -fPIC)
-endif(NOT BUILD_STATIC)
-
-# Set RUPER_LB lib link flags
-##############################
-if(NOT BUILD_STATIC)
-    target_compile_options(pen_LB PRIVATE -fPIC)
-endif(NOT BUILD_STATIC)
-
 # Create C warper module
 #############################
-if(BUILD_STATIC)
-    add_library(RUPER_LB_C STATIC server_wraper.cpp)
-else(BUILD_STATIC)
-    add_library(RUPER_LB_C MODULE server_wraper.cpp)
-endif(BUILD_STATIC)
+
+add_library(RUPER_LB_C MODULE server_wraper.cpp)
 target_link_libraries(RUPER_LB_C pen_LB)
 
 install(
