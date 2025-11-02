@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -124,7 +125,7 @@ namespace penred{
       vector3D<double> dir(state.U, state.V, state.W);
 
       kf.apply(pos);
-      kf.rotation.apply(dir);
+      kf.rotation.onlyRotate(dir);
       dir.normalize();
 
       pen_particleState out(state);
@@ -149,7 +150,7 @@ namespace penred{
       //Apply the keyframe rotation to a direction vector and
       //normalize the result
       vector3D<double> out(dir);
-      kf.rotation.apply(out);
+      kf.rotation.onlyRotate(out);
       out.normalize();
       return out;
     }
@@ -160,7 +161,7 @@ namespace penred{
       //rotate the provided direction vector. The resulting direction
       //is then normalized      
       kf.apply(pos);
-      kf.rotation.apply(dir);
+      kf.rotation.onlyRotate(dir);
       dir.normalize();
     }
     
@@ -170,7 +171,7 @@ namespace penred{
       vector3D<double> dir(state.U, state.V, state.W);
 
       kf.applyInv(pos);
-      kf.rotation.applyInv(dir);
+      kf.rotation.onlyRotateInv(dir);
       dir.normalize();
 
       pen_particleState out(state);
@@ -195,7 +196,7 @@ namespace penred{
       //Apply the keyframe inverse rotation to a direction vector and
       //normalize the result
       vector3D<double> out(dir);
-      kf.rotation.applyInv(out);
+      kf.rotation.onlyRotateInv(out);
       out.normalize();
       return out;
     }
@@ -206,7 +207,7 @@ namespace penred{
       //the inverse rotation to the provided direction vector.
       //The resulting direction is then normalized      
       kf.applyInv(pos);
-      kf.rotation.applyInv(dir);
+      kf.rotation.onlyRotateInv(dir);
       dir.normalize();
     }
     
@@ -360,7 +361,17 @@ public:
   }
 
   //Geometry transforms
-  virtual bool isTransformable() { return false; }
+  virtual bool isTransformable() const { return false; }
+  virtual void composeInvTransform(const unsigned /*ibody*/,
+				   vector3D<double>& /*pos*/,
+				   vector3D<double>& /*dir*/,
+				   const double /*t*/) const {}
+  virtual void composeInvTransform(const unsigned ibody,
+				   vector3D<double>& pos,
+				   const double t) const {
+    vector3D<double> dummy(1.0,0.0,0.0);
+    composeInvTransform(ibody, pos, dummy, t);
+  }
   
   virtual ~wrapper_geometry(){}
 

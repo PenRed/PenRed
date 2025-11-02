@@ -832,6 +832,61 @@ class PenredTallyPropertiesPanel(bpy.types.Panel):
 
                         row = box.row()
 
+                # Detector energy deposition tally
+                ###################################
+                boxTallies = layout.box()
+                row = boxTallies.row()
+                row.prop(obj.penred_settings, "showTalliesDetectorEnergyDep",
+                         text="Detector Energy Deposition Tallies", emboss=True,
+                         icon="TRIA_DOWN" if obj.penred_settings.showTalliesDetectorEnergyDep else "TRIA_RIGHT")
+
+                row.operator("tallies_detectorenergydep.add_item", text="", icon="ADD")
+
+                if obj.penred_settings.showTalliesDetectorEnergyDep:            
+                    for i, item in enumerate(obj.penred_settings.talliesDetectorEnergyDep):
+
+                        box = boxTallies.box()
+                        row = box.row()
+                        row.prop(item, "show", text=item.name, emboss=True,
+                                 icon="TRIA_DOWN" if item.show else "TRIA_RIGHT")
+                        row.operator("tallies_detectorenergydep.remove_item", text="", icon="TRASH").index = i
+                        if not item.show:
+                            continue
+
+                        # Name
+                        row = box.row()
+                        row.prop(item, "name", text="Name")
+
+                        # Time box
+                        tbox = box.box()
+                        tbox.label(text="Time")
+                        row = tbox.row()
+                        row.prop(item, "twindow", text="Interval")
+
+                        row = tbox.row()
+                        row.prop(item, "tbins", text="Bins")
+
+                        # Spatial box
+                        sbox = box.box()
+                        sbox.label(text="Spatial")
+                        row = sbox.row()
+                        row.prop(item, "nx", text="X Bins")
+                        row = sbox.row()
+                        row.prop(item, "ny", text="Y Bins")
+                        row = sbox.row()
+                        row.prop(item, "nz", text="Z Bins")
+
+                        row = box.row()
+                        row.prop(item, "particleType", text="Particle")
+
+                        row = box.row()
+                        row.prop(item, "printCoordinates", text="Coordinates")
+
+                        row = box.row()
+                        row.prop(item, "printBins", text="Print Bins")
+
+                        row = box.row()                        
+
                 # PSF
                 ############################
                 boxTallies = layout.box()

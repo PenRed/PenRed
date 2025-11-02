@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2022-2023 Universitat de València - UV
 //    Copyright (C) 2022-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -933,6 +934,23 @@ public:
       penred::transforms::applyInv(pos, dir, kf);
     }
   }
+  inline void composeInvTransform(const unsigned ibody,
+				  v3D& pos,
+				  const double t) const {
+
+    const pen_meshBody& body = bodies[ibody];
+    if(ibody != iworld){
+      //Apply parent inverse transform
+      composeInvTransform(body.parent, pos, t);
+    }
+    //Compose current body transformation, if needed
+    if(body.inAnimation(t)){
+      const penred::transforms::Keyframe<double, double> kf = body.getKeyframe(t);
+      pos = penred::transforms::applyInv(pos, kf);
+    }
+  }
+
+  inline bool isTransformable() const override { return true; }
   
 };
 

@@ -292,6 +292,34 @@ class TALLY_OT_removeSpatialDistribTally(bpy.types.Operator):
         if obj and obj.penred_settings:
             obj.penred_settings.talliesSpatialDistrib.remove(self.index)
             utils.redrawView3D(context)
+        return {"FINISHED"}
+
+# Add Detector Energy Deposition Tally
+class TALLY_OT_addDetectorEnergyDepTally(bpy.types.Operator):
+    bl_idname = "tallies_detectorenergydep.add_item"
+    bl_label = "Add Item"
+    bl_description = "Add a detector energy deposition tally"
+
+    def execute(self, context):
+        obj = context.object
+        if obj and obj.penred_settings:
+            obj.penred_settings.talliesDetectorEnergyDep.add()
+            utils.redrawView3D(context)
+        return {"FINISHED"}
+
+# Remove Detector Energy Deposition Tally
+class TALLY_OT_removeDetectorEnergyDepTally(bpy.types.Operator):
+    bl_idname = "tallies_detectorenergydep.remove_item"
+    bl_label = "Remove Item"
+    bl_description = "Remove the detector energy deposition tally"
+
+    index: bpy.props.IntProperty()  # Index of the item to remove
+
+    def execute(self, context):
+        obj = context.object
+        if obj and obj.penred_settings:
+            obj.penred_settings.talliesDetectorEnergyDep.remove(self.index)
+            utils.redrawView3D(context)
         return {"FINISHED"}    
 
 # Add Angular detector
@@ -395,6 +423,8 @@ talliesOperatorClasses = (
     TALLY_OT_removeKermaTally,
     TALLY_OT_addSpatialDistribTally,
     TALLY_OT_removeSpatialDistribTally,
+    TALLY_OT_addDetectorEnergyDepTally,
+    TALLY_OT_removeDetectorEnergyDepTally,
     TALLY_OT_addAngDetTally,
     TALLY_OT_removeAngDetTally,
     TALLY_OT_addCTTally,
@@ -1893,6 +1923,9 @@ class export_penred(Operator, ExportHelper):
     
     def createTriangleMesh(self,f,context,obj,toRound,forceWorld,avoidHide,fconf):
 
+        # Set scene frame to 0
+        bpy.context.scene.frame_set(0)
+    
         if obj.type != 'MESH':
             return
         
@@ -2041,6 +2074,10 @@ class export_penred(Operator, ExportHelper):
                 if fconf:
                     # Set the animation file in configuration
                     fconf.write(f"geometry/animation/{name} \"{filenameAnimation}\"\n")
+
+                    # Add binded elements
+                    utils.addObjectBindedElementsConf(fconf, obj, name)
+                        
         
         #Get parent name
         if forceWorld:

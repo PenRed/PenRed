@@ -254,4 +254,6 @@ add_subdirectory(geometry)
 
 add_subdirectory(measurements)
 
+add_subdirectory(math)
+
 add_subdirectory(sampler)

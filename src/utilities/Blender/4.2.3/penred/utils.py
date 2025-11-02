@@ -80,6 +80,9 @@ def getFrame(obj, frame):
     else:
         quat = obj.rotation_euler.to_quaternion()
 
+    # Return scene to frame 0
+    bpy.context.scene.frame_set(0)    
+        
     return loc, quat
 
 def getObjPosSize(obj):
@@ -525,3 +528,15 @@ def add_object(self, context, meshType, quadType):
         obj.penred_settings.r2 = 0.5
 
     return obj
+
+def addObjectBindedElementsConf(fconf, obj, alias):
+
+    if not fconf:
+        return
+    if not hasattr(obj, "penred_settings"):
+        return
+    
+    # Tallies
+    for i, item in enumerate(obj.penred_settings.talliesDetectorEnergyDep):
+        tallyName = f"{obj.name}_{i}_{item.name}"
+        fconf.write(f"tallies/{tallyName}/binding \"{alias}\"")

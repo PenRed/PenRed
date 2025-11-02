@@ -2929,6 +2929,40 @@ namespace penred{
 	
 	return meanErel;
       }
+
+      //Cummulative function
+      measurement<type,dim> cummulative() const {
+
+	//Generates a cumulative measurement with the last dimension
+
+	//Get and check the number of bins for the last dimension
+	unsigned long nBinsLastDim = this->getNBins(dim-1);
+	if(nBinsLastDim < 2)
+	  return *this;
+
+	//Calculate the number of bins in previous dimensions
+	size_t nBinsPrevDim = this->binsPerIncrement[dim-1];
+
+	//Copy the original measurement
+	measurement<type,dim> out = *this;
+	//Flush data to ensure consistency
+	out.flush();
+
+	//Iterate over all bins in last dimension
+	for(unsigned long i = 1; i < nBinsLastDim; ++i){
+	  const size_t iFirst = i * nBinsPrevDim;
+	  const size_t iFirstPrev = (i-1) * nBinsPrevDim;
+	  //Iterate over bins within the same last dimension bin
+	  for(size_t j = 0; j < nBinsPrevDim; ++j){
+	    //Add the value from the previous last dimension bin
+	    out.data[iFirst + j] += out.data[iFirstPrev + j];
+	    out.data2[iFirst + j] += out.data2[iFirstPrev + j];
+	  }
+	}
+
+	//Return the cummulative measurement
+	return out;
+      }
       
 
       //Print functions
@@ -3157,6 +3191,13 @@ namespace penred{
 	applyInv(t.v2);
 	applyInv(t.v3);
       }
+
+      inline void onlyRotate(vector3D<T>& v) const {
+	quaternion.rotate(v);
+      }
+      inline void onlyRotateInv(vector3D<T>& v) const {
+	quaternion.conjugate().rotate(v);
+      }
       
       inline Rotation<T> slerp(const Rotation<T>& next, double factor) const {
 	Rotation<T> mid;
@@ -3220,7 +3261,13 @@ namespace penred{
 	static constexpr const Keyframe<I,T> i;
 	return i;
       }
-
+      
+      static inline const Keyframe<I,T> identity(const I frameIn){
+	Keyframe<I,T> i = identity();
+	i.frame = frameIn;
+	return i;
+      }
+      
       inline friend bool operator< (const Keyframe<I, T>& l, const Keyframe<I, T>& r){
 	return l.frame < r.frame;
       }      
@@ -3278,8 +3325,8 @@ namespace penred{
 	rotation.applyInv(v);
       }
       inline void applyInv(triangle<T>& t) const {
-	rotation.applyInv(t);
 	translation.applyInv(t);
+	rotation.applyInv(t);
       }
       template<class ElementClass>
       inline void applyContainerInv(container<ElementClass, T>& c, const T threshold) const {
@@ -3565,24 +3612,35 @@ namespace penred{
       Keyframe<I, T> getKeyframe(const I frame) const {
 
 	if(keyframes.size() == 0)
-	  return Keyframe<I, T>::identity();
+	  return Keyframe<I, T>::identity(frame);
 
 	//Ensure the frame is not before the first keyframe
 	if(frame < keyframes.cbegin()->frame)
-	  return Keyframe<I, T>::identity();
+	  return Keyframe<I, T>::identity(frame);
+
+	//Check if a single frame is provided
+	if(keyframes.size() == 1){
+	  Keyframe<I, T> kf = *keyframes.cbegin();
+	  kf.frame = frame;
+	  return kf;
+	}
 
 	//Find the bound element for this frame
 	const auto top = keyframes.lower_bound(frame);
 	//Check if a bound keyframe is found for this frame
 	if(top == keyframes.cend()){
 	  //frame is out of range, return the last keyframe
-	  return *std::prev(keyframes.cend());
+	  Keyframe<I, T> kf = *std::prev(keyframes.cend());
+	  kf.frame = frame;
+	  return kf;
 	}
 
 	//Check if a previous keyframe is stored
 	if(top == keyframes.cbegin()){
-	  //No previous keyframe exists, return identity
-	  return Keyframe<I, T>::identity();
+	  //No previous keyframe exists, return the first keyframe
+	  Keyframe<I, T> kf = *keyframes.cbegin();
+	  kf.frame = frame;
+	  return kf;
 	}
 
 	//Get the previous keyframe
@@ -3593,24 +3651,24 @@ namespace penred{
       }
       
       inline Rotation<T> getRotation(const I frame) const {
-	return getKeyframe(frame)->rotation;
+	return getKeyframe(frame).rotation;
       }
 
       inline Translation<T> getTranslation(const I frame) const {
-	return getKeyframe(frame)->translation;
+	return getKeyframe(frame).translation;
       }
 
       inline void transform(const I frame, vector3D<T>& v) const {	
-	getKeyframe(frame)->apply(v);
+	getKeyframe(frame).apply(v);
       }
       inline void transform(const I frame, T(&v)[3]) const {	
-	getKeyframe(frame)->apply(v);
+	getKeyframe(frame).apply(v);
       }
       inline void transformInv(const I frame, vector3D<T>& v) const {	
-	getKeyframe(frame)->applyInv(v);
+	getKeyframe(frame).applyInv(v);
       }
       inline void transformInv(const I frame, T(&v)[3]) const {	
-	getKeyframe(frame)->applyInv(v);
+	getKeyframe(frame).applyInv(v);
       }
 
       inline std::string stringify(const size_t spaces = 0) const{
