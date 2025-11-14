@@ -105,7 +105,7 @@ std::string dict2SectionStringWithPrefix(const py::dict& dict, const std::string
 	  result += (first ? " " : ", ") + std::to_string(e.cast<int>());
 	else{
 	  char aux[25];
-	  snprintf(aux, 25, "%s%15.5E\n", (first ? " " : ", "), e.cast<double>());	  
+	  snprintf(aux, 25, "%s%15.5E", (first ? " " : ", "), e.cast<double>());	  
 	  result += aux;
 	}
 	first = false;
