@@ -153,6 +153,7 @@ def createSources(context, f, toRound):
                                       source.split, source.psfWindow,
                                       psfShift, (omega, theta, phi), toRound)
                 else:
+                    
                     if source.spatialType == "SPATIAL_CYL":
                         if source.spatialBBFit:
                             radius = min((bsize[0], bsize[1]))/2.0
@@ -185,6 +186,10 @@ def createSources(context, f, toRound):
                 if source.timeRecord:
                     sources.createTime(f, name, source.timeType,
                                        source.decayHalf, source.timeWindow)
+
+                # Bind the source to the object
+                f.write(f"sources/generic/{name}/bind \"{name}\"")
+                
 
 def createTallies(context, f, toRound):
 

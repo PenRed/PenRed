@@ -57,6 +57,12 @@ struct vector2D{
   constexpr vector2D(const vector2D<T>& v) : x(v.x), y(v.y) {}
   vector2D(vector2D<T>&&) = default;
 
+  static inline const vector2D<T>& zero(){
+    static constexpr const vector2D<T> v = vector2D<T>(static_cast<T>(0),
+						       static_cast<T>(0));
+    return v;
+  }
+  
   vector2D<T>& operator=(const vector2D<T>&) = default;
   vector2D<T>& operator=(vector2D<T>&&) = default;
   
@@ -185,6 +191,13 @@ struct vector3D{
   constexpr vector3D(T xin, T yin, T zin) : x(xin), y(yin), z(zin){}
   constexpr vector3D(const vector3D<T>& v) : x(v.x), y(v.y), z(v.z) {}
   vector3D(vector3D<T>&&) = default;
+
+  static inline const vector3D<T>& zero(){
+    static constexpr const vector3D<T> v = vector3D<T>(static_cast<T>(0),
+						       static_cast<T>(0),
+						       static_cast<T>(0));
+    return v;
+  }
 
   vector3D<T>& operator=(const vector3D<T>&) = default;
   vector3D<T>& operator=(vector3D<T>&&) = default;
@@ -1251,13 +1264,15 @@ namespace penred{
         w = 1.0;
 	x = y = z = 0;
       }
-      T halfAngle = angle * 0.5;
-      T s = std::sin(halfAngle) / norm;
+      else{
+	T halfAngle = angle * 0.5;
+	T s = std::sin(halfAngle) / norm;
 
-      w = std::cos(halfAngle);
-      x = axis[0] * s;
-      y = axis[1] * s;
-      z = axis[2] * s;
+	w = std::cos(halfAngle);
+	x = axis[0] * s;
+	y = axis[1] * s;
+	z = axis[2] * s;
+      }
     }
     Quaternion(const vector3D<T>& axis, const T angle) {
       T norm = axis.mod();
@@ -1288,6 +1303,10 @@ namespace penred{
 			w*q.z + x*q.y - y*q.x + z*q.w);
     }
 
+    inline bool operator==(const Quaternion<T>& q) const {
+      return w == q.w && x == q.x && y == q.y && z == q.z;
+    }
+
     // Conjugate
     inline Quaternion<T> conjugate() const {
       return Quaternion<T>(w, -x, -y, -z);
@@ -1297,6 +1316,13 @@ namespace penred{
     inline Quaternion<T> normalized() const {
       T norm = std::sqrt(w*w + x*x + y*y + z*z);
       return Quaternion<T>(w/norm, x/norm, y/norm, z/norm);
+    }
+    inline void normalize() {
+      T norm = std::sqrt(w*w + x*x + y*y + z*z);
+      w /= norm;
+      x /= norm;
+      y /= norm;
+      z /= norm;
     }
 
     // Rotate a vector (3D)
@@ -3094,6 +3120,9 @@ namespace penred{
       constexpr Translation(const vector3D<T>& v) :
 	vector(v) {}
 
+      constexpr Translation(const T x, const T y, const T z) :
+	vector(x,y,z) {}
+      
       static inline const Translation<T>& identity(){
 	static constexpr const Translation<T> i;
 	return i;
@@ -3140,36 +3169,22 @@ namespace penred{
     struct Rotation{
       
       Quaternion<T> quaternion;
-      Translation<T> pivotPoint;
 
       constexpr Rotation(){}
       
-      constexpr Rotation(const Quaternion<T>& q, const Translation<T>& p) :
-	quaternion(q), pivotPoint(p) {}
+      constexpr Rotation(const Quaternion<T>& q) :
+	quaternion(q) {}
 
       static inline const Rotation<T>& identity(){
 	static constexpr const Rotation<T> i;
 	return i;
       }
 
-      inline void setPivotPoint(const T(&v)[3]){
-	pivotPoint.vector.x = v[0];
-	pivotPoint.vector.y = v[1];
-	pivotPoint.vector.z = v[2];
-      }
-      inline void setPivotPoint(const vector3D<T>& v){
-	pivotPoint.vector = v;
-      }
-
       inline void apply(T(&v)[3]) const {
-	pivotPoint.applyInv(v);
 	quaternion.rotate(v);
-	pivotPoint.apply(v);
       }
       inline void apply(vector3D<T>& v) const {
-	pivotPoint.applyInv(v);
 	quaternion.rotate(v);
-	pivotPoint.apply(v);
       }
       inline void apply(triangle<T>& t) const {
 	apply(t.v1);
@@ -3177,40 +3192,25 @@ namespace penred{
 	apply(t.v3);
       }
       inline void applyInv(T(&v)[3]) const {
-	pivotPoint.applyInv(v);
 	quaternion.conjugate().rotate(v);
-	pivotPoint.apply(v);
       }
       inline void applyInv(vector3D<T>& v) const {
-	pivotPoint.applyInv(v);
 	quaternion.conjugate().rotate(v);
-	pivotPoint.apply(v);
       }
       inline void applyInv(triangle<T>& t) const {
 	applyInv(t.v1);
 	applyInv(t.v2);
 	applyInv(t.v3);
       }
-
-      inline void onlyRotate(vector3D<T>& v) const {
-	quaternion.rotate(v);
-      }
-      inline void onlyRotateInv(vector3D<T>& v) const {
-	quaternion.conjugate().rotate(v);
-      }
       
       inline Rotation<T> slerp(const Rotation<T>& next, double factor) const {
 	Rotation<T> mid;
-	mid.pivotPoint = this->pivotPoint.lerp(next.pivotPoint, factor);
 	mid.quaternion = this->quaternion.slerp(next.quaternion, factor);
 	return mid;
       }
 
       inline std::string stringify() const{
-	std::string result =
-	  "R: " + quaternion.stringify() +
-	  ", PV: " + pivotPoint.stringify();
-	return result;
+	return quaternion.stringify();
       }
     };
     
@@ -3423,7 +3423,7 @@ namespace penred{
 
 	//Interpolate between this and the "next" keyframe depending on the selected
 	//interpolation mode (Linear or Bezier). Notice that rotation is always interpolated
-	//using slerp and linear mode for the pivot point.
+	//using slerp
 
 	//Check interpolation mode
 	if(interpolationMode == LINEAR || next.interpolationMode == LINEAR){
@@ -3480,9 +3480,9 @@ namespace penred{
 	    //Read data
 	    std::istringstream iss(line);
 
-	    // Mandatory data (frame, translation, rotation quaternion, rotation pivotpoint)
-	    double v, tx, ty, tz, qw, qx, qy, qz, px, py, pz;
-	    iss >> v >> tx >> ty >> tz >> qw >> qx >> qy >> qz >> px >> py >> pz;
+	    // Mandatory data (frame, translation, rotation quaternion)
+	    double v, tx, ty, tz, qw, qx, qy, qz;
+	    iss >> v >> tx >> ty >> tz >> qw >> qx >> qy >> qz;
 
 	    if(!iss){
 	      //Unable to read mandatory data
@@ -3514,10 +3514,7 @@ namespace penred{
 		static_cast<T>(qx),
 		static_cast<T>(qy),
 		static_cast<T>(qz)});
-	    rotation.pivotPoint = Translation<T>({
-		static_cast<T>(px),
-		static_cast<T>(py),
-		static_cast<T>(pz)});
+	    rotation.quaternion.normalize();
 
 	    if(iss){
 	      //Bezier curve values read
@@ -3551,7 +3548,7 @@ namespace penred{
 	  "Frame: " + std::to_string(frame) +
 	  (interpolationMode == LINEAR ? ", T(L): " : ", T(B): ") +
 	  translation.stringify() +
-	  ", " + rotation.stringify();
+	  ", R: " + rotation.stringify();
 	return result;
       }
     };
@@ -3576,6 +3573,7 @@ namespace penred{
     template<class I, class T>
     class Animation{
     private:
+      vector3D<T> origin;
       std::set<Keyframe<I, T>, KeyframeComparator<I,T>> keyframes;
       
     public:
@@ -3598,10 +3596,33 @@ namespace penred{
 
 	//Clear previous animation
 	keyframes.clear();
+	
+	if(!is)
+	  return 0;
 
+	//Read the next non empty line to extract object origin
+	std::string line;
+	while(std::getline(is, line)) {
+	  line = trim(line);
+	  if(line.size() > 0){
+	    
+	    //Read data
+	    std::istringstream iss(line);
+
+	    iss >> origin.x >> origin.y >> origin.z;
+
+	    if(!iss){
+	      //Unable to read origin
+	      return 0;
+	    }
+	    break;
+	  }
+	}
+      
 	//Read keyframes
 	Keyframe<I, T> keyframe;
 	while(keyframe.parse(is)){
+	  //Save keyframe
 	  keyframes.insert(keyframe);
 	}
 
@@ -3658,17 +3679,59 @@ namespace penred{
 	return getKeyframe(frame).translation;
       }
 
-      inline void transform(const I frame, vector3D<T>& v) const {	
+      inline void apply(const I frame, vector3D<T>& v) const {
+	v -= origin;
 	getKeyframe(frame).apply(v);
+	v += origin;
       }
-      inline void transform(const I frame, T(&v)[3]) const {	
+      inline void apply(const I frame, T(&v)[3]) const {
+	v[0] -= origin.x;
+	v[1] -= origin.y;
+	v[2] -= origin.z;
 	getKeyframe(frame).apply(v);
+	v[0] += origin.x;
+	v[1] += origin.y;
+	v[2] += origin.z;
       }
-      inline void transformInv(const I frame, vector3D<T>& v) const {	
-	getKeyframe(frame).applyInv(v);
+      inline void apply(const I frame, vector3D<T>& pos, vector3D<T>& dir) const {
+	//Get keyframe
+	const Keyframe<I, T> kf = getKeyframe(frame);
+
+	//Transform position
+	pos -= origin;
+	kf.apply(pos);
+	pos += origin;
+
+	//Transform direction
+	kf.rotation.apply(dir);
       }
-      inline void transformInv(const I frame, T(&v)[3]) const {	
+      
+      inline void applyInv(const I frame, vector3D<T>& v) const {
+	v -= origin;
 	getKeyframe(frame).applyInv(v);
+	v += origin;
+      }
+      inline void applyInv(const I frame, T(&v)[3]) const {	
+	v[0] -= origin.x;
+	v[1] -= origin.y;
+	v[2] -= origin.z;
+	getKeyframe(frame).applyInv(v);
+	v[0] += origin.x;
+	v[1] += origin.y;
+	v[2] += origin.z;
+      }
+
+      inline void applyInv(const I frame, vector3D<T>& pos, vector3D<T>& dir) const {
+	//Get keyframe
+	const Keyframe<I, T> kf = getKeyframe(frame);
+
+	//Transform position
+	pos -= origin;
+	kf.applyInv(pos);
+	pos += origin;
+
+	//Transform direction
+	kf.rotation.applyInv(dir);
       }
 
       inline std::string stringify(const size_t spaces = 0) const{

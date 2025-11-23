@@ -95,7 +95,7 @@ class pen_meshBodyGeo;
 
 struct meshBodyTriangle : public triangle<double>{
 
-  static constexpr double crossThreshold = 1.0e-8;
+  static constexpr const double crossThreshold = 1.0e-8;
   
   typedef vector3D<double> v3D;
 
@@ -741,16 +741,6 @@ public:
 
     if(body.nOverlap == 0)
       return false;
-
-    //Apply the ibody transform if needed.
-    //This will convert the position and direction to parent local coordinates
-    v3D pPos = pos;
-    v3D pDir = dir;
-    if(bodies[body.parent].inAnimation(t)){
-      const penred::transforms::Keyframe<double, double> kf =
-	bodies[body.parent].getKeyframe(t);
-      penred::transforms::apply(pPos, pDir, kf);
-    }
     
     //Check all overlaps at the same level
     for(unsigned iover = 0; iover < body.nOverlap; ++iover){
@@ -763,11 +753,10 @@ public:
       //Apply the overBody inverse transform if needed.
       //This will convert the position and direction from parent local
       //coordinates to overBody local coordinates
-      v3D oPos = pPos;
-      v3D oDir = pDir;
+      v3D oPos = pos;
+      v3D oDir = dir;
       if(overBody.inAnimation(t)){
-	const penred::transforms::Keyframe<double, double> kf = overBody.getKeyframe(t);
-	penred::transforms::applyInv(oPos, oDir, kf);
+	overBody.readAnimation().applyInv(t, oPos, oDir);
       }
       
       //Check if this body is crossed in this direction
@@ -800,7 +789,11 @@ public:
 			      const double t,
 			      const unsigned ibody, 
 			      unsigned& nextBody) const {
-    
+
+    // Solves the overlaps through the "ibody" boundaries, checking parent and sisters.
+    // The position and direction vector are suposed to be in the "ibody" parent's non
+    // transformed coordinates
+    //
     // travel   -> Traveled distance in cm
     // pos      -> Position vector (x,y,z)
     // dir      -> Normalized direction (u,v,w)
@@ -817,19 +810,10 @@ public:
     if(body.canOverlapParent){
       //Can overlap with the parent, get parent reference
       const pen_meshBody& parent = bodies[body.parent];
-
-      //Apply the ibody transform if needed.
-      //This will convert the position and direction to parent local coordinates
-      v3D pPos = pos;
-      v3D pDir = dir;
-      if(parent.inAnimation(t)){
-	const penred::transforms::Keyframe<double, double> kf = parent.getKeyframe(t);
-	penred::transforms::apply(pPos, pDir, kf);
-      }
 	
       //Check if the parent is crossed in this direction.
       double dsOverlap;
-      if(parent.cross(pPos, pDir, dsOverlap, true)){
+      if(parent.cross(pos, dir, dsOverlap, true)){
       
 	//The parent is crossed, check if the parent
 	//cross is located before the travel finish
@@ -837,16 +821,17 @@ public:
                 
 	  //ibody is overlaping with its parent within the travel 
 	  //distance. Therefore, the parent is crossed and the
-	  //particle escapes to the parent of the ibody parent. 
+	  //particle escapes to the ibody parent's parent. 
 	  //So, update next body to grandparent
-	  nextBody = bodies[body.parent].parent;
+	  nextBody = parent.parent;
                 
-	  //However, overlaps of the parent must be also checked	  
-	  solveOverlapsUp(travel,pPos,pDir,t,body.parent,nextBody);
-	  
-	  //Save position and direction in final body's local coordinates
-	  pos = pPos;
-	  dir = pDir;
+	  //However, overlaps of the parent must be also checked.
+	  //Convert position and direction to grandparent non transformed
+	  //coordinates
+	  if(parent.inAnimation(t)){
+	    parent.readAnimation().apply(t, pos, dir);
+	  }
+	  solveOverlapsUp(travel,pos,dir,t,body.parent,nextBody);
 	  return true;
 	}
       }
@@ -888,8 +873,7 @@ public:
 	v3D dPos = pos;
 	v3D dDir = dir;
 	if(daught.inAnimation(t)){
-	  const penred::transforms::Keyframe<double, double> kf = daught.getKeyframe(t);
-	  penred::transforms::applyInv(dPos, dDir, kf);
+	  daught.readAnimation().applyInv(t, dPos, dDir);
 	}
       
 	//Check if is crossed in this direction
@@ -918,6 +902,41 @@ public:
     return false;
   }
 
+  inline void composeTransform(const unsigned ibody,
+			       v3D& pos,
+			       v3D& dir,
+			       const double t) const {
+
+    const pen_meshBody& body = bodies[ibody];
+
+    //Apply local transformation if required
+    if(body.inAnimation(t)){
+      body.readAnimation().apply(t, pos, dir);
+    }
+    
+    if(ibody != iworld){
+      //Apply parent transform
+      composeTransform(body.parent, pos, dir, t);
+    }
+  }
+
+  inline void composeTransform(const unsigned ibody,
+			       v3D& pos,
+			       const double t) const {
+
+    const pen_meshBody& body = bodies[ibody];
+
+    //Apply local transformation if required
+    if(body.inAnimation(t)){
+      body.readAnimation().apply(t, pos);
+    }
+    
+    if(ibody != iworld){
+      //Apply parent transform
+      composeTransform(body.parent, pos, t);
+    }
+  }  
+  
   inline void composeInvTransform(const unsigned ibody,
 				  v3D& pos,
 				  v3D& dir,
@@ -930,10 +949,10 @@ public:
     }
     //Compose current body transformation, if needed
     if(body.inAnimation(t)){
-      const penred::transforms::Keyframe<double, double> kf = body.getKeyframe(t);
-      penred::transforms::applyInv(pos, dir, kf);
+      body.readAnimation().applyInv(t, pos, dir);
     }
   }
+
   inline void composeInvTransform(const unsigned ibody,
 				  v3D& pos,
 				  const double t) const {
@@ -945,8 +964,7 @@ public:
     }
     //Compose current body transformation, if needed
     if(body.inAnimation(t)){
-      const penred::transforms::Keyframe<double, double> kf = body.getKeyframe(t);
-      pos = penred::transforms::applyInv(pos, kf);
+      body.readAnimation().applyInv(t, pos);
     }
   }
 

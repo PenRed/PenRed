@@ -119,99 +119,55 @@ namespace penred{
 
   namespace transforms{
 
-    inline pen_particleState apply(const pen_particleState& state,
-				   const Keyframe<double, double>& kf){
+    inline void apply(const Translation<double>& t, pen_particleState& state){
       vector3D<double> pos(state.X, state.Y, state.Z);
-      vector3D<double> dir(state.U, state.V, state.W);
+      t.apply(pos);
+      state.X = pos.x;
+      state.Y = pos.y;
+      state.Z = pos.z;
+    }
 
-      kf.apply(pos);
-      kf.rotation.onlyRotate(dir);
-      dir.normalize();
-
-      pen_particleState out(state);
-      out.X = pos.x;
-      out.Y = pos.y;
-      out.Z = pos.z;
-
-      out.U = dir.x;
-      out.V = dir.y;
-      out.W = dir.z;      
-      return out;
-    }
-    inline vector3D<double> apply(const vector3D<double>& v,
-				  const Keyframe<double, double>& kf){
-      //Apply the keyframe transformation to the given vector
-      vector3D<double> out(v);
-      kf.apply(out);
-      return out;
-    }
-    inline vector3D<double> rotateDir(const vector3D<double>& dir,
-				      const Keyframe<double, double>& kf){
-      //Apply the keyframe rotation to a direction vector and
-      //normalize the result
-      vector3D<double> out(dir);
-      kf.rotation.onlyRotate(out);
-      out.normalize();
-      return out;
-    }
-    inline void apply(vector3D<double>& pos,
-		      vector3D<double>& dir,
-		      const Keyframe<double, double>& kf){
-      //Apply the keyframe transformation to the position vector and
-      //rotate the provided direction vector. The resulting direction
-      //is then normalized      
-      kf.apply(pos);
-      kf.rotation.onlyRotate(dir);
-      dir.normalize();
-    }
-    
-    inline pen_particleState applyInv(const pen_particleState& state,
-				      const Keyframe<double, double>& kf){
+    inline void apply(const Rotation<double>& r, pen_particleState& state){
       vector3D<double> pos(state.X, state.Y, state.Z);
+      r.apply(pos);
+      
       vector3D<double> dir(state.U, state.V, state.W);
+      r.apply(dir);
+      
+      state.X = pos.x;
+      state.Y = pos.y;
+      state.Z = pos.z;
+      
+      state.U = dir.x;
+      state.V = dir.y;
+      state.W = dir.z;      
+    }
 
-      kf.applyInv(pos);
-      kf.rotation.onlyRotateInv(dir);
-      dir.normalize();
-
-      pen_particleState out(state);
-      out.X = pos.x;
-      out.Y = pos.y;
-      out.Z = pos.z;
-
-      out.U = dir.x;
-      out.V = dir.y;
-      out.W = dir.z;      
-      return out;
+    inline void apply(const Rotation<double>& r, const Translation<double>& t, pen_particleState& state){
+      vector3D<double> pos(state.X, state.Y, state.Z);
+      r.apply(pos);
+      t.apply(pos);
+      
+      vector3D<double> dir(state.U, state.V, state.W);
+      r.apply(dir);
+      
+      state.X = pos.x;
+      state.Y = pos.y;
+      state.Z = pos.z;
+      
+      state.U = dir.x;
+      state.V = dir.y;
+      state.W = dir.z;      
     }
-    inline vector3D<double> applyInv(const vector3D<double>& v,
-				     const Keyframe<double, double>& kf){
-      //Apply the keyframe inverse transformation to the given vector
-      vector3D<double> out(v);
-      kf.applyInv(out);
-      return out;
-    }
-    inline vector3D<double> rotateInvDir(const vector3D<double>& dir,
-					 const Keyframe<double, double>& kf){
-      //Apply the keyframe inverse rotation to a direction vector and
-      //normalize the result
-      vector3D<double> out(dir);
-      kf.rotation.onlyRotateInv(out);
-      out.normalize();
-      return out;
-    }
-    inline void applyInv(vector3D<double>& pos,
-			 vector3D<double>& dir,
-			 const Keyframe<double, double>& kf){
-      //Apply the keyframe inverse transformation to the position vector and
-      //the inverse rotation to the provided direction vector.
-      //The resulting direction is then normalized      
-      kf.applyInv(pos);
-      kf.rotation.onlyRotateInv(dir);
-      dir.normalize();
-    }
-    
-    
+    inline void applyPos(const Rotation<double>& r, const Translation<double>& t, pen_particleState& state){
+      vector3D<double> pos(state.X, state.Y, state.Z);
+      r.apply(pos);
+      t.apply(pos);
+      
+      state.X = pos.x;
+      state.Y = pos.y;
+      state.Z = pos.z;
+    }    
   } // namespace transforms
   
   namespace geometry{
@@ -338,8 +294,8 @@ public:
 
 
   //Methods for nested geometries
-  virtual size_t nInternalGeometries() const { return 0; }
-  virtual const wrapper_geometry* getInternalGeo(const size_t /*index*/) const { return nullptr; }
+  virtual inline size_t nInternalGeometries() const { return 0; }
+  virtual inline const wrapper_geometry* getInternalGeo(const size_t /*index*/) const { return nullptr; }
   
   template<class geoType>
   const geoType* getInternalGeoType (size_t& geoPos, const size_t firstPos = 0) const {
@@ -361,14 +317,26 @@ public:
   }
 
   //Geometry transforms
-  virtual bool isTransformable() const { return false; }
-  virtual void composeInvTransform(const unsigned /*ibody*/,
-				   vector3D<double>& /*pos*/,
-				   vector3D<double>& /*dir*/,
-				   const double /*t*/) const {}
-  virtual void composeInvTransform(const unsigned ibody,
-				   vector3D<double>& pos,
-				   const double t) const {
+  virtual inline bool isTransformable() const { return false; }
+
+  virtual inline void composeTransform(const unsigned /*ibody*/,
+				       vector3D<double>& /*pos*/,
+				       vector3D<double>& /*dir*/,
+				       const double /*t*/) const {}
+  virtual inline void composeTransform(const unsigned ibody,
+				       vector3D<double>& pos,
+				       const double t) const {
+    vector3D<double> dummy(1.0,0.0,0.0);
+    composeTransform(ibody, pos, dummy, t);
+  }
+  
+  virtual inline void composeInvTransform(const unsigned /*ibody*/,
+					  vector3D<double>& /*pos*/,
+					  vector3D<double>& /*dir*/,
+					  const double /*t*/) const {}
+  virtual inline void composeInvTransform(const unsigned ibody,
+					  vector3D<double>& pos,
+					  const double t) const {
     vector3D<double> dummy(1.0,0.0,0.0);
     composeInvTransform(ibody, pos, dummy, t);
   }

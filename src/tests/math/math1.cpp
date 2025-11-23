@@ -278,8 +278,7 @@ bool testRotation_Basic() {
     // 90-degree rotation around Z-axis at origin
     std::array<double, 3> axis = {0.0, 0.0, 1.0};
     Quaternion<double> q(axis, M_PI/2.0);
-    transforms::Translation<double> pivot({0.0, 0.0, 0.0});
-    transforms::Rotation<double> r(q, pivot);
+    transforms::Rotation<double> r(q);
     
     vector3D<double> v(1.0, 0.0, 0.0);
     r.apply(v);
@@ -292,24 +291,6 @@ bool testRotation_Basic() {
     r.applyInv(v);
     ASSERT_ROTATION_EQUAL(v.x, 1.0);
     ASSERT_ROTATION_EQUAL(v.y, 0.0);
-    ASSERT_ROTATION_EQUAL(v.z, 0.0);
-    
-    return true;
-}
-
-bool testRotation_WithPivot() {
-    // 90-degree rotation around Z-axis at point (1,0,0)
-    std::array<double, 3> axis = {0.0, 0.0, 1.0};
-    Quaternion<double> q(axis, M_PI/2.0);
-    transforms::Translation<double> pivot({1.0, 0.0, 0.0});
-    transforms::Rotation<double> r(q, pivot);
-    
-    vector3D<double> v(2.0, 0.0, 0.0); // Point at (2,0,0)
-    r.apply(v);
-    
-    // Should rotate to (1,1,0)
-    ASSERT_ROTATION_EQUAL(v.x, 1.0);
-    ASSERT_ROTATION_EQUAL(v.y, 1.0);
     ASSERT_ROTATION_EQUAL(v.z, 0.0);
     
     return true;
@@ -391,8 +372,9 @@ bool testAnimation_Basic() {
     
     // Parse from string stream - simple translation animation
     std::stringstream ss;
-    ss << "0.0 0 0 0 1 0 0 0 0 0 0\n";          // Start at origin, identity rotation
-    ss << "10.0 10 0 0 1 0 0 0 0 0 0\n";        // End at (10,0,0), identity rotation
+    ss << "0.0 0.0 0.0\n";
+    ss << "0.0 0 0 0 1 0 0 0 \n";          // Start at origin, identity rotation
+    ss << "10.0 10 0 0 1 0 0 0\n";        // End at (10,0,0), identity rotation
     size_t num_frames = animation.parse(ss);
     ASSERT_EQUAL(num_frames, 2);
     
@@ -428,20 +410,20 @@ bool testAnimation_Basic() {
     
     // Test direct transformation function
     vector3D<double> v4(1.0, 2.0, 3.0);
-    animation.transform(5.0, v4);
+    animation.apply(5.0, v4);
     ASSERT_EQUAL(v4.x, 6.0);  // Should match kf_mid transformation
     ASSERT_EQUAL(v4.y, 2.0);
     ASSERT_EQUAL(v4.z, 3.0);
     
     // Test interpolation at 25% and 75%
     vector3D<double> v5(1.0, 2.0, 3.0);
-    animation.transform(2.5, v5);
+    animation.apply(2.5, v5);
     ASSERT_EQUAL(v5.x, 3.5);  // 1 + 2.5
     ASSERT_EQUAL(v5.y, 2.0);
     ASSERT_EQUAL(v5.z, 3.0);
     
     vector3D<double> v6(1.0, 2.0, 3.0);
-    animation.transform(7.5, v6);
+    animation.apply(7.5, v6);
     ASSERT_EQUAL(v6.x, 8.5);  // 1 + 7.5
     ASSERT_EQUAL(v6.y, 2.0);
     ASSERT_EQUAL(v6.z, 3.0);
@@ -454,8 +436,9 @@ bool testAnimation_BasicWithRotation() {
     
     // Use higher precision quaternion values
     std::stringstream ss;
-    ss << "0.0 0 0 0 1 0 0 0 0 0 0\n";                    // Start: origin, 0° rotation
-    ss << "10.0 10 0 0 0.7071067811865475 0 0 0.7071067811865475 0 0 0\n"; // 90° rotation with higher precision
+    ss << "0.0 0.0 0.0\n";
+    ss << "0.0 0 0 0 1 0 0 0 \n";                    // Start: origin, 0° rotation
+    ss << "10.0 10 0 0 0.7071067811865475 0 0 0.7071067811865475\n"; // 90° rotation with higher precision
     size_t num_frames = animation.parse(ss);
     ASSERT_EQUAL(num_frames, 2);
     
@@ -486,7 +469,8 @@ bool testAnimation_EdgeCases() {
   // Single keyframe
   transforms::Animation<double, double> single_animation;
   std::stringstream ss;
-  ss << "5.0 1 2 3 1 0 0 0 0 0 0\n"; // Keyframe at time 5.0 with translation (1,2,3)
+  ss << "0.0 0.0 0.0\n";
+  ss << "5.0 1 2 3 1 0 0 0\n"; // Keyframe at time 5.0 with translation (1,2,3)
   single_animation.parse(ss);
     
   ASSERT_FALSE(single_animation.empty());
@@ -528,7 +512,8 @@ bool testAnimation_SingleKeyframe_Identity() {
     
     // Parse single keyframe
     std::stringstream ss;
-    ss << "5.0 1 2 3 1 0 0 0 0 0 0\n"; // Identity rotation, translation (1,2,3)
+    ss << "0.0 0.0 0.0\n";
+    ss << "5.0 1 2 3 1 0 0 0\n"; // Identity rotation, translation (1,2,3)
     size_t num_frames = animation.parse(ss);
     ASSERT_EQUAL(num_frames, 1);
     
@@ -551,7 +536,8 @@ bool testAnimation_SingleKeyframe_ExactFrame() {
     
     // Parse single keyframe with specific transformation
     std::stringstream ss;
-    ss << "5.0 10 20 30 1 0 0 0 0 0 0\n"; // Translation (10,20,30), identity rotation
+    ss << "0.0 0.0 0.0\n";
+    ss << "5.0 10 20 30 1 0 0 0\n"; // Translation (10,20,30), identity rotation
     size_t num_frames = animation.parse(ss);
     ASSERT_EQUAL(num_frames, 1);
     
@@ -574,7 +560,8 @@ bool testAnimation_SingleKeyframe_AfterFrame() {
     
     // Use higher precision quaternion
     std::stringstream ss;
-    ss << "5.0 0 0 0 0.7071067811865475 0 0 0.7071067811865475 0 0 0\n"; // 90deg rotation with higher precision
+    ss << "0.0 0.0 0.0\n";
+    ss << "5.0 0 0 0 0.7071067811865475 0 0 0.7071067811865475\n"; // 90deg rotation with higher precision
     size_t num_frames = animation.parse(ss);
     ASSERT_EQUAL(num_frames, 1);
     
@@ -624,8 +611,9 @@ bool testAnimation_BeforeFirstKeyframe() {
     
     // Add keyframes starting at frame 10.0
     std::stringstream ss;
-    ss << "10.0 5 0 0 1 0 0 0 0 0 0\n"; // Translation (5,0,0)
-    ss << "20.0 10 0 0 1 0 0 0 0 0 0\n"; // Translation (10,0,0)
+    ss << "0.0 0.0 0.0\n";
+    ss << "10.0 5 0 0 1 0 0 0\n"; // Translation (5,0,0)
+    ss << "20.0 10 0 0 1 0 0 0\n"; // Translation (10,0,0)
     size_t num_frames = animation.parse(ss);
     ASSERT_EQUAL(num_frames, 2);
     
@@ -648,9 +636,10 @@ bool testAnimation_AfterLastKeyframe() {
     
     // Add keyframes ending at frame 20.0
     std::stringstream ss;
-    ss << "0.0 0 0 0 1 0 0 0 0 0 0\n"; // Identity
-    ss << "10.0 0 5 0 1 0 0 0 0 0 0\n"; // Translation (0,5,0)
-    ss << "20.0 0 10 0 1 0 0 0 0 0 0\n"; // Translation (0,10,0)
+    ss << "0.0 0.0 0.0\n";
+    ss << "0.0 0 0 0 1 0 0 0 \n"; // Identity
+    ss << "10.0 0 5 0 1 0 0 0 \n"; // Translation (0,5,0)
+    ss << "20.0 0 10 0 1 0 0 0 \n"; // Translation (0,10,0)
     size_t num_frames = animation.parse(ss);
     ASSERT_EQUAL(num_frames, 3);
     
@@ -673,9 +662,10 @@ bool testAnimation_ExactKeyframeMatch() {
     
     // Add multiple keyframes
     std::stringstream ss;
-    ss << "0.0 1 0 0 1 0 0 0 0 0 0\n";  // Translation (1,0,0)
-    ss << "10.0 0 2 0 1 0 0 0 0 0 0\n"; // Translation (0,2,0)  
-    ss << "20.0 0 0 3 1 0 0 0 0 0 0\n"; // Translation (0,0,3)
+    ss << "0.0 0.0 0.0\n";
+    ss << "0.0 1 0 0 1 0 0 0\n";  // Translation (1,0,0)
+    ss << "10.0 0 2 0 1 0 0 0\n"; // Translation (0,2,0)  
+    ss << "20.0 0 0 3 1 0 0 0\n"; // Translation (0,0,3)
     size_t num_frames = animation.parse(ss);
     ASSERT_EQUAL(num_frames, 3);
     
@@ -706,8 +696,9 @@ bool testAnimation_InterpolationAccuracy() {
     
     // Simple linear translation animation
     std::stringstream ss;
-    ss << "0.0 0 0 0 1 0 0 0 0 0 0\n";    // Start at origin
-    ss << "100.0 100 0 0 1 0 0 0 0 0 0\n"; // End at (100,0,0)
+    ss << "0.0 0.0 0.0\n";
+    ss << "0.0 0 0 0 1 0 0 0\n";    // Start at origin
+    ss << "100.0 100 0 0 1 0 0 0\n"; // End at (100,0,0)
     size_t num_frames = animation.parse(ss);
     ASSERT_EQUAL(num_frames, 2);
     
@@ -715,21 +706,21 @@ bool testAnimation_InterpolationAccuracy() {
     vector3D<double> v(0.0, 0.0, 0.0);
     
     // At 25% - should be at (25,0,0)
-    animation.transform(25.0, v);
+    animation.apply(25.0, v);
     ASSERT_APPROX_EQUAL(v.x, 25.0);
     ASSERT_APPROX_EQUAL(v.y, 0.0);
     ASSERT_APPROX_EQUAL(v.z, 0.0);
     
     // At 50% - should be at (50,0,0)
     v = vector3D<double>(0.0, 0.0, 0.0);
-    animation.transform(50.0, v);
+    animation.apply(50.0, v);
     ASSERT_APPROX_EQUAL(v.x, 50.0);
     ASSERT_APPROX_EQUAL(v.y, 0.0);
     ASSERT_APPROX_EQUAL(v.z, 0.0);
     
     // At 75% - should be at (75,0,0)
     v = vector3D<double>(0.0, 0.0, 0.0);
-    animation.transform(75.0, v);
+    animation.apply(75.0, v);
     ASSERT_APPROX_EQUAL(v.x, 75.0);
     ASSERT_APPROX_EQUAL(v.y, 0.0);
     ASSERT_APPROX_EQUAL(v.z, 0.0);
@@ -742,16 +733,17 @@ bool testAnimation_RotationInterpolation() {
     
     // Use higher precision quaternions
     std::stringstream ss;
-    ss << "0.0 0 0 0 1 0 0 0 0 0 0\n";                              // 0 degrees
-    ss << "10.0 0 0 0 0.7071067811865475 0 0 0.7071067811865475 0 0 0\n"; // 90 degrees
-    ss << "20.0 0 0 0 0 0 0 1 0 0 0\n";                            // 180 degrees
+    ss << "0.0 0.0 0.0\n";
+    ss << "0.0 0 0 0 1 0 0 0\n";                              // 0 degrees
+    ss << "10.0 0 0 0 0.7071067811865475 0 0 0.7071067811865475\n"; // 90 degrees
+    ss << "20.0 0 0 0 0 0 0 1\n";                            // 180 degrees
     size_t num_frames = animation.parse(ss);
     ASSERT_EQUAL(num_frames, 3);
     
     vector3D<double> v(1.0, 0.0, 0.0);
     
     // At frame 5.0 - should be 45 degrees
-    animation.transform(5.0, v);
+    animation.apply(5.0, v);
     double expected_x_45 = std::cos(M_PI/4.0);
     double expected_y_45 = std::sin(M_PI/4.0);
     ASSERT_NEAR(v.x, expected_x_45, 1e-6);
@@ -760,7 +752,7 @@ bool testAnimation_RotationInterpolation() {
     
     // At frame 15.0 - should be 135 degrees  
     v = vector3D<double>(1.0, 0.0, 0.0);
-    animation.transform(15.0, v);
+    animation.apply(15.0, v);
     double expected_x_135 = std::cos(3.0*M_PI/4.0);
     double expected_y_135 = std::sin(3.0*M_PI/4.0);
     ASSERT_NEAR(v.x, expected_x_135, 1e-6);
@@ -816,11 +808,56 @@ bool testBox_Operations() {
     return true;
 }
 
+bool testDirectionTransformation_Orthogonality() {
+    // Test that direction transformations preserve orthogonality and normalization
+    transforms::Keyframe<double, double> kf;
+    kf.frame = 0.0;
+    kf.translation.vector = vector3D<double>(10.0, 20.0, 30.0); // Translation should not affect directions
+    kf.rotation.quaternion = Quaternion<double>(vector3D<double>(0.0, 1.0, 1.0), M_PI/3.0); // Complex rotation
+
+    vector3D<double> dir1(1.0, 0.0, 0.0);
+    vector3D<double> dir2(0.0, 1.0, 0.0);
+    vector3D<double> dir3(0.0, 0.0, 1.0);
+
+    // Store original properties
+    //double original_dot12 = dir1 * dir2;
+    //double original_dot13 = dir1 * dir3;
+    //double original_dot23 = dir2 * dir3;
+    //double original_len1 = dir1.mod();
+    //double original_len2 = dir2.mod();
+    //double original_len3 = dir3.mod();
+
+    //printf("=== Direction Transformation Test ===\n");
+    //printf("Original directions are orthogonal and normalized\n");
+
+    // Apply inverse rotation to directions
+    kf.rotation.applyInv(dir1);
+    kf.rotation.applyInv(dir2);
+    kf.rotation.applyInv(dir3);
+
+    //printf("After inverse rotation:\n");
+    //printf("dir1: %s (length: %f)\n", dir1.stringify().c_str(), dir1.mod());
+    //printf("dir2: %s (length: %f)\n", dir2.stringify().c_str(), dir2.mod());
+    //printf("dir3: %s (length: %f)\n", dir3.stringify().c_str(), dir3.mod());
+
+    // Directions should remain orthogonal and normalized
+    ASSERT_NEAR(dir1.mod(), 1.0, 1e-10);
+    ASSERT_NEAR(dir2.mod(), 1.0, 1e-10);
+    ASSERT_NEAR(dir3.mod(), 1.0, 1e-10);
+    
+    ASSERT_NEAR(dir1 * dir2, 0.0, 1e-10);
+    ASSERT_NEAR(dir1 * dir3, 0.0, 1e-10);
+    ASSERT_NEAR(dir2 * dir3, 0.0, 1e-10);
+
+    return true;
+}
+
 bool testPerformance_ManyKeyframes() {
     transforms::Animation<double, double> animation;
     
     // Create many keyframes
     std::stringstream ss;
+    ss << "0.0 0.0 0.0\n";
     for(int i = 0; i < 100; ++i) {
         ss << static_cast<double>(i) << " " << i << " 0 0 1 0 0 0 0 0 0\n";
     }
@@ -834,7 +871,7 @@ bool testPerformance_ManyKeyframes() {
         ASSERT_EQUAL(kf.frame, static_cast<double>(i));
         
         vector3D<double> v(1.0, 0.0, 0.0);
-        animation.transform(static_cast<double>(i), v);
+        animation.apply(static_cast<double>(i), v);
         ASSERT_EQUAL(v.x, 1.0 + static_cast<double>(i));
     }
     
@@ -861,7 +898,6 @@ int main() {
     runner.runTest("Translation Basic", testTranslation_Basic);
     runner.runTest("Translation Interpolation", testTranslation_Interpolation);
     runner.runTest("Rotation Basic", testRotation_Basic);
-    runner.runTest("Rotation With Pivot", testRotation_WithPivot);
     
     // Keyframe tests
     runner.runTest("Keyframe Basic", testKeyframe_Basic);
@@ -888,6 +924,9 @@ int main() {
     
     // Performance tests
     runner.runTest("Performance Many Keyframes", testPerformance_ManyKeyframes);
+
+    // Hierarchical transformation tests
+    runner.runTest("Direction Transformation - Orthogonality", testDirectionTransformation_Orthogonality);
     
     runner.printSummary();
     

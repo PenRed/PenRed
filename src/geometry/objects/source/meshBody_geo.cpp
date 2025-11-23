@@ -117,7 +117,6 @@ bool pen_meshBody::cross(const v3D pos,
     }
 
   }
-  
     
   if(lowestDS < maxDsThres){
     ds = lowestDS + eps;
@@ -134,12 +133,15 @@ bool meshBodyTriangle::intersect(const v3D pos,
                                  double& t,
 				 const bool back) const{
     
-  const double eps = crossThreshold;
+  constexpr const double eps = crossThreshold;
+  
+  // Define a smaller epsilon for barycentric coordinates
+  constexpr const double baryEps = 1.0e-10; 
 
   //Vectorial product and determinant
   v3D pvec         = dir^edge2;
   const double det = edge1*pvec;
-
+  
   if(back){ //Testing only backface triangles
     if(det > -eps)
       return false;
@@ -148,31 +150,34 @@ bool meshBodyTriangle::intersect(const v3D pos,
       return false;
   }
 
+  //Calculate the determinant inverse
+  const double invDet = 1.0/det;
+
   //Calculate distance between v1 and ray orig
   //v3D aux = pos-v1;
   v3D tvec = pos - v1;
     
   //Calculate barycentric coordinates and check it
   //const double u = (aux*pvec)/det;
-  const double u = (tvec*pvec)/det;
+  const double u = (tvec*pvec)*invDet;
         
-  if(u < 0.0 || u > 1.0)
+  if(u < -baryEps || u > 1.0+baryEps)
     return false;
   
   //aux.crossProd(edge1);
   v3D qvec = tvec^edge1;
   //const double v = (dir*aux)/det;
-  const double v = (dir*qvec)/det;
+  const double v = (dir*qvec)*invDet;
 
-  if(v < 0.0 || u + v > 1.0)
+  if(v < -baryEps || u + v > 1.0+baryEps)
     return false;
         
   //Ray intersects the triangle
   //Calculate t
   //t = (edge2*aux)/det;
-  t = (edge2*qvec)/det;
+  t = (edge2*qvec)*invDet;
 
-  if(std::signbit(t))
+  if(t < 0.0)
     return false;  
   else
     return true;
@@ -222,10 +227,8 @@ void pen_meshBodyGeo::locate(pen_particleState& state) const{
 
   //Check if the world is animated
   if(bodies[iworld].inAnimation(state.PAGE)){
-    //Get world keyframe and transform the position
-    const penred::transforms::Keyframe<double, double> kfworld =
-      bodies[iworld].getKeyframe(state.PAGE);
-    kfworld.applyInv(pos);
+    //transform the position
+    bodies[iworld].readAnimation().applyInv(state.PAGE, pos);
   }
     
   //Check if it is inside the world
@@ -249,9 +252,7 @@ void pen_meshBodyGeo::locate(pen_particleState& state) const{
       //the position accordingly
       v3D localPos(pos);
       if(bodies[daugIndex].inAnimation(state.PAGE)){
-	const penred::transforms::Keyframe<double, double> kfdaugh =
-	  bodies[daugIndex].getKeyframe(state.PAGE);
-	kfdaugh.applyInv(localPos);	
+	bodies[daugIndex].readAnimation().applyInv(state.PAGE, localPos);
       }
       
       if(bodies[daugIndex].inside(localPos)){
@@ -267,7 +268,7 @@ void pen_meshBodyGeo::locate(pen_particleState& state) const{
     
   state.MAT = bodies[currentBody].MATER;
   state.IBODY = currentBody;
-
+  
 }
 
 void pen_meshBodyGeo::step(pen_particleState& state, 
@@ -276,7 +277,10 @@ void pen_meshBodyGeo::step(pen_particleState& state,
                            int &NCROSS) const{
 
   const double inf = 1.0e36;
-    
+  
+  v3D pos(state.X, state.Y, state.Z);
+  v3D dir(state.U, state.V, state.W);
+
   //Create local variables for DSEF, DSTOT and NCROSS
   double dsef, dstot;
   dsef = dstot = 0.0;
@@ -285,15 +289,11 @@ void pen_meshBodyGeo::step(pen_particleState& state,
   //Check if it is outside the geometry system
   if(state.IBODY >= getBodies()){
     //Particle is outside.
-    v3D pos(state.X, state.Y, state.Z);
-    v3D dir(state.U, state.V, state.W);
     
     //Check if the world is animated
     if(bodies[iworld].inAnimation(state.PAGE)){
-      //Get world keyframe and transform both position and direction
-      const penred::transforms::Keyframe<double, double> kfworld =
-	bodies[iworld].getKeyframe(state.PAGE);
-      penred::transforms::applyInv(pos, dir, kfworld);
+      //Transform position and direction
+      bodies[iworld].readAnimation().applyInv(state.PAGE, pos, dir);
     }
     
 
@@ -306,10 +306,9 @@ void pen_meshBodyGeo::step(pen_particleState& state,
       dstot = dsIn;
       ncross = 1;
 
-      move(dsIn,state);
-
       //If the world is not void, stop the particle
       if(state.MAT != 0){
+	move(dsIn,state);
 	DSEF = dsIn;
 	DSTOT = dsIn;
 	NCROSS = 1;
@@ -327,6 +326,10 @@ void pen_meshBodyGeo::step(pen_particleState& state,
       return;            
     }
   }
+  else{
+    // Compose all keyframes until this body, if needed
+    composeInvTransform(state.IBODY, pos, dir, state.PAGE);    
+  }
   
 
   //The particle is inside the geometry system. It could be in a void region
@@ -339,14 +342,6 @@ void pen_meshBodyGeo::step(pen_particleState& state,
   unsigned MATNext = state.MAT;
   unsigned nextBody = state.IBODY;
   double toTravel = DS;
-
-  //Save particle position and direction 
-  v3D pos(state.X, state.Y, state.Z);
-  v3D dir(state.U, state.V, state.W);
-  
-  // Compose all keyframes until this body, if needed
-  composeInvTransform(nextBody, pos, dir, state.PAGE);
-    
   for(;;){
         
     currentBody = nextBody;
@@ -375,9 +370,7 @@ void pen_meshBodyGeo::step(pen_particleState& state,
       v3D posDaugh(pos);
       v3D dirDaugh(dir);
       if(daughter.inAnimation(state.PAGE)){
-	const penred::transforms::Keyframe<double, double> kf =
-	  daughter.getKeyframe(state.PAGE);
-	penred::transforms::applyInv(posDaugh, dirDaugh, kf);	
+	daughter.readAnimation().applyInv(state.PAGE, posDaugh, dirDaugh);
       }
 
       double dsDaugh;
@@ -414,19 +407,17 @@ void pen_meshBodyGeo::step(pen_particleState& state,
 	return;
       }
 
-      //Remains in the geometry system 
-      //Convert position and direction to parent local coordinate system
-      if(bodies[body.parent].inAnimation(state.PAGE)){
-	const penred::transforms::Keyframe<double, double> kf =
-	  bodies[body.parent].getKeyframe(state.PAGE);
-	penred::transforms::apply(pos, dir, kf);	
+      //Remains in the geometry system. Apply the current body keyframe transform to
+      //convert position and direction to parent non-transformed coordinate system
+      if(bodies[currentBody].inAnimation(state.PAGE)){
+	bodies[currentBody].readAnimation().apply(state.PAGE, pos, dir);
       }
 
       //Check overlaps
       solveOverlapsUp(travel,pos,dir,state.PAGE,currentBody,nextBody);      
-	
+      
     }else{ //Cross some daughter body. Check overlaps
-      //Convert position and direction to daughter local coordinates
+      //Get position and direction into daughter non-transformed coordinates
       pos = closestDaughPos;
       dir = closestDaughDir;
       solveOverlapsDown(travel,pos,dir,state.PAGE,nextBody,nextBody);
@@ -483,7 +474,7 @@ void pen_meshBodyGeo::step(pen_particleState& state,
     DSEF = dsef;
   NCROSS = ncross;
 
-  move(dsef,state);
+  move(DSTOT,state);
     
   state.MAT = MATNext;
   state.IBODY = nextBody;

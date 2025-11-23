@@ -186,13 +186,14 @@ namespace penred{
 			    const unsigned verbose){
       
 	if(inst.operation == InstructionOperations::MOVE_AND_ROTATE){
-	  if(inst.parameters.size() >= 7){
+	  if(inst.parameters.size() >= 8){
 	    source.setPostTranslation(inst.parameters[1],
 				      inst.parameters[2],
 				      inst.parameters[3]);
-	    source.setPostRotationZYZ(inst.parameters[4],
-				      inst.parameters[5],
-				      inst.parameters[6]);
+	    source.setPostRotation(inst.parameters[4],
+				   inst.parameters[5],
+				   inst.parameters[6],
+				   inst.parameters[7]);
 	  }
 	}
 	else if(inst.operation == InstructionOperations::MOVE){
@@ -206,9 +207,10 @@ namespace penred{
 	else if(inst.operation == InstructionOperations::ROTATE){
 	  //Rotate the source
 	  if(inst.parameters.size() >= 4){
-	    source.setPostRotationZYZ(inst.parameters[1],
-				      inst.parameters[2],
-				      inst.parameters[3]);
+	    source.setPostRotation(inst.parameters[1],
+				   inst.parameters[2],
+				   inst.parameters[3],
+				   inst.parameters[4]);
 	  }
 	}
 
@@ -2150,57 +2152,72 @@ namespace penred{
 
 	return instructionSend(std::move(aux));
       }
+      
       inline unsigned long long instructionSimulate(const std::string& sourceName,
 						    const double nhists,
-						    const std::vector<double>& trans = {},
-						    const std::vector<double>& rot = {}){
+						    const vector3D<double>& trans = vector3D<double>::zero(),
+						    const Quaternion<double>& rot = Quaternion<double>::identity()){
+
 	InteractiveInstruction inst;
 	inst.type = InstructionTypes::SIMULATE_SOURCE;
 	inst.name = sourceName;
-	if(trans.size() >= 3){
-	  if(rot.size() >= 3){
-	    inst.operation = InstructionOperations::MOVE_AND_ROTATE;
-	    
-	    inst.parameters.resize(7);
-	    inst.parameters[0] = nhists;
-	    
-	    inst.parameters[1] = trans[0];
-	    inst.parameters[2] = trans[1];
-	    inst.parameters[3] = trans[2];
-	    
-	    inst.parameters[4] = rot[0];
-	    inst.parameters[5] = rot[1];
-	    inst.parameters[6] = rot[2];
-	  }else{
+
+	if(trans.mod2() > 0.0){
+	  //The source is moved
+	  if(rot == Quaternion<double>::identity()){
+	    //The source is moved but not rotated
 	    inst.operation = InstructionOperations::MOVE;
 
 	    inst.parameters.resize(4);
 	    inst.parameters[0] = nhists;
 	    
-	    inst.parameters[1] = trans[0];
-	    inst.parameters[2] = trans[1];
-	    inst.parameters[3] = trans[2];	    
+	    inst.parameters[1] = trans.x;
+	    inst.parameters[2] = trans.y;
+	    inst.parameters[3] = trans.z;	    	    
+	  }
+	  else{
+	    //The source is moved and rotated
+	    inst.operation = InstructionOperations::MOVE_AND_ROTATE;
+	    
+	    inst.parameters.resize(7);
+	    inst.parameters[0] = nhists;
+	    
+	    inst.parameters[1] = trans.x;
+	    inst.parameters[2] = trans.y;
+	    inst.parameters[3] = trans.z;
+	    
+	    inst.parameters[4] = rot.w;
+	    inst.parameters[5] = rot.x;
+	    inst.parameters[6] = rot.y;
+	    inst.parameters[7] = rot.z;	    
 	  }
 	}
-	else if(rot.size() >= 3){
-	  inst.operation = InstructionOperations::ROTATE;
-	  
-	  inst.parameters.resize(4);
-	  inst.parameters[0] = nhists;
-	    
-	  inst.parameters[1] = rot[0];
-	  inst.parameters[2] = rot[1];
-	  inst.parameters[3] = rot[2];	    	  
-	}
 	else{
-	  inst.operation = InstructionOperations::NONE;
+	  //The source is not moved
+	  if(rot == Quaternion<double>::identity()){
+	    //The source is neither moved nor rotated
+	    inst.operation = InstructionOperations::NONE;
 	  
-	  inst.parameters.resize(1);
-	  inst.parameters[0] = nhists;
+	    inst.parameters.resize(1);
+	    inst.parameters[0] = nhists;	    
+	  }
+	  else{
+	    //The source is only rotated
+	    inst.operation = InstructionOperations::ROTATE;
+	  
+	    inst.parameters.resize(5);
+	    inst.parameters[0] = nhists;
+	    
+	    inst.parameters[1] = rot.w;
+	    inst.parameters[2] = rot.x;
+	    inst.parameters[3] = rot.y;	    	  	    
+	    inst.parameters[4] = rot.z;	    	  	    
+	  }
 	}
 
-	return instructionSend(std::move(inst));
+	return instructionSend(std::move(inst));	
       }
+      
       inline unsigned long long instructionUpdateResults(const std::string& tallyName){
 		
 	InteractiveInstruction inst;

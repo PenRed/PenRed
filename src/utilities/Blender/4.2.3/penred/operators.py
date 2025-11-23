@@ -1921,7 +1921,7 @@ class export_penred(Operator, ExportHelper):
             else:
                 return None
     
-    def createTriangleMesh(self,f,context,obj,toRound,forceWorld,avoidHide,fconf):
+    def createTriangleMesh(self,fgeo,context,obj,toRound,forceWorld,avoidHide,fconf):
 
         # Set scene frame to 0
         bpy.context.scene.frame_set(0)
@@ -2012,8 +2012,11 @@ class export_penred(Operator, ExportHelper):
                 xhandlers0 = utils.getFrameHandlers(xCurve, 0, loc0.x)
                 yhandlers0 = utils.getFrameHandlers(yCurve, 0, loc0.y)
                 zhandlers0 = utils.getFrameHandlers(zCurve, 0, loc0.z)
-                
-                fanimation.write(f"{keyframes[0]} 0.0 0.0 0.0 1.0 0.0 0.0 0.0 {loc0.x} {loc0.y} {loc0.z} ")
+
+                # Write object origin
+                fanimation.write(f"{loc0.x} {loc0.y} {loc0.z}\n")
+                # Write first keyframe (Identity)
+                fanimation.write(f"{keyframes[0]} 0.0 0.0 0.0 1.0 0.0 0.0 0.0 ")
                 if xhandlers0 or yhandlers0 or zhandlers0:
                     if xhandlers0:
                         fanimation.write(f"{xhandlers0[0][0]} {xhandlers0[0][1]} {xhandlers0[1][0]} {xhandlers0[1][1]} ")
@@ -2050,7 +2053,7 @@ class export_penred(Operator, ExportHelper):
                     qRel = quat @ quat0.inverted()
 
                     # Write keyframe
-                    fanimation.write(f"{frame} {t.x} {t.y} {t.z} {qRel.w} {qRel.x} {qRel.y} {qRel.z} {loc0.x} {loc0.y} {loc0.z} ")
+                    fanimation.write(f"{frame} {t.x} {t.y} {t.z} {qRel.w} {qRel.x} {qRel.y} {qRel.z} ")
                     if xhandlers or yhandlers or zhandlers:
                         if xhandlers:
                             fanimation.write(f"{xhandlers[0][0]} {xhandlers[0][1]} {xhandlers[1][0]} {xhandlers[1][1]} ")
@@ -2116,38 +2119,38 @@ class export_penred(Operator, ExportHelper):
             if len(vgIndexLists[i]) > 0:
                 nVGEff = nVGEff + 1
         
-        f.write("# Object: %s\n" % name.replace(" ", "_"))
-        f.write("#MAT      #NFACES     #NVERTEX     #NAME        #PARENT NAME    #N VERTEX GROUPS\n")
-        f.write(" %03d      %07d     %08d     %s        %s   %04d\n" % (obj.penred_settings.material, len(mesh.loop_triangles),len(mesh.vertices), name.replace(" ", "_"), parentName.replace(" ", "_"), nVGEff))
+        fgeo.write("# Object: %s\n" % name.replace(" ", "_"))
+        fgeo.write("#MAT      #NFACES     #NVERTEX     #NAME        #PARENT NAME    #N VERTEX GROUPS\n")
+        fgeo.write(" %03d      %07d     %08d     %s        %s   %04d\n" % (obj.penred_settings.material, len(mesh.loop_triangles),len(mesh.vertices), name.replace(" ", "_"), parentName.replace(" ", "_"), nVGEff))
 
         #Print vertex groups
-        f.write("# VERTEX GROUPS\n")
+        fgeo.write("# VERTEX GROUPS\n")
         for i in range(nVG):
 
             #Skip empty groups
             if len(vgIndexLists[i]) == 0:
                 continue
 
-            f.write("#NAME  #NVERTEX\n")
-            f.write(" %s   %04d\n" % (vgNames[i].replace(" ", "_"), len(vgIndexLists[i])))
+            fgeo.write("#NAME  #NVERTEX\n")
+            fgeo.write(" %s   %04d\n" % (vgNames[i].replace(" ", "_"), len(vgIndexLists[i])))
             for index in vgIndexLists[i]:
-                f.write(" %04d\n" % (index))
+                fgeo.write(" %04d\n" % (index))
 
         #Print vertex
-        f.write("# VERTEX LIST\n")
-        f.write("# Index  (X Y Z)\n")
+        fgeo.write("# VERTEX LIST\n")
+        fgeo.write("# Index  (X Y Z)\n")
         
         for vertex in mesh.vertices:
             vertexWorld = obj.matrix_world @ vertex.co
-            f.write("%04d %+.*E %+.*E %+.*E\n" % (vertex.index, toRound+3, round(vertexWorld[0],toRound), toRound+3, round(vertexWorld[1],toRound), toRound+3, round(vertexWorld[2],toRound)))
+            fgeo.write("%04d %+.*E %+.*E %+.*E\n" % (vertex.index, toRound+3, round(vertexWorld[0],toRound), toRound+3, round(vertexWorld[1],toRound), toRound+3, round(vertexWorld[2],toRound)))
         
-        f.write("# FACES(triangles)\n")
+        fgeo.write("# FACES(triangles)\n")
         for tri in mesh.loop_triangles:
-            f.write(" %03d %03d %03d\n" % (tri.vertices[0], tri.vertices[1], tri.vertices[2]))
-        f.write("#\n#\n")
+            fgeo.write(" %03d %03d %03d\n" % (tri.vertices[0], tri.vertices[1], tri.vertices[2]))
+        fgeo.write("#\n#\n")
         
     
-    def createObject(self,f,context,obj,nSurf,nObj,toRound,createChilds,avoidHide,fconf):
+    def createObject(self,fgeo,context,obj,nSurf,nObj,toRound,createChilds,avoidHide,fconf):
         
         #Check the quadric type
         if obj.penred_settings.quadricType == "unknown" and obj.type != "EMPTY": 
@@ -2172,7 +2175,7 @@ class export_penred(Operator, ExportHelper):
         tree = [] # Children tree information
         if len(childrens) > 0:
             for child in childrens:
-                childTree, nSurf, nObj = self.createObject(f,context,child,nSurf,nObj,toRound,True,avoidHide,fconf)
+                childTree, nSurf, nObj = self.createObject(fgeo,context,child,nSurf,nObj,toRound,True,avoidHide,fconf)
                 if len(childTree) > 0:
                     tree.extend(childTree)
                 
@@ -2204,40 +2207,40 @@ class export_penred(Operator, ExportHelper):
         
         ### Create object surfaces
         if quadType == "CUBE":
-            nSurf = surfaces.createCubeSurfaces(f,x,y,z,dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
+            nSurf = surfaces.createCubeSurfaces(fgeo,x,y,z,dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
         if quadType == "TRAPEZOID":
             topSize = obj.penred_settings.topSize
             botSize = obj.penred_settings.botSize
             
-            nSurf = surfaces.createTrapezoidSurfaces(f,x,y,z,
+            nSurf = surfaces.createTrapezoidSurfaces(fgeo,x,y,z,
                                                      sx*botSize[0], sy*botSize[1],
                                                      sx*topSize[0], sy*topSize[1],
                                                      dz,omega,theta,phi,
                                                      nSurf,name,toRound)            
         elif quadType == "SPHERE":
-            nSurf = surfaces.createSphereSurfaces(f,x,y,z,dx,dy,dz,nSurf,name,toRound)
+            nSurf = surfaces.createSphereSurfaces(fgeo,x,y,z,dx,dy,dz,nSurf,name,toRound)
         elif quadType == "CYLINDER":
-            nSurf = surfaces.createCylinderSurfaces(f,x,y,z, dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
+            nSurf = surfaces.createCylinderSurfaces(fgeo,x,y,z, dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
         elif quadType == "TUBE":
             r1 = obj.penred_settings.r1
             r2 = obj.penred_settings.r2
-            nSurf = surfaces.createTubeSurfaces(f,x,y,z,r1,r2,sx,sy,dz,omega,theta,phi,nSurf,name,toRound)
+            nSurf = surfaces.createTubeSurfaces(fgeo,x,y,z,r1,r2,sx,sy,dz,omega,theta,phi,nSurf,name,toRound)
         elif quadType == "CONE":
             r1 = obj.penred_settings.r1
             r2 = obj.penred_settings.r2
             if r1 == r2:
-                nSurf = surfaces.createCylinderSurfaces(f,x,y,z, dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
+                nSurf = surfaces.createCylinderSurfaces(fgeo,x,y,z, dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
             else:
-                nSurf = surfaces.createConeSurfaces(f,x,y,z,r1,r2,dz,sx,sy,omega,theta,phi,nSurf,name,toRound)
+                nSurf = surfaces.createConeSurfaces(fgeo,x,y,z,r1,r2,dz,sx,sy,omega,theta,phi,nSurf,name,toRound)
         elif quadType == "PLANE":
-            nSurf = surfaces.createPlaneSurfaces(f,x,y,z,omega,theta,phi,nSurf,name,toRound)
+            nSurf = surfaces.createPlaneSurfaces(fgeo,x,y,z,omega,theta,phi,nSurf,name,toRound)
         elif quadType == "SEMI_SPHERE":
             #Construct sphere. Take into account that the Z dimension
             #must not be multiplied by two to comepnsate the cut, because
             #we added an artificial vertex
-            nSurf = surfaces.createSphereSurfaces(f,x,y,z,dx,dy,dz,nSurf,name,toRound)
+            nSurf = surfaces.createSphereSurfaces(fgeo,x,y,z,dx,dy,dz,nSurf,name,toRound)
             #Create limiting plane
-            nSurf = surfaces.createPlaneSurfaces(f,x,y,z,omega,theta,phi,nSurf,name,toRound)
+            nSurf = surfaces.createPlaneSurfaces(fgeo,x,y,z,omega,theta,phi,nSurf,name,toRound)
 
         # Create cutting plane surfaces, if defined
         nCuttingPlanes = 0
@@ -2253,7 +2256,7 @@ class export_penred(Operator, ExportHelper):
                         # Get its properties
                         xCut,yCut,zCut,_,_,_,_,_,_,omegaCut,thetaCut,phiCut,nameCut,_ = utils.getObjInfo(bolObj)
                         
-                        nSurf = surfaces.createPlaneSurfaces(f,xCut,yCut,zCut,omegaCut,thetaCut,phiCut,nSurf,nameCut,toRound)
+                        nSurf = surfaces.createPlaneSurfaces(fgeo,xCut,yCut,zCut,omegaCut,thetaCut,phiCut,nSurf,nameCut,toRound)
                         nCuttingPlanes = nCuttingPlanes+1
 
         # Force Blender to update the dependency graph
@@ -2261,7 +2264,7 @@ class export_penred(Operator, ExportHelper):
 
             
         ### Init body
-        surfaces.initBody(f,nObj,name,obj.penred_settings.material,obj.penred_settings.module)
+        surfaces.initBody(fgeo,nObj,name,obj.penred_settings.material,obj.penred_settings.module)
 
         # Set object specific parameters
         if fconf:
@@ -2276,32 +2279,32 @@ class export_penred(Operator, ExportHelper):
                 
         ### Set object surfaces
         if quadType == "CUBE":
-            initSurf = surfaces.setCubeSurfaces(f,initSurf, 1)
+            initSurf = surfaces.setCubeSurfaces(fgeo,initSurf, 1)
         elif quadType == "TRAPEZOID":
             topSize = obj.penred_settings.topSize
             botSize = obj.penred_settings.botSize
-            initSurf = surfaces.setTrapezoidSurfaces(f,sx*botSize[0], sy*botSize[1],
+            initSurf = surfaces.setTrapezoidSurfaces(fgeo,sx*botSize[0], sy*botSize[1],
                                                      sx*topSize[0], sy*topSize[1],
                                                      initSurf, 1)
         elif quadType == "SPHERE":
-            initSurf = surfaces.setSphereSurfaces(f,initSurf, 1)
+            initSurf = surfaces.setSphereSurfaces(fgeo,initSurf, 1)
         elif quadType == "CYLINDER" or quadType == "CONE":
-            initSurf = surfaces.setCylinderConeSurfaces(f,initSurf, 1)
+            initSurf = surfaces.setCylinderConeSurfaces(fgeo,initSurf, 1)
         elif quadType == "TUBE":
-            initSurf = surfaces.setTubeSurfaces(f,initSurf, 1)
+            initSurf = surfaces.setTubeSurfaces(fgeo,initSurf, 1)
         elif quadType == "PLANE":
-            initSurf = surfaces.setPlaneSurfaces(f,initSurf, 1)
+            initSurf = surfaces.setPlaneSurfaces(fgeo,initSurf, 1)
         elif quadType == "SEMI_SPHERE":
-            initSurf = surfaces.setSphereSurfaces(f,initSurf, 1)
-            initSurf = surfaces.setPlaneSurfaces(f,initSurf, 1)
+            initSurf = surfaces.setSphereSurfaces(fgeo,initSurf, 1)
+            initSurf = surfaces.setPlaneSurfaces(fgeo,initSurf, 1)
 
         # Set cutting planes surfaces
         for i in range(nCuttingPlanes):
-            initSurf = surfaces.setPlaneSurfaces(f,initSurf, 1)            
+            initSurf = surfaces.setPlaneSurfaces(fgeo,initSurf, 1)            
             
         #Set childrens
         if len(tree) > 0:
-            surfaces.addChilds(f,tree)
+            surfaces.addChilds(fgeo,tree)
         
         #Add current body or module to tree
         if obj.penred_settings.module:
@@ -2368,8 +2371,8 @@ class export_penred(Operator, ExportHelper):
     def execute(self, context):
         
         #Open output file
-        f = open(self.filepath,'w',encoding='utf-8')
-        f.write("# Geometry file created with PenRed blender plugin v.2.0\n")
+        fgeo = open(self.filepath,'w',encoding='utf-8')
+        fgeo.write("# Geometry file created with PenRed blender plugin v.2.0\n")
 
         #If required, open output configuration file
         fconf = None
@@ -2408,22 +2411,22 @@ class export_penred(Operator, ExportHelper):
             nObj = 1 #Number of object to be created
 
             if self.onlyActive:
-                self.createObject(f,context,bpy.context.active_object,nSurf,nObj,self.toRound,False,False,fconf)
+                self.createObject(fgeo,context,bpy.context.active_object,nSurf,nObj,self.toRound,False,False,fconf)
             else:
                 #Find objects with no parents
                 for obj in context.scene.objects:
                     if not obj.parent:
                         #This object has no parent, create it
-                        nSurf,nObj = self.createObject(f,context,obj,nSurf,nObj,self.toRound,True,self.avoidHide,fconf)[1:]
+                        nSurf,nObj = self.createObject(fgeo,context,obj,nSurf,nObj,self.toRound,True,self.avoidHide,fconf)[1:]
 
-            surfaces.endFile(f)
+            surfaces.endFile(fgeo)
         elif self.exportType == 'MESH':
             
             if self.onlyActive:
                 #Print number of objects
-                f.write("# Number of objects:\n 1\n")
+                fgeo.write("# Number of objects:\n 1\n")
 
-                self.createTriangleMesh(f,context,bpy.context.active_object,self.toRound,True,False,fconf)
+                self.createTriangleMesh(fgeo,context,bpy.context.active_object,self.toRound,True,False,fconf)
             else:
 
                 #Count number of meshes
@@ -2440,14 +2443,14 @@ class export_penred(Operator, ExportHelper):
                             nMeshes = nMeshes + 1
 
                 #Print number of objects
-                f.write("# Number of objects:\n %d\n" % (nMeshes))
+                fgeo.write("# Number of objects:\n %d\n" % (nMeshes))
 
                 for obj in context.scene.objects:
-                    self.createTriangleMesh(f,context,obj,self.toRound,False,self.avoidHide,fconf)
+                    self.createTriangleMesh(fgeo,context,obj,self.toRound,False,self.avoidHide,fconf)
         else:
-            f.write("# Unknown export format. Please, report this issue\n")
+            fgeo.write("# Unknown export format. Please, report this issue\n")
                 
-        f.close()
+        fgeo.close()
 
         if self.calledToSimulate:
             scene = context.scene
