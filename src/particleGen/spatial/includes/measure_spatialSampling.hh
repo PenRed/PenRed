@@ -180,7 +180,7 @@ plane/reader-value "xy"
 plane/reader-required/type "required"
 
 constant-coordinate/reader-description "Sets the constant coordinate value"
-constant-coordinate/value 0.0
+constant-coordinate/reader-value 0.0
 
 )===";
 };
