@@ -105,7 +105,7 @@ std::string dict2SectionStringWithPrefix(const py::dict& dict, const std::string
 	  result += (first ? " " : ", ") + std::to_string(e.cast<int>());
 	else{
 	  char aux[25];
-	  snprintf(aux, 25, "%s%15.5E\n", (first ? " " : ", "), e.cast<double>());	  
+	  snprintf(aux, 25, "%s%15.5E", (first ? " " : ", "), e.cast<double>());	  
 	  result += aux;
 	}
 	first = false;
@@ -591,7 +591,6 @@ Raises:
     .def("simulate",
 	 [](penred::simulation::simulator<pen_context>& obj, const bool async, const bool interactive) -> void {
 	   if(async){
-	     //py::gil_scoped_release release;
 	     int err = obj.enableInteractive(interactive);
 	     if(err != penred::simulation::errors::SUCCESS){
 	       throw py::value_error(penred::simulation::errors::errorMessage(err));
@@ -605,8 +604,12 @@ Raises:
 	     int err = obj.enableInteractive(false);
 	     if(err != penred::simulation::errors::SUCCESS){
 	       throw py::value_error(penred::simulation::errors::errorMessage(err));
-	     }	     
-	     err = obj.simulate();
+	     }
+	     {
+	       //Release GIL for (probably) long simulation
+	       py::gil_scoped_release gil_release;
+	       err = obj.simulate();
+	     }
 	     if(err != penred::simulation::errors::SUCCESS){
 	       throw py::value_error(penred::simulation::errors::errorMessage(err));
 	     }
@@ -835,6 +838,8 @@ Returns:
 	 [](penred::simulation::simulator<pen_context>& obj,
 	    const unsigned long long instructionID,
 	    const unsigned long timeout) -> bool{
+	   //Release GIL for waiting
+	   py::gil_scoped_release gil_release;	   
 	   return obj.instructionWait(instructionID, timeout);
 	 },
 	 py::arg("id"),
@@ -854,6 +859,8 @@ Returns:
     .def("instructionEndAndWait",
 	 [](penred::simulation::simulator<pen_context>& obj,
 	    const unsigned long timeout) -> bool{
+	   //Release GIL for waiting
+	   py::gil_scoped_release gil_release;	   
 	   return obj.instructionEndAndWait(timeout);
 	 },
 	 py::arg("timeout"),
@@ -924,7 +931,13 @@ simulations, track particles, and retrieve results.
 		    composition.emplace_back(e.first, e.second);
 		  }
 		  std::string errorString;
-		  if(penred::penMaterialCreator::createMat(name, density, composition, errorString, filename) != 0)		  
+		  int errMat;
+		  {
+		    //Release GIL during material creation
+		    py::gil_scoped_release gil_release;
+		    errMat = penred::penMaterialCreator::createMat(name, density, composition, errorString, filename);
+		  }
+		  if(errMat != 0)		  
 		    throw py::value_error(errorString);
 		},
 		py::arg("name"),
@@ -950,7 +963,13 @@ Returns:
   materials.def("createListed",
 		[](const unsigned matID, const std::string& filename) -> void{
 		  std::string errorString;
-		  if(penred::penMaterialCreator::createMat(matID, filename, errorString) != 0)
+		  int err;
+		  {
+		    //Release GIL during material creation
+		    py::gil_scoped_release gil_release;
+		    err = penred::penMaterialCreator::createMat(matID, filename, errorString);
+		  }
+		  if(err != 0)
 		    throw py::value_error(errorString);
 		},
 		py::arg("matID"),  // Material identifier
@@ -982,7 +1001,13 @@ Returns:
 		    composition.emplace_back(e.first, e.second);
 		  }
 		  std::string errorString;
-		  if(penred::penMaterialCreator::createMat("_range_", density, composition, errorString) != 0)
+		  int errMat;
+		  {
+		    //Release GIL during material creation
+		    py::gil_scoped_release gil_release;
+		    errMat = penred::penMaterialCreator::createMat("_range_", density, composition, errorString);
+		  }
+		  if(errMat != 0)
 		    throw py::value_error(errorString);
 
 		  // Create context
@@ -1015,10 +1040,14 @@ Returns:
 		  for(unsigned i = 0; i < constants::nParTypes; ++i)
 		    {
 		      std::vector<double> ranges(energies.size());
-		      for(unsigned j = 0; j < energies.size(); ++j)
-			{
-			  ranges[j] = pcontext->range(energies[j], pen_KPAR(i), 0);
-			}
+		      {
+			//Release GIL during range calculations
+			py::gil_scoped_release gil_release;
+			for(unsigned j = 0; j < energies.size(); ++j)
+			  {
+			    ranges[j] = pcontext->range(energies[j], pen_KPAR(i), 0);
+			  }
+		      }
 		      results[i] = py::tuple(py::cast(ranges));		      
 		    }
 	     
@@ -1086,10 +1115,14 @@ Example:
 		  for(unsigned i = 0; i < constants::nParTypes; ++i)
 		    {
 		      std::vector<double> ranges(energies.size());
-		      for(unsigned j = 0; j < energies.size(); ++j)
-			{
-			  ranges[j] = pcontext->range(energies[j], pen_KPAR(i), 0);
-			}
+		      {
+			//Release GIL during range calculations
+			py::gil_scoped_release gil_release;			
+			for(unsigned j = 0; j < energies.size(); ++j)
+			  {
+			    ranges[j] = pcontext->range(energies[j], pen_KPAR(i), 0);
+			  }
+		      }
 		      results[i] = py::tuple(py::cast(ranges));		      
 		    }
 	     
@@ -1144,8 +1177,12 @@ Example:
 		
 		  std::vector<double> muenData(ebins);
 		  std::vector<double> EData(ebins);
-		  
-		  pen_muen::calculate(emin, emax, ebins, tolerance, simTime, "_mutren_.mat", EData, muenData);
+
+		  {
+		    //Release GIL during coefficient calculation
+		    py::gil_scoped_release gil_release;		    
+		    pen_muen::calculate(emin, emax, ebins, tolerance, simTime, "_mutren_.mat", EData, muenData);
+		  }
 		  
 		  //Create the resulting python tuple
 		  py::tuple results(2);
@@ -1200,12 +1237,22 @@ Example:
 		    composition.emplace_back(e.first, e.second);
 		  }
 		  std::string errorString;
-		  if(penred::penMaterialCreator::createMat("_mutren_", density, composition, errorString) != 0)
+		  int errMat;
+		  {
+		    //Release GIL during material creation
+		    py::gil_scoped_release gil_release;
+		    errMat = penred::penMaterialCreator::createMat("_mutren_", density, composition, errorString);
+		  }
+		  if(errMat != 0)
 		    throw py::value_error(errorString);
 		
 		  std::vector<double> muenData(energies.size());
-		  
-		  pen_muen::calculate(energies, tolerance, simTime, "_mutren_.mat", muenData);
+
+		  {
+		    //Release GIL during coefficient calculation
+		    py::gil_scoped_release gil_release;
+		    pen_muen::calculate(energies, tolerance, simTime, "_mutren_.mat", muenData);
+		  }
 		  
 		  //Create the resulting python tuple
 		  py::tuple results;
@@ -1213,7 +1260,7 @@ Example:
 		  results = py::tuple(py::cast(muenData));
 		 
 		  return results;
-		  		},
+		},
 		py::arg("energies"),
 		py::arg("density"),
 		py::arg("composition"),
@@ -1254,16 +1301,19 @@ Example:
 		
 		  std::vector<double> muenData(energies.size());
 		
-		  pen_muen::calculate(energies, tolerance, simTime, filename.c_str(), muenData);
+		  {
+		    //Release GIL during coefficient calculation
+		    py::gil_scoped_release gil_release;
+		    pen_muen::calculate(energies, tolerance, simTime, filename.c_str(), muenData);
+		  }
 		  
 		  //Create the resulting python tuple
-		  		  //Create the resulting python tuple
 		  py::tuple results;
 		  
 		  results = py::tuple(py::cast(muenData));
 		 
 		  return results;
-		  		},
+		},
 		py::arg("energies"),
 		py::arg("filename"),
 		py::arg("tolerance") = 0.1,
@@ -1343,7 +1393,12 @@ Example:
 	       composition.emplace_back(e.first, e.second);
 	     }
 	     std::string errorString;
-	     penred::penMaterialCreator::createMat("anode", density, composition, errorString);
+
+	     {
+	       //Release GIL during material creation
+	       py::gil_scoped_release gil_release;	       
+	       penred::penMaterialCreator::createMat("anode", density, composition, errorString);
+	     }
 
 	     if(!errorString.empty()){
 	       throw py::value_error("Error: Unable to create anode material: " + errorString);
@@ -1361,9 +1416,14 @@ Example:
   
 	     //Simulate the anode
 	     double dReg;
-	     int err = penred::xray::simAnodeDistrib("anode.mat", beamEnergy, minEnergy, pixelSize, anodeAngle,
-						     nHist, dReg, spectrum, spatialDistrib,
-						     maxAngle, verbose);
+	     int err;
+	     {
+	       //Release GIL during anode simulation
+	       py::gil_scoped_release gil_release;	       	       
+	       err = penred::xray::simAnodeDistrib("anode.mat", beamEnergy, minEnergy, pixelSize, anodeAngle,
+						   nHist, dReg, spectrum, spatialDistrib,
+						   maxAngle, verbose);
+	     }
 	     if(err != penred::xray::errors::SUCCESS){
 	       throw py::value_error(penred::xray::errors::message(err));	       
 	     }
@@ -1649,8 +1709,14 @@ Example:
 		 composition.emplace_back(e.first, e.second);
 	       }
 	       std::string errorString;
-	       if(penred::penMaterialCreator::createMat(matName, std::get<1>(filter), composition,
-							errorString, matfilename) != 0)		  
+	       int errMat;
+	       {
+		 //Release GIL during material creation
+		 py::gil_scoped_release gil_release;
+		 errMat = penred::penMaterialCreator::createMat(matName, std::get<1>(filter), composition,
+								errorString, matfilename);
+	       }
+	       if(errMat != 0)		  
 		 throw py::value_error(errorString);	       
 	       ++nextFilter;
 	     }
@@ -1706,12 +1772,16 @@ Example:
 	     
 	     //Simulate the device
 	     unsigned long long simulatedHists;
-	     err = penred::xray::simDevice(config,
-					   detFluence,
-					   detEdep,
-					   detSpec,
-					   simulatedHists,
-					   verbose);
+	     {
+	       //Release GIL during device simulation
+	       py::gil_scoped_release gil_release;
+	       err = penred::xray::simDevice(config,
+					     detFluence,
+					     detEdep,
+					     detSpec,
+					     simulatedHists,
+					     verbose);
+	     }
 	     if(err != penred::xray::errors::SUCCESS){
 	       throw py::value_error(penred::xray::errors::message(err));	       
 	     }
