@@ -31,11 +31,13 @@
 #define __PENRED_TIME_SAMPLERS__
 
 #include "decay_timeSampling.hh"
+#include "linear_timeSampling.hh"
 
 namespace penred{
   namespace sampler{
 
-    using typesGenericTime = std::tuple<decay_timeSampling>;
+    using typesGenericTime = std::tuple<decay_timeSampling,
+					linear_timeSampling>;
 
 
     template<size_t T>

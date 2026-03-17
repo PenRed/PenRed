@@ -429,6 +429,7 @@ class PenredSourcePropertiesPanel(bpy.types.Panel):
                 if source.timeType == "TIME_DECAY":
                     row = timeBox.row()
                     row.prop(source, "decayHalf", text="Half life")
+                if source.timeType == "TIME_DECAY" or source.timeType == "TIME_LINEAR":
                     row = timeBox.row()
                     row.label(text="Time Window")
                     row.prop(source, "timeWindow", text="")

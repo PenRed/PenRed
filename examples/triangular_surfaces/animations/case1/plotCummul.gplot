@@ -1,0 +1,17 @@
+# First, check how many blocks you have
+filename = "Detector_0_Detector-EDep-th0-spatial-detection-cummulative-1.dat"
+stats filename nooutput
+print "Total blocks: ", STATS_blocks
+
+# Create animation
+set terminal gif animate delay 10 size 800,600
+set output 'detector_animation_cummul.gif'
+set cbrange [0.15:*]
+set size ratio -1
+
+do for [i=0:STATS_blocks-1] {
+    set title sprintf("Detector Data - Block %d", i)
+    plot filename u 2:4:7 index i with image
+}
+
+unset output

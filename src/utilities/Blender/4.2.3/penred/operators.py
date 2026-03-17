@@ -2337,7 +2337,7 @@ class export_penred(Operator, ExportHelper):
         return nMeshes
 
     def invoke(self, context, event):
-
+        
         quadrics = False
         meshes   = False
         for obj in context.scene.objects:
@@ -2369,6 +2369,9 @@ class export_penred(Operator, ExportHelper):
         return {'CANCELLED'}    
     
     def execute(self, context):
+
+        # Set scene frame to 0
+        bpy.context.scene.frame_set(0)
         
         #Open output file
         fgeo = open(self.filepath,'w',encoding='utf-8')

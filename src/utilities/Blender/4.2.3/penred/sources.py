@@ -166,5 +166,10 @@ def createTime(f, name, timeType, halfLife, timeWindow):
         f.write(f"{prefix}/time/halfLife {halfLife:.5f}\n")
         f.write(f"{prefix}/time/time/time0 {timeWindow[0]:.3f}\n")
         f.write(f"{prefix}/time/time/time1 {timeWindow[1]:.3f}\n\n")
-    
+
+    if timeType == "TIME_LINEAR":
+        f.write(f"{prefix}/time/type \"LINEAR\"\n\n")
+        f.write(f"{prefix}/time/tmin {timeWindow[0]:.3f}\n")
+        f.write(f"{prefix}/time/tmax {timeWindow[1]:.3f}\n\n")
+        
     

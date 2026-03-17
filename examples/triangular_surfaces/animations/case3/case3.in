@@ -1,0 +1,101 @@
+# Configuration file created with PenRed blender plugin v.2.0
+
+## Simulation Configuration ##
+
+# Simulation configuration
+simulation/finalDump false
+simulation/ascii-results true
+simulation/threads 4
+simulation/seedPair 0
+simulation/max-time 600.00
+
+## Materials ##
+
+# Material 'detector' configuration
+materials/detector/number 1
+materials/detector/filename "detector.mat"
+materials/detector/eabs/gamma 1.000e+03
+materials/detector/eabs/electron 1.000e+05
+materials/detector/eabs/positron 1.000e+05
+materials/detector/DB "PENELOPE"
+materials/detector/DB-material "Silicon"
+
+## Sources ##
+
+
+# Generic Source configuration for 'Source'
+sources/generic/Source/nhist 1.00000e+07
+sources/generic/Source/kpar "gamma"
+
+# - Energy parameters
+sources/generic/Source/energy/type "MONOENERGETIC"
+sources/generic/Source/energy/energy 1.000e+04
+
+# - Direction parameters
+sources/generic/Source/direction/type "SOLID_ANGLE"
+
+sources/generic/Source/direction/u 0.000
+sources/generic/Source/direction/v 0.000
+sources/generic/Source/direction/w -1.000
+
+sources/generic/Source/direction/theta0 0.0
+sources/generic/Source/direction/theta1 2.500
+
+sources/generic/Source/direction/phi0 0.0
+sources/generic/Source/direction/dphi 360.0
+
+
+# - Spatial parameters
+sources/generic/Source/spatial/type "CYLINDER"
+
+sources/generic/Source/spatial/size/rmin 0.0
+sources/generic/Source/spatial/size/rmax 0.05
+sources/generic/Source/spatial/size/dzmin 0.0
+
+sources/generic/Source/spatial/size/dzmax 0.05
+
+sources/generic/Source/spatial/position/x 2.5
+sources/generic/Source/spatial/position/y 0.0
+sources/generic/Source/spatial/position/z 5.0
+
+
+# - Time parameters
+sources/generic/Source/record-time true
+
+sources/generic/Source/time/type "LINEAR"
+
+sources/generic/Source/time/tmin 0.000
+sources/generic/Source/time/tmax 30.000
+
+sources/generic/Source/bind "Source"
+
+## Tallies ##
+
+tallies/bodyEDep/type "EDEP_BODY"
+tallies/matEDep/type "EDEP_MAT"
+
+# Detector energy deposition tally configuration for 'Detector_0_Detector-EDep'
+tallies/Detector_0_Detector-EDep/type "DETECTION_EDEP"
+tallies/Detector_0_Detector-EDep/detector 1
+tallies/Detector_0_Detector-EDep/spatial/nx 200
+tallies/Detector_0_Detector-EDep/spatial/xmin -5.0
+tallies/Detector_0_Detector-EDep/spatial/xmax 5.0
+tallies/Detector_0_Detector-EDep/spatial/ny 200
+tallies/Detector_0_Detector-EDep/spatial/ymin -5.0
+tallies/Detector_0_Detector-EDep/spatial/ymax 5.0
+tallies/Detector_0_Detector-EDep/spatial/nz 1
+tallies/Detector_0_Detector-EDep/spatial/zmin -1.0
+tallies/Detector_0_Detector-EDep/spatial/zmax 1.0
+tallies/Detector_0_Detector-EDep/time/nbins 200
+tallies/Detector_0_Detector-EDep/time/min 0.000e+00
+tallies/Detector_0_Detector-EDep/time/max 3.000e+01
+tallies/Detector_0_Detector-EDep/particle "all"
+tallies/Detector_0_Detector-EDep/printCord true
+tallies/Detector_0_Detector-EDep/printBins true
+
+
+## Geometry configuration ##
+geometry/type "MESH_BODY"
+geometry/input-file "case3.geo"
+geometry/kdet/Detector 1
+geometry/animation/Source "case3_Source.anim"

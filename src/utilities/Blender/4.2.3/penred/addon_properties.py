@@ -634,6 +634,7 @@ class sourceProperties(bpy.types.PropertyGroup):
         items = [
             ("TIME_NOINIT" , "No initialization", "No initialization"),
             ("TIME_DECAY", "Decay", "Exponential decay"),
+            ("TIME_LINEAR" , "Linear", "Linear sampling"),
         ],
         default = "TIME_NOINIT"
     )

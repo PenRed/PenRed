@@ -188,7 +188,7 @@ def createSources(context, f, toRound):
                                        source.decayHalf, source.timeWindow)
 
                 # Bind the source to the object
-                f.write(f"sources/generic/{name}/bind \"{name}\"")
+                f.write(f"sources/generic/{name}/bind \"{name}\"\n\n")
                 
 
 def createTallies(context, f, toRound):
