@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -39,6 +40,7 @@
 #include <algorithm>
 #include <numeric>
 #include <memory>
+#include <fstream>
 
 #include "../states/pen_baseState.hh"
 #include "pen_constants.hh"
@@ -113,6 +115,148 @@ public:
 // Geometry
 //-------------------
 
+namespace penred{
+
+  namespace transforms{
+
+    inline void apply(const Translation<double>& t, pen_particleState& state){
+      vector3D<double> pos(state.X, state.Y, state.Z);
+      t.apply(pos);
+      state.X = pos.x;
+      state.Y = pos.y;
+      state.Z = pos.z;
+    }
+
+    inline void apply(const Rotation<double>& r, pen_particleState& state){
+      vector3D<double> pos(state.X, state.Y, state.Z);
+      r.apply(pos);
+      
+      vector3D<double> dir(state.U, state.V, state.W);
+      r.apply(dir);
+      
+      state.X = pos.x;
+      state.Y = pos.y;
+      state.Z = pos.z;
+      
+      state.U = dir.x;
+      state.V = dir.y;
+      state.W = dir.z;      
+    }
+
+    inline void apply(const Rotation<double>& r, const Translation<double>& t, pen_particleState& state){
+      vector3D<double> pos(state.X, state.Y, state.Z);
+      r.apply(pos);
+      t.apply(pos);
+      
+      vector3D<double> dir(state.U, state.V, state.W);
+      r.apply(dir);
+      
+      state.X = pos.x;
+      state.Y = pos.y;
+      state.Z = pos.z;
+      
+      state.U = dir.x;
+      state.V = dir.y;
+      state.W = dir.z;      
+    }
+    inline void applyPos(const Rotation<double>& r, const Translation<double>& t, pen_particleState& state){
+      vector3D<double> pos(state.X, state.Y, state.Z);
+      r.apply(pos);
+      t.apply(pos);
+      
+      state.X = pos.x;
+      state.Y = pos.y;
+      state.Z = pos.z;
+    }    
+  } // namespace transforms
+  
+  namespace geometry{
+    
+    struct AnimatedBody{
+
+    private:
+      double animationThreshold;
+      transforms::Animation<double, double> animation;
+
+    public:
+
+      enum errors{
+	SUCCESS = 0,
+	ERROR_UNABLE_TO_OPEN_FILE,
+	ERROR_EMPTY_OR_CORRUPTED_FILE,
+      };
+
+      static constexpr const char* errorMessage(const unsigned int code){
+	switch(code){
+	case SUCCESS: return "success";
+	case ERROR_UNABLE_TO_OPEN_FILE: return "unable to open file";
+	case ERROR_EMPTY_OR_CORRUPTED_FILE: return "empty or corrupted file";
+	default: return "unknown error";
+	}
+      }
+
+      AnimatedBody() : animationThreshold(0.01) {}
+
+      const transforms::Animation<double, double>& readAnimation() const{
+	return animation;
+      }
+
+      inline double readAnimationThreshold() const { return animationThreshold; }
+      inline void setAnimationThreshold(const double t) {
+	animationThreshold = t;
+      }
+      inline size_t keyframes() const { return animation.size(); }
+      inline void setAnimation(const transforms::Animation<double, double>& newAnim){
+	animation = newAnim;
+      }
+
+      inline bool animated() const {
+	return !animation.empty(); 
+      }
+
+      inline bool inAnimation(const double t) const {
+	//If an animation is enabled, ensure time is after animation start
+	if(animated() && animation.init() < t){
+	  return true;
+	}
+	return false;
+      }
+  
+      inline int parseAnimation(std::istream& is){
+	if(is){
+	  //Read threshold
+	  double threshold;
+	  is >> threshold;
+	  if(!is){
+	    return ERROR_EMPTY_OR_CORRUPTED_FILE;
+	  }
+	  setAnimationThreshold(threshold);
+	  size_t n = animation.parse(is);
+
+	  if(n == 0)
+	    return ERROR_EMPTY_OR_CORRUPTED_FILE;
+	  return SUCCESS;
+	}
+	else{
+	  return ERROR_UNABLE_TO_OPEN_FILE;
+	}
+      }
+
+      inline int parseAnimation(const char* filename){
+	if(filename == nullptr)
+	  return ERROR_UNABLE_TO_OPEN_FILE;
+    
+	std::ifstream f(filename);
+	return parseAnimation(f);
+      }
+
+      inline transforms::Keyframe<double, double> getKeyframe(const double t) const{
+	return animation.getKeyframe(t);
+      }
+    };
+  } //namespace penred
+} //namespace geometry
+
 class wrapper_geometry : public penred::logs::logger{
 
 protected:
@@ -150,8 +294,8 @@ public:
 
 
   //Methods for nested geometries
-  virtual size_t nInternalGeometries() const { return 0; }
-  virtual const wrapper_geometry* getInternalGeo(const size_t /*index*/) const { return nullptr; }
+  virtual inline size_t nInternalGeometries() const { return 0; }
+  virtual inline const wrapper_geometry* getInternalGeo(const size_t /*index*/) const { return nullptr; }
   
   template<class geoType>
   const geoType* getInternalGeoType (size_t& geoPos, const size_t firstPos = 0) const {
@@ -170,6 +314,31 @@ public:
     }
     geoPos = nInternal;
     return nullptr;
+  }
+
+  //Geometry transforms
+  virtual inline bool isTransformable() const { return false; }
+
+  virtual inline void composeTransform(const unsigned /*ibody*/,
+				       vector3D<double>& /*pos*/,
+				       vector3D<double>& /*dir*/,
+				       const double /*t*/) const {}
+  virtual inline void composeTransform(const unsigned ibody,
+				       vector3D<double>& pos,
+				       const double t) const {
+    vector3D<double> dummy(1.0,0.0,0.0);
+    composeTransform(ibody, pos, dummy, t);
+  }
+  
+  virtual inline void composeInvTransform(const unsigned /*ibody*/,
+					  vector3D<double>& /*pos*/,
+					  vector3D<double>& /*dir*/,
+					  const double /*t*/) const {}
+  virtual inline void composeInvTransform(const unsigned ibody,
+					  vector3D<double>& pos,
+					  const double t) const {
+    vector3D<double> dummy(1.0,0.0,0.0);
+    composeInvTransform(ibody, pos, dummy, t);
   }
   
   virtual ~wrapper_geometry(){}

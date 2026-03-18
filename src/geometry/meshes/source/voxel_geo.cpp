@@ -366,6 +366,12 @@ void pen_voxelGeo::locate(pen_particleState& state) const{
 
 void pen_voxelGeo::locateInMesh(pen_particleState& state) const{
 
+  if(state.X < 0.0 || state.Y < 0.0 || state.Z < 0.0){
+    state.IBODY = constants::MAXMAT+1;
+    state.MAT = 0;
+    return;
+  }
+
   long int ix, iy, iz;
 
   ix = state.X/dx;

@@ -264,7 +264,50 @@ class tallySpatialDistrib(bpy.types.PropertyGroup):
         default = "PART_GAMMA"
     )
 
-# Spatial distribution
+# Detector energy deposition
+class tallyDetectorEnergyDep(bpy.types.PropertyGroup):
+    name : bpy.props.StringProperty(name = "Tally Name", default = "Detector-EDep")
+    show : bpy.props.BoolProperty(name = "Show Tally Properties", default = True)
+
+    twindow : bpy.props.FloatVectorProperty(
+        name = "Time window",
+        size = 2,
+        default = (0.0, 30.0),
+        description="Time interval, in seconds, to be detected",
+        update=lambda self, context: self.__setitem__(
+            "twindow",
+            (self.twindow[0],
+             max(self.twindow[0], self.twindow[1]))
+        ))
+    tbins : bpy.props.IntProperty(name = "Time Bins", min = 1, default = 1,
+                                  description="Number of temporal bins")
+    
+    nx : bpy.props.IntProperty(name = "X Bins", min = 1, default = 1,
+                               description="Number of X axis bins")
+    ny : bpy.props.IntProperty(name = "Y Bins", min = 1, default = 1,
+                               description="Number of Y axis bins")
+    nz : bpy.props.IntProperty(name = "Z Bins", min = 1, default = 1,
+                               description="Number of Z axis bins")
+
+    printCoordinates : bpy.props.BoolProperty(name = "Print Coordinates", default = True,
+                                              description="Enable/disable coordinates print in results")
+
+    printBins : bpy.props.BoolProperty(name = "Print Bins", default = True,
+                                       description="Enable/disable bin numbers print in results")
+    
+    particleType : bpy.props.EnumProperty(
+        name = "Detected Particle",
+        description = "Choose the particle to be detected",
+        items = [
+            ("PART_GAMMA" , "Gamma", "Gamma"),
+            ("PART_ELECTRON", "Electron", "Electron"),
+            ("PART_POSITRON", "Positron", "Positron"),
+            ("PART_ALL", "All", "All"),
+        ],
+        default = "PART_ALL"
+    )
+
+# CT sinogram
 class tallyCT(bpy.types.PropertyGroup):
     name : bpy.props.StringProperty(name = "Tally Name", default = "CT Sinogram")
     show : bpy.props.BoolProperty(name = "Show Tally Properties", default = True)
@@ -402,6 +445,7 @@ talliesPropsClasses = (
     tallyPSF,
     tallyKerma,
     tallySpatialDistrib,
+    tallyDetectorEnergyDep,
     tallyCT,
     tallyAngularDetector,
     tallyEmergingParticle,
@@ -590,6 +634,7 @@ class sourceProperties(bpy.types.PropertyGroup):
         items = [
             ("TIME_NOINIT" , "No initialization", "No initialization"),
             ("TIME_DECAY", "Decay", "Exponential decay"),
+            ("TIME_LINEAR" , "Linear", "Linear sampling"),
         ],
         default = "TIME_NOINIT"
     )
@@ -822,6 +867,9 @@ class objectProperties(bpy.types.PropertyGroup):
     
     showTalliesSpatialDistrib : bpy.props.BoolProperty(name="Show Spatial Distrib Tallies", default = True)
     talliesSpatialDistrib : bpy.props.CollectionProperty(type=tallySpatialDistrib)
+
+    showTalliesDetectorEnergyDep : bpy.props.BoolProperty(name="Show Detector Energy Deposition Tallies", default = True)    
+    talliesDetectorEnergyDep : bpy.props.CollectionProperty(type=tallyDetectorEnergyDep)
     
     showTalliesAngularDet : bpy.props.BoolProperty(name = "Show Angular Detector Tallies", default = True)
     talliesAngularDetector : bpy.props.CollectionProperty(type=tallyAngularDetector)

@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2023-2024 Universitat de València - UV
 //    Copyright (C) 2023-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -37,6 +38,7 @@
 #include <limits>
 #include <vector>
 #include <array>
+#include <set>
 #include <sstream>
 #include <type_traits>
 
@@ -50,10 +52,21 @@ template<class T>
 struct vector2D{
   T x,y;
     
-  constexpr vector2D() {}
+  constexpr vector2D() : x(static_cast<T>(0)), y(static_cast<T>(0)) {}
   constexpr vector2D(T xin, T yin) : x(xin), y(yin){}
-    
-  inline constexpr vector2D operator+(const vector2D& a) const{
+  constexpr vector2D(const vector2D<T>& v) : x(v.x), y(v.y) {}
+  vector2D(vector2D<T>&&) = default;
+
+  static inline const vector2D<T>& zero(){
+    static constexpr const vector2D<T> v = vector2D<T>(static_cast<T>(0),
+						       static_cast<T>(0));
+    return v;
+  }
+  
+  vector2D<T>& operator=(const vector2D<T>&) = default;
+  vector2D<T>& operator=(vector2D<T>&&) = default;
+  
+  constexpr vector2D operator+(const vector2D& a) const{
     return vector2D(x + a.x, y + a.y);
   }
   inline vector2D& operator+=(const vector2D& a){
@@ -62,7 +75,7 @@ struct vector2D{
     return *this;
   }
 
-  inline constexpr vector2D operator+(const T& a) const{
+  constexpr vector2D operator+(const T& a) const{
     return vector2D(x + a, y + a);
   }
   inline vector2D& operator+=(const T& a){
@@ -71,7 +84,7 @@ struct vector2D{
     return *this;
   }
   
-  inline constexpr vector2D operator-(const vector2D& a) const{
+  constexpr vector2D operator-(const vector2D& a) const{
     return vector2D(x - a.x, y - a.y);
   }
   inline vector2D& operator-=(const vector2D& a){
@@ -80,7 +93,7 @@ struct vector2D{
     return *this;
   }
 
-  inline constexpr vector2D operator-(const T& a) const{
+  constexpr vector2D operator-(const T& a) const{
     return vector2D(x - a, y - a);
   }
   inline vector2D& operator-=(const T& a){
@@ -89,15 +102,15 @@ struct vector2D{
     return *this;
   }
   
-  inline constexpr T operator*(const vector2D& a) const{
+  constexpr T operator*(const vector2D& a) const{
     return x*a.x + y*a.y;
   }
 
-  inline constexpr vector2D operator*(const T& a) const{
+  constexpr vector2D operator*(const T& a) const{
     return vector2D(a*x, a*y);
   }
 
-  inline constexpr vector2D operator/(const T& a) const{
+  constexpr vector2D operator/(const T& a) const{
     return vector2D(x/a, y/a);
   }
   inline vector2D& operator/=(const T& a){
@@ -131,19 +144,19 @@ struct vector2D{
     y = pow(y,a);
   }  
     
-  inline constexpr T mod2() const{
+  constexpr T mod2() const{
     return x*x + y*y;
   }
     
-  inline constexpr T mod() const{
+  constexpr T mod() const{
     return sqrt(mod2());
   }
 
-  inline constexpr T dist(const vector2D& a) const{
+  constexpr T dist(const vector2D& a) const{
     return (a - *this).mod();
   }
 
-  inline constexpr vector2D dir(const vector2D& a) const{
+  constexpr vector2D dir(const vector2D& a) const{
     vector2D normDir = (a - *this);
     normDir.normalize();
     return normDir;
@@ -153,6 +166,11 @@ struct vector2D{
     T norm = mod();
     x /= norm;
     y /= norm;
+  }
+
+  // Linear interpolation with another vector
+  constexpr vector2D<T> lerp(const vector2D<T>& v, double t) const {
+    return (*this) * (1.0 - t) + v * t;
   }
 
   inline std::string stringify() const{
@@ -169,10 +187,22 @@ template<class T>
 struct vector3D{
   T x,y,z;
     
-  constexpr vector3D() {}
+  constexpr vector3D() : x(static_cast<T>(0)), y(static_cast<T>(0)), z(static_cast<T>(0)) {}
   constexpr vector3D(T xin, T yin, T zin) : x(xin), y(yin), z(zin){}
-    
-  inline constexpr vector3D operator+(const vector3D& a) const{
+  constexpr vector3D(const vector3D<T>& v) : x(v.x), y(v.y), z(v.z) {}
+  vector3D(vector3D<T>&&) = default;
+
+  static inline const vector3D<T>& zero(){
+    static constexpr const vector3D<T> v = vector3D<T>(static_cast<T>(0),
+						       static_cast<T>(0),
+						       static_cast<T>(0));
+    return v;
+  }
+
+  vector3D<T>& operator=(const vector3D<T>&) = default;
+  vector3D<T>& operator=(vector3D<T>&&) = default;
+  
+  constexpr vector3D operator+(const vector3D& a) const{
     return vector3D(x + a.x, y + a.y, z + a.z);
   }
   inline vector3D& operator+=(const vector3D& a){
@@ -182,7 +212,7 @@ struct vector3D{
     return *this;
   }
 
-  inline constexpr vector3D operator+(const T& a) const{
+  constexpr vector3D operator+(const T& a) const{
     return vector3D(x + a, y + a, z + a);
   }
   inline vector3D& operator+=(const T& a){
@@ -192,7 +222,7 @@ struct vector3D{
     return *this;
   }  
   
-  inline constexpr vector3D operator-(const vector3D& a) const{
+  constexpr vector3D operator-(const vector3D& a) const{
     return vector3D(x - a.x, y - a.y, z - a.z);
   }
   inline vector3D& operator-=(const vector3D& a){
@@ -202,7 +232,7 @@ struct vector3D{
     return *this;
   }  
 
-  inline constexpr vector3D operator-(const T& a) const{
+  constexpr vector3D operator-(const T& a) const{
     return vector3D(x - a, y - a, z - a);
   }
   inline vector3D& operator-=(const T& a){
@@ -212,15 +242,15 @@ struct vector3D{
     return *this;
   }
   
-  inline constexpr T operator*(const vector3D& a) const{
+  constexpr T operator*(const vector3D& a) const{
     return x*a.x + y*a.y + z*a.z;
   }
 
-  inline constexpr vector3D operator*(const T& a) const{
+  constexpr vector3D operator*(const T& a) const{
     return vector3D(a*x, a*y, a*z);
   }
 
-  inline constexpr vector3D operator/(const T& a) const{
+  constexpr vector3D operator/(const T& a) const{
     return vector3D(x/a, y/a, z/a);
   }
   inline vector3D& operator/=(const T& a){
@@ -230,7 +260,7 @@ struct vector3D{
     return *this;
   }
     
-  inline constexpr vector3D operator^(const vector3D& a) const{
+  constexpr vector3D operator^(const vector3D& a) const{
     return vector3D(y*a.z - z*a.y, z*a.x - x*a.z, x*a.y - y*a.x);
   }
     
@@ -272,19 +302,19 @@ struct vector3D{
     y = auxY;
   }
     
-  inline constexpr T mod2() const{
+  constexpr T mod2() const{
     return x*x + y*y + z*z;
   }
     
-  inline constexpr T mod() const{
+  constexpr T mod() const{
     return sqrt(mod2());
   }
 
-  inline constexpr T dist(const vector3D& a) const{
+  constexpr T dist(const vector3D& a) const{
     return (a - *this).mod();
   }
 
-  inline constexpr vector3D dir(const vector3D& a) const{
+  constexpr vector3D dir(const vector3D& a) const{
     vector3D normDir = (a - *this);
     normDir.normalize();
     return normDir;
@@ -295,6 +325,13 @@ struct vector3D{
     x /= norm;
     y /= norm;
     z /= norm;
+  }
+
+  // Linear interpolation with another vector
+  constexpr vector3D<T> lerp(const vector3D<T>& v, double t) const {
+    // Clamp interpolation value
+    t = std::max(static_cast<T>(0.0), std::min(static_cast<T>(1.0), t));    
+    return (*this) * (1.0 - t) + v * t;
   }
 
   inline std::string stringify() const{
@@ -610,10 +647,13 @@ public:
   inline T areaz() const{ return d.x*d.y; }
   inline T area() const{ return std::max(areax(),std::max(areay(),areaz())); }
 
+  
+  inline vector3D<T> minv() const {return min;}
   inline T minx() const {return min.x;}
   inline T miny() const {return min.y;}
   inline T minz() const {return min.z;}
 
+  inline vector3D<T> maxv() const {return max;}
   inline T maxx() const {return max.x;}
   inline T maxy() const {return max.y;}
   inline T maxz() const {return max.z;}
@@ -629,6 +669,20 @@ public:
     d = max-min;
   }
 
+  inline void set(const vector3D<T>& v){
+    min.x = v.x;
+    min.y = v.y;
+    min.z = v.z;
+    
+    max.x = v.x;
+    max.y = v.y;
+    max.z = v.z;
+    
+    d.x = static_cast<T>(0.0);
+    d.y = static_cast<T>(0.0);
+    d.z = static_cast<T>(0.0);
+  }
+  
   inline void set(const triangle<T>& t){
     min.x = t.minx();
     min.y = t.miny();
@@ -643,7 +697,7 @@ public:
     d.z = max.z - min.z;
   }
   
-  inline void set(const box newBox){
+  inline void set(const box& newBox){
     min = newBox.min;
     max = newBox.max;
     d = max-min;
@@ -870,6 +924,15 @@ struct container : public box<T>{
   {}
 
   inline size_t nElements() const {return elements.size();}
+
+  inline void fit(const T threshold){
+    if(elements.size() > 0){
+      this->set(elements[0]);
+      for(size_t i = 1; i < nElements(); ++i)
+	this->enlarge(elements[i]);
+      this->enlarge(threshold);
+    }
+  }
 
   static size_t split(const unsigned n,
 		      const unsigned index2Split,
@@ -1165,6 +1228,187 @@ struct container : public box<T>{
 
 //Define a structures to save measures
 namespace penred{
+
+  inline std::string triml(const std::string& strin){
+    const std::string delimiters = " \n\r\t\f\v";
+    size_t first = strin.find_first_not_of(delimiters);
+    return (first == std::string::npos) ? "" : strin.substr(first);
+  }
+
+  inline std::string trimr(const std::string& strin){
+    const std::string delimiters = " \n\r\t\f\v";
+    size_t last = strin.find_last_not_of(delimiters);
+    return (last == std::string::npos) ? "" : strin.substr(0,last+1);
+  }
+
+  inline std::string trim(const std::string& strin){
+    return trimr(triml(strin));
+  }  
+
+  template<class T>
+  struct Quaternion {
+    T w, x, y, z;
+
+    // Default constructor (identity quaternion)
+    constexpr Quaternion() : w(1), x(0), y(0), z(0) {}
+
+    // Component-wise constructor
+    constexpr Quaternion(const T wIn, const T xIn, const T yIn, const T zIn) :
+      w(wIn), x(xIn), y(yIn), z(zIn) {}
+
+    // Axis-angle constructor (angle in radians, axis can be non-normalized)
+    Quaternion(const std::array<T, 3>& axis, const T angle) {
+      T norm = std::sqrt(axis[0]*axis[0] + axis[1]*axis[1] + axis[2]*axis[2]);
+      if (norm < 1e-8) {
+        // Create identity if axis is zero vector
+        w = 1.0;
+	x = y = z = 0;
+      }
+      else{
+	T halfAngle = angle * 0.5;
+	T s = std::sin(halfAngle) / norm;
+
+	w = std::cos(halfAngle);
+	x = axis[0] * s;
+	y = axis[1] * s;
+	z = axis[2] * s;
+      }
+    }
+    Quaternion(const vector3D<T>& axis, const T angle) {
+      T norm = axis.mod();
+      if (norm < 1e-8) {
+        // Create identity if axis is zero vector
+        w = 1.0;
+	x = y = z = 0;
+      }
+      T halfAngle = angle * 0.5;
+      T s = std::sin(halfAngle) / norm;
+
+      w = std::cos(halfAngle);
+      x = axis.x * s;
+      y = axis.y * s;
+      z = axis.z * s;
+    }
+
+    static inline const Quaternion<T>& identity(){
+      static constexpr const Quaternion<T> i;
+      return i;
+    }
+    
+    // Quaternion multiplication (composition)
+    inline Quaternion<T> operator*(const Quaternion<T>& q) const {
+      return Quaternion(w*q.w - x*q.x - y*q.y - z*q.z,
+			w*q.x + x*q.w + y*q.z - z*q.y,
+			w*q.y - x*q.z + y*q.w + z*q.x,
+			w*q.z + x*q.y - y*q.x + z*q.w);
+    }
+
+    inline bool operator==(const Quaternion<T>& q) const {
+      return w == q.w && x == q.x && y == q.y && z == q.z;
+    }
+
+    // Conjugate
+    inline Quaternion<T> conjugate() const {
+      return Quaternion<T>(w, -x, -y, -z);
+    }
+
+    // Normalize
+    inline Quaternion<T> normalized() const {
+      T norm = std::sqrt(w*w + x*x + y*y + z*z);
+      return Quaternion<T>(w/norm, x/norm, y/norm, z/norm);
+    }
+    inline void normalize() {
+      T norm = std::sqrt(w*w + x*x + y*y + z*z);
+      w /= norm;
+      x /= norm;
+      y /= norm;
+      z /= norm;
+    }
+
+    // Rotate a vector (3D)
+    inline void rotate(std::array<T, 3>& v) const {
+      Quaternion<T> qv(0, v[0], v[1], v[2]);
+      Quaternion<T> result = (*this) * qv * this->conjugate();
+      v[0] = result.x;
+      v[1] = result.y;
+      v[2] = result.z;
+    }
+    inline void rotate(T(&v)[3]) const {
+      Quaternion<T> qv(0, v[0], v[1], v[2]);
+      Quaternion<T> result = (*this) * qv * this->conjugate();
+      v[0] = result.x;
+      v[1] = result.y;
+      v[2] = result.z;
+    }
+    inline void rotate(vector3D<T>& v) const {
+      Quaternion<T> qv(0, v.x, v.y, v.z);
+      Quaternion<T> result = (*this) * qv * this->conjugate();
+      v.x = result.x;
+      v.y = result.y;
+      v.z = result.z;
+    }
+
+    // Extract angle (in radians) and axis
+    inline void toAxisAngle(vector3D<T>& axis, T& angle) const {
+      Quaternion<T> q = this->normalized();
+      angle = 2.0 * std::acos(q.w);
+      T s = std::sqrt(1 - q.w*q.w);
+      if (s < 1.0e-8) {
+	axis = vector3D<T>(0, 0, 1); //Set Z as default direction
+      } else {
+	axis = vector3D<T>(q.x/s, q.y/s, q.z/s);
+      }
+    }
+
+    // Spherical linear interpolation (SLERP)
+    Quaternion<T> slerp(const Quaternion<T>& to, double t) const {
+
+      // Clamp interpolation value
+      t = std::max(static_cast<T>(0.0), std::min(static_cast<T>(1.0), t));
+      
+      T dot = w*to.w + x*to.x + y*to.y + z*to.z;
+
+      Quaternion<T> to1 = to;
+      if (dot < 0.0) {
+	dot = -dot;
+	to1.w = -to1.w; to1.x = -to1.x; to1.y = -to1.y; to1.z = -to1.z;
+      }
+
+      constexpr const T DOT_THRESHOLD = 0.9995;
+      if (dot > DOT_THRESHOLD) {
+	// If the quaternions are very close, use linear interpolation and normalize the result.
+	Quaternion<T> result(w + t * (to1.w - w),
+			     x + t * (to1.x - x),
+			     y + t * (to1.y - y),
+			     z + t * (to1.z - z));
+	return result.normalized();
+      }
+
+      double theta0 = std::acos(dot);        // angle between input quaternions
+      double theta = theta0 * t;             // angle between this and result
+      double sinTheta = std::sin(theta);
+      double sinTheta0 = std::sin(theta0);
+
+      double s0 = std::cos(theta) - dot * sinTheta / sinTheta0;
+      double s1 = sinTheta / sinTheta0;
+
+      return Quaternion<T>((w * s0) + (to1.w * s1),
+			   (x * s0) + (to1.x * s1),
+			   (y * s0) + (to1.y * s1),
+			   (z * s0) + (to1.z * s1));
+    }
+
+    inline std::string stringify() const{
+      char str[100];
+      sprintf(str,"(%.5E,%.5E,%.5E,%.5E)",
+	      static_cast<double>(w),
+	      static_cast<double>(x),
+	      static_cast<double>(y),
+	      static_cast<double>(z));
+      return std::string(str);
+    }
+  };
+  
   namespace measurements{
 
       enum errors{
@@ -1210,22 +1454,6 @@ namespace penred{
     constexpr size_t maxDims = 1000;
 
     typedef std::pair<double, double> limitsType;
-
-    inline std::string triml(const std::string& strin){
-      const std::string delimiters = " \n\r\t\f\v";
-      size_t first = strin.find_first_not_of(delimiters);
-      return (first == std::string::npos) ? "" : strin.substr(first);
-    }
-
-    inline std::string trimr(const std::string& strin){
-      const std::string delimiters = " \n\r\t\f\v";
-      size_t last = strin.find_last_not_of(delimiters);
-      return (last == std::string::npos) ? "" : strin.substr(0,last+1);
-    }
-
-    inline std::string trim(const std::string& strin){
-      return trimr(triml(strin));
-    }
 
     template<size_t dim = 1>
     class multiDimension{
@@ -2727,6 +2955,40 @@ namespace penred{
 	
 	return meanErel;
       }
+
+      //Cummulative function
+      measurement<type,dim> cummulative() const {
+
+	//Generates a cumulative measurement with the last dimension
+
+	//Get and check the number of bins for the last dimension
+	unsigned long nBinsLastDim = this->getNBins(dim-1);
+	if(nBinsLastDim < 2)
+	  return *this;
+
+	//Calculate the number of bins in previous dimensions
+	size_t nBinsPrevDim = this->binsPerIncrement[dim-1];
+
+	//Copy the original measurement
+	measurement<type,dim> out = *this;
+	//Flush data to ensure consistency
+	out.flush();
+
+	//Iterate over all bins in last dimension
+	for(unsigned long i = 1; i < nBinsLastDim; ++i){
+	  const size_t iFirst = i * nBinsPrevDim;
+	  const size_t iFirstPrev = (i-1) * nBinsPrevDim;
+	  //Iterate over bins within the same last dimension bin
+	  for(size_t j = 0; j < nBinsPrevDim; ++j){
+	    //Add the value from the previous last dimension bin
+	    out.data[iFirst + j] += out.data[iFirstPrev + j];
+	    out.data2[iFirst + j] += out.data2[iFirstPrev + j];
+	  }
+	}
+
+	//Return the cummulative measurement
+	return out;
+      }
       
 
       //Print functions
@@ -2841,6 +3103,655 @@ namespace penred{
     using vector_value_type_t = typename vector_value_type<T>::type;
     
   } //namespace measurements
+
+  namespace transforms{
+
+    template<class T>
+    struct Translation{
+      vector3D<T> vector;
+
+      constexpr Translation() :
+	vector(static_cast<T>(0),static_cast<T>(0),static_cast<T>(0))
+      {}
+
+      constexpr Translation(const T(&v)[3]) :
+	vector(v[0],v[1],v[2]) {}
+
+      constexpr Translation(const vector3D<T>& v) :
+	vector(v) {}
+
+      constexpr Translation(const T x, const T y, const T z) :
+	vector(x,y,z) {}
+      
+      static inline const Translation<T>& identity(){
+	static constexpr const Translation<T> i;
+	return i;
+      }
+
+      inline void apply(T(&v)[3]) const {
+	v[0] += vector.x;
+	v[1] += vector.y;
+	v[2] += vector.z;
+      }
+      inline void apply(vector3D<T>& v) const {
+	v += vector;
+      }
+      inline void apply(triangle<T>& t) const {
+	t.v1 += vector;
+	t.v2 += vector;
+	t.v3 += vector;
+      }
+      inline void applyInv(T(&v)[3]) const {
+	v[0] -= vector.x;
+	v[1] -= vector.y;
+	v[2] -= vector.z;
+      }
+      inline void applyInv(vector3D<T>& v) const {
+	v -= vector;
+      }
+      inline void applyInv(triangle<T>& t) const {
+	t.v1 -= vector;
+	t.v2 -= vector;
+	t.v3 -= vector;
+      }
+      
+      inline Translation<T> lerp(const Translation<T>& next,
+				 double factor) const {
+	return Translation<T>(vector.lerp(next.vector, factor));
+      }
+
+      inline std::string stringify() const{
+	return vector.stringify();
+      }
+    };
+
+    template<class T>
+    struct Rotation{
+      
+      Quaternion<T> quaternion;
+
+      constexpr Rotation(){}
+      
+      constexpr Rotation(const Quaternion<T>& q) :
+	quaternion(q) {}
+
+      static inline const Rotation<T>& identity(){
+	static constexpr const Rotation<T> i;
+	return i;
+      }
+
+      inline void apply(T(&v)[3]) const {
+	quaternion.rotate(v);
+      }
+      inline void apply(vector3D<T>& v) const {
+	quaternion.rotate(v);
+      }
+      inline void apply(triangle<T>& t) const {
+	apply(t.v1);
+	apply(t.v2);
+	apply(t.v3);
+      }
+      inline void applyInv(T(&v)[3]) const {
+	quaternion.conjugate().rotate(v);
+      }
+      inline void applyInv(vector3D<T>& v) const {
+	quaternion.conjugate().rotate(v);
+      }
+      inline void applyInv(triangle<T>& t) const {
+	applyInv(t.v1);
+	applyInv(t.v2);
+	applyInv(t.v3);
+      }
+      
+      inline Rotation<T> slerp(const Rotation<T>& next, double factor) const {
+	Rotation<T> mid;
+	mid.quaternion = this->quaternion.slerp(next.quaternion, factor);
+	return mid;
+      }
+
+      inline std::string stringify() const{
+	return quaternion.stringify();
+      }
+    };
+    
+    template<class I, class T>
+    struct Keyframe{
+      I frame;
+      Rotation<T> rotation;
+      Translation<T> translation;
+
+      static constexpr const I MinFrame = std::numeric_limits<I>::min();
+      static constexpr const I MaxFrame = std::numeric_limits<I>::max();
+
+      enum interpolation{
+	LINEAR = 0,
+	BEZIER,
+      };
+      
+      //Bezier curves
+      
+      //Left handlers
+      std::array<std::pair<I,T>, 3> lTransHandlers;
+
+      //Right handlers
+      std::array<std::pair<I,T>, 3> rTransHandlers;
+
+      unsigned interpolationMode;
+      
+      constexpr Keyframe() : frame(static_cast<I>(0)),
+			     lTransHandlers{{{MinFrame, static_cast<T>(0)},
+					     {MinFrame, static_cast<T>(0)},
+					     {MinFrame, static_cast<T>(0)}}},
+			     rTransHandlers{{{MaxFrame, static_cast<T>(0)},
+					     {MaxFrame, static_cast<T>(0)},
+					     {MaxFrame, static_cast<T>(0)}}},
+			     interpolationMode(LINEAR)
+      {}
+      constexpr Keyframe(const I vIn) : frame(vIn),
+					lTransHandlers{{{MinFrame, static_cast<T>(0)},
+							{MinFrame, static_cast<T>(0)},
+							{MinFrame, static_cast<T>(0)}}},
+					rTransHandlers{{{MaxFrame, static_cast<T>(0)},
+							{MaxFrame, static_cast<T>(0)},
+							{MaxFrame, static_cast<T>(0)}}},
+					interpolationMode(LINEAR)
+      {}
+
+      static inline const Keyframe<I,T>& identity(){
+	static constexpr const Keyframe<I,T> i;
+	return i;
+      }
+      
+      static inline const Keyframe<I,T> identity(const I frameIn){
+	Keyframe<I,T> i = identity();
+	i.frame = frameIn;
+	return i;
+      }
+      
+      inline friend bool operator< (const Keyframe<I, T>& l, const Keyframe<I, T>& r){
+	return l.frame < r.frame;
+      }      
+      inline friend bool operator> (const Keyframe<I, T>& l, const Keyframe<I, T>& r){
+	return l.frame > r.frame;
+      }
+      inline friend bool operator<=(const Keyframe<I, T>& l, const Keyframe<I, T>& r){
+	return l.frame <= r.frame;
+      }
+      inline friend bool operator>=(const Keyframe<I, T>& l, const Keyframe<I, T>& r){
+	return l.frame >= r.frame;
+      }
+
+      inline friend bool operator< (const Keyframe<I, T>& l, const T& r){
+	return l.frame < r;
+      }      
+      inline friend bool operator> (const Keyframe<I, T>& l, const T& r){
+	return l.frame > r;
+      }
+      inline friend bool operator<=(const Keyframe<I, T>& l, const T& r){
+	return l.frame <= r;
+      }
+      inline friend bool operator>=(const Keyframe<I, T>& l, const T& r){
+	return l.frame >= r;
+      }      
+
+      inline void apply(T(&v)[3]) const {
+	rotation.apply(v);
+	translation.apply(v);
+      }
+      inline void apply(vector3D<T>& v) const {
+	rotation.apply(v);
+	translation.apply(v);
+      }
+      inline void apply(triangle<T>& t) const {
+	rotation.apply(t);
+	translation.apply(t);
+      }
+      template<class ElementClass>
+      inline void applyContainer(container<ElementClass, T>& c, const T threshold) const {
+	//Transform each element
+	for(ElementClass& e : c.elements){
+	  apply(e);
+	}
+	//Resize bounding box
+	c.fit(threshold);
+      }
+      
+      inline void applyInv(T(&v)[3]) const {
+	translation.applyInv(v);
+	rotation.applyInv(v);
+      }
+      inline void applyInv(vector3D<T>& v) const {
+	translation.applyInv(v);
+	rotation.applyInv(v);
+      }
+      inline void applyInv(triangle<T>& t) const {
+	translation.applyInv(t);
+	rotation.applyInv(t);
+      }
+      template<class ElementClass>
+      inline void applyContainerInv(container<ElementClass, T>& c, const T threshold) const {
+	//Transform each element
+	for(ElementClass& e : c.elements){
+	  applyInv(e);
+	}
+	//Resize bounding box
+	c.fit(threshold);
+      }
+      
+      inline Keyframe<I, T> linearInterpolate(const Keyframe<I, T>& next, I midFrame) const {
+	
+	const double df = static_cast<double>(next.frame) - static_cast<double>(this->frame);
+	const double t = (static_cast<double>(midFrame) - static_cast<double>(this->frame))/df;
+	
+	Keyframe<I, T> mid;
+	mid.frame = midFrame;
+	mid.rotation    = this->rotation.slerp(next.rotation, t);
+	mid.translation = this->translation.lerp(next.translation, t);
+	return mid;
+      }
+
+      static inline I bezierFrame(const double t,
+				  const I f0,
+				  const I f0r,
+				  const I f1l,
+				  const I f1) {
+
+	const double tm1 = 1.0-t;
+	const double tm1_2 = tm1*tm1;
+	const double tm1_3 = tm1*tm1_2;
+	
+	const double t2 = t*t;
+	const double t3 = t2*t;
+
+	return tm1_3*f0 + 3.0*tm1_2*t*f0r + 3.0*tm1*t2*f1l + t3*f1;
+      }
+
+      static inline T bezierValue(const double t,
+				  const T v0,
+				  const T v0r,
+				  const T v1l,
+				  const T v1) {
+
+	const double tm1 = 1.0-t;
+	const double tm1_2 = tm1*tm1;
+	const double tm1_3 = tm1*tm1_2;
+	
+	const double t2 = t*t;
+	const double t3 = t2*t;
+
+	return tm1_3*v0 + 3.0*tm1_2*t*v0r + 3.0*tm1*t2*v1l + t3*v1;
+      }      
+
+      static inline T bezierFrameValue(const I frame,
+				       const std::pair<I,T> kf0,
+				       const std::pair<I,T> kf0r,
+				       const std::pair<I,T> kf1l,
+				       const std::pair<I,T> kf1){
+
+	if(frame <= kf0.first + 0.001)
+	  return kf0.second;
+	if(frame + 0.001 >= kf1.first)
+	  return kf1.second;
+
+	//Ensure handlers are within range
+	if(kf0r.first < kf0.first || kf1l.first > kf1.first){
+	  //Non valid handlers, perform a linear interpolation
+	  const double df = static_cast<double>(kf1.first) - static_cast<double>(kf0.first);
+	  const double t = (static_cast<double>(frame) - static_cast<double>(kf0.first))/df;
+	  
+	  return kf0.second * (1.0-t) + kf1.second * t;
+	}
+
+	double t0 = 0.0;
+	double t1 = 1.0;
+	double t;
+
+	for(size_t i = 0; i < 10; ++i){
+	  t = (t0 + t1)*0.5;
+	  const I f = bezierFrame(t, kf0.first, kf0r.first, kf1l.first, kf1.first);
+	  if(f < frame)
+	    t0 = t;
+	  else
+	    t1 = t;
+	}
+	t = (t0 + t1)*0.5;
+	return bezierValue(t, kf0.second, kf0r.second, kf1l.second, kf1.second);
+      }
+
+      Keyframe<I, T> interpolate(const Keyframe<I, T>& next,
+				 I midFrame) const {
+
+	//Interpolate between this and the "next" keyframe depending on the selected
+	//interpolation mode (Linear or Bezier). Notice that rotation is always interpolated
+	//using slerp
+
+	//Check interpolation mode
+	if(interpolationMode == LINEAR || next.interpolationMode == LINEAR){
+	  return linearInterpolate(next, midFrame);
+	}else{
+
+	  //Create the result keyframe
+	  Keyframe<I, T> result;
+	  result.frame = midFrame;	  
+
+	  //Apply bezier interpolation component by component
+
+	  // + Translation
+	  result.translation.vector.x =
+	    bezierFrameValue(midFrame,
+			     {this->frame, this->translation.vector.x},
+			     rTransHandlers[0],
+			     next.lTransHandlers[0],
+			     {next.frame, next.translation.vector.x});
+	  result.translation.vector.y =
+	    bezierFrameValue(midFrame,
+			     {this->frame, this->translation.vector.y},
+			     rTransHandlers[1],
+			     next.lTransHandlers[1],
+			     {next.frame, next.translation.vector.y});
+	  result.translation.vector.z =
+	    bezierFrameValue(midFrame,
+			     {this->frame, this->translation.vector.z},
+			     rTransHandlers[2],
+			     next.lTransHandlers[2],
+			     {next.frame, next.translation.vector.z});
+
+	  // + Rotation
+	  const double df = static_cast<double>(next.frame) - static_cast<double>(this->frame);
+	  const double t = (static_cast<double>(midFrame) - static_cast<double>(this->frame))/df;
+	  result.rotation = this->rotation.slerp(next.rotation, t);
+
+	  return result;
+	}
+      }
+
+      bool parse(std::istream& is){
+
+	//Check the input stream
+	if(!is)
+	  return false;
+
+	//Read the next non empty line
+	std::string line;
+	while(std::getline(is, line)) {
+	  line = trim(line);
+	  if(line.size() > 0){
+
+	    //Read data
+	    std::istringstream iss(line);
+
+	    // Mandatory data (frame, translation, rotation quaternion)
+	    double v, tx, ty, tz, qw, qx, qy, qz;
+	    iss >> v >> tx >> ty >> tz >> qw >> qx >> qy >> qz;
+
+	    if(!iss){
+	      //Unable to read mandatory data
+	      return false;
+	    }
+
+	    //Check if bezier curves are provided
+
+	    // Translation X
+	    double ltx_f, ltx_v, rtx_f, rtx_v;
+	    iss >> ltx_f >> ltx_v >> rtx_f >> rtx_v;
+
+	    // Translation Y
+	    double lty_f, lty_v, rty_f, rty_v;
+	    iss >> lty_f >> lty_v >> rty_f >> rty_v;
+
+	    // Translation Z
+	    double ltz_f, ltz_v, rtz_f, rtz_v;
+	    iss >> ltz_f >> ltz_v >> rtz_f >> rtz_v;
+	    
+	    //Save data
+	    frame = static_cast<I>(v);
+	    translation = Translation<T>({
+		static_cast<T>(tx),
+		static_cast<T>(ty),
+		static_cast<T>(tz)});
+	    rotation.quaternion = Quaternion<T>({
+		static_cast<T>(qw),
+		static_cast<T>(qx),
+		static_cast<T>(qy),
+		static_cast<T>(qz)});
+	    rotation.quaternion.normalize();
+
+	    if(iss){
+	      //Bezier curve values read
+	      interpolationMode = BEZIER;
+	      lTransHandlers = {{
+		  {ltx_f, ltx_v},
+		  {lty_f, lty_v},
+		  {ltz_f, ltz_v}
+		}};
+	      rTransHandlers = {{
+		  {rtx_f, rtx_v},
+		  {rty_f, rty_v},
+		  {rtz_f, rtz_v}
+		}};
+	    }
+	    else{
+	      interpolationMode = LINEAR;
+	    }
+	    
+
+	    //Return success
+	    return true;
+	  }
+	}
+	// No data found
+	return false;	
+      }
+
+      inline std::string stringify() const{
+	std::string result =
+	  "Frame: " + std::to_string(frame) +
+	  (interpolationMode == LINEAR ? ", T(L): " : ", T(B): ") +
+	  translation.stringify() +
+	  ", R: " + rotation.stringify();
+	return result;
+      }
+    };
+
+    template<class I, class T>
+    struct KeyframeComparator {
+      using is_transparent = void;  // Enables heterogeneous lookup
+    
+      bool operator()(const Keyframe<I,T>& lhs, const Keyframe<I,T>& rhs) const {
+	return lhs.frame < rhs.frame;
+      }
+    
+      bool operator()(const Keyframe<I,T>& lhs, T rhs) const {
+	return lhs.frame < rhs;
+      }
+    
+      bool operator()(T lhs, const Keyframe<I,T>& rhs) const {
+	return lhs < rhs.frame;
+      }
+    };
+    
+    template<class I, class T>
+    class Animation{
+    private:
+      vector3D<T> origin;
+      std::set<Keyframe<I, T>, KeyframeComparator<I,T>> keyframes;
+      
+    public:
+
+      inline void clear(){ keyframes.clear(); }
+      inline bool empty() const { return keyframes.empty(); }
+      inline size_t size() const { return keyframes.size(); }
+      inline T init() const {
+	if(empty())
+	  return std::numeric_limits<T>::min();
+	return keyframes.cbegin()->frame;
+      }
+      inline T end() const {
+	if(empty())
+	  return std::numeric_limits<T>::max();
+	return std::prev(keyframes.cend())->frame;
+      }
+
+      inline size_t parse(std::istream& is){
+
+	//Clear previous animation
+	keyframes.clear();
+	
+	if(!is)
+	  return 0;
+
+	//Read the next non empty line to extract object origin
+	std::string line;
+	while(std::getline(is, line)) {
+	  line = trim(line);
+	  if(line.size() > 0){
+	    
+	    //Read data
+	    std::istringstream iss(line);
+
+	    iss >> origin.x >> origin.y >> origin.z;
+
+	    if(!iss){
+	      //Unable to read origin
+	      return 0;
+	    }
+	    break;
+	  }
+	}
+      
+	//Read keyframes
+	Keyframe<I, T> keyframe;
+	while(keyframe.parse(is)){
+	  //Save keyframe
+	  keyframes.insert(keyframe);
+	}
+
+	//Return the number of read keyframes
+	return keyframes.size();    
+      }
+      
+      Keyframe<I, T> getKeyframe(const I frame) const {
+
+	if(keyframes.size() == 0)
+	  return Keyframe<I, T>::identity(frame);
+
+	//Ensure the frame is not before the first keyframe
+	if(frame < keyframes.cbegin()->frame)
+	  return Keyframe<I, T>::identity(frame);
+
+	//Check if a single frame is provided
+	if(keyframes.size() == 1){
+	  Keyframe<I, T> kf = *keyframes.cbegin();
+	  kf.frame = frame;
+	  return kf;
+	}
+
+	//Find the bound element for this frame
+	const auto top = keyframes.lower_bound(frame);
+	//Check if a bound keyframe is found for this frame
+	if(top == keyframes.cend()){
+	  //frame is out of range, return the last keyframe
+	  Keyframe<I, T> kf = *std::prev(keyframes.cend());
+	  kf.frame = frame;
+	  return kf;
+	}
+
+	//Check if a previous keyframe is stored
+	if(top == keyframes.cbegin()){
+	  //No previous keyframe exists, return the first keyframe
+	  Keyframe<I, T> kf = *keyframes.cbegin();
+	  kf.frame = frame;
+	  return kf;
+	}
+
+	//Get the previous keyframe
+	const auto low = std::prev(top);
+
+	//Interpolate the keyframe
+	return low->interpolate(*top, frame);
+      }
+      
+      inline Rotation<T> getRotation(const I frame) const {
+	return getKeyframe(frame).rotation;
+      }
+
+      inline Translation<T> getTranslation(const I frame) const {
+	return getKeyframe(frame).translation;
+      }
+
+      inline void apply(const I frame, vector3D<T>& v) const {
+	v -= origin;
+	getKeyframe(frame).apply(v);
+	v += origin;
+      }
+      inline void apply(const I frame, T(&v)[3]) const {
+	v[0] -= origin.x;
+	v[1] -= origin.y;
+	v[2] -= origin.z;
+	getKeyframe(frame).apply(v);
+	v[0] += origin.x;
+	v[1] += origin.y;
+	v[2] += origin.z;
+      }
+      inline void apply(const I frame, vector3D<T>& pos, vector3D<T>& dir) const {
+	//Get keyframe
+	const Keyframe<I, T> kf = getKeyframe(frame);
+
+	//Transform position
+	pos -= origin;
+	kf.apply(pos);
+	pos += origin;
+
+	//Transform direction
+	kf.rotation.apply(dir);
+      }
+      
+      inline void applyInv(const I frame, vector3D<T>& v) const {
+	v -= origin;
+	getKeyframe(frame).applyInv(v);
+	v += origin;
+      }
+      inline void applyInv(const I frame, T(&v)[3]) const {	
+	v[0] -= origin.x;
+	v[1] -= origin.y;
+	v[2] -= origin.z;
+	getKeyframe(frame).applyInv(v);
+	v[0] += origin.x;
+	v[1] += origin.y;
+	v[2] += origin.z;
+      }
+
+      inline void applyInv(const I frame, vector3D<T>& pos, vector3D<T>& dir) const {
+	//Get keyframe
+	const Keyframe<I, T> kf = getKeyframe(frame);
+
+	//Transform position
+	pos -= origin;
+	kf.applyInv(pos);
+	pos += origin;
+
+	//Transform direction
+	kf.rotation.applyInv(dir);
+      }
+
+      inline std::string stringify(const size_t spaces = 0) const{
+	std::string result;
+	if(spaces > 0){
+	  for(auto it = keyframes.cbegin(); it != keyframes.cend(); ++it){
+	    result += std::string(spaces, ' ') + it->stringify() + "\n";
+	  }
+	}
+	else{
+	  for(auto it = keyframes.cbegin(); it != keyframes.cend(); ++it){
+	    result += it->stringify() + "\n";
+	  }
+	}
+	return result;
+      }      
+    };
+    
+  } //namespace transforms
+  
 } //namespace penred
 
 #endif

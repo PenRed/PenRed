@@ -48,6 +48,7 @@
 #include "tallyEmergingSphericalDistribution.cpp"
 #include "tallySingles.cpp"
 #include "tallyTrackingMemory.cpp"
+#include "tallyDetectionEDep.cpp"
 
 namespace penred{
   namespace tally{

@@ -250,6 +250,51 @@ def createTallySpatialDistrib(f, name, output, det,
         f.write(f"tallies/{name}/outputdir \"{output}\"\n")
     f.write("\n")
 
+def createTallyDetectorEnergyDep(f, name, output, det,
+                                 nx, ny, nz,
+                                 xmin, ymin, zmin,
+                                 xmax, ymax, zmax,
+                                 tbins, tmin, tmax,
+                                 particle,
+                                 coordinates,
+                                 bins, toRound):
+    f.write(f"# Detector energy deposition tally configuration for '{name}'\n")
+    f.write(f"tallies/{name}/type \"DETECTION_EDEP\"\n")
+    f.write(f"tallies/{name}/detector {det}\n")
+    
+    f.write(f"tallies/{name}/spatial/nx {nx}\n")
+    f.write(f"tallies/{name}/spatial/xmin {round(xmin, toRound)}\n")
+    f.write(f"tallies/{name}/spatial/xmax {round(xmax, toRound)}\n")
+    f.write(f"tallies/{name}/spatial/ny {ny}\n")
+    f.write(f"tallies/{name}/spatial/ymin {round(ymin, toRound)}\n")
+    f.write(f"tallies/{name}/spatial/ymax {round(ymax, toRound)}\n")
+    f.write(f"tallies/{name}/spatial/nz {nz}\n")
+    f.write(f"tallies/{name}/spatial/zmin {round(zmin, toRound)}\n")
+    f.write(f"tallies/{name}/spatial/zmax {round(zmax, toRound)}\n")
+
+    f.write(f"tallies/{name}/time/nbins {tbins}\n")
+    f.write(f"tallies/{name}/time/min {tmin:.3e}\n")
+    f.write(f"tallies/{name}/time/max {tmax:.3e}\n")
+
+    if particle:
+        f.write(f"tallies/{name}/particle \"{particle}\"\n")
+    else:
+        f.write(f"tallies/{name}/particle \"all\"\n")
+
+    if coordinates:
+        f.write(f"tallies/{name}/printCord true\n")
+    else:
+        f.write(f"tallies/{name}/printCord false\n")
+
+    if bins:
+        f.write(f"tallies/{name}/printBins true\n")
+    else:
+        f.write(f"tallies/{name}/printBins false\n")
+
+    if output:
+        f.write(f"tallies/{name}/outputdir \"{output}\"\n")
+    f.write("\n")
+
 def createTallyAngularDet(f, name, output, det, emin, emax, ebins,
                           theta1, theta2, phi1, phi2, logSale):
     f.write(f"# Angular detector tally configuration for '{name}'\n")

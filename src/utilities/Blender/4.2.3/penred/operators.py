@@ -35,7 +35,7 @@ from bpy_extras.io_utils import ExportHelper, ImportHelper
 from bpy.types import Operator
 from bpy.props import FloatVectorProperty
 from bpy_extras.object_utils import AddObjectHelper, object_data_add
-from mathutils import Vector
+from mathutils import Vector, Quaternion
 from mathutils import Color
 from math import cos, acos, sin, asin, tan, atan2, sqrt, pi
 import os
@@ -292,6 +292,34 @@ class TALLY_OT_removeSpatialDistribTally(bpy.types.Operator):
         if obj and obj.penred_settings:
             obj.penred_settings.talliesSpatialDistrib.remove(self.index)
             utils.redrawView3D(context)
+        return {"FINISHED"}
+
+# Add Detector Energy Deposition Tally
+class TALLY_OT_addDetectorEnergyDepTally(bpy.types.Operator):
+    bl_idname = "tallies_detectorenergydep.add_item"
+    bl_label = "Add Item"
+    bl_description = "Add a detector energy deposition tally"
+
+    def execute(self, context):
+        obj = context.object
+        if obj and obj.penred_settings:
+            obj.penred_settings.talliesDetectorEnergyDep.add()
+            utils.redrawView3D(context)
+        return {"FINISHED"}
+
+# Remove Detector Energy Deposition Tally
+class TALLY_OT_removeDetectorEnergyDepTally(bpy.types.Operator):
+    bl_idname = "tallies_detectorenergydep.remove_item"
+    bl_label = "Remove Item"
+    bl_description = "Remove the detector energy deposition tally"
+
+    index: bpy.props.IntProperty()  # Index of the item to remove
+
+    def execute(self, context):
+        obj = context.object
+        if obj and obj.penred_settings:
+            obj.penred_settings.talliesDetectorEnergyDep.remove(self.index)
+            utils.redrawView3D(context)
         return {"FINISHED"}    
 
 # Add Angular detector
@@ -395,6 +423,8 @@ talliesOperatorClasses = (
     TALLY_OT_removeKermaTally,
     TALLY_OT_addSpatialDistribTally,
     TALLY_OT_removeSpatialDistribTally,
+    TALLY_OT_addDetectorEnergyDepTally,
+    TALLY_OT_removeDetectorEnergyDepTally,
     TALLY_OT_addAngDetTally,
     TALLY_OT_removeAngDetTally,
     TALLY_OT_addCTTally,
@@ -1891,8 +1921,11 @@ class export_penred(Operator, ExportHelper):
             else:
                 return None
     
-    def createTriangleMesh(self,f,context,obj,toRound,forceWorld,avoidHide,fconf):
+    def createTriangleMesh(self,fgeo,context,obj,toRound,forceWorld,avoidHide,fconf):
 
+        # Set scene frame to 0
+        bpy.context.scene.frame_set(0)
+    
         if obj.type != 'MESH':
             return
         
@@ -1901,22 +1934,153 @@ class export_penred(Operator, ExportHelper):
             if obj.hide_get():
                 #Skip it
                 return
-
-        # Set object specific parameters
-        if fconf:
-            if obj.penred_settings.isDetector:
-                fconf.write(f"geometry/kdet/{obj.name} {obj.penred_settings.detector}\n")
-            if obj.penred_settings.dsmaxEnabled:
-                fconf.write(f"geometry/dsmax/{obj.name} {obj.penred_settings.dsmax:.5e}\n")
-
-            # Create variance reduction
-            conf.createVR(obj, obj.name, fconf)
                 
         #Get name
         name = obj.name
         name.replace(" ","_")
         if len(name) > 100:
             name = name[:100]
+
+        # Set object specific parameters
+        if fconf:
+            if obj.penred_settings.isDetector:
+                fconf.write(f"geometry/kdet/{name} {obj.penred_settings.detector}\n")
+            if obj.penred_settings.dsmaxEnabled:
+                fconf.write(f"geometry/dsmax/{name} {obj.penred_settings.dsmax:.5e}\n")
+
+            # Create variance reduction
+            conf.createVR(obj, name, fconf)
+            
+        #Check if the object has an animation
+        if obj.animation_data and obj.animation_data.action:
+            action = obj.animation_data.action
+            keyframes = set()
+
+            # Get rotation mode to know which fcurve extract
+            rotMod = obj.rotation_mode
+            if rotMod == "QUATERNION":                
+                rotPath = "rotation_quaternion"
+            elif rotMod == "AXIS_ANGLE":
+                rotPath = "rotation_axis_angle"
+            else:
+                rotPath = "rotation_euler"                
+
+            validCurvePaths = {"location", rotPath}
+
+            # Ensure at least two keyframes
+            if len(action.fcurves) > 1:
+
+                # Collect all keyframe frames from all curves
+                for fcurve in action.fcurves:
+                    if fcurve.data_path in validCurvePaths:
+                        for keyframe_point in fcurve.keyframe_points:
+                            keyframes.add(int(keyframe_point.co.x))
+
+                keyframes = sorted(list(keyframes))
+
+                # Ensure every required F-Curve has keyframes at the same frames
+                for fcurve in action.fcurves:
+                    if fcurve.data_path in validCurvePaths:
+                        existingFrames = {int(k.co.x) for k in fcurve.keyframe_points}
+                        missing = [f for f in keyframes if f not in existingFrames]
+
+                        # Insert missing frames
+                        for f in missing:
+                            val = fcurve.evaluate(f)
+                            kf = fcurve.keyframe_points.insert(frame=f, value=val, options={'FAST'})
+                            kf.handle_left_type = 'AUTO_CLAMPED'
+                            kf.handle_right_type = 'AUTO_CLAMPED'
+
+
+                # Refresh curve handles and UI
+                for fcurve in action.fcurves:
+                    fcurve.update()
+
+                # Get location curves
+                xCurve = utils.getFCurve(action, "location", 0)
+                yCurve = utils.getFCurve(action, "location", 1)
+                zCurve = utils.getFCurve(action, "location", 2)
+
+                # Create the animation file
+                filenameAnimation = f"{os.path.splitext(self.filepath)[0]}_{name}.anim"
+                fanimation = open(filenameAnimation,'w',encoding='utf-8')
+                fanimation.write("0.01\n")
+                
+                # Get the first keyframe as reference
+                loc0, quat0 = utils.getFrame(obj, keyframes[0])
+                # Get translation handlers
+                xhandlers0 = utils.getFrameHandlers(xCurve, 0, loc0.x)
+                yhandlers0 = utils.getFrameHandlers(yCurve, 0, loc0.y)
+                zhandlers0 = utils.getFrameHandlers(zCurve, 0, loc0.z)
+
+                # Write object origin
+                fanimation.write(f"{loc0.x} {loc0.y} {loc0.z}\n")
+                # Write first keyframe (Identity)
+                fanimation.write(f"{keyframes[0]} 0.0 0.0 0.0 1.0 0.0 0.0 0.0 ")
+                if xhandlers0 or yhandlers0 or zhandlers0:
+                    if xhandlers0:
+                        fanimation.write(f"{xhandlers0[0][0]} {xhandlers0[0][1]} {xhandlers0[1][0]} {xhandlers0[1][1]} ")
+                    else:
+                        fanimation.write(f"{frame+1} 0.0 {frame-1} 0.0 ")
+
+                    if yhandlers0:
+                        fanimation.write(f"{yhandlers0[0][0]} {yhandlers0[0][1]} {yhandlers0[1][0]} {yhandlers0[1][1]} ")
+                    else:
+                        fanimation.write(f"{frame+1} 0.0 {frame-1} 0.0 ")
+
+                    if zhandlers0:
+                        fanimation.write(f"{zhandlers0[0][0]} {zhandlers0[0][1]} {zhandlers0[1][0]} {zhandlers0[1][1]} ")
+                    else:
+                        fanimation.write(f"{frame+1} 0.0 {frame-1} 0.0 ")
+                fanimation.write("\n")
+                
+                # Get and process next keyframes
+                iframe = 1
+                for frame in keyframes[1:]:
+                    # Get current frame location and translation
+                    loc, quat = utils.getFrame(obj, frame)
+                    
+                    # Get translation handlers
+                    xhandlers = utils.getFrameHandlers(xCurve, iframe, loc0.x)
+                    yhandlers = utils.getFrameHandlers(yCurve, iframe, loc0.y)
+                    zhandlers = utils.getFrameHandlers(zCurve, iframe, loc0.z)
+                    iframe = iframe+1
+
+                    # Substract first keyframe position
+                    t = loc - loc0
+
+                    # Calculate the relative rotation from the first keyframe
+                    qRel = quat @ quat0.inverted()
+
+                    # Write keyframe
+                    fanimation.write(f"{frame} {t.x} {t.y} {t.z} {qRel.w} {qRel.x} {qRel.y} {qRel.z} ")
+                    if xhandlers or yhandlers or zhandlers:
+                        if xhandlers:
+                            fanimation.write(f"{xhandlers[0][0]} {xhandlers[0][1]} {xhandlers[1][0]} {xhandlers[1][1]} ")
+                        else:
+                            fanimation.write(f"{frame+1} 0.0 {frame-1} 0.0 ")
+                            
+                        if yhandlers:
+                            fanimation.write(f"{yhandlers[0][0]} {yhandlers[0][1]} {yhandlers[1][0]} {yhandlers[1][1]} ")
+                        else:
+                            fanimation.write(f"{frame+1} 0.0 {frame-1} 0.0 ")
+
+                        if zhandlers:
+                            fanimation.write(f"{zhandlers[0][0]} {zhandlers[0][1]} {zhandlers[1][0]} {zhandlers[1][1]} ")
+                        else:
+                            fanimation.write(f"{frame+1} 0.0 {frame-1} 0.0 ")
+                    fanimation.write("\n")
+                            
+                # Close animation file
+                fanimation.close()
+                
+                if fconf:
+                    # Set the animation file in configuration
+                    fconf.write(f"geometry/animation/{name} \"{filenameAnimation}\"\n")
+
+                    # Add binded elements
+                    utils.addObjectBindedElementsConf(fconf, obj, name)
+                        
         
         #Get parent name
         if forceWorld:
@@ -1955,38 +2119,38 @@ class export_penred(Operator, ExportHelper):
             if len(vgIndexLists[i]) > 0:
                 nVGEff = nVGEff + 1
         
-        f.write("# Object: %s\n" % name.replace(" ", "_"))
-        f.write("#MAT      #NFACES     #NVERTEX     #NAME        #PARENT NAME    #N VERTEX GROUPS\n")
-        f.write(" %03d      %07d     %08d     %s        %s   %04d\n" % (obj.penred_settings.material, len(mesh.loop_triangles),len(mesh.vertices), name.replace(" ", "_"), parentName.replace(" ", "_"), nVGEff))
+        fgeo.write("# Object: %s\n" % name.replace(" ", "_"))
+        fgeo.write("#MAT      #NFACES     #NVERTEX     #NAME        #PARENT NAME    #N VERTEX GROUPS\n")
+        fgeo.write(" %03d      %07d     %08d     %s        %s   %04d\n" % (obj.penred_settings.material, len(mesh.loop_triangles),len(mesh.vertices), name.replace(" ", "_"), parentName.replace(" ", "_"), nVGEff))
 
         #Print vertex groups
-        f.write("# VERTEX GROUPS\n")
+        fgeo.write("# VERTEX GROUPS\n")
         for i in range(nVG):
 
             #Skip empty groups
             if len(vgIndexLists[i]) == 0:
                 continue
 
-            f.write("#NAME  #NVERTEX\n")
-            f.write(" %s   %04d\n" % (vgNames[i].replace(" ", "_"), len(vgIndexLists[i])))
+            fgeo.write("#NAME  #NVERTEX\n")
+            fgeo.write(" %s   %04d\n" % (vgNames[i].replace(" ", "_"), len(vgIndexLists[i])))
             for index in vgIndexLists[i]:
-                f.write(" %04d\n" % (index))
+                fgeo.write(" %04d\n" % (index))
 
         #Print vertex
-        f.write("# VERTEX LIST\n")
-        f.write("# Index  (X Y Z)\n")
+        fgeo.write("# VERTEX LIST\n")
+        fgeo.write("# Index  (X Y Z)\n")
         
         for vertex in mesh.vertices:
             vertexWorld = obj.matrix_world @ vertex.co
-            f.write("%04d %+.*E %+.*E %+.*E\n" % (vertex.index, toRound+3, round(vertexWorld[0],toRound), toRound+3, round(vertexWorld[1],toRound), toRound+3, round(vertexWorld[2],toRound)))
+            fgeo.write("%04d %+.*E %+.*E %+.*E\n" % (vertex.index, toRound+3, round(vertexWorld[0],toRound), toRound+3, round(vertexWorld[1],toRound), toRound+3, round(vertexWorld[2],toRound)))
         
-        f.write("# FACES(triangles)\n")
+        fgeo.write("# FACES(triangles)\n")
         for tri in mesh.loop_triangles:
-            f.write(" %03d %03d %03d\n" % (tri.vertices[0], tri.vertices[1], tri.vertices[2]))
-        f.write("#\n#\n")
+            fgeo.write(" %03d %03d %03d\n" % (tri.vertices[0], tri.vertices[1], tri.vertices[2]))
+        fgeo.write("#\n#\n")
         
     
-    def createObject(self,f,context,obj,nSurf,nObj,toRound,createChilds,avoidHide,fconf):
+    def createObject(self,fgeo,context,obj,nSurf,nObj,toRound,createChilds,avoidHide,fconf):
         
         #Check the quadric type
         if obj.penred_settings.quadricType == "unknown" and obj.type != "EMPTY": 
@@ -2011,7 +2175,7 @@ class export_penred(Operator, ExportHelper):
         tree = [] # Children tree information
         if len(childrens) > 0:
             for child in childrens:
-                childTree, nSurf, nObj = self.createObject(f,context,child,nSurf,nObj,toRound,True,avoidHide,fconf)
+                childTree, nSurf, nObj = self.createObject(fgeo,context,child,nSurf,nObj,toRound,True,avoidHide,fconf)
                 if len(childTree) > 0:
                     tree.extend(childTree)
                 
@@ -2043,40 +2207,40 @@ class export_penred(Operator, ExportHelper):
         
         ### Create object surfaces
         if quadType == "CUBE":
-            nSurf = surfaces.createCubeSurfaces(f,x,y,z,dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
+            nSurf = surfaces.createCubeSurfaces(fgeo,x,y,z,dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
         if quadType == "TRAPEZOID":
             topSize = obj.penred_settings.topSize
             botSize = obj.penred_settings.botSize
             
-            nSurf = surfaces.createTrapezoidSurfaces(f,x,y,z,
+            nSurf = surfaces.createTrapezoidSurfaces(fgeo,x,y,z,
                                                      sx*botSize[0], sy*botSize[1],
                                                      sx*topSize[0], sy*topSize[1],
                                                      dz,omega,theta,phi,
                                                      nSurf,name,toRound)            
         elif quadType == "SPHERE":
-            nSurf = surfaces.createSphereSurfaces(f,x,y,z,dx,dy,dz,nSurf,name,toRound)
+            nSurf = surfaces.createSphereSurfaces(fgeo,x,y,z,dx,dy,dz,nSurf,name,toRound)
         elif quadType == "CYLINDER":
-            nSurf = surfaces.createCylinderSurfaces(f,x,y,z, dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
+            nSurf = surfaces.createCylinderSurfaces(fgeo,x,y,z, dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
         elif quadType == "TUBE":
             r1 = obj.penred_settings.r1
             r2 = obj.penred_settings.r2
-            nSurf = surfaces.createTubeSurfaces(f,x,y,z,r1,r2,sx,sy,dz,omega,theta,phi,nSurf,name,toRound)
+            nSurf = surfaces.createTubeSurfaces(fgeo,x,y,z,r1,r2,sx,sy,dz,omega,theta,phi,nSurf,name,toRound)
         elif quadType == "CONE":
             r1 = obj.penred_settings.r1
             r2 = obj.penred_settings.r2
             if r1 == r2:
-                nSurf = surfaces.createCylinderSurfaces(f,x,y,z, dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
+                nSurf = surfaces.createCylinderSurfaces(fgeo,x,y,z, dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
             else:
-                nSurf = surfaces.createConeSurfaces(f,x,y,z,r1,r2,dz,sx,sy,omega,theta,phi,nSurf,name,toRound)
+                nSurf = surfaces.createConeSurfaces(fgeo,x,y,z,r1,r2,dz,sx,sy,omega,theta,phi,nSurf,name,toRound)
         elif quadType == "PLANE":
-            nSurf = surfaces.createPlaneSurfaces(f,x,y,z,omega,theta,phi,nSurf,name,toRound)
+            nSurf = surfaces.createPlaneSurfaces(fgeo,x,y,z,omega,theta,phi,nSurf,name,toRound)
         elif quadType == "SEMI_SPHERE":
             #Construct sphere. Take into account that the Z dimension
             #must not be multiplied by two to comepnsate the cut, because
             #we added an artificial vertex
-            nSurf = surfaces.createSphereSurfaces(f,x,y,z,dx,dy,dz,nSurf,name,toRound)
+            nSurf = surfaces.createSphereSurfaces(fgeo,x,y,z,dx,dy,dz,nSurf,name,toRound)
             #Create limiting plane
-            nSurf = surfaces.createPlaneSurfaces(f,x,y,z,omega,theta,phi,nSurf,name,toRound)
+            nSurf = surfaces.createPlaneSurfaces(fgeo,x,y,z,omega,theta,phi,nSurf,name,toRound)
 
         # Create cutting plane surfaces, if defined
         nCuttingPlanes = 0
@@ -2092,7 +2256,7 @@ class export_penred(Operator, ExportHelper):
                         # Get its properties
                         xCut,yCut,zCut,_,_,_,_,_,_,omegaCut,thetaCut,phiCut,nameCut,_ = utils.getObjInfo(bolObj)
                         
-                        nSurf = surfaces.createPlaneSurfaces(f,xCut,yCut,zCut,omegaCut,thetaCut,phiCut,nSurf,nameCut,toRound)
+                        nSurf = surfaces.createPlaneSurfaces(fgeo,xCut,yCut,zCut,omegaCut,thetaCut,phiCut,nSurf,nameCut,toRound)
                         nCuttingPlanes = nCuttingPlanes+1
 
         # Force Blender to update the dependency graph
@@ -2100,7 +2264,7 @@ class export_penred(Operator, ExportHelper):
 
             
         ### Init body
-        surfaces.initBody(f,nObj,name,obj.penred_settings.material,obj.penred_settings.module)
+        surfaces.initBody(fgeo,nObj,name,obj.penred_settings.material,obj.penred_settings.module)
 
         # Set object specific parameters
         if fconf:
@@ -2115,32 +2279,32 @@ class export_penred(Operator, ExportHelper):
                 
         ### Set object surfaces
         if quadType == "CUBE":
-            initSurf = surfaces.setCubeSurfaces(f,initSurf, 1)
+            initSurf = surfaces.setCubeSurfaces(fgeo,initSurf, 1)
         elif quadType == "TRAPEZOID":
             topSize = obj.penred_settings.topSize
             botSize = obj.penred_settings.botSize
-            initSurf = surfaces.setTrapezoidSurfaces(f,sx*botSize[0], sy*botSize[1],
+            initSurf = surfaces.setTrapezoidSurfaces(fgeo,sx*botSize[0], sy*botSize[1],
                                                      sx*topSize[0], sy*topSize[1],
                                                      initSurf, 1)
         elif quadType == "SPHERE":
-            initSurf = surfaces.setSphereSurfaces(f,initSurf, 1)
+            initSurf = surfaces.setSphereSurfaces(fgeo,initSurf, 1)
         elif quadType == "CYLINDER" or quadType == "CONE":
-            initSurf = surfaces.setCylinderConeSurfaces(f,initSurf, 1)
+            initSurf = surfaces.setCylinderConeSurfaces(fgeo,initSurf, 1)
         elif quadType == "TUBE":
-            initSurf = surfaces.setTubeSurfaces(f,initSurf, 1)
+            initSurf = surfaces.setTubeSurfaces(fgeo,initSurf, 1)
         elif quadType == "PLANE":
-            initSurf = surfaces.setPlaneSurfaces(f,initSurf, 1)
+            initSurf = surfaces.setPlaneSurfaces(fgeo,initSurf, 1)
         elif quadType == "SEMI_SPHERE":
-            initSurf = surfaces.setSphereSurfaces(f,initSurf, 1)
-            initSurf = surfaces.setPlaneSurfaces(f,initSurf, 1)
+            initSurf = surfaces.setSphereSurfaces(fgeo,initSurf, 1)
+            initSurf = surfaces.setPlaneSurfaces(fgeo,initSurf, 1)
 
         # Set cutting planes surfaces
         for i in range(nCuttingPlanes):
-            initSurf = surfaces.setPlaneSurfaces(f,initSurf, 1)            
+            initSurf = surfaces.setPlaneSurfaces(fgeo,initSurf, 1)            
             
         #Set childrens
         if len(tree) > 0:
-            surfaces.addChilds(f,tree)
+            surfaces.addChilds(fgeo,tree)
         
         #Add current body or module to tree
         if obj.penred_settings.module:
@@ -2173,7 +2337,7 @@ class export_penred(Operator, ExportHelper):
         return nMeshes
 
     def invoke(self, context, event):
-
+        
         quadrics = False
         meshes   = False
         for obj in context.scene.objects:
@@ -2205,10 +2369,13 @@ class export_penred(Operator, ExportHelper):
         return {'CANCELLED'}    
     
     def execute(self, context):
+
+        # Set scene frame to 0
+        bpy.context.scene.frame_set(0)
         
         #Open output file
-        f = open(self.filepath,'w',encoding='utf-8')
-        f.write("# Geometry file created with PenRed blender plugin v.2.0\n")
+        fgeo = open(self.filepath,'w',encoding='utf-8')
+        fgeo.write("# Geometry file created with PenRed blender plugin v.2.0\n")
 
         #If required, open output configuration file
         fconf = None
@@ -2247,22 +2414,22 @@ class export_penred(Operator, ExportHelper):
             nObj = 1 #Number of object to be created
 
             if self.onlyActive:
-                self.createObject(f,context,bpy.context.active_object,nSurf,nObj,self.toRound,False,False,fconf)
+                self.createObject(fgeo,context,bpy.context.active_object,nSurf,nObj,self.toRound,False,False,fconf)
             else:
                 #Find objects with no parents
                 for obj in context.scene.objects:
                     if not obj.parent:
                         #This object has no parent, create it
-                        nSurf,nObj = self.createObject(f,context,obj,nSurf,nObj,self.toRound,True,self.avoidHide,fconf)[1:]
+                        nSurf,nObj = self.createObject(fgeo,context,obj,nSurf,nObj,self.toRound,True,self.avoidHide,fconf)[1:]
 
-            surfaces.endFile(f)
+            surfaces.endFile(fgeo)
         elif self.exportType == 'MESH':
             
             if self.onlyActive:
                 #Print number of objects
-                f.write("# Number of objects:\n 1\n")
+                fgeo.write("# Number of objects:\n 1\n")
 
-                self.createTriangleMesh(f,context,bpy.context.active_object,self.toRound,True,False,fconf)
+                self.createTriangleMesh(fgeo,context,bpy.context.active_object,self.toRound,True,False,fconf)
             else:
 
                 #Count number of meshes
@@ -2279,14 +2446,14 @@ class export_penred(Operator, ExportHelper):
                             nMeshes = nMeshes + 1
 
                 #Print number of objects
-                f.write("# Number of objects:\n %d\n" % (nMeshes))
+                fgeo.write("# Number of objects:\n %d\n" % (nMeshes))
 
                 for obj in context.scene.objects:
-                    self.createTriangleMesh(f,context,obj,self.toRound,False,self.avoidHide,fconf)
+                    self.createTriangleMesh(fgeo,context,obj,self.toRound,False,self.avoidHide,fconf)
         else:
-            f.write("# Unknown export format. Please, report this issue\n")
+            fgeo.write("# Unknown export format. Please, report this issue\n")
                 
-        f.close()
+        fgeo.close()
 
         if self.calledToSimulate:
             scene = context.scene

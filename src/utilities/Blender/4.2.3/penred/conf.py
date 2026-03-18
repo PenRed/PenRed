@@ -153,6 +153,7 @@ def createSources(context, f, toRound):
                                       source.split, source.psfWindow,
                                       psfShift, (omega, theta, phi), toRound)
                 else:
+                    
                     if source.spatialType == "SPATIAL_CYL":
                         if source.spatialBBFit:
                             radius = min((bsize[0], bsize[1]))/2.0
@@ -185,6 +186,10 @@ def createSources(context, f, toRound):
                 if source.timeRecord:
                     sources.createTime(f, name, source.timeType,
                                        source.decayHalf, source.timeWindow)
+
+                # Bind the source to the object
+                f.write(f"sources/generic/{name}/bind \"{name}\"\n\n")
+                
 
 def createTallies(context, f, toRound):
 
@@ -420,8 +425,31 @@ def createTallies(context, f, toRound):
                                                   item.ebins, item.emin, item.emax,
                                                   particle,
                                                   item.printCoordinates,
-                                                  item.printBins, toRound)                
+                                                  item.printBins, toRound)
 
+            # Detector energy deposition tally
+            for i, item in enumerate(obj.penred_settings.talliesDetectorEnergyDep):
+                tallyName = f"{obj.name}_{i}_{item.name}"
+                if item.particleType == "PART_GAMMA":
+                    particle = "gamma"
+                elif item.particleType == "PART_ELECTRON":
+                    particle = "electron"
+                elif item.particleType == "PART_POSITRON":
+                    particle = "positron"
+                elif item.particleType == "PART_ALL":
+                    particle = None
+                else:
+                    particle = "unknown"
+                    
+                tallies.createTallyDetectorEnergyDep(f, tallyName, outputPrefix, det, 
+                                                     item.nx, item.ny, item.nz,
+                                                     xmin, ymin, zmin,
+                                                     xmax, ymax, zmax,
+                                                     item.tbins, item.twindow[0], item.twindow[1],
+                                                     particle,
+                                                     item.printCoordinates,
+                                                     item.printBins, toRound)
+            
             # PSF
             for i, item in enumerate(obj.penred_settings.talliesPSF):
                 tallyName = f"{obj.name}_{i}_{item.name}"

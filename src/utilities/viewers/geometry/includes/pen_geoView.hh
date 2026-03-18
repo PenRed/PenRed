@@ -99,6 +99,10 @@ public:
   inline int init(const char* filename,
 		  const unsigned verbose = 5){
 
+    if(verbose > 1){
+      printf("Initializing viwer from configuration file '%s'\n", filename);
+    }
+      
     //Parse configuration file
     pen_parserSection config;
     std::string errorLine;
@@ -117,6 +121,20 @@ public:
       return -1;
     }
 
+    //Check if a geometry section exists
+    if(config.isSection("geometry")){
+      //Load geometry section
+      if(verbose > 1){
+	printf("Section 'geometry' found in configuration file, extracting it\n");
+      }
+      pen_parserSection geoConfig;
+      config.readSubsection("geometry", geoConfig);
+      return init(geoConfig, verbose);
+    }else if(verbose > 1){
+      printf("No 'geometry' section found in configuration file. Assume no prefix\n");
+    }
+
+    //Assume no prefix for geometry configuration
     return init(config,verbose);
   }
 
@@ -126,12 +144,14 @@ public:
   void testX(std::vector<geoError>& errors,
 	     const float x, const float y, const float z,
 	     const float dy, const float dz,
-	     const unsigned ny, const unsigned nz) const;
+	     const unsigned ny, const unsigned nz,
+	     const float t) const;
   
   void renderX(unsigned char* renderMat,unsigned int* renderBody,
 	       const float x, const float y, const float z,
 	       const float dy, const float dz,
 	       const unsigned ny, const unsigned nz,
+	       const float t,
 	       const unsigned nthreads = 1) const;
 
   void renderXtoLeft(unsigned char* renderMat,
@@ -139,38 +159,44 @@ public:
 		     const unsigned nPixels,				
 		     const float x, const float y, const float z,
 		     const float dy, const float dz,
-		     const unsigned ny, const unsigned nz) const;
+		     const unsigned ny, const unsigned nz,
+		     const float t) const;
 
   void renderXtoRight(unsigned char* renderMat,
 		      unsigned int* renderBody,
 		      const unsigned nPixels,
 		      const float x, const float y, const float z,
 		      const float dy, const float dz,
-		      const unsigned ny, const unsigned nz) const;
+		      const unsigned ny, const unsigned nz,
+		      const float t) const;
 
   void renderXtoUp(unsigned char* renderMat,
-		     unsigned int* renderBody,
-		     const unsigned nPixels,				
-		     const float x, const float y, const float z,
-		     const float dy, const float dz,
-		     const unsigned ny, const unsigned nz) const;
+		   unsigned int* renderBody,
+		   const unsigned nPixels,				
+		   const float x, const float y, const float z,
+		   const float dy, const float dz,
+		   const unsigned ny, const unsigned nz,
+		   const float t) const;
 
   void renderXtoDown(unsigned char* renderMat,
-		      unsigned int* renderBody,
-		      const unsigned nPixels,
-		      const float x, const float y, const float z,
-		      const float dy, const float dz,
-		      const unsigned ny, const unsigned nz) const;
+		     unsigned int* renderBody,
+		     const unsigned nPixels,
+		     const float x, const float y, const float z,
+		     const float dy, const float dz,
+		     const unsigned ny, const unsigned nz,
+		     const float t) const;
   
   void testY(std::vector<geoError>& errors,
 	     const float x, const float y, const float z,
 	     const float dx, const float dz,
-	     const unsigned nx, const unsigned nz) const;
+	     const unsigned nx, const unsigned nz,
+	     const float t) const;
   
   void renderY(unsigned char* renderMat,unsigned int* renderBody,
 	       const float x, const float y, const float z,
 	       const float dx, const float dz,
 	       const unsigned nx, const unsigned nz,
+	       const float t,
 	       const unsigned nthreads = 1) const;
 
   void renderYtoLeft(unsigned char* renderMat,
@@ -178,38 +204,44 @@ public:
 		     const unsigned nPixels,				
 		     const float x, const float y, const float z,
 		     const float dx, const float dz,
-		     const unsigned nx, const unsigned nz) const;
+		     const unsigned nx, const unsigned nz,
+		     const float t) const;
 
   void renderYtoRight(unsigned char* renderMat,
 		      unsigned int* renderBody,
 		      const unsigned nPixels,
 		      const float x, const float y, const float z,
 		      const float dx, const float dz,
-		      const unsigned nx, const unsigned nz) const;
+		      const unsigned nx, const unsigned nz,
+		      const float t) const;
 
   void renderYtoUp(unsigned char* renderMat,
-		     unsigned int* renderBody,
-		     const unsigned nPixels,				
-		     const float x, const float y, const float z,
-		     const float dx, const float dz,
-		     const unsigned nx, const unsigned nz) const;
+		   unsigned int* renderBody,
+		   const unsigned nPixels,				
+		   const float x, const float y, const float z,
+		   const float dx, const float dz,
+		   const unsigned nx, const unsigned nz,
+		   const float t) const;
 
   void renderYtoDown(unsigned char* renderMat,
-		      unsigned int* renderBody,
-		      const unsigned nPixels,
-		      const float x, const float y, const float z,
-		      const float dx, const float dz,
-		      const unsigned nx, const unsigned nz) const;  
+		     unsigned int* renderBody,
+		     const unsigned nPixels,
+		     const float x, const float y, const float z,
+		     const float dx, const float dz,
+		     const unsigned nx, const unsigned nz,
+		     const float t) const;  
   
   void testZ(std::vector<geoError>& errors,
 	     const float x, const float y, const float z,
 	     const float dx, const float dy,
-	     const unsigned nx, const unsigned ny) const;
+	     const unsigned nx, const unsigned ny,
+	     const float t) const;
   
   void renderZ(unsigned char* renderMat,unsigned int* renderBody,
 	       const float x, const float y, const float z,
 	       const float dx, const float dy,
 	       const unsigned nx, const unsigned ny,
+	       const float t,
 	       const unsigned nthreads = 1) const;
 
   void renderZtoLeft(unsigned char* renderMat,
@@ -217,44 +249,50 @@ public:
 		     const unsigned nPixels,				
 		     const float x, const float y, const float z,
 		     const float dx, const float dy,
-		     const unsigned nx, const unsigned ny) const;
+		     const unsigned nx, const unsigned ny,
+		     const float t) const;
 
   void renderZtoRight(unsigned char* renderMat,
 		      unsigned int* renderBody,
 		      const unsigned nPixels,
 		      const float x, const float y, const float z,
 		      const float dx, const float dy,
-		      const unsigned nx, const unsigned ny) const;
+		      const unsigned nx, const unsigned ny,
+		      const float t) const;
 
   void renderZtoUp(unsigned char* renderMat,
-		     unsigned int* renderBody,
-		     const unsigned nPixels,				
-		     const float x, const float y, const float z,
-		     const float dx, const float dy,
-		     const unsigned nx, const unsigned ny) const;
+		   unsigned int* renderBody,
+		   const unsigned nPixels,				
+		   const float x, const float y, const float z,
+		   const float dx, const float dy,
+		   const unsigned nx, const unsigned ny,
+		   const float t) const;
 
   void renderZtoDown(unsigned char* renderMat,
-		      unsigned int* renderBody,
-		      const unsigned nPixels,
-		      const float x, const float y, const float z,
-		      const float dx, const float dy,
-		      const unsigned nx, const unsigned ny) const;  
+		     unsigned int* renderBody,
+		     const unsigned nPixels,
+		     const float x, const float y, const float z,
+		     const float dx, const float dy,
+		     const unsigned nx, const unsigned ny,
+		     const float t) const;  
   
   inline int render3Dortho(unsigned char* renderMat,unsigned int* renderBody,
 			   const float x, const float y, const float z,
 			   const float u, const float v, const float w,
+			   const float t,
 			   const float roll, float& phi,
 			   float* distances,
 			   float& minDistance, float& maxDistance,
 			   const float threshold = 1.0e-4) const{
     return render3Dortho(renderMat,renderBody,
-			 x,y,z,u,v,w,roll,phi,dx3D,dy3D,nx3D,ny3D,
+			 x,y,z,u,v,w,t,roll,phi,dx3D,dy3D,nx3D,ny3D,
 			 distances,minDistance,maxDistance,threshold);
   }
   
   int render3Dortho(unsigned char* renderMat,unsigned int* renderBody,
 		    const float x, const float y, const float z,
 		    const float u, const float v, const float w,
+		    const float t,
 		    const float roll, float& phi,
 		    const float dx, const float dy,
 		    const unsigned nx, const unsigned ny,
@@ -267,9 +305,10 @@ public:
 		       const float perspective);
 
 
-  int render3D(unsigned char* renderMat,unsigned int* renderBody,
+  int render3D(unsigned char* renderMat, unsigned int* renderBody,
 	       const float x, const float y, const float z,
 	       const float u, const float v, const float w,
+	       const float t,
 	       const float roll, float& phi, float* distances,
 	       float& minDistance, float& maxDistance,
 	       const float threshold = 1.0e-4) const;

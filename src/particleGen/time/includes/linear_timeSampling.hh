@@ -1,8 +1,7 @@
 
 //
 //
-//    Copyright (C) 2019 Universitat de València - UV
-//    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2026 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -22,10 +21,22 @@
 //    contact emails:
 //
 //        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
 //    
 //
 
+ 
+#ifndef __LINEAR_TIME_SAMPLING__
+#define __LINEAR_TIME_SAMPLING__
 
-#include "decay_timeSampling.cpp" 
-#include "linear_timeSampling.cpp"
+class linear_timeSampling : public abc_timeSampler{
+  DECLARE_SAMPLER(linear_timeSampling)
+private:
+
+  double tmin, tmax, dt;
+public:
+
+  void timeSampling(double& time, pen_rand& random) const;
+  int configure(const pen_parserSection& config, const unsigned verbose);
+};
+
+#endif

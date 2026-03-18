@@ -771,12 +771,23 @@ Returns:
 	    const std::string& sourceName, const double hists,
 	    const std::vector<double>& translation,
 	    const std::vector<double>& rotation) -> unsigned long long{
-	   return obj.instructionSimulate(sourceName, hists, translation, rotation);
+
+	   vector3D<double> t;
+	   if(translation.size() >= 3){
+	     t = vector3D<double>(translation[0], translation[1], translation[2]);
+	   }
+
+	   penred::Quaternion<double> r;
+	   if(rotation.size() >= 4){
+	     r = penred::Quaternion<double>(rotation[0],rotation[1],rotation[2],rotation[3]);
+	   }
+	   
+	   return obj.instructionSimulate(sourceName, hists, t, r);
 	 },
 	 py::arg("source_name"),
 	 py::arg("hists"),
 	 py::arg("translation") = std::vector<double>(),
-	 py::arg("rotZYZ") = std::vector<double>(),
+	 py::arg("quaternion") = std::vector<double>(),
 	 R"(
 
 Appends a simulate instruction to the instructions queue. Once executed, the specified source is simulated. If both, a rotation and a translation are provided, the former is applied first and the latter seconth. If provided, the three components must be specified.
@@ -785,12 +796,7 @@ Args:
     source_name (str): Name of the source to be simulated
     hists (float): Number of histories to simulate
     translation (list[float,float,float]): Specify the translation, in cm, to be applied to the original source position before the simulation starts. If no specified, no translation will be applied
-    rotZYZ (list[float,float,float]): Specify the rotation angles, in rad, to be applied to the original source before the simulation starts. The resulting rotation is the product of three rotations around the Z,Y and Z axis. The angles are, in order:
-                                          - omega -> rotation angle around the z axis (rad)
-                                          - theta -> rotation angle around the y axis (rad)
-                                          - phi   -> rotation angle around the z axis (rad)
-
-                                      If not provided, no extra rotation is applied to the original source.
+    quaternion (list[float,float,float,float]): Specify the rotation quaternion to be applied to the original source before the simulation starts. If not provided, no extra rotation is applied to the original source.
 
 Returns:
     The numerical ID of the enqueued instruction.

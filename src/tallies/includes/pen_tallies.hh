@@ -1410,6 +1410,17 @@ namespace penred{
 	
 	return std::get<T>(maps);
       }
+
+      template<class TallyType>
+      constexpr const auto& readType() const {
+	
+	//Get the tally index within the tuple
+	constexpr const unsigned index = typeIndex<TallyType>();
+	static_assert(index < std::tuple_size<typesGenericTallies>::value,
+		      "Invalid tally type. Unable to read tally results maps");
+	
+	return std::get<index>(maps);
+      }
       
       template<class TallyType>
       constexpr auto getType(){
