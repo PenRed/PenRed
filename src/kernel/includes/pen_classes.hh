@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
-//    Copyright (C) 2025 Vicent Giménez Alventosa
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -254,27 +254,48 @@ namespace penred{
 	return animation.getKeyframe(t);
       }
     };
-  } //namespace penred
-} //namespace geometry
+  } //namespace geometry
+  
+} //namespace penred
 
 class wrapper_geometry : public penred::logs::logger{
 
+private:
+  virtual penred::errors::Error specificConfigure(const pen_parserSection& config, const unsigned verbose) = 0;
+  
 protected:
-  int configStatus;
+  penred::errors::Error configError;
 
 public:
 
+  enum errors{
+    SUCCESS = 0,
+    ERROR_ON_CONFIGURAITON_PARSING,
+  };
+      
+  static constexpr const char* errorMessage(const int val) noexcept {
+    switch(val){
+    case SUCCESS: return "Success";
+    case ERROR_ON_CONFIGURAITON_PARSING: return "Error parsing configuration";
+    default: return "Unknown error";
+    }
+  }
+
   std::string name;
     
-  wrapper_geometry() : configStatus(0),
-		       name("unnamed") {}
+  wrapper_geometry() : name("unnamed") {}
 
-  inline int configureStatus() const {return configStatus;}
+  inline penred::errors::Error configure(const pen_parserSection& config,
+					 const unsigned verbose){
+    configError = specificConfigure(config, verbose);
+    return configError;
+  }
+
+  inline penred::errors::Error configureStatus() const {return configError;}
   inline virtual const char* getType() const {return "UNKNOWN";}
   
   virtual void locate(pen_particleState& state) const = 0;
   virtual void step(pen_particleState& state, double DS, double &DSEF, double &DSTOT, int &NCROSS) const = 0;
-  virtual int configure(const pen_parserSection& config, const unsigned verbose) = 0;
   virtual void usedMat(bool[constants::MAXMAT+1]) const = 0;
   virtual double getEabs(const unsigned ibody, const unsigned kpar) const = 0;
   virtual double getDSMAX(const unsigned ibody) const = 0;
@@ -285,6 +306,30 @@ public:
   virtual unsigned getIBody(const char* elementName) const = 0;
   virtual std::string getBodyName(const unsigned ibody) const = 0;
   virtual void getOffset(double* offset) const { offset[0] = 0.0; offset[1] = 0.0; offset[2] = 0.0; }
+
+  inline penred::errors::Error configFromFile(const char* filename, const unsigned verbose) {
+    
+    //Parse configuration file
+    pen_parserSection config;
+    std::string errorLine;
+    unsigned long errorLineNum;
+    int err = parseFile(filename,config,errorLine,errorLineNum);
+  
+    if(err != INTDATA_SUCCESS){
+      penred::errors::SpecificError<wrapper_geometry> error;
+      error.code = ERROR_ON_CONFIGURAITON_PARSING;
+      error.description = "  Error code: " + std::to_string(err) +  "\n";
+      error.description += "  Error message: ";
+      error.description += pen_parserError(err);
+      error.description += "\n";
+      error.description += "  Error located at line " + std::to_string(errorLineNum);
+      error.description += ", at text: ";
+      error.description += errorLine + "\n";
+      return error;
+    }
+
+    return configure(config, verbose);    
+  }
 
   //Method to try to convert the wrapper to a specific geometry type
   template<class geoType>
@@ -342,9 +387,14 @@ public:
   }
   
   virtual ~wrapper_geometry(){}
-
   
 };
+
+//Define wrapper_geometry error message function
+template<>
+constexpr const char* penred::errors::errorMessage<wrapper_geometry>(const int val) noexcept {
+  return wrapper_geometry::errorMessage(val);
+}
 
 //-------------------
 // Variance reduction

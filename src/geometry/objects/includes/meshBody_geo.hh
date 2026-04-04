@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2022-2023 Universitat de València - UV
 //    Copyright (C) 2022-2023 Universitat Politècnica de València - UPV
-//    Copyright (C) 2025 Vicent Giménez Alventosa
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -41,55 +41,6 @@
 #include <map>
 #include <memory>
 #include <fstream>
-
-enum pen_meshBodyErr{
-    PEN_MESHBODY_GEO_SUCCESS = 0,
-    PEN_MESHBODY_GEO_INPUT_SECTION,
-    PEN_MESHBODY_GEO_BAD_READ_DSMAX,
-    PEN_MESHBODY_GEO_INVALID_DSMAX,
-    PEN_MESHBODY_GEO_BAD_READ_KDET,
-    PEN_MESHBODY_GEO_INVALID_KDET,
-    PEN_MESHBODY_GEO_BAD_READ_REGIONSIZE,
-    PEN_MESHBODY_GEO_INVALID_REGIONSIZE,
-    PEN_MESHBODY_GEO_UNKNOWN_PARTICLE,
-    PEN_MESHBODY_GEO_BAD_READ_EABS,
-    PEN_MESHBODY_GEO_INVALID_EABS,
-    PEN_MESHBODY_GEO_UNDEF_BODY_LABEL,
-    PEN_MESHBODY_GEO_BODY_NOT_FOUND,
-    PEN_MESHBODY_GEO_UNEXPECTED_LINE_FORMAT,
-    PEN_MESHBODY_GEO_INVALID_FILE,
-    PEN_MESHBODY_GEO_INVALID_NBODIES,
-    PEN_MESHBODY_GEO_INVALID_MAT,
-    PEN_MESHBODY_GEO_INVALID_N_VERTEX_GROUP,
-    PEN_MESHBODY_GEO_INVALID_VERTEX_NUMBER,
-    PEN_MESHBODY_GEO_INVALID_TRIANGLES_NUMBER,
-    PEN_MESHBODY_BAD_MEMORY_ALLOCATION,
-    PEN_MESHBODY_MULTIPLE_WORLDS,
-    PEN_MESHBODY_WORLD_NOT_FOUND,
-    PEN_MESHBODY_GEO_INVALID_VERTEX_INDEX,
-    PEN_MESHBODY_GEO_INVALID_VERTEX_GROUP_INDEX,
-    PEN_MESHBODY_GEO_INVALID_TRANSFORMATION_INDEX,
-    PEN_MESHBODY_GEO_INVALID_TRANSFORMATION_TYPE,
-    PEN_MESHBODY_GEO_VG_NOT_FOUND,
-    PEN_MESHBODY_GEO_INVALID_DIR,
-    PEN_MESHBODY_GEO_INVALID_DS,
-    PEN_MESHBODY_GEO_INVALID_SCALE,
-    PEN_MESHBODY_GEO_TRIANGLES_OUT_OF_REGIONS,
-    PEN_MESHBODY_GEO_LOST_TRIANGLES,
-    PEN_MESHBODY_GEO_BODY_INTERSECTIONS_FOUND,
-    PEN_MESHBODY_GEO_CL_VECTOR_SIZES_MISMATCH,
-    PEN_MESHBODY_GEO_CL_DEVICE_NOT_FOUND,
-    PEN_MESHBODY_GEO_CL_MALLOC_FAIL,
-    PEN_MESHBODY_GEO_CL_BUFFER_CREATION_FAIL,
-    PEN_MESHBODY_GEO_CL_BUFFER_WRITE_FAIL,
-    PEN_MESHBODY_GEO_CL_BUFFER_PACK_FAIL,
-    PEN_MESHBODY_GEO_CL_PROGRAM_CREATION_FAIL,
-    PEN_MESHBODY_GEO_CL_PROGRAM_BUILD_FAIL,
-    PEN_MESHBODY_GEO_CL_KERNEL_CREATION_FAIL,
-    PEN_MESHBODY_GEO_CL_KERNEL_PACK_FAIL,
-    PEN_MESHBODY_GEO_CL_NO_CONFIGURED_DEVICES,    
-    PEN_MESHBODY_GEO_UNEXPECTED_ERROR,
-};
 
 class pen_meshBodyGeo;
 
@@ -653,6 +604,69 @@ private:
   
 public:
 
+  enum errors{
+    SUCCESS = 0,
+    SECTION_READ_FAIL,
+    MISSING_PARAMETER,
+    BAD_VALUE,
+    LOW_ON_MEMORY,
+    UNKNOWN_PARTICLE,
+    UNKNOWN_BODY_LABEL,
+    UNEXPECTED_LINE_FORMAT,
+    INVALID_FILE,
+    MULTIPLE_WORLDS,
+    WORLD_NOT_FOUND,
+    INVALID_TYPE,
+    VG_NOT_FOUND,
+    LOST_TRIANGLES,
+    BODY_INTERSECTIONS_FOUND,
+    VECTOR_SIZES_MISMATCH,
+    CL_DEVICE_NOT_FOUND,
+    CL_MALLOC_FAIL,
+    CL_BUFFER_CREATION_FAIL,
+    CL_BUFFER_WRITE_FAIL,
+    CL_BUFFER_PACK_FAIL,
+    CL_PROGRAM_CREATION_FAIL,
+    CL_PROGRAM_BUILD_FAIL,
+    CL_KERNEL_CREATION_FAIL,
+    CL_KERNEL_PACK_FAIL,
+    CL_NO_CONFIGURED_DEVICES,    
+    UNEXPECTED_ERROR,
+  };
+  
+  static constexpr const char* errorMessage(const int val) noexcept {
+    switch(val){
+    case SUCCESS: return "Success";
+    case SECTION_READ_FAIL: return "Unable to read section";
+    case MISSING_PARAMETER: return "Missing parameter";
+    case BAD_VALUE: return "Invalid value";
+    case LOW_ON_MEMORY: return "Low on memory";
+    case UNKNOWN_PARTICLE: return "Unknown particle";
+    case UNKNOWN_BODY_LABEL: return "Unknown body label";
+    case UNEXPECTED_LINE_FORMAT: return "Unexpected line format";
+    case INVALID_FILE: return "Invalid file";
+    case MULTIPLE_WORLDS: return "Multiple worlds defined";
+    case WORLD_NOT_FOUND: return "No world found";
+    case INVALID_TYPE: return "Invalid type";
+    case VG_NOT_FOUND: return "Vertex group not found";
+    case LOST_TRIANGLES: return "Lost triangles";
+    case BODY_INTERSECTIONS_FOUND: return "Intersecting bodies found";
+    case VECTOR_SIZES_MISMATCH: return "Vector sizes mismatch";
+    case CL_DEVICE_NOT_FOUND: return "Opencl device not found";
+    case CL_MALLOC_FAIL: return "Opencl malloc failed";
+    case CL_BUFFER_CREATION_FAIL: return "Opencl buffer creation failed";
+    case CL_BUFFER_WRITE_FAIL: return "Opencl buffer write failed";
+    case CL_BUFFER_PACK_FAIL: return "Opencl buffer pack failed";
+    case CL_PROGRAM_CREATION_FAIL: return "Opencl program creation failed";
+    case CL_PROGRAM_BUILD_FAIL: return "Opencl program build failed";
+    case CL_KERNEL_CREATION_FAIL: return "Opencl kernel creation failed";
+    case CL_KERNEL_PACK_FAIL: return "Opencl kernel pack failed";
+    case CL_NO_CONFIGURED_DEVICES: return "No opencl devices configured";
+    case UNEXPECTED_ERROR: return "Unexpected error";
+    default: return "Unknown error";
+    }
+  }  
+
   //A preload geometry file to use instead of filename during configuration
   std::string preloadGeo;
       
@@ -660,14 +674,12 @@ public:
       
   typedef vector3D<double> v3D;    
       
-  pen_meshBodyGeo() : iworld(0), worldFound(false) {
-    configStatus = 0;
-  }  
+  pen_meshBodyGeo() : iworld(0), worldFound(false) {}  
   
-  int configure(const pen_parserSection& config, const unsigned verbose) override;
-  int GEOMESH(std::istream& in,
-	      std::map<std::string, std::vector<pen_meshTransform::group>>& transMap,
-	      const unsigned verbose);
+  penred::errors::Error specificConfigure(const pen_parserSection& config, const unsigned verbose) override;
+  penred::errors::Error GEOMESH(std::istream& in,
+				std::map<std::string, std::vector<pen_meshTransform::group>>& transMap,
+				const unsigned verbose);
   static int meshGetLine(std::vector<std::ifstream>& included,
 			 std::istream& root,
 			 std::string&line,
@@ -971,5 +983,10 @@ public:
   inline bool isTransformable() const override { return true; }
   
 };
+
+template<>
+constexpr const char* penred::errors::errorMessage<pen_meshBodyGeo>(const int val) noexcept {
+  return pen_meshBodyGeo::errorMessage(val);
+}
 
 #endif

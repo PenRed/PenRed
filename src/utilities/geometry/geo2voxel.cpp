@@ -305,9 +305,9 @@ int main(int argc, char** argv){
   // Initialize voxel geometry
   //******************************
   pen_voxelGeo voxelgeo;
-  err = voxelgeo.setVoxels(nvox,sizes,voxMats,voxDensFact,3);
-  if(err != 0){
-    printf("Error using 'setVoxels': %d\n",err);
+  penred::errors::Error error = voxelgeo.setVoxels(nvox,sizes,voxMats,voxDensFact);
+  if(error){
+    printf("Error using 'setVoxels': \n%s\n", error.stringify().c_str());
     free(voxMats);
     free(voxDensFact);
     return -13;

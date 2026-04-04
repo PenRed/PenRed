@@ -31,21 +31,6 @@
 
 #include "geometry_classes.hh"
 
-enum pen_filterGeoErr{
-  PEN_FILTER_GEO_SUCCESS = 0,
-  PEN_FILTER_GEO_NO_FILTERS,
-  PEN_FILTER_GEO_INVALID_NUMBER_OF_FILTERS,
-  PEN_FILTER_GEO_MISSING_POSITION,
-  PEN_FILTER_GEO_INVALID_POSITION,
-  PEN_FILTER_GEO_MISSING_WIDTH,
-  PEN_FILTER_GEO_INVALID_WIDTH,
-  PEN_FILTER_GEO_MISSING_MATERIAL,
-  PEN_FILTER_GEO_INVALID_MATERIAL,
-  PEN_FILTER_GEO_INVALID_DETECTOR,
-  PEN_FILTER_GEO_KNOWN_PARTICLE,
-  PEN_FILTER_GEO_BAD_EABS,
-};
-
 struct pen_filterBody : public pen_baseBody{
   std::string name;
   double origin, limit;
@@ -62,10 +47,30 @@ class pen_filterGeo : public abc_geometry<pen_filterBody>{
   double origin;
   
   public:
+
+  enum errors{
+    PEN_FILTER_GEO_SUCCESS = 0,
+    PEN_FILTER_GEO_NO_FILTERS,
+    PEN_FILTER_GEO_INVALID_NUMBER_OF_FILTERS,
+    PEN_FILTER_GEO_MISSING_PARAMETER,
+    PEN_FILTER_GEO_BAD_VALUE,
+  };
+
+  static constexpr const char* errorMessage(const int val) noexcept {
+    switch(val){
+    case PEN_FILTER_GEO_SUCCESS: return "Success";
+    case PEN_FILTER_GEO_NO_FILTERS: return "No filters provided";
+    case PEN_FILTER_GEO_INVALID_NUMBER_OF_FILTERS: return "Invalid number of filters";
+    case PEN_FILTER_GEO_MISSING_PARAMETER: return "Missing parameter";
+    case PEN_FILTER_GEO_BAD_VALUE: return "Bad parameter value";
+    default: return "Unknown error";
+    }
+  }  
+  
   pen_filterGeo() : origin(0.0) {
   }
   
-  int configure(const pen_parserSection& config, unsigned verbose);
+  penred::errors::Error specificConfigure(const pen_parserSection& config, unsigned verbose);
   
   void locate(pen_particleState&) const;
   void step(pen_particleState&,
@@ -79,5 +84,11 @@ class pen_filterGeo : public abc_geometry<pen_filterBody>{
   inline std::string getBodyName(const unsigned) const {return std::string("NONE");}
   
 };
+
+//Define error message function
+template<>
+constexpr const char* penred::errors::errorMessage<pen_filterGeo>(const int val) noexcept {
+  return pen_filterGeo::errorMessage(val);
+}
 
 #endif

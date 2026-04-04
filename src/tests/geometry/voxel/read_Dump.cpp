@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019 Universitat de València - UV
 //    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -109,8 +110,6 @@ int voxGeocmp(const pen_voxelGeo& geo1,
 }
 
 int main(){
-
-  int err;
   
   pen_voxelGeo voxelgeo1;
   pen_voxelGeo voxelgeo2;
@@ -148,9 +147,9 @@ int main(){
   //******************************
   // Initialize voxel geometry 1
   //******************************
-  err = voxelgeo1.setVoxels(nvox,sizes,voxMats,voxDens,3);
-  if(err != 0){
-    printf("Error using 'setVoxels': %d\n",err);
+  penred::errors::Error errSetVox = voxelgeo1.setVoxels(nvox,sizes,voxMats,voxDens);
+  if(errSetVox){
+    printf("Error using 'setVoxels': \n%s\n",errSetVox.stringify().c_str());
     free(voxMats);
     free(voxDens);
     return -2;
@@ -238,9 +237,9 @@ int main(){
 
   unsigned char* pdata;
   size_t dataSize;
-  err = voxelgeo1.dump(pdata,dataSize,3);
-  if(err != 0){
-    printf("Error dumping voxel data: %d\n",err);
+  penred::errors::Error errDump = voxelgeo1.dump(pdata,dataSize,3);
+  if(errDump){
+    printf("Error dumping voxel data: \n%s\n",errDump.stringify().c_str());
     return -6;
   }
 
@@ -251,9 +250,9 @@ int main(){
   //*********************************
 
   size_t pos = 0;
-  err = voxelgeo2.loadData(pdata,pos,3);
-  if(err != 0){
-    printf("Error reading dumped data to geometry 2: %d\n",err);
+  penred::errors::Error errLoadData = voxelgeo2.loadData(pdata,pos,3);
+  if(errLoadData){
+    printf("Error reading dumped data to geometry 2: \n%s\n",errLoadData.stringify().c_str());
     free(pdata);
     return -7;
   }
@@ -295,9 +294,9 @@ int main(){
     return -11;
   }
 
-  err = voxelgeo3.loadFile("dumpVox.dump",3);
-  if(err != 0){
-    printf("Error loading voxel geometry from file: %d\n",err);
+  penred::errors::Error errLoadFile = voxelgeo3.loadFile("dumpVox.dump",3);
+  if(errLoadFile){
+    printf("Error loading voxel geometry from file: \n%s\n",errLoadFile.stringify().c_str());
     return -12;
   }
 
@@ -312,9 +311,9 @@ int main(){
 
   printf("Load voxel data in ASCII format in geometry 4.\n");
 
-  err = voxelgeo4.loadASCII("asciiVox.geo", 3);
-  if(err != 0){
-    printf("Error loading voxel geometry from file: %d\n",err);
+  penred::errors::Error errLoadASCII = voxelgeo4.loadASCII("asciiVox.geo");
+  if(errLoadASCII){
+    printf("Error loading voxel geometry from file: \n%s\n",errLoadASCII.stringify().c_str());
     return -14;
   }
 

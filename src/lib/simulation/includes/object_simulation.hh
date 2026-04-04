@@ -547,10 +547,13 @@ namespace penred{
 	}
 
 	//Configure geometry  
-	geometry->name.assign("geometry");    
-	if(geometry->configure(geometrySection,verbose) != 0){
+	geometry->name.assign("geometry");
+	penred::errors::Error geoError = geometry->configure(geometrySection,
+							     verbose);
+	if(geoError){
 	  if(verbose > 0){
 	    cout << "createGeometry: Error: Geometry configuration failed." << std::endl;
+	    cout << geoError.stringify() << std::endl;
 	  }
 	  return errors::ERROR_AT_GEOMETRY_CONFIGURATION;
 	}

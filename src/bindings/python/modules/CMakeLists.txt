@@ -3,7 +3,7 @@
 #
 #    Copyright (C) 2024 Universitat de València - UV
 #    Copyright (C) 2024 Universitat Politècnica de València - UPV
-#    Copyright (C) 2025 Vicent Giménez Alventosa
+#    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -65,18 +65,39 @@ else()
     set(MODULE_SUFFIX ${PYTHON_EXTENSION_SUFFIX})
 endif()
 
+# Create auxiliary library
+add_library(pyFunctions STATIC ${CMAKE_CURRENT_SOURCE_DIR}/functions.cpp)
+target_link_libraries(pyFunctions PUBLIC pybind11::module)
+target_link_libraries(pyFunctions PUBLIC pen_internalData)
+target_include_directories(pyFunctions PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(pyFunctions PUBLIC ${PROJECT_SOURCE_DIR}/kernel/includes)
+
 # Create extension modules
-add_library(simulator MODULE ${CMAKE_CURRENT_SOURCE_DIR}/simulator.cpp)
-target_link_libraries(simulator PUBLIC pybind11::module)
-target_link_libraries(simulator PUBLIC pen_sim)
+
+## Data module
+add_library(pyData MODULE ${CMAKE_CURRENT_SOURCE_DIR}/data.cpp)
+target_link_libraries(pyData PUBLIC pybind11::module)
+target_link_libraries(pyData PUBLIC pyFunctions)
+set_target_properties(pyData PROPERTIES
+      OUTPUT_NAME data${MODULE_SUFFIX}
+      SUFFIX ""
+      PREFIX "")
+
+## Simulation module
+add_library(pySimulator MODULE ${CMAKE_CURRENT_SOURCE_DIR}/simulator.cpp)
+target_link_libraries(pySimulator PUBLIC pybind11::module)
+target_link_libraries(pySimulator PUBLIC pyFunctions)
+target_link_libraries(pySimulator PUBLIC pen_sim)
+
 if(XRAY)
-    target_link_libraries(simulator PUBLIC pen_xray)
+    target_link_libraries(pySimulator PUBLIC pen_xray)
 endif(XRAY)
-set_target_properties(simulator PROPERTIES
+set_target_properties(pySimulator PROPERTIES
       OUTPUT_NAME simulation${MODULE_SUFFIX}
       SUFFIX ""
       PREFIX "")
       
+## PSF module
 add_library(pyPSF MODULE ${CMAKE_CURRENT_SOURCE_DIR}/psf.cpp)
 target_link_libraries(pyPSF PUBLIC pybind11::module)
 target_link_libraries(pyPSF PUBLIC pen_psf)
@@ -88,7 +109,12 @@ set_target_properties(pyPSF PROPERTIES
 #-----------------------------------------------------------------------------
 # Install python modules
 install(
-  TARGETS simulator
+  TARGETS pyData
+  DESTINATION ${PROJECT_SOURCE_DIR}/bindings/python/pyPenred/pyPenred
+  )
+
+install(
+  TARGETS pySimulator
   DESTINATION ${PROJECT_SOURCE_DIR}/bindings/python/pyPenred/pyPenred
   )
   

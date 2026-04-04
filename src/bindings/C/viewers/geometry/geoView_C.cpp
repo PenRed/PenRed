@@ -30,13 +30,13 @@
 extern "C"{
     
  #ifdef _WIN32
-   __declspec(dllexport) pen_geoView* pen_geoView_new(){return new pen_geoView;}
+  __declspec(dllexport) penred::geometry::Viewer* pen_geoView_new(){return new penred::geometry::Viewer;}
 
-   __declspec(dllexport) void pen_geoView_delete(pen_geoView* i){delete i;} 
+   __declspec(dllexport) void pen_geoView_delete(penred::geometry::Viewer* i){delete i;} 
  #else
-   pen_geoView* pen_geoView_new(){return new pen_geoView;}
+   penred::geometry::Viewer* pen_geoView_new(){return new penred::geometry::Viewer;}
 
-   void pen_geoView_delete(pen_geoView* i){delete i;} 
+   void pen_geoView_delete(penred::geometry::Viewer* i){delete i;} 
  #endif
 
 

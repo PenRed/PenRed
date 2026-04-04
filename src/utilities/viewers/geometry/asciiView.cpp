@@ -62,7 +62,7 @@ int main(int argc, char** argv){
     return -2;
   }
 
-  pen_geoView viewer;
+  penred::geometry::Viewer viewer;
   err = viewer.init(geometrySection,3);
   if(err != 0){
     printf("Error: Unable to initialize viewer");

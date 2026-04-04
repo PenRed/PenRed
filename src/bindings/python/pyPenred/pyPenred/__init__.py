@@ -7,6 +7,7 @@ import sys
 import numpy as np
 from pyPenred import simulation
 from pyPenred import psf
+from pyPenred import data
 
 simulation.create = simulation.simulator
 

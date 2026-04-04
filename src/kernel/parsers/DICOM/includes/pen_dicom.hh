@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2019-2023 Universitat de València - UV
 //    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
-//    Copyright (C) 2024-2025 Vicent Giménez Alventosa
+//    Copyright (C) 2024-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -53,41 +53,9 @@
 #include "dcmtk/dcmimgle/dcmimage.h"
 #include "dcmtk/oflog/oflog.h"
 
+#include "pen_errors.hh"
 #include "math_classes.hh"
 #include "logger.hh"
-
-enum pen_dicom_status{
-		      PEN_DICOM_SUCCESS = 0,
-		      PEN_DICOM_FOLDER_NOT_SPECIFIED,
-		      PEN_DICOM_FOLDER_NOT_FOUND,
-		      PEN_DICOM_MULTIPLE_MODALITIES,
-		      PEN_DICOM_BAD_IMAGE_OPEN,
-		      PEN_DICOM_BAD_READ,
-		      PEN_DICOM_BAD_READ_COLUMNS,
-		      PEN_DICOM_BAD_READ_ROWS,
-		      PEN_DICOM_BAD_READ_IMAGE_POSITION,
-		      PEN_DICOM_BAD_READ_PIXEL_SPACING,
-		      PEN_DICOM_BAD_READ_SLICE_THICKNESS,
-		      PEN_DICOM_NO_DICOM_FOUND,
-		      PEN_DICOM_SMALL_VOXELS,
-		      PEN_DICOM_BAD_ALLOCATION,
-		      PEN_DICOM_NON_MONOCHROME_IMAGE,
-		      PEN_DICOM_MISMATCH_DIMENSIONS,
-		      PEN_DICOM_BAD_READ_PIXEL_REPRESENTATION,
-		      PEN_DICOM_BAD_PIXEL_REPRESENTATION,
-		      PEN_DICOM_BAD_READ_PIXEL_DATA,
-		      PEN_DICOM_BAD_PIXEL_CONVERSION,
-		      PEN_DICOM_MISMATCH_EXPECTED_READ,
-		      PEN_DICOM_BAD_READ_ORIGIN,
-		      PEN_DICOM_NO_DICOM_LOADED,
-		      PEN_DICOM_ERROR_REOPENING_DICOM,
-		      PEN_DICOM_NVOXELS_MISMATCH,
-		      PEN_DICOM_INVALID_ORIENTATION,
-		      PEN_DICOM_ERROR_CREATING_FILE,
-		      PEN_DICOM_ERROR_NULL_FILENAME,
-		      PEN_DICOM_ERROR_SPACING_MISMATCH,
-		      PEN_DICOM_IMPOSSIBLE_ERROR
-};
 
 struct pen_contour{
 
@@ -359,6 +327,73 @@ private:
   pen_ctData ctData;
 
 public:
+
+  enum errors{
+    PEN_DICOM_SUCCESS = 0,
+    PEN_DICOM_FOLDER_NOT_SPECIFIED,
+    PEN_DICOM_FOLDER_NOT_FOUND,
+    PEN_DICOM_MULTIPLE_MODALITIES,
+    PEN_DICOM_BAD_IMAGE_OPEN,
+    PEN_DICOM_BAD_READ,
+    PEN_DICOM_BAD_READ_COLUMNS,
+    PEN_DICOM_BAD_READ_ROWS,
+    PEN_DICOM_BAD_READ_IMAGE_POSITION,
+    PEN_DICOM_BAD_READ_PIXEL_SPACING,
+    PEN_DICOM_BAD_READ_SLICE_THICKNESS,
+    PEN_DICOM_NO_DICOM_FOUND,
+    PEN_DICOM_SMALL_VOXELS,
+    PEN_DICOM_BAD_ALLOCATION,
+    PEN_DICOM_NON_MONOCHROME_IMAGE,
+    PEN_DICOM_MISMATCH_DIMENSIONS,
+    PEN_DICOM_BAD_READ_PIXEL_REPRESENTATION,
+    PEN_DICOM_BAD_PIXEL_REPRESENTATION,
+    PEN_DICOM_BAD_READ_PIXEL_DATA,
+    PEN_DICOM_BAD_PIXEL_CONVERSION,
+    PEN_DICOM_BAD_READ_ORIGIN,
+    PEN_DICOM_NO_DICOM_LOADED,
+    PEN_DICOM_ERROR_REOPENING_DICOM,
+    PEN_DICOM_NVOXELS_MISMATCH,
+    PEN_DICOM_INVALID_ORIENTATION,
+    PEN_DICOM_ERROR_CREATING_FILE,
+    PEN_DICOM_ERROR_NULL_FILENAME,
+    PEN_DICOM_ERROR_SPACING_MISMATCH,
+    PEN_DICOM_IMPOSSIBLE_ERROR
+  };
+
+  static constexpr const char* errorMessage(const int val) noexcept {
+    switch(val){
+    case PEN_DICOM_SUCCESS: return "Success";
+    case PEN_DICOM_FOLDER_NOT_SPECIFIED: return "Missing folder";
+    case PEN_DICOM_FOLDER_NOT_FOUND: return "Folder not found";
+    case PEN_DICOM_MULTIPLE_MODALITIES: return "Multiple modalities found";
+    case PEN_DICOM_BAD_IMAGE_OPEN: return "Unable to open image";
+    case PEN_DICOM_BAD_READ: return "Unable to read value";
+    case PEN_DICOM_BAD_READ_COLUMNS: return "Unable to read number of columns";
+    case PEN_DICOM_BAD_READ_ROWS: return "Unable to read number of rows";
+    case PEN_DICOM_BAD_READ_IMAGE_POSITION: return "Unable to read image position";
+    case PEN_DICOM_BAD_READ_PIXEL_SPACING: return "Unable to read pixel spacing";
+    case PEN_DICOM_BAD_READ_SLICE_THICKNESS: return "Unable to read slice thickness";
+    case PEN_DICOM_NO_DICOM_FOUND: return "No DICOM found";
+    case PEN_DICOM_SMALL_VOXELS: return "Voxels are too small";
+    case PEN_DICOM_BAD_ALLOCATION: return "Unable to allocate memory";
+    case PEN_DICOM_NON_MONOCHROME_IMAGE: return "Image is not monochrome";
+    case PEN_DICOM_MISMATCH_DIMENSIONS: return "Images dimensions mismatch";
+    case PEN_DICOM_BAD_READ_PIXEL_REPRESENTATION: return "Unable to read pixel representation";
+    case PEN_DICOM_BAD_PIXEL_REPRESENTATION: return "Invalid pixel representation";
+    case PEN_DICOM_BAD_READ_PIXEL_DATA: return "Unable to read pixel data";
+    case PEN_DICOM_BAD_PIXEL_CONVERSION: return "Unable to convert pixel data";
+    case PEN_DICOM_BAD_READ_ORIGIN: return "Unable to read origin";
+    case PEN_DICOM_NO_DICOM_LOADED: return "No DICOM loaded";
+    case PEN_DICOM_ERROR_REOPENING_DICOM: return "Unable to reopen DICOM";
+    case PEN_DICOM_NVOXELS_MISMATCH: return "Number of voxels mismatch";
+    case PEN_DICOM_INVALID_ORIENTATION: return "Invalid orientation";
+    case PEN_DICOM_ERROR_CREATING_FILE: return "Unable to create file";
+    case PEN_DICOM_ERROR_NULL_FILENAME: return "Null filename";
+    case PEN_DICOM_ERROR_SPACING_MISMATCH: return "Spacing mismatch";
+    default: return "Unknown error";
+    }
+  }  
+  
   inline bool isCT() const {return imageModality.compare("CT") == 0;}
   inline std::string ctReadAcquisitionType() const {return ctData.acquisitionTypeString;}
   inline unsigned ctReadAcquisitionTypeIndex() const {return ctData.acquisitionType;}
@@ -408,16 +443,16 @@ protected:
 
   double originalOrigin[3];
   
-  int transformContoursAndSeeds(const double* imageOrientation,
-				 const unsigned verbose);    
+  penred::errors::Error transformContoursAndSeeds(const double* imageOrientation,
+						  const unsigned verbose);    
 protected:
 public:
 
   pen_dicom();
-  int loadDicom(const char* dirName,
-		const unsigned verbose,
-		const bool onlyMetadata = false);  
-  int assignContours();
+  penred::errors::Error loadDicom(const char* dirName,
+				  const unsigned verbose,
+				  const bool onlyMetadata = false);  
+  penred::errors::Error assignContours();
   
   
   static bool checkImgModality(const char* Modality);
@@ -480,17 +515,22 @@ public:
     return seeds[icont];
   }
 
-  int printContours(const char* filename) const;
-  int printContourMasks(const char* filename) const;
-  int printContourMasksMHD(const char* filename) const;
-  int printSeeds(const char* filename) const;
-  int printImage(const char* filename) const;
-  int printContourVox(const char* filename) const;
+  penred::errors::Error printContours(const char* filename) const;
+  penred::errors::Error printContourMasks(const char* filename) const;
+  penred::errors::Error printContourMasksMHD(const char* filename) const;
+  penred::errors::Error printSeeds(const char* filename) const;
+  penred::errors::Error printImage(const char* filename) const;
+  penred::errors::Error printContourVox(const char* filename) const;
   void clear();
 
   ~pen_dicom();
 };
 
+//Define pen_dicom error message function
+template<>
+constexpr const char* penred::errors::errorMessage<pen_dicomGeo>(const int val) noexcept {
+  return pen_dicom::errorMessage(val);
+}
 
 //----------------------
 // Auxiliar functions

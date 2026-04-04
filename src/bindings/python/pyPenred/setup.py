@@ -33,7 +33,7 @@ setup(
         'Operating System :: MacOS',
     ],
     package_data={
-        'pyPenred': ['*.so', '*.dll', '*.pyd', 'simulation*']
+        'pyPenred': ['*.so', '*.dll', '*.pyd', 'simulation*', 'psf*', 'data*']
     },
     install_requires=[
         'pyyaml',
