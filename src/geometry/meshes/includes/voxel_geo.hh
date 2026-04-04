@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2023 Universitat de València - UV
 //    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -85,6 +86,38 @@ public:
   static const double pZero;
   static const double nZero;
   static const double inf;
+
+  enum errors{
+    SUCCESS = 0,
+    MISSING_CONFIG_PARAMETER,
+    CORRUPTED_FILE,
+    INVALID_FILE,
+    BAD_VALUE,
+    UNKNOWN_BODY,
+    MESH_NOT_INITIALIZED,
+    INVALID_DIMENSIONS,
+    LOW_MEMORY,
+    ERROR_SETTING_VOXELS,
+    ERROR_LOADING_DATA,
+    GEOMETRY_NOT_LOADED,
+  };
+      
+  static constexpr const char* errorMessage(const int val) noexcept {
+    switch(val){
+    case SUCCESS: return "Success";
+    case MISSING_CONFIG_PARAMETER: return "Missing configuration parameter";
+    case CORRUPTED_FILE: return "Corrupted file";
+    case INVALID_FILE: return "Invalid file";
+    case BAD_VALUE: return "Bad parameter value";
+    case UNKNOWN_BODY: return "Unknown body";
+    case INVALID_DIMENSIONS: return "Invalid dimensions";
+    case LOW_MEMORY: return "Low memory";
+    case ERROR_SETTING_VOXELS: return "Unable to set voxels";
+    case ERROR_LOADING_DATA: return "Error loading data";
+    case GEOMETRY_NOT_LOADED: return "No geometry has been loaded yet";
+    default: return "Unknown error";
+    }
+  }
   
   pen_voxelGeo();
   
@@ -99,7 +132,8 @@ public:
 
   
   
-  virtual int configure(const pen_parserSection& config, const unsigned verbose) override;
+  virtual penred::errors::Error specificConfigure(const pen_parserSection& config,
+						  const unsigned verbose) override;
 
   void locate(pen_particleState& state) const final override;
   void locateInMesh(pen_particleState& state) const;
@@ -131,27 +165,25 @@ public:
                  const double w,
                  double& ds) const;  
   
-  int setVoxels(const unsigned nvox[3],
-		const double size[3],
-		const unsigned* mats,
-		const double* dens,
-		const unsigned verbose = 0);
+  penred::errors::Error setVoxels(const unsigned nvox[3],
+				  const double size[3],
+				  const unsigned* mats,
+				  const double* dens);
 
-  int loadData(const unsigned char* data,
-	       size_t& pos,
-	       const unsigned verbose = 0);
+  penred::errors::Error loadData(const unsigned char* data,
+				 size_t& pos,
+				 const unsigned verbose = 0);
 
-  int dump(unsigned char*& data,
-	   size_t& pos,
-	   const unsigned verbose) const;
+  penred::errors::Error dump(unsigned char*& data,
+			     size_t& pos,
+			     const unsigned verbose) const;
 
-  int dump2File(const char* filename);
+  penred::errors::Error dump2File(const char* filename);
   
-  int loadFile(const char* filename,
-	       const unsigned verbose = 0);
+  penred::errors::Error loadFile(const char* filename,
+				 const unsigned verbose = 0);
 
-  int loadASCII(const char* filename,
-		const unsigned verbose = 0);  
+  penred::errors::Error loadASCII(const char* filename);  
 
   unsigned getIBody(const char* bname) const override;
 
@@ -345,6 +377,12 @@ inline void pen_voxelGeo::exitEnclosure(const double x,
   //Move the particle the required distance to reach
   //geometry mesh on some axis.
   ds = std::min(std::min(dsxOut,dsyOut),dszOut);
+}
+
+//Define pen_voxelGeo error message function
+template<>
+constexpr const char* penred::errors::errorMessage<pen_voxelGeo>(const int val) noexcept {
+  return pen_voxelGeo::errorMessage(val);
 }
 
 #endif

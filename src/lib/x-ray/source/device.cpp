@@ -481,7 +481,8 @@ namespace penred{
       constexpr double deg2rad = pi/180.0;
       
       const double anodeAngleRad = deg2rad*reader.anodeAngle;
-      const double beamRad = reader.focalSpot*tan(pi05-anodeAngleRad);
+      const double beamDiameter = reader.focalSpot*tan(pi05-anodeAngleRad);
+      const double beamRad = beamDiameter/2.0;
       const double tanAnodeAngle = tan(anodeAngleRad);
       
       if(reader.simAnode){

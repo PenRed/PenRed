@@ -1982,17 +1982,12 @@ int createGeometry(wrapper_geometry*& geometry,
   }
 
   //Configure geometry  
-  geometry->name.assign("geometry");    
-  if(geometry->configure(geometrySection,verbose) != 0){
+  geometry->name.assign("geometry");
+  penred::errors::Error geoError = geometry->configure(geometrySection,verbose);
+  if(geoError){
     if(verbose > 0)
-      log.printf("createGeometry: Error: Fail on geometry configuration.\n");
-    return -5;
-  }
-  
-  //Check errors
-  if(geometry->configureStatus() != 0){
-    if(verbose > 0)
-      log.printf("createGeometry: Error: Fail on geometry configuration.\n");
+      log.printf("createGeometry:Error: Fail on geometry configuration:\n%s\n",
+		 geoError.stringify().c_str());
     return -5;
   }
 

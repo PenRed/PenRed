@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019 Universitat de València - UV
 //    Copyright (C) 2019 Universitat Politècnica de València - UPV
+//    Copyright (C) 2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -42,19 +43,19 @@ pen_voxelGeo::pen_voxelGeo() : nx(0), ny(0), nz(0), nxy(0),
 {}
 
 
-int pen_voxelGeo::configure(const pen_parserSection& config,
-			    const unsigned verbose){
+penred::errors::Error pen_voxelGeo::specificConfigure(const pen_parserSection& config,
+						      const unsigned verbose){
 
-  int err = 0;
-
+  penred::errors::SpecificError<pen_voxelGeo> error;
+  
   // Read voxels filename
   //////////////////////////
   std::string filename;
   if(config.read("filename",filename) != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("pen_voxelGeo:configure:Error: Unable to read field 'filename'. String spected.\n");
-    }
-    err++;
+    error.code = MISSING_CONFIG_PARAMETER;
+    error.description = "pen_voxelGeo:configure:Error: Unable to read field "
+      "'filename'. String spected.";
+    return error;
   }
 
   //Check file type, ASCII or binary
@@ -66,63 +67,24 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
     printf("Expected voxelized file in %s format\n\n", ASCII ? "ASCII" : "binary" );
   }
 
-  if(ASCII){    
-    int err2 = loadASCII(filename.c_str(),verbose);  
-    if(err2 != 0){
-      if(verbose > 0){
-	printf("pen_voxelGeo:configure: Error reading and "
-	       "loading ASCII voxel geometry file '%s': Corrupted file\n",
-	       filename.c_str());
-	
-	switch(err2){
-	case -1:
-	  printf("Unexpected error: No filename provided. "
-		 "Please, report this error.\n");
-	  break;
-	case -2:
-	  printf("Unable to open geometry file.\n");
-	  break;
-	case -3:
-	  printf("Number of voxels must be positive.\n");	  
-	  break;
-	case -4:
-	  printf("Voxels sizes must be positive.\n");
-	  break;
-	case -5:
-	  printf("Unexpected end of file reached.\n");
-	  break;
-	case -6:
-	  printf("Invalid material index. Material index "
-		 "must be greater than 0.\n");
-	  break;
-	}
-      }
-      err++;
-      configStatus = err;
-      return err;
+  if(ASCII){
+    penred::errors::Error loadErr = loadASCII(filename.c_str());  
+    if(loadErr){
+      error.code = CORRUPTED_FILE;
+      error.description = "pen_voxelGeo:configure: Error reading and "
+	"loading ASCII voxel geometry file " + filename + ": ";
+      error.setTrace(loadErr);
+      return error;
     }
   }
   else{
-    int err2 = loadFile(filename.c_str(),verbose);  
-    if(err2 != 0){
-      if(verbose > 0){
-	printf("pen_voxelGeo:configure: Error reading and "
-	       "loading binary voxel geometry file '%s': %d\n",
-	       filename.c_str(),err2);
-      }
-      switch(err2){
-      case -1:
-	printf("Unexpected error: No filename provided. "
-	       "Please, report this error.\n");
-	break;
-      case -2:
-	printf("Unable to open geometry file.\n");
-	break;
-      }
-      
-      err++;
-      configStatus = err;
-      return err;
+    penred::errors::Error loadErr = loadFile(filename.c_str(),verbose);  
+    if(loadErr){
+      error.code = CORRUPTED_FILE;
+      error.description = "pen_voxelGeo:configure: Error reading and "
+	"loading binary voxel geometry file " + filename + ": ";
+      error.setTrace(loadErr);
+      return error;
     }
   }
   
@@ -131,11 +93,12 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
   int aux;
   if(config.read("nvoxels/nx",aux) == INTDATA_SUCCESS){
     if(aux != (int)nx){
-      if(verbose > 0){
-	printf("pen_voxelGeo:configure:Error: Read value 'nvoxels/nx' mismatch with data stored in %s.\n",filename.c_str());
-	printf("                       %d != %u\n",aux,nx);
-      }
-      err++;
+      error.code = BAD_VALUE;
+      error.description  = "pen_voxelGeo:configure:Error: Read value (";
+      error.description += std::to_string(aux);
+      error.description += ") 'nvoxels/nx' mismatch with value stored (";
+      error.description += std::to_string(nx) + ") in " + filename;
+      return error;
     }
     else if(verbose > 1)
       printf("Number of voxels in x axis match!\n");
@@ -143,11 +106,12 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
 
   if(config.read("nvoxels/ny",aux) == INTDATA_SUCCESS){
     if(aux != (int)ny){
-      if(verbose > 0){
-	printf("pen_voxelGeo:configure:Error: Read value 'nvoxels/ny' mismatch with data stored in %s.\n",filename.c_str());
-	printf("                       %d != %u\n",aux,ny);
-      }
-      err++;
+      error.code = BAD_VALUE;
+      error.description  = "pen_voxelGeo:configure:Error: Read value (";
+      error.description += std::to_string(aux);
+      error.description += ") 'nvoxels/ny' mismatch with value stored (";
+      error.description += std::to_string(ny) + ") in " + filename;
+      return error;
     }
     else if(verbose > 1)
       printf("Number of voxels in y axis match!\n");
@@ -155,11 +119,12 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
   
   if(config.read("nvoxels/nz",aux) == INTDATA_SUCCESS){
     if(aux != (int)nz){
-      if(verbose > 0){
-	printf("pen_voxelGeo:configure:Error: Read value 'nvoxels/nz' mismatch with data stored in %s.\n",filename.c_str());
-	printf("                       %d != %u\n",aux,nz);
-      }
-      err++;
+      error.code = BAD_VALUE;
+      error.description  = "pen_voxelGeo:configure:Error: Read value (";
+      error.description += std::to_string(aux);
+      error.description += ") 'nvoxels/nz' mismatch with value stored (";
+      error.description += std::to_string(nz) + ") in " + filename;
+      return error;
     }
     else if(verbose > 1)
       printf("Number of voxels in z axis match!\n");
@@ -170,11 +135,12 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
   double auxd;
   if(config.read("voxel-size/dx",auxd) == INTDATA_SUCCESS){
     if(fabs((auxd-dx)/dx) > 1.0E-6){
-      if(verbose > 0){
-	printf("pen_voxelGeo:configure:Error: Read value 'voxe-size/dx' mismatch with data stored in %s.\n",filename.c_str());
-	printf("                       %12.4E != %12.4E\n",auxd,dx);
-      }
-      err++;
+      error.code = BAD_VALUE;
+      error.description  = "pen_voxelGeo:configure:Error: Read value (";
+      error.description += std::to_string(auxd);
+      error.description += ") 'voxe-size/dx' mismatch with value stored (";
+      error.description += std::to_string(dx) + ") in " + filename;
+      return error;
     }
     else if(verbose > 1)
       printf("Voxels size in x axis match!\n");
@@ -182,11 +148,12 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
 
   if(config.read("voxel-size/dy",auxd) == INTDATA_SUCCESS){
     if(fabs((auxd-dy)/dy) > 1.0E-6){
-      if(verbose > 0){
-	printf("pen_voxelGeo:configure:Error: Read value 'voxe-size/dy' mismatch with data stored in %s.\n",filename.c_str());
-	printf("                       %12.4E != %12.4E\n",auxd,dy);
-      }
-      err++;
+      error.code = BAD_VALUE;
+      error.description  = "pen_voxelGeo:configure:Error: Read value (";
+      error.description += std::to_string(auxd);
+      error.description += ") 'voxe-size/dy' mismatch with value stored (";
+      error.description += std::to_string(dy) + ") in " + filename;
+      return error;
     }
     else if(verbose > 1)
       printf("Voxels size in y axis match!\n");
@@ -194,11 +161,12 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
   
   if(config.read("voxel-size/dz",auxd) == INTDATA_SUCCESS){
     if(fabs((auxd-dz)/dz) > 1.0E-6){
-      if(verbose > 0){
-	printf("pen_voxelGeo:configure:Error: Read value 'voxe-size/dz' mismatch with data stored in %s.\n",filename.c_str());
-	printf("                       %12.4E != %12.4E\n",auxd,dz);
-      }
-      err++;
+      error.code = BAD_VALUE;
+      error.description  = "pen_voxelGeo:configure:Error: Read value (";
+      error.description += std::to_string(auxd);
+      error.description += ") 'voxe-size/dz' mismatch with value stored (";
+      error.description += std::to_string(dz) + ") in " + filename;
+      return error;
     }
     else if(verbose > 1)
       printf("Voxels size in z axis match!\n");
@@ -216,30 +184,33 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
       for(unsigned iname = 0; iname < bodyAliasVect.size(); iname++){
 	unsigned bodyIndex = getIBody(bodyAliasVect[iname].c_str());
 	if(bodyIndex > nBodies){
-	  if(verbose > 0){
-	    printf("pen_voxelGeo:configure:Error: Body alias '%s' not found. Can't set DSMAX.\n",bodyAliasVect[iname].c_str());
-	  }
-	  err++;
+	  error.code = UNKNOWN_BODY;
+	  error.description  = "pen_voxelGeo:configure:Error: Body alias ";
+	  error.description += bodyAliasVect[iname];
+	  error.description += " not found. Unable to set DSMAX.";
+	  return error;
 	}
 	else{
 	  //Read dsmax
 	  std::string key = "dsmax/" + bodyAliasVect[iname];
 	  double auxDSmax; 
 	  if(config.read(key,auxDSmax) != INTDATA_SUCCESS){
-	    if(verbose > 0){
-	      printf("pen_voxelGeo:configure:Error: Unable to read DSMAX for body alias '%s'. Double expected.\n",bodyAliasVect[iname].c_str());
-	    }
-	    err++;
+	    error.code = MISSING_CONFIG_PARAMETER;
+	    error.description = "pen_voxelGeo:configure:Error: Unable to read"
+	      " DSMAX for body alias '";
+	    error.description += bodyAliasVect[iname] + "'. Double expected.";
+	    return error;
 	  }
 	  else{
 	    if(auxDSmax > 0.0){
 	      DSMAX[bodyIndex] = auxDSmax;
 	    }
 	    else{
-	      if(verbose > 0){
-		printf("pen_voxelGeo:configure:Error: Invalid value of DSMAX for body alias '%s'.\n",bodyAliasVect[iname].c_str());
-	      }
-	      err++;
+	      error.code = MISSING_CONFIG_PARAMETER;
+	      error.description = "pen_voxelGeo:configure:Error: Invalid value of"
+		" DSMAX for body alias '";
+	      error.description += bodyAliasVect[iname] + "'.";
+	      return error;
 	    }
 	  }
 	}
@@ -251,19 +222,16 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
   ///////////////////////////////
   double dr;
   if(config.read("enclosure-margin",dr) != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("pen_voxelGeo:configure:Error: Enclosure margin value"
-	     " 'enclosure-margin' not found. "
-	     "Double expected.\n");
-    }
-    err++;
+    error.code = MISSING_CONFIG_PARAMETER;
+    error.description = "pen_voxelGeo:configure:Error: Enclosure margin parameter"
+      " 'enclosure-margin' not found. Double expected.";
+    return error;
   }else{
     if(dr < 1.0e-6){
-      if(verbose > 0){
-	printf("pen_voxelGeo:configure:Error: Enclosure "
-	       "margin value must be greater than zero\n");
-      }
-      err++;
+      error.code = BAD_VALUE;
+      error.description = "pen_voxelGeo:configure:Error: Enclosure "
+	"margin value must be greater than zero.";
+      return error;
     }
       
     enclosureMargin = dr;
@@ -285,19 +253,18 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
   //Read material ID
   int auxMat;
   if(config.read("enclosure-material",auxMat) != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("pen_dicomGeo:configure: Error: Unable to read enclosure material ID for material. Integer expecteed");
-    }
-    err++;
+    error.code = MISSING_CONFIG_PARAMETER;
+    error.description = "pen_voxelGeo:configure: Error: Unable to read "
+      "enclosure's material ID. Integer expecteed";
+    return error;
   }
   //Check material ID
   if(auxMat < 1 || auxMat > (int)constants::MAXMAT){
-    if(verbose > 0){
-      printf("pen_dicomGeo:configure: Error: Invalid ID specified for enclosure material.");
-      printf("                         ID: %d\n",aux);
-      printf("Maximum number of materials: %d\n",constants::MAXMAT);
-    }
-    err++;
+    error.code = MISSING_CONFIG_PARAMETER;
+    error.description = "pen_voxelGeo:configure: Error: "
+      "Invalid ID specified for enclosure material. Maximum number of materials is ";
+    error.description += std::to_string(constants::MAXMAT);
+    return error;
   }
   else
     enclosureMat=auxMat;
@@ -337,8 +304,7 @@ int pen_voxelGeo::configure(const pen_parserSection& config,
     }
   }
   
-  configStatus = err;
-  return err;
+  return error;
 }
 
 void pen_voxelGeo::locate(pen_particleState& state) const{
@@ -658,31 +624,28 @@ void pen_voxelGeo::stepInMesh(pen_particleState& state,
 }
 
 
-int pen_voxelGeo::setVoxels(const unsigned nvox[3],
-			    const double size[3],
-			    const unsigned* mats,
-			    const double* dens,
-			    const unsigned verbose){
+penred::errors::Error pen_voxelGeo::setVoxels(const unsigned nvox[3],
+					      const double size[3],
+					      const unsigned* mats,
+					      const double* dens){
 
-  unsigned err = 0;
+  penred::errors::SpecificError<pen_voxelGeo> error;
 
   //Check number of voxels
   if(nvox[0] <= 0 || nvox[1] <= 0 || nvox[2] <= 0){
-    if(verbose > 0){
-      printf("pen_voxelGeo:setVoxels:Error: Number of voxels in each axis must be greater than 0.\n");
-    }
-    err++;
+    error.code = BAD_VALUE;
+    error.description = "pen_voxelGeo:setVoxels:Error: Number of voxels in "
+      "each axis must be greater than 0.";
+    return error;
   }
 
   //Check voxel size
   if(size[0] <= 0.0 || size[1] <= 0.0 || size[2] <= 0.0){
-    if(verbose > 0){
-      printf("pen_voxelGeo:setVoxels:Error: Voxels size in each axis must be greater than 0.\n");
-    }
-    err++;
+    error.code = BAD_VALUE;
+    error.description = "pen_voxelGeo:setVoxels:Error: Voxels size in "
+      "each axis must be greater than 0.";
+    return error;
   }
-
-  if(err > 0) return err;
 
   //Resize mesh
   long unsigned ntvox = 
@@ -690,11 +653,10 @@ int pen_voxelGeo::setVoxels(const unsigned nvox[3],
   static_cast<long unsigned>(nvox[2]);
   resizeMesh(ntvox);
   if(getStatus() != PEN_MESH_INITIALIZED){
-    if(verbose > 0){
-      printf("pen_voxelGeo:setVoxels:Error: Unable to initialize the mesh with %u voxels.\n",nvox[0]*nvox[1]*nvox[2]);
-    }
-    err++;
-    return err; 
+    error.code = MESH_NOT_INITIALIZED;
+    error.description = "pen_voxelGeo:setVoxels:Error: Unable to initialize the mesh with " +
+      std::to_string(nvox[0]*nvox[1]*nvox[2]) + " voxels";
+    return error; 
   }
 
   //Store voxel number and size
@@ -718,16 +680,12 @@ int pen_voxelGeo::setVoxels(const unsigned nvox[3],
   //Fill the mesh
   for(unsigned long i = 0; i < getElements(); i++){
     if(mats[i] == 0 || mats[i] >= constants::MAXMAT|| dens[i] <= 0.0){
-      if(verbose > 0){
-	unsigned ix, iy, iz;
-	iz = i / nxy;
-	iy = (i-iz*nxy)/nx;
-	ix = i % nx;	
-	printf("pen_voxelGeo:setVoxels:Error: Voxels can't be filled with Void nor null density material: voxel %lu (%u,%u,%u).\n",i, ix, iy, iz);
-	printf("                             mat: %u\n",mats[i]);
-	printf("        density factor (vox/mat): %12.4E\n",dens[i]);
-      }
-      err++;
+      error.code = BAD_VALUE;
+      error.description = "pen_voxelGeo:setVoxels:Error: Voxels can't be filled with neither "
+	"Void nor null density material. Voxel number " + std::to_string(i) +
+	" assigned with material " + std::to_string(mats[i]) +
+	" and density factor " + std::to_string(dens[i]);      
+      return error;
     }
     else{
       //The number of bodies is equal to
@@ -743,7 +701,7 @@ int pen_voxelGeo::setVoxels(const unsigned nvox[3],
   //Add an extra body to allocate the enclosure
   nBodies += 1;
   
-  return err;
+  return error;
   
 }
 
@@ -764,10 +722,11 @@ std::string pen_voxelGeo::getBodyName(const unsigned ibody) const{
   }
 }
 
-int pen_voxelGeo::loadData(const unsigned char* data,
-			   size_t& pos,
-			   const unsigned verbose){
+penred::errors::Error pen_voxelGeo::loadData(const unsigned char* data,
+					     size_t& pos,
+					     const unsigned verbose){
 
+  penred::errors::SpecificError<pen_voxelGeo> error;
   int err;
   
   //Read number of voxels
@@ -779,13 +738,12 @@ int pen_voxelGeo::loadData(const unsigned char* data,
 
   totalVox = nvox[0]*nvox[1]*nvox[2];
   if(nvox[0] < 1 || nvox[1] < 1 || nvox[2] < 1){
-    if(verbose > 0){
-      printf("pen_voxelGeo:loadFile: Error: Number of voxels must be greater than 0 on each axis.\n");
-      printf("                             nx: %u\n",nvox[0]);
-      printf("                             ny: %u\n",nvox[1]);
-      printf("                             nz: %u\n",nvox[2]);
-    }
-    return -1;
+    error.code = INVALID_DIMENSIONS;
+    error.description = "pen_voxelGeo:loadData:Error: Number of voxels must be greater "
+      "than 0 on each axis. Provided number of voxels: (" + std::to_string(nvox[0]) +
+      "," + std::to_string(nvox[1]) + "," + std::to_string(nvox[2]) + ").";
+    
+    return error;
   }
   
   //Allocate memory to extract data
@@ -796,14 +754,14 @@ int pen_voxelGeo::loadData(const unsigned char* data,
   densityFacts = (double*)   malloc(sizeof(double)*totalVox);
 
   if(materials == nullptr || densityFacts == nullptr){
-    if(verbose > 0){
-      printf("pen_voxelGeo:loadFile: Error: Unable to allocate memory to read voxel data.\n");
-    }
+    error.code = LOW_MEMORY;
+    error.description = "pen_voxelGeo:loadData:Error: Unable to allocate memory to read voxel data.";
+    
     if(materials != nullptr)
       free(materials);
     if(densityFacts != nullptr)
       free(densityFacts);
-    return -2;
+    return error;
   }
   
   //Create a dump reader
@@ -814,38 +772,41 @@ int pen_voxelGeo::loadData(const unsigned char* data,
 
   err = reader.read(data,pos,verbose);
   if(err != PEN_DUMP_SUCCESS){
-    if(verbose > 0){
-      printf("pen_voxelGeo:loadFile: Error reading voxel data: %d.\n",err);
-    }
+    error.code = MISSING_CONFIG_PARAMETER;
+    error.description = "pen_voxelGeo:loadData:Error: Error reading voxel data.";
+    
     free(materials);
     free(densityFacts);    
-    return -3;
+    return error;
   }
 
-  err = setVoxels(nvox,sizes,materials,densityFacts,verbose);
-  if(err != 0){
-    if(verbose > 0){
-      printf("pen_voxelGeo:loadFile: Error storing voxel data: %d.\n",err);
-    }
+  penred::errors::Error setVoxErr;
+  setVoxErr = setVoxels(nvox,sizes,materials,densityFacts);
+  if(setVoxErr){
+    error.code = MISSING_CONFIG_PARAMETER;
+    error.description = "pen_voxelGeo:loadData:Error: Error storing voxel data.";
+    error.setTrace(setVoxErr);
+    
     free(materials);
     free(densityFacts);
-    return -4;
+    return error;
   }
   
   free(materials);
   free(densityFacts);
-  return 0;
+  return error;
 }
 
-int pen_voxelGeo::dump(unsigned char*& data,
-		       size_t& pos,
-		       const unsigned verbose) const {
+penred::errors::Error pen_voxelGeo::dump(unsigned char*& data,
+					 size_t& pos,
+					 const unsigned verbose) const {
 
+  penred::errors::SpecificError<pen_voxelGeo> error;
+  
   if(getElements() == 0lu){
-    if(verbose > 0){
-      printf("pen_voxelGeo:dump: Error: No elements to dump\n");
-    }
-    return -1;
+    error.code = GEOMETRY_NOT_LOADED;
+    error.description = "pen_voxelGeo:dump:Error: No geometry to dump";
+    return error;
   }
   
   int err;
@@ -862,14 +823,14 @@ int pen_voxelGeo::dump(unsigned char*& data,
   densityFacts = (double*)   malloc(sizeof(double)*totalVox);
 
   if(materials == nullptr || densityFacts == nullptr){
-    if(verbose > 0){
-      printf("pen_voxelGeo:dump: Error: Unable to allocate memory to write voxel data.\n");
-    }
+    error.code = LOW_MEMORY;
+    error.description = "pen_voxelGeo:dump:Error: Unable to allocate memory to store voxel data";
+    
     if(materials != nullptr)
       free(materials);
     if(densityFacts != nullptr)
       free(densityFacts);
-    return -2;
+    return error;
   }
 
   //Fill materials and densities
@@ -891,12 +852,12 @@ int pen_voxelGeo::dump(unsigned char*& data,
   data = nullptr;
   data = (unsigned char*) malloc(dataSize);
   if(data == nullptr){
-    if(verbose > 0){
-      printf("pen_voxelGeo:dump: Error: Unable to allocate memory to write voxel data.\n");
-    }
+    error.code = LOW_MEMORY;
+    error.description = "pen_voxelGeo:dump:Error: Unable to allocate memory to write voxel data";
+    
     free(materials);
     free(densityFacts);
-    return -3;
+    return error;
   }
   
   //Write number of voxels
@@ -912,11 +873,11 @@ int pen_voxelGeo::dump(unsigned char*& data,
   free(densityFacts);
   
   if(err != PEN_DUMP_SUCCESS){
-    if(verbose > 0){
-      printf("pen_voxelGeo:dump: Error dumping voxel data: %d.\n",err);
-    }
+    error.code = LOW_MEMORY;
+    error.description = "pen_voxelGeo:dump:Error: Error dumping voxel data: " + std::to_string(err);
+    
     free(data);
-    return -4;
+    return error;
   }
 
   //Copy dumped voxel data to 'data' 
@@ -924,19 +885,29 @@ int pen_voxelGeo::dump(unsigned char*& data,
   pos += pos2;
   //Free auxiliar memory
   free(data2);
-  return 0;
+  return error;
 }
 
-int pen_voxelGeo::dump2File(const char* filename){
-
-  if(filename == nullptr)
-    return -1;
+penred::errors::Error pen_voxelGeo::dump2File(const char* filename){
+  
+  penred::errors::SpecificError<pen_voxelGeo> error;
+  
+  if(filename == nullptr){
+    error.code = INVALID_FILE;
+    error.description = "pen_voxelGeo:dump2File:Error: No filename provided";
+    return error;
+  }
 
   //Open output file
   FILE* fout = nullptr;
   fout = fopen(filename,"wb");
-  if(fout == nullptr)
-    return -2;
+  if(fout == nullptr){
+    error.code = INVALID_FILE;
+    error.description = "pen_voxelGeo:dump2File:Error: Unable to open output file: ";
+    error.description += filename;
+    
+    return error;
+  }
 
   //Dump data
   unsigned char* data = nullptr;
@@ -948,19 +919,20 @@ int pen_voxelGeo::dump2File(const char* filename){
 
   fclose(fout);
 
-  return 0;
+  return error;
 }
 
-int pen_voxelGeo::loadFile(const char* filename,
-			   const unsigned verbose){
+penred::errors::Error pen_voxelGeo::loadFile(const char* filename,
+					     const unsigned verbose){
 
+  penred::errors::SpecificError<pen_voxelGeo> error;
+  
   if(filename == nullptr){
-    if(verbose > 0)
-      printf("pen_voxelGeo:loadFile: Error: filename is null.\n");
-    return -1;
+    error.code = INVALID_FILE;
+    error.description = "pen_voxelGeo:loadFile:Error: No filename provided";
+    return error;
   }
 
-  int err;
   size_t fsize;
   unsigned char* pdata = nullptr;
   FILE* fin = nullptr;
@@ -968,8 +940,10 @@ int pen_voxelGeo::loadFile(const char* filename,
   //Open file
   fin = fopen(filename,"rb");
   if(fin == nullptr){
-    printf("pen_voxelGeo:loadFile: Error: Unable to open file '%s'\n",filename);
-    return -2;
+    error.code = INVALID_FILE;
+    error.description = "pen_voxelGeo:loadFile:Error: Unable to open file ";
+    error.description += filename;
+    return error;
   }
 
   //Get file size
@@ -980,52 +954,60 @@ int pen_voxelGeo::loadFile(const char* filename,
   //Allocate memory to read the entire file
   pdata = (unsigned char*) malloc(fsize);
   if(pdata == nullptr){
-    if(verbose > 0)
-      printf("pen_voxelGeo:loadFile: Error: Unable to allocate memory to read voxel file.\n");
+    error.code = LOW_MEMORY;
+    error.description = "pen_voxelGeo:loadFile:Error: Unable to allocate memory to read voxel file";
     
     fclose(fin);
-    return -3;
+    return error;
   }
 
   size_t read = fread(pdata,
-			sizeof(unsigned char),
-			fsize,
-			fin);
+		      sizeof(unsigned char),
+		      fsize,
+		      fin);
   //Close file
   fclose(fin);
   
   if(read != fsize){
-    if(verbose > 0)
-      printf("pen_voxelGeo:loadFile: Error: file size and data read mismatch.\n");
+    error.code = CORRUPTED_FILE;
+    error.description = "pen_voxelGeo:loadFile:Error: file size and data read mismatch.";
+    
     free(pdata);
-    return -4;    
+    return error;    
   }
 
   size_t pos = 0;
-  err = loadData(pdata,pos,verbose);
-  if(err != 0){
-    if(verbose > 0){
-      printf("pen_voxelGeo:loadFile: Error loading data: %d\n",err);
-    }
+  penred::errors::Error loadDataErr = loadData(pdata,pos,verbose);
+  if(loadDataErr){
+    error.code = ERROR_LOADING_DATA;
+    error.description = "pen_voxelGeo:loadFile:Error loading read data.";
+    error.setTrace(loadDataErr);
+
     free(pdata);
-    return -5;
+    return error;
   }
   
   free(pdata);  
-  return 0;
-  
+  return error;
 }
 
-int pen_voxelGeo::loadASCII(const char* filename,
-			    const unsigned verbose) {
+penred::errors::Error pen_voxelGeo::loadASCII(const char* filename) {
 
-  if(filename == nullptr)
-    return -1;
+  penred::errors::SpecificError<pen_voxelGeo> error;
+
+  if(filename == nullptr){
+    error.code = INVALID_FILE;
+    error.description = "pen_voxelGeo:loadASCII:Error: No filename provided";
+    return error;
+  }
   
   FILE* input = nullptr;
   input = fopen(filename, "r");
   if(input == nullptr){
-    return -2;
+    error.code = INVALID_FILE;
+    error.description = "pen_voxelGeo:loadASCII:Error: Unable to open file ";
+    error.description += filename;
+    return error;
   }
   
   //Read number of voxels
@@ -1036,7 +1018,11 @@ int pen_voxelGeo::loadASCII(const char* filename,
      nvoxAux[1] < 1 ||
      nvoxAux[2] < 1){
     fclose(input);
-    return -3;
+    error.code = INVALID_DIMENSIONS;
+    error.description = "pen_voxelGeo:loadASCII:Error: Each dimension must contain, at "
+      "least, one voxel. Provided number of voxels: (" + std::to_string(nvoxAux[0]) +
+      "," + std::to_string(nvoxAux[1]) + "," + std::to_string(nvoxAux[2]) + ")";
+    return error;
   }
   
   unsigned nvox[3] = {
@@ -1053,7 +1039,11 @@ int pen_voxelGeo::loadASCII(const char* filename,
      size[1] <= 0.0 ||
      size[2] <= 0.0){
     fclose(input);
-    return -4;
+    error.code = INVALID_DIMENSIONS;
+    error.description = "pen_voxelGeo:loadASCII:Error: Voxel sizes must be greater than zero."
+      " Provided voxel sizes: (" + std::to_string(size[0]) +
+      "," + std::to_string(size[1]) + "," + std::to_string(size[2]) + ")";    
+    return error;
   }
   
   //Create vectors to store materials and density factors
@@ -1066,21 +1056,31 @@ int pen_voxelGeo::loadASCII(const char* filename,
     int nread = fscanf(input, " %d %lE ", &auxMat, &densityFacts[i]);
     if(nread != 2){
       fclose(input);
-      return -5;
+      error.code = MISSING_CONFIG_PARAMETER;
+      error.description = "pen_voxelGeo:loadASCII:Error: Unable to read material for voxel " +
+	std::to_string(i);
+      return error;
     }
 
     if(auxMat <= 0){
       fclose(input);
-      return -6;
+      error.code = BAD_VALUE;
+      error.description = "pen_voxelGeo:loadASCII:Error: Negative or zero material assigned to voxel " +
+	std::to_string(i);
+      return error;
     }
     materials[i] = static_cast<unsigned>(auxMat);
   }
 
   fclose(input);
   
-  int err = setVoxels(nvox,size,materials.data(),densityFacts.data(),verbose);
-
-  return err;
+  penred::errors::Error errSet = setVoxels(nvox,size,materials.data(),densityFacts.data());
+  if(errSet){
+    error.code = ERROR_SETTING_VOXELS;
+    error.description = "pen_voxelGeo:loadASCII:Error: Unable to set voxels after reading ASCII file.";
+    error.setTrace(errSet);
+  }
+  return error;
 }
 
 int pen_voxelGeo::printImage(const char* filename) const{

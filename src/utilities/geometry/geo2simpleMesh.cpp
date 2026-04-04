@@ -110,9 +110,9 @@ int main(int argc, char** argv){
 
   //Configure geometry  
   geometry->name.assign("geometry");    
-  err = geometry->configure(geometrySection,verbose);
-  if(err != 0){
-    printf("Error: Unable to configure geometry\n");
+  penred::errors::Error errorConf = geometry->configure(geometrySection,verbose);
+  if(errorConf){
+    printf("Error: Unable to configure geometry:\n%s\n", errorConf.stringify().c_str());
     return -5;
   }
 

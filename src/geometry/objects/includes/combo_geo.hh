@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2023-2024 Universitat de València - UV
 //    Copyright (C) 2023-2024 Universitat Politècnica de València - UPV
-//    Copyright (C) 2025 Vicent Giménez Alventosa
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -56,13 +56,34 @@ class pen_comboGeo : public abc_geometry<pen_comboBody>{
   std::vector<unsigned> firstIBody; //First body index for each geometry
   
   public:
-  pen_comboGeo() : abc_geometry<pen_comboBody>() {
-    configStatus = 0;
+
+  enum errors{
+    SUCCESS = 0,
+    SECTION_READ_FAIL,
+    MISSING_PARAMETER,
+    BAD_VALUE,
+    ERROR_CONFIGURING_SUBGEOEMTRY,
+    BODY_LIMIT_REACHED,
+  };
+  
+  static constexpr const char* errorMessage(const int val) noexcept {
+    switch(val){
+    case SUCCESS: return "Success";
+    case SECTION_READ_FAIL: return "Unable to read section";
+    case MISSING_PARAMETER: return "Missing parameter";
+    case BAD_VALUE: return "Invalid value";
+    case ERROR_CONFIGURING_SUBGEOEMTRY: return "Error configuring a sub-geometry";
+    case BODY_LIMIT_REACHED: return "Maximum number of bodies reached";
+    default: return "Unknown error";
+    }
   }
+  
+  pen_comboGeo() : abc_geometry<pen_comboBody>() {}
 
   const std::vector<wrapper_geometry*>& readGeometries() const { return geometries; }
   
-  int configure(const pen_parserSection& /*config*/, unsigned verbose) final override;
+  penred::errors::Error specificConfigure(const pen_parserSection& /*config*/,
+					  unsigned verbose) final override;
   void locate(pen_particleState&) const final override;
   void step(pen_particleState&,
 	    double,
@@ -107,7 +128,11 @@ class pen_comboGeo : public abc_geometry<pen_comboBody>{
     return nullptr;
   }
   
-  
 };
+
+template<>
+constexpr const char* penred::errors::errorMessage<pen_comboGeo>(const int val) noexcept {
+  return pen_comboGeo::errorMessage(val);
+}
 
 #endif

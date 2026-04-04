@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2023-2024 Universitat de València - UV
 //    Copyright (C) 2023-2024 Universitat Politècnica de València - UPV
-//    Copyright (C) 2025 Vicent Giménez Alventosa
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -30,30 +30,26 @@
 
 #include "combo_geo.hh"
 
-int pen_comboGeo::configure(const pen_parserSection& config,
-			    unsigned verbose){
+penred::errors::Error pen_comboGeo::specificConfigure(const pen_parserSection& config,
+						      unsigned verbose){
 
+  penred::errors::SpecificError<pen_meshBodyGeo> error;
+  
   //Read the materials section
   pen_parserSection materialsSection;
   if(config.readSubsection("materials",materialsSection) != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("pen_comboGeo:configure: Error: Unable to read 'materials' "
-	     "section\n");
-    }
-    configStatus = 1;
-    return 1;
+    error.code = SECTION_READ_FAIL;
+    error.description = "pen_comboGeo:configure:Error: Unable to read 'materials' section";
+    return error;
   }
   
   //Read the geometries section
   pen_parserSection geometriesSection;
   std::vector<std::string> geometriesNames;
   if(config.readSubsection("geometries",geometriesSection) != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("pen_comboGeo:configure: Error: No 'geometries' "
-	     "section provided\n");
-    }
-    configStatus = 1;
-    return 1;
+    error.code = SECTION_READ_FAIL;
+    error.description = "pen_comboGeo:configure:Error: No 'geometries' section provided";
+    return error;
   }
   
   //Extract material names
@@ -76,47 +72,39 @@ int pen_comboGeo::configure(const pen_parserSection& config,
     geometrySectionPath += geoName;
     if(config.readSubsection(geometrySectionPath,
 			     geometrySection) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("pen_comboGeo:configure: Error: Unable to read 'geometries/%s' "
-	       "section\n", geoName.c_str());
-      }
-      configStatus = 2;
-      return 2;
+      error.code = SECTION_READ_FAIL;
+      error.description = "pen_comboGeo:configure:Error: Unable to read 'geometries/" +
+	geoName + "' section";
+      
+      return error;
     }
 
     // ** Priority
     //Read geometry priority
     int priorityAux;
     if(geometrySection.read("priority", priorityAux) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("pen_comboGeo:configure: Error: Unable to read 'priority' "
-	       "for geometry '%s'\n", geoName.c_str());
-      }
-      configStatus = 3;
-      return 3;
+      error.code = MISSING_PARAMETER;
+      error.description = "pen_comboGeo:configure:Error: Unable to read 'priority' "
+	"for geometry '" + geoName + "'.";
+      
+      return error;
     }
 
     //Check the priority value
     if(priorityAux < 0){
-      if(verbose > 0){
-	printf("pen_comboGeo:configure: Error: Invalid 'priority' value "
-	       "for geometry '%s'.\n"
-	       "             Priority must be positive",
-	       geoName.c_str());
-      }
-      configStatus = 4;
-      return 4;      
+      error.code = BAD_VALUE;
+      error.description = "pen_comboGeo:configure:Error: Invalid 'priority' value "
+	"for geometry '" + geoName + "'. Priority must be positive.";
+      
+      return error;      
     }
     unsigned priority = static_cast<unsigned>(priorityAux);
     if(priority >= geometriesNames.size()){
-      if(verbose > 0){
-	printf("pen_comboGeo:configure: Error: Invalid 'priority' value "
-	       "for geometry '%s'.\n"
-	       "             Priority must be lesser than"
-	       " the number of geometries.\n", geoName.c_str());
-      }
-      configStatus = 4;
-      return 4;
+      error.code = BAD_VALUE;
+      error.description = "pen_comboGeo:configure:Error: Invalid 'priority' value "
+	"for geometry '" + geoName + "'. Priority must be lesser than the number of geometries.";
+      
+      return error;
     }
 
     if(verbose > 1){
@@ -125,25 +113,22 @@ int pen_comboGeo::configure(const pen_parserSection& config,
     
     //Check if this priority has already been used
     if(geometries[priority] != nullptr){
-      if(verbose > 0){
-	printf("pen_comboGeo:configure: Error: Priority number %d assigned to "
-	       " geometry '%s' when is already used in geometry '%s'.\n",
-	       priority, geoName.c_str(), geometries[priority]->name.c_str());
-      }
-      configStatus = 5;
-      return 5;
+      error.code = BAD_VALUE;
+      error.description = "pen_comboGeo:configure:Error: Priority value " + std::to_string(priority) +
+	" assigned twice, in geometries '" + geoName + "' and '" + geometries[priority]->name + "'.";
+      
+      return error;
     }
 
     //Read the configuration section for this geometry
     pen_parserSection geometryConfigSection;
     if(geometrySection.readSubsection("config",
 				      geometryConfigSection) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("pen_comboGeo:configure: Error: Unable to read 'config' "
-	       "section for geometry '%s'\n", geoName.c_str());
-      }
-      configStatus = 6;
-      return 6;
+      error.code = SECTION_READ_FAIL;
+      error.description = "pen_comboGeo:configure:Error: Unable to read 'config' "
+	"section for geometry '" + geoName + "'";
+      
+      return error;
     }
 
     //Add the material section to the configuration
@@ -153,12 +138,11 @@ int pen_comboGeo::configure(const pen_parserSection& config,
     //Get geometry type
     std::string geoType;
     if(geometryConfigSection.read("type",geoType) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("pen_comboGeo:configure: Error: field 'type' not specified "
-	       "for geometry '%s'. String expected.\n", geoName.c_str());
-      }
-      configStatus = 7;
-      return 7;
+      error.code = MISSING_PARAMETER;
+      error.description = "pen_comboGeo:configure:Error: Field 'type' not specified "
+	"for geometry '" + geoName + "'.";
+      
+      return error;
     }
 
     if(verbose > 1){
@@ -168,37 +152,26 @@ int pen_comboGeo::configure(const pen_parserSection& config,
     //Instantiate the geometry
     geometries[priority] = penGeoRegister_create(geoType.c_str());
     if(geometries[priority] == nullptr){
-      if(verbose > 0){
-	printf("pen_comboGeo:configure: Error creating geometry "
-	       "'%s' of type '%s'\n", geoName.c_str(), geoType.c_str());
-      }
-      configStatus = 8;
-      return 8;
+      error.code = BAD_VALUE;
+      error.description = "pen_comboGeo:configure: Error creating geometry "
+	"'" + geoName + "' of type '" + geoType + "'";
+      
+      return error;
     }
 
     //Set name
     geometries[priority]->name.assign(geoName);
 
     //Configure the geometry
-    if(geometries[priority]->configure(geometryConfigSection, verbose) != 0){
-      if(verbose > 0){
-	printf("pen_comboGeo:configure: Error configuring geometry "
-	       "'%s' of type '%s'\n", geoName.c_str(), geoType.c_str());
-      }
-      configStatus = 9;
-      return 9;
+    penred::errors::Error subGeoError = geometries[priority]->configure(geometryConfigSection, verbose);
+    if(subGeoError){
+      error.code = ERROR_CONFIGURING_SUBGEOEMTRY;
+      error.description = "pen_comboGeo:configure: Error configuring geometry "
+	"'" + geoName + "' of type '" + geoType + "'";
+      error.setTrace(subGeoError);
+      
+      return error;
     }
-
-    //Check errors
-    if(geometries[priority]->configureStatus() != 0){
-      if(verbose > 0){
-	printf("pen_comboGeo:configure: Error configuring geometry "
-	       "'%s' of type '%s'\n", geoName.c_str(), geoType.c_str());
-      }
-      configStatus = 9;
-      return 9;
-    }
-    
   }
 
   //Get body info for each geometry and fill the global body array
@@ -213,15 +186,12 @@ int pen_comboGeo::configure(const pen_parserSection& config,
 
     //Check body limit
     if(nextFirstIBody + geometries[igeo]->getBodies() > NB){
-      if(verbose > 0){
-	printf("pen_comboGeo:configure: Error: Global maximum number of bodies "
-	       "(%u) reached at geometry '%s' (Priority %u).\n",
-	       NB,
-	       geometries[igeo]->name.c_str(),
-	       static_cast<unsigned>(igeo));
-      }
-      configStatus = 12;
-      return 12;
+      error.code = BODY_LIMIT_REACHED;
+      error.description = "pen_comboGeo:configure:Error: Global maximum number of bodies "
+	"(" + std::to_string(NB) + ") reached at geometry '" + geometries[igeo]->name +
+	"' (Priority " + std::to_string(igeo) + ").";
+      
+      return error;
     }
     
     //Iterate over geometry bodies
@@ -264,9 +234,7 @@ int pen_comboGeo::configure(const pen_parserSection& config,
   //Save the total number of bodies
   NBODYS = nextFirstIBody;
 
-  configStatus = 0;
-  return 0;
-
+  return error;
 }
 
 unsigned pen_comboGeo::getIBody(const char* bodyName) const{

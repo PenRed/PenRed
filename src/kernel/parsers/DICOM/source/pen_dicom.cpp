@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2019-2023 Universitat de València - UV
 //    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
-//    Copyright (C) 2025 Vicent Giménez Alventosa
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -799,11 +799,13 @@ pen_dicom::pen_dicom()
   dicomImage = NULL;    //Store dicom image  
 }
 
-int pen_dicom::loadDicom(const char* dirName,
-			 const unsigned verbose,
-			 const bool onlyMetadata)
+penred::errors::Error pen_dicom::loadDicom(const char* dirName,
+					   const unsigned verbose,
+					   const bool onlyMetadata)
 {
   //Load and process dicom file
+
+  penred::errors::SpecificError<pen_dicom> error;
   
   const double minvoxSide=1.0E-6;
 
@@ -828,10 +830,10 @@ int pen_dicom::loadDicom(const char* dirName,
   auxDir=opendir(dirString.c_str());
   if(auxDir==NULL)	//check directory existence
     {
-      if(verbose > 0)
-	printf("\npen_dicom:loadDicom: Error: Folder not found (%s)\n", dirString.c_str());
+      error.code = PEN_DICOM_FOLDER_NOT_FOUND;
+      error.description = "pen_dicom:loadDicom: Error: Folder not found (" + dirString + ")";
       clear();
-      return PEN_DICOM_FOLDER_NOT_FOUND;
+      return error;
     }
   if(verbose > 1)
     printf("\nLoading dicom from folder '%s'\n", dirString.c_str());
@@ -897,15 +899,14 @@ int pen_dicom::loadDicom(const char* dirName,
 		      //Check if image modalities match
 		      if(imageModality.compare(dicomModality) != 0)
 			{
-			  if(verbose > 0){
-			    printf("pen_dicom:loadDicom:Error: multiple image "
-				   "modality detected: %s %s\n",
-				   imageModality.c_str(), dicomModality.c_str());
-			  }
+			  error.code = PEN_DICOM_MULTIPLE_MODALITIES;
+			  error.description = "pen_dicom:loadDicom:Error: multiple image "
+			    "modality detected: " + imageModality + " " + dicomModality;
+			  
 			  metainfo->clear();
 			  fileformat.clear();
 			  clear();
-			  return PEN_DICOM_MULTIPLE_MODALITIES;
+			  return error;
 			}
 		    }
 		  
@@ -920,29 +921,26 @@ int pen_dicom::loadDicom(const char* dirName,
 		    //it's the first and unique dicom image file 
 		    AuxZ = 0.0;
 		    if(filenamesDicom.size() > 0){
-		      if(verbose > 0){
-			printf("pen_dicom:loadDicom:Error: Can't access "
-			       "'ImagePositionPatient' data from dicom:\n "
-			       "'%s'\n",filename.c_str());
-		      }
+			  error.code = PEN_DICOM_BAD_READ_IMAGE_POSITION;
+			  error.description = "pen_dicom:loadDicom:Error: Unable to access "
+			    "'ImagePositionPatient' data from dicom: " + filename;
 		      metainfo->clear();
 		      fileformat.clear();
 		      clear();
-		      return PEN_DICOM_BAD_READ_IMAGE_POSITION;
+		      return error;
 		    }
 		    onlyOne = true;
 		  }
 		  else if(onlyOne){
-		    if(verbose > 0){
-		      printf("pen_dicom:loadDicom:Error: Loading multiple dicom "
-			     "image files when previous dicom ('%s') has not "
-			     "'ImagePositionPatient' field.\n",
-			     bottomDicomFilename.c_str());
-		    }
+		    error.code = PEN_DICOM_BAD_READ_IMAGE_POSITION;
+		    error.description = "pen_dicom:loadDicom:Error: Loading multiple dicom "
+		      "image files when previous dicom ('" + bottomDicomFilename + "') has not "
+		      "'ImagePositionPatient' field.";
+		    
 		    metainfo->clear();
 		    fileformat.clear();
 		    clear();
-		    return PEN_DICOM_BAD_READ_IMAGE_POSITION;		    
+		    return error;
 		  }
 		  //read width, height, pixel number, number
 		  //of frames and bytes per pixel		      
@@ -951,29 +949,28 @@ int pen_dicom::loadDicom(const char* dirName,
 		  status = metainfo->findAndGetUint16(DCM_Columns,width);
 		  if(status.bad())
 		    {
-		      if(verbose > 0){
-			printf("pen_dicom:loadDicom:Error: Can't extract "
-			       "'Columns' fom\n   %s\n",filename.c_str());
-			printf("   Error: %s\n",status.text());
-		      }
+		      error.code = PEN_DICOM_BAD_READ_COLUMNS;
+		      error.description = "pen_dicom:loadDicom:Error: Can't extract "
+			"'Columns' from " + filename + ". Internal error: ";
+		      error.description += status.text();
 		      metainfo->clear();
 		      fileformat.clear();
 		      clear();
-		      return PEN_DICOM_BAD_READ_COLUMNS;
+		      return error;
 		    }
 		  // - Rows
 		  status = metainfo->findAndGetUint16(DCM_Rows,height);
 		  if(status.bad())
 		    {
-		      if(verbose > 0){
-			printf("loadDicom:Error: can't extract "
-			       "'Rows' fom\n   %s\n",filename.c_str());
-			printf("   Error: %s\n",status.text());
-		      }
+		      error.code = PEN_DICOM_BAD_READ_ROWS;
+		      error.description = "pen_dicom:loadDicom:Error: Unable to extract "
+			"'Rows' fom " + filename + ". Internal error: ";
+		      error.description += status.text();
+		      
 		      metainfo->clear();
 		      fileformat.clear();
 		      clear();
-		      return PEN_DICOM_BAD_READ_ROWS;
+		      return error;
 		    }
 		  unsigned long nframes;  //Planes in the image
 		  Sint32 auxFrames;
@@ -1029,7 +1026,7 @@ int pen_dicom::loadDicom(const char* dirName,
 		}
 	      else
 		{
-		  if(verbose > 0)
+		  if(verbose > 1)
 		    printf("pen_dicom:loadDicom:Warning: Invalid modality (%s) "
 			   "found in dicom:\n   %s\n",
 			   dicomModality.c_str(), filename.c_str());
@@ -1038,7 +1035,7 @@ int pen_dicom::loadDicom(const char* dirName,
 	    }
 	  else
 	    {
-	      if(verbose > 0){
+	      if(verbose > 1){
 		printf("pen_dicom:loadDicom:warning: Unable to read modality from dicom:\n   %s\n", filename.c_str());
 		printf("   Error: %s\n",status.text());
 	      }
@@ -1060,10 +1057,10 @@ int pen_dicom::loadDicom(const char* dirName,
   
   if(filenamesDicom.size() == 0)
     {
-      if(verbose > 0)
-	printf("No dicom files found\n");
+      error.code = PEN_DICOM_NO_DICOM_FOUND;
+      error.description = "pen_dicom:loadDicom:Error: No dicom files found";
       clear();
-      return PEN_DICOM_NO_DICOM_FOUND;	   
+      return error;
     }
 	  
   if(verbose > 1)
@@ -1141,7 +1138,7 @@ int pen_dicom::loadDicom(const char* dirName,
 						    geoType);
 		      if(strcmp(geoType,"CLOSED_PLANAR") != 0)
 			{
-			  if(verbose > 0)
+			  if(verbose > 1)
 			    printf("pen_dicom:loadDicom:Warning: Invalid "
 				   "contour (%s) type. Countours must be"
 				   " 'CLOSED_PLANAR'\n",
@@ -1187,7 +1184,7 @@ int pen_dicom::loadDicom(const char* dirName,
 			  
 			if(nPoints <= 0)
 			  {
-			    if(verbose > 0)
+			    if(verbose > 1)
 			      printf("pen_dicom:loadDicom:Warning: Plane %ld "
 				     "of contour '%s' is empty.'\n",
 				     contPlanes-1,contourRef.name.c_str());
@@ -1244,9 +1241,11 @@ int pen_dicom::loadDicom(const char* dirName,
 		}
 	      else
 		{
-		  printf("loadDicom:warning: can't read element "
-			 "'Roi Contour Sequence' from dicom:\n   %s\n",
-			 Dicomrtss.c_str());
+		  if(verbose > 1){
+		    printf("loadDicom:warning: can't read element "
+			   "'Roi Contour Sequence' from dicom:\n   %s\n",
+			   Dicomrtss.c_str());
+		  }
 		  contours.pop_back();
 		  nVoxContour.pop_back();
 		}
@@ -1261,7 +1260,7 @@ int pen_dicom::loadDicom(const char* dirName,
     }
   else
     {
-      if(verbose > 0)
+      if(verbose > 1)
 	printf("\n*** Missing contours DICOM file (rtss.dcm)\n");
     }
       	      
@@ -1316,8 +1315,8 @@ int pen_dicom::loadDicom(const char* dirName,
 
 		      if(status.bad())
 			{
-			  if(verbose > 0){
-			    printf("loadDicom:Error: Can't obtain "
+			  if(verbose > 1){
+			    printf("Warning: Can't obtain "
 				   "'NumberOfControlPoints' for channel "
 				   "%ld.\n",channelNumber+1);
 			    printf("                 Error: %s\n",status.text());
@@ -1329,8 +1328,8 @@ int pen_dicom::loadDicom(const char* dirName,
 		      
 		      if(nCheckPoints <= 0)
 			{
-			  if(verbose > 0){
-			    printf("loadDicom:Error: Expected positive value "
+			  if(verbose > 1){
+			    printf("Warning: Expected positive value "
 				   "for 'NumberOfControlPoints' in channel"
 				   " %ld.\n",channelNumber+1);
 			    printf("                 NumberOfControlPoints: "
@@ -1352,8 +1351,8 @@ int pen_dicom::loadDicom(const char* dirName,
 
 	      //Check if new seed has been removed
 	      if(nseed == seeds.size()){
-		if(verbose > 0)
-		  printf("loadDicom:warning: Ignoring seed\n");
+		if(verbose > 1)
+		  printf("Warning: Ignoring seed\n");
 		continue;
 	      }
 	      
@@ -1382,8 +1381,8 @@ int pen_dicom::loadDicom(const char* dirName,
 					  finalCumulativeTimeWeight);
 		      if(status.bad())
 			{
-			  if(verbose > 0){
-			    printf("loadDicom:Error: Can't get "
+			  if(verbose > 1){
+			    printf("Warning: Can't get "
 				   "'Final Cumulative Time Weight' from "
 				   "channel %ld.\n",seedChannelCont+1);
 			    printf("                Error: %s\n",status.text());
@@ -1396,8 +1395,8 @@ int pen_dicom::loadDicom(const char* dirName,
 			findAndGetFloat64(DCM_ChannelTotalTime,ChannelTotalTime);
 		      if(status.bad())
 			{
-			  if(verbose > 0){
-			    printf("loadDicom:Error: Can't get 'Final "
+			  if(verbose > 1){
+			    printf("Warning: Can't get 'Final "
 				   "Cumulative Time Weight' from channel "
 				   "%ld.\n",seedChannelCont+1);
 			    printf("                Error: %s\n",status.text());
@@ -1432,8 +1431,8 @@ int pen_dicom::loadDicom(const char* dirName,
 						  AuxPosicio[0],0);
 			      if(status.bad())
 				{
-				  if(verbose > 0){
-				    printf("loadDicom:Error: Can't get "
+				  if(verbose > 1){
+				    printf("Warning: Can't get "
 					   "'ControlPoint3DPosition' from "
 					   "checkpoint %ld in channel %ld of "
 					   "seed %lu in dicom:\n   %s\n",
@@ -1530,8 +1529,8 @@ int pen_dicom::loadDicom(const char* dirName,
 				      remainingCheckPoints = false;
 				      Item_ControlPoint = 0;
 				      //no sense.
-				      if(verbose > 0){
-					printf("loadDicom:Warning: in seed type "
+				      if(verbose > 1){
+					printf("Warning: in seed type "
 					       "%lu, channel %ld checkpoint %ld "
 					       "has cumulative time weight "
 					       "smaller than previous one.\n",
@@ -1626,8 +1625,8 @@ int pen_dicom::loadDicom(const char* dirName,
 					  previousRelativePosition == actualRelativePosition)
 				    {
 				      //no sense.
-				      if(verbose > 0){
-					printf("pen_dicom:loadDicom:Warning: in "
+				      if(verbose > 1){
+					printf("Warning: in "
 					       "seed type %lu, channel %ld "
 					       "checkpoints %ld and %ld are the "
 					       "same checkpoint.\n",
@@ -1667,8 +1666,8 @@ int pen_dicom::loadDicom(const char* dirName,
 
 	      //Check if new seed has been removed
 	      if(nseed == seeds.size()){
-		if(verbose > 0)
-		  printf("loadDicom:warning: Ignoring seed\n");
+		if(verbose > 1)
+		  printf("Warning: Ignoring seed\n");
 		continue;
 	      }
 
@@ -1696,7 +1695,8 @@ int pen_dicom::loadDicom(const char* dirName,
     }
   else
     {
-      printf("\n*** Missing seeds planing DICOM file (rtplan.dcm)\n");
+      if(verbose > 1)
+	printf("\n*** Missing seeds planing DICOM file (rtplan.dcm)\n");
     }
   
   //Seeds read.
@@ -1708,7 +1708,8 @@ int pen_dicom::loadDicom(const char* dirName,
   //  Read image data  ////
   /////////////////////////
 
-  printf("\n");
+  if(verbose > 1)
+    printf("\n");
 
   //Read data from fisrt dicom (with zmin)
   status = fileformat.loadFile(bottomDicomFilename.c_str()); //load dicom
@@ -1716,12 +1717,13 @@ int pen_dicom::loadDicom(const char* dirName,
   DcmDataset* metainfo_bottomDicom = fileformat.getDataset();
   if(status.bad())
     {
-      if(verbose > 0)
-	printf("pen_dicom:loadDicom:Error: can't re-read fist dicom.");
+      error.code = PEN_DICOM_BAD_READ;
+      error.description = "pen_dicom:loadDicom:Error: can't re-read first dicom";
+      
       metainfo_bottomDicom->clear();
       fileformat.clear();      
       clear();
-      return PEN_DICOM_BAD_READ;
+      return error;
     }
   else
     {
@@ -1742,26 +1744,28 @@ int pen_dicom::loadDicom(const char* dirName,
       status = metainfo_bottomDicom->findAndGetUint16(DCM_Columns,width);
       if(status.bad())
 	{
-	  if(verbose > 0){
-	    printf("pen_dicom:loadDicom:Error: can't extract 'Columns' fom\n   %s\n",bottomDicomFilename.c_str());
-	    printf("   Error: %s\n",status.text());
-	  }
+	  error.code = PEN_DICOM_BAD_READ_COLUMNS;
+	  error.description = "pen_dicom:loadDicom:Error: Unable to extract "
+	    "'Columns' fom " + bottomDicomFilename + ". Internal error: ";
+	  error.description += status.text();
+
 	  metainfo_bottomDicom->clear();
 	  fileformat.clear();      
 	  clear();
-	  return PEN_DICOM_BAD_READ_COLUMNS;
+	  return error;
 	}
       status = metainfo_bottomDicom->findAndGetUint16(DCM_Rows,height);
       if(status.bad())
 	{
-	  if(verbose > 0){
-	    printf("pen_dicom:loadDicom:Error: can't extract 'Rows' fom\n   %s\n",bottomDicomFilename.c_str());
-	    printf("   Error: %s\n",status.text());
-	  }
+	  error.code = PEN_DICOM_BAD_READ_ROWS;
+	  error.description = "pen_dicom:loadDicom:Error: Unable to extract "
+	    "'Rows' fom " + bottomDicomFilename + ". Internal error: ";
+	  error.description += status.text();
+	  
 	  metainfo_bottomDicom->clear();
 	  fileformat.clear();      
 	  clear();
-	  return PEN_DICOM_BAD_READ_ROWS;
+	  return error;
 	}
       nvox_x = width;
       nvox_y = height;
@@ -1793,7 +1797,7 @@ int pen_dicom::loadDicom(const char* dirName,
       if(status.bad())
 	{
 	  if(verbose > 1){
-	    printf("pen_dicom:loadDicom:Warning: can't extract "
+	    printf("Warning: can't extract "
 		   "'Image Position Patient' fom\n   %s\n",
 		   bottomDicomFilename.c_str());
 	    printf("     Origin will be set to (0,0,0)\n");
@@ -1836,51 +1840,48 @@ int pen_dicom::loadDicom(const char* dirName,
 						       DimYPixel,0);
       if(status.bad())
 	{
-	  if(verbose > 0){
-	    printf("pen_dicom:loadDicom:Error: can't extract "
-		   "'PixelSpacing' from\n   %s\n",
-		   bottomDicomFilename.c_str());
-	    printf("   Error: %s\n",status.text());
-	  }
+	  error.code = PEN_DICOM_BAD_READ_PIXEL_SPACING;
+	  error.description = "pen_dicom:loadDicom:Error: Unable to extract "
+	    "'PixelSpacing' fom " + bottomDicomFilename + ". Internal error: ";
+	  error.description += status.text();
+	  
 	  metainfo_bottomDicom->clear();
 	  fileformat.clear();      
 	  clear();
-	  return PEN_DICOM_BAD_READ_PIXEL_SPACING;
+	  return error;
 	}
       status = metainfo_bottomDicom->findAndGetFloat64(DCM_PixelSpacing,
 						       DimXPixel,1);
       if(status.bad())
 	{
-	  if(verbose > 0){
-	    printf("pen_dicom:loadDicom:Error: can't extract "
-		   "'PixelSpacing' from\n   %s\n",
-		   bottomDicomFilename.c_str());
-	    printf("   Error: %s\n",status.text());
-	  }
+	  error.code = PEN_DICOM_BAD_READ_PIXEL_SPACING;
+	  error.description = "pen_dicom:loadDicom:Error: Unable to extract "
+	    "'PixelSpacing' fom " + bottomDicomFilename + ". Internal error: ";
+	  error.description += status.text();
+	  
 	  metainfo_bottomDicom->clear();
 	  fileformat.clear();      
 	  clear();
-	  return PEN_DICOM_BAD_READ_PIXEL_SPACING;
+	  return error;
 	}
       status = metainfo_bottomDicom->findAndGetFloat64(DCM_SliceThickness,
 						       DimZPixel);
       if(status.bad())
 	{
 	  if(std::signbit(zspacing)){
-	    if(verbose > 0){
-	      printf("pen_dicom:loadDicom:Error: can't extract "
-		     "'SliceThickness' from\n   %s\n",
-		     bottomDicomFilename.c_str());
-	      printf("   Error: %s\n",status.text());
-	    }
+	    error.code = PEN_DICOM_BAD_READ_SLICE_THICKNESS;
+	    error.description = "pen_dicom:loadDicom:Error: Unable to extract "
+	      "'SliceThickness' fom " + bottomDicomFilename + ". Internal error: ";
+	    error.description += status.text();
+	    
 	    metainfo_bottomDicom->clear();
 	    fileformat.clear();      
 	    clear();
-	    return PEN_DICOM_BAD_READ_SLICE_THICKNESS;
+	    return error;
 	  }
 	  else{
 	    if(verbose > 1){
-	      printf("pen_dicom:loadDicom:Warning: can't extract "
+	      printf("Warning: can't extract "
 		     "'SliceThickness' from\n   %s\n",
 		     bottomDicomFilename.c_str());
 	      printf("   Error: %s\n",status.text());
@@ -1895,7 +1896,7 @@ int pen_dicom::loadDicom(const char* dirName,
       if(!std::signbit(zspacing)){
 	if(fabs(zspacing-DimZPixel) > 1.0e-8){
 	  if(verbose > 1){
-	    printf("pen_dicom:loadDicom:Warning: Read slice thickness and "
+	    printf("Warning: Read slice thickness and "
 		   "the calculated spacing between first and "
 		   "second DICOM mismatch.\n"
 		   "             slice thickness: %12.4E mm\n"
@@ -1952,14 +1953,14 @@ int pen_dicom::loadDicom(const char* dirName,
       double tmp2aux=(tmpaux < dvox_z ? tmpaux : dvox_z);
       if (tmp2aux < minvoxSide)
 	{
-	  if(verbose > 0){
-	    printf("pen_dicom:loadDicom:ERROR: voxel side too small, tracking algorithm\n");
-	    printf("  requires voxel sides to be larger than (cm):%12.5E\n",minvoxSide);
-	  }
+	  error.code = PEN_DICOM_SMALL_VOXELS;
+	  error.description = "pen_dicom:loadDicom:Error: voxel side too small, tracking algorithm "
+	    "requires voxel sides to be larger than (cm): " + std::to_string(minvoxSide);
+	  
 	  metainfo_bottomDicom->clear();
 	  fileformat.clear();      
 	  clear();
-	  return PEN_DICOM_SMALL_VOXELS;
+	  return error;
 	}					      
       
       voxVol = dvox_x*dvox_y*dvox_z;
@@ -1993,14 +1994,14 @@ int pen_dicom::loadDicom(const char* dirName,
       
   if (dicomImage == nullptr || voxelContour == nullptr)
     {
-      if(verbose > 0)
-	printf("pen_dicom:loadDicom: Error allocating memory.\n");
+      error.code = PEN_DICOM_BAD_ALLOCATION;
+      error.description = "pen_dicom:loadDicom: Error allocating memory";      
       clear();
-      return PEN_DICOM_BAD_ALLOCATION;
+      return error;
     }
   
 
-  if(verbose > 0)
+  if(verbose > 1)
     printf("\n");
       
   //Check if spacing is consistent between all DICOMs
@@ -2019,10 +2020,10 @@ int pen_dicom::loadDicom(const char* dirName,
       fflush(stdout);
     }
     if(fabs(spacing-dvox_zmm)/dvox_zmm > 5.0e-5){
+      error.code = PEN_DICOM_ERROR_SPACING_MISMATCH;
+      error.description = "pen_dicom:loadDicom: Error: Spacing between images mismatch.";
       clear();
-      if(verbose > 0)
-	printf("pen_dicom:loadDicom: Error: Spacing between images mismatch.\n");
-      return PEN_DICOM_ERROR_SPACING_MISMATCH;
+      return error;
     }
   }
   
@@ -2067,13 +2068,13 @@ int pen_dicom::loadDicom(const char* dirName,
 		      
 	      if(imagePos==-1) //Not found
 		{
-		  if(verbose > 0){
-		    printf("pen_dicom:loadDicom: Error: Missing dicom file %s\n", AuxChar.c_str());
-		  }
+		  error.code = PEN_DICOM_ERROR_REOPENING_DICOM;
+		  error.description = "pen_dicom:loadDicom: Error: Missing dicom file " + AuxChar;
+		  
 		  metainfo_Dicom->clear();
 		  fileformat.clear();
 		  clear();
-		  return PEN_DICOM_ERROR_REOPENING_DICOM;
+		  return error;
 		}
 	    }
 	  else
@@ -2081,8 +2082,8 @@ int pen_dicom::loadDicom(const char* dirName,
 	      //this dicom has not image data and there are more
 	      //than single image file to load
 	      if(verbose > 1){
-		printf("pen_dicom:loadDicom: Error: Dicom file %s doesn't contain "
-		       "Z plane position information.\n",AuxChar.c_str());
+		printf("Warning: Dicom file %s doesn't contain "
+		       "Z plane position information. Skip it.\n",AuxChar.c_str());
 	      }	      
 	      metainfo_Dicom->clear();
 	      fileformat.clear();
@@ -2093,14 +2094,14 @@ int pen_dicom::loadDicom(const char* dirName,
       else
 	{
 	  //Dicom is corrupted
-	  if(verbose > 1){
-	    printf("pen_dicom:loadDicom: Error: Unable to read previous "
-		   "read dicom file %s.\n",AuxChar.c_str());
-	  }
+	  error.code = PEN_DICOM_ERROR_REOPENING_DICOM;
+	  error.description = "pen_dicom:loadDicom: Error: Unable to open previous "
+	    "read dicom file: " + AuxChar;
+	  
 	  metainfo_bottomDicom->clear();
 	  fileformat.clear();
 	  clear();
-	  return PEN_DICOM_ERROR_REOPENING_DICOM;
+	  return error;
 	}
       if(verbose > 2)
 	printf("Dicom loaded\n");
@@ -2119,26 +2120,27 @@ int pen_dicom::loadDicom(const char* dirName,
 	{
 	  if(!(image->isMonochrome())) //Check if this image uses monochromatic format ("SamplesPerPixel" = 1)
 	    {
-	      if(verbose > 0)
-		printf("pen_dicom:load_dicom: Error: Image format is not grayscale:\n   %s\n",
-		       AuxChar.c_str());
+	      error.code = PEN_DICOM_NON_MONOCHROME_IMAGE;
+	      error.description = "pen_dicom:load_dicom: Error: Image format "
+		"is not grayscale: " + AuxChar;
+	      
 	      delete image;
 	      clear();
-	      return PEN_DICOM_NON_MONOCHROME_IMAGE;
+	      return error;
 	    }
 	  //read width, height
 	  short unsigned int width, height; 
 	  status = metainfo_Dicom->findAndGetUint16(DCM_Columns,width);
 	  if(status.bad())
 	    {
-	      if(verbose > 0){
-		printf("pen_dicom:loadDicom:Error: Can't extract 'Columns' fom\n   %s\n",
-		       AuxChar.c_str());
-		printf("   Error: %s\n",status.text());
-	      }
+	      error.code = PEN_DICOM_BAD_READ_COLUMNS;
+	      error.description = "pen_dicom:loadDicom:Error: Unable to extract"
+		" 'Columns' fom " + AuxChar + ". Internal error: ";
+	      error.description += status.text();
+	      
 	      delete image;
 	      clear();
-	      return PEN_DICOM_BAD_READ_COLUMNS;
+	      return error;
 	    }
       if(verbose > 2)
 	printf("Width: %d\n",width);
@@ -2146,14 +2148,14 @@ int pen_dicom::loadDicom(const char* dirName,
 	  status = metainfo_Dicom->findAndGetUint16(DCM_Rows,height);
 	  if(status.bad())
 	    {
-	      if(verbose > 0){
-		printf("pen_dicom:loadDicom: Error: can't extract 'Rows' fom\n   %s\n",
-		       AuxChar.c_str());
-		printf("   Error: %s\n",status.text());
-	      }
+	      error.code = PEN_DICOM_BAD_READ_ROWS;
+	      error.description = "pen_dicom:loadDicom:Error: Unable to extract"
+		" 'Rows' fom " + AuxChar + ". Internal error: ";
+	      error.description += status.text();
+	      
 	      delete image;
 	      clear();
-	      return PEN_DICOM_BAD_READ_ROWS;
+	      return error;
 	    }
 	  
 	  if(verbose > 2)
@@ -2162,12 +2164,12 @@ int pen_dicom::loadDicom(const char* dirName,
 	  //Check dimensions
 	  if(nvox_x != width || nvox_y != height)
 	    {
-	      if(verbose > 0){
-		printf("pen_dicom:load_dicom: Error: DICOMs image size mismatched\n");
-	      }
+	      error.code = PEN_DICOM_MISMATCH_DIMENSIONS;
+	      error.description = "pen_dicom:load_dicom: Error: DICOMs image size mismatch";
+	      
 	      delete image;
 	      clear();
-	      return PEN_DICOM_MISMATCH_DIMENSIONS;
+	      return error;
 	    }
 
 	  //Get planes in image file
@@ -2188,13 +2190,13 @@ int pen_dicom::loadDicom(const char* dirName,
 	    static_cast<unsigned long>(width)*
 	    static_cast<unsigned long>(height)*nframes;
 	  if(totalDicomVoxels != pairs_ZNpix[imagePos].second){
-	    if(verbose > 0){
-	      printf("pen_dicom:loadDicom: Error: Number of voxels mismatch into "
-		     "dicom file %s\n",AuxChar.c_str());
-	    }
+	    error.code = PEN_DICOM_NVOXELS_MISMATCH;
+	    error.description = "pen_dicom:load_dicom: Error: Number of voxels mismatch into"
+	      "dicom file " + AuxChar;
+	    
 	    delete image;
 	    clear();
-	    return PEN_DICOM_NVOXELS_MISMATCH;
+	    return error;
 	  }
 
 	  if(verbose > 2){
@@ -2223,13 +2225,14 @@ int pen_dicom::loadDicom(const char* dirName,
 	  status = metainfo_Dicom->findAndGetUint16(DCM_PixelRepresentation,PixelRep);
 	  if(status.bad())
 	    {
-	      if(verbose > 0){
-		printf("pen_dicom:loadDicom:Error: can't extract 'PixelRepresentation' from\n   %s\n",AuxChar.c_str());
-		printf("   Error: %s\n",status.text());
-	      }
+	      error.code = PEN_DICOM_BAD_READ_PIXEL_REPRESENTATION;
+	      error.description = "pen_dicom:loadDicom:Error: Unable to extract"
+		" 'PixelRepresentation' fom " + AuxChar + ". Internal error: ";
+	      error.description += status.text();
+	      
 	      delete image;
 	      clear();
-	      return PEN_DICOM_BAD_READ_PIXEL_REPRESENTATION;
+	      return error;
 	    }
 	  
 	  if(verbose > 2){
@@ -2242,35 +2245,34 @@ int pen_dicom::loadDicom(const char* dirName,
 	  const DiPixel *inter = image->getInterData();
 	  if(inter == nullptr)
 	    {
-	      if(verbose > 0){
-		printf("pen_dicom:load_dicom: Error: Can't extract pixel data"
-		       " form dicom:\n   %s\n",AuxChar.c_str());
-	      }
+	      error.code = PEN_DICOM_BAD_READ_PIXEL_DATA;
+	      error.description = "pen_dicom:loadDicom:Error: Unable to extract"
+		" pixel data fom dicom " + AuxChar;
+	      
 	      delete image;
 	      clear();
-	      return PEN_DICOM_BAD_READ_PIXEL_DATA;
+	      return error;
 	    }
 
 	  //Check number of pixels
 	  if(inter->getCount() != totalDicomVoxels){
-	    if(verbose > 0){
-	      printf("pen_dicom:load_dicom: Error: Image pixel count and"
-		     " expected number of pixels mismatch"
-		     " form dicom:\n   %s\n"
-		     "     Read: %lu\n"
-		     " Expected: %lu\n",
-		     AuxChar.c_str(),inter->getCount(),totalDicomVoxels);
-	    }
+	      error.code = PEN_DICOM_BAD_READ_PIXEL_DATA;
+	      error.description = "pen_dicom:load_dicom: Error: Image pixel count (" +
+		std::to_string(inter->getCount()) + ") and  expected number of pixels"
+		" (" + std::to_string(totalDicomVoxels) + ") mismatch  in dicom " + AuxChar;
+	      
 	    delete image;
 	    clear();
-	    return PEN_DICOM_BAD_READ_PIXEL_DATA;	    
+	    return error;	    
 	  }
 
 	  //Get pixel representation
 	  EP_Representation rep = inter->getRepresentation();
 
 	  if(rep == EPR_Uint8){
-      printf("Pixel representation: Uint8\n");fflush(stdout);
+	    if(verbose > 1){
+	      printf("Pixel representation: Uint8\n");fflush(stdout);
+	    }
 	    const Uint8* pixeldata =
 	      static_cast<const Uint8*>(inter->getData());
 	    for(unsigned long int ii = 0; ii < totalDicomVoxels; ii++)
@@ -2279,7 +2281,9 @@ int pen_dicom::loadDicom(const char* dirName,
     RescaleIntercept+RescaleSlope*static_cast<double>(pixeldata[ii]);
 	  }
 	  else if(rep == EPR_Sint8){
-      printf("Pixel representation: Sint8\n");fflush(stdout);
+	    if(verbose > 1){
+	      printf("Pixel representation: Sint8\n");fflush(stdout);
+	    }
 	    const Sint8* pixeldata =
 	      static_cast<const Sint8*>(inter->getData());
 	    for(unsigned long int ii = 0; ii < totalDicomVoxels; ii++)
@@ -2288,7 +2292,9 @@ int pen_dicom::loadDicom(const char* dirName,
     RescaleIntercept+RescaleSlope*static_cast<double>(pixeldata[ii]);
 	  }
 	  else if(rep == EPR_Uint16){
-      printf("Pixel representation: Uint16\n");fflush(stdout);
+	    if(verbose > 1){
+	      printf("Pixel representation: Uint16\n");fflush(stdout);
+	    }
 	    const Uint16* pixeldata =
 	      static_cast<const Uint16*>(inter->getData());
 	    for(unsigned long int ii = 0; ii < totalDicomVoxels; ii++)
@@ -2297,7 +2303,9 @@ int pen_dicom::loadDicom(const char* dirName,
     RescaleIntercept+RescaleSlope*static_cast<double>(pixeldata[ii]);
 	  }
 	  else if(rep == EPR_Sint16){
-      printf("Pixel representation: Sint16\n");fflush(stdout);
+	    if(verbose > 1){
+	      printf("Pixel representation: Sint16\n");fflush(stdout);
+	    }
 	    const Sint16* pixeldata =
 	      static_cast<const Sint16*>(inter->getData());
 	    for(unsigned long int ii = 0; ii < totalDicomVoxels; ii++)
@@ -2306,7 +2314,9 @@ int pen_dicom::loadDicom(const char* dirName,
     RescaleIntercept+RescaleSlope*static_cast<double>(pixeldata[ii]);
 	  }
 	  else if(rep == EPR_Uint32){
-      printf("Pixel representation: Uint32\n");fflush(stdout);
+	    if(verbose > 1){
+	      printf("Pixel representation: Uint32\n");fflush(stdout);
+	    }
 	    const Uint32* pixeldata =
 	      static_cast<const Uint32*>(inter->getData());
 	    for(unsigned long int ii = 0; ii < totalDicomVoxels; ii++)
@@ -2315,7 +2325,9 @@ int pen_dicom::loadDicom(const char* dirName,
     RescaleIntercept+RescaleSlope*static_cast<double>(pixeldata[ii]);
 	  }
 	  else if(rep == EPR_Sint32){
-      printf("Pixel representation: Sint32\n");fflush(stdout);
+	    if(verbose > 1){
+	      printf("Pixel representation: Sint32\n");fflush(stdout);
+	    }
 	    const Sint32* pixeldata =
 	      static_cast<const Sint32*>(inter->getData());
 	    for(unsigned long int ii = 0; ii < totalDicomVoxels; ii++)
@@ -2325,25 +2337,24 @@ int pen_dicom::loadDicom(const char* dirName,
 	  }
 	  else
 	    {
-	      if(verbose > 0){
-		printf("pen_dicom:load_dicom: Error: Invalid pixel "
-		       "representation (%d) form dicom:\n   %s\n",
-		       rep,AuxChar.c_str());
-	      }
+	      error.code = PEN_DICOM_BAD_PIXEL_REPRESENTATION;
+	      error.description = "pen_dicom:load_dicom: Error: Invalid pixel "
+		"representation (" + std::to_string(rep) + ") from dicom " + AuxChar;
+	      
 	      delete image;
 	      clear();
-	      return PEN_DICOM_BAD_PIXEL_REPRESENTATION;
+	      return error;
 	    } 
 	}
       else
 	{
-	  if(verbose > 0){
-	    printf("pen_dicom:load_dicom: Error: Can't open image "
-		   "from dicom:\n   %s\n",AuxChar.c_str());
-	  }
+	  error.code = PEN_DICOM_BAD_IMAGE_OPEN;
+	  error.description = "pen_dicom:load_dicom: Error: Unable to open image "
+		   "from dicom " + AuxChar;
+	  
 	  delete image;
 	  clear();
-	  return PEN_DICOM_BAD_IMAGE_OPEN;
+	  return error;
 	}
       delete image;
       
@@ -2355,17 +2366,21 @@ int pen_dicom::loadDicom(const char* dirName,
   if(verbose > 1){
     printf(" Loaded image DICOMs: %lu\n",loadedDicoms);fflush(stdout);
   }
-  return PEN_DICOM_SUCCESS;
+  return error;
 }
 
-int pen_dicom::assignContours(){
+penred::errors::Error pen_dicom::assignContours(){
 
   //////////////////////////////
   // Check voxels in contours //
   //////////////////////////////
 
+  penred::errors::SpecificError<pen_dicom> error;
+  
   if(voxelContour == nullptr){
-    return PEN_DICOM_NO_DICOM_LOADED;
+    error.code = PEN_DICOM_NO_DICOM_LOADED;
+    error.description = "pen_dicom:assignContours: Error: No DICOM loaded";    
+    return error;
   }
   
   if( tnvox > 0 )
@@ -2506,8 +2521,8 @@ int pen_dicom::assignContours(){
                         }
                     }
                 }
-             }
-          }   
+	    }
+	}   
                
         //Copy actual voxel contour data to auxiliar array
         memcpy(voxelContour2,voxelContour,sizeof(int)*tnvox);
@@ -2523,7 +2538,7 @@ int pen_dicom::assignContours(){
 	  nVoxContour[voxelContour[i]]++;
     }
 
-  return PEN_DICOM_SUCCESS;
+  return error;
 }
 
 
@@ -2588,9 +2603,11 @@ bool pen_dicom::checkImgModality(const char* Modality)
     }
 }
 
-int pen_dicom::transformContoursAndSeeds(const double* imageOrientation,
-					  const unsigned verbose)
+penred::errors::Error pen_dicom::transformContoursAndSeeds(const double* imageOrientation,
+							   const unsigned verbose)
 {
+  penred::errors::SpecificError<pen_dicom> error;
+  
   //Transform positions of contour points and seeds
   //according to specified image orientation stored in 'imageOrientation'
   //and dicom origin
@@ -2624,9 +2641,10 @@ int pen_dicom::transformContoursAndSeeds(const double* imageOrientation,
       
       if(modX == 0.0)
 	{
-	  if(verbose > 0)
-	    printf("Oriantation-transform: Error: Invalid image orientation with mod equal to 0:\n");
-	  return PEN_DICOM_INVALID_ORIENTATION;
+	  error.code = PEN_DICOM_INVALID_ORIENTATION;
+	  error.description = "pen_dicom::transformContoursAndSeeds:Error: "
+	    "Invalid image orientation with mod equal to 0";
+	  return error;
 	}
       if(modXyz == 0)
 	{
@@ -2796,13 +2814,18 @@ int pen_dicom::transformContoursAndSeeds(const double* imageOrientation,
 	    }
 	}    
     }
-  return PEN_DICOM_SUCCESS;
+  return error;
 }
 
-int pen_dicom::printContourMasks(const char* filename) const{
+penred::errors::Error pen_dicom::printContourMasks(const char* filename) const{
 
-  if(filename == nullptr)
-    return PEN_DICOM_ERROR_NULL_FILENAME;
+  penred::errors::SpecificError<pen_dicom> error;
+  
+  if(filename == nullptr){
+    error.code = PEN_DICOM_ERROR_NULL_FILENAME;
+    error.description = "pen_dicom::printContourMasks:Error: Null filename provided";
+    return error;
+  }
 
   for(size_t imask = 0; imask < contourMasks.size(); ++imask){
 
@@ -2823,7 +2846,9 @@ int pen_dicom::printContourMasks(const char* filename) const{
     FILE* OutMask = nullptr;
     OutMask = fopen(sfilename.c_str(),"w");
     if(OutMask == nullptr){
-      return PEN_DICOM_ERROR_CREATING_FILE;
+      error.code = PEN_DICOM_ERROR_CREATING_FILE;
+      error.description = "pen_dicom::printContourMasks:Error: Unable to create mask file";
+      return error;
     }
     
     unsigned long nInner=std::accumulate(mask.begin(),mask.end(),static_cast<unsigned long>(0));
@@ -2856,13 +2881,18 @@ int pen_dicom::printContourMasks(const char* filename) const{
 
   }
     
-  return PEN_DICOM_SUCCESS;
+  return error;
 }
 
-int pen_dicom::printContourMasksMHD(const char* filename) const{
+penred::errors::Error pen_dicom::printContourMasksMHD(const char* filename) const{
 
-  if(filename == nullptr)
-    return PEN_DICOM_ERROR_NULL_FILENAME;
+  penred::errors::SpecificError<pen_dicom> error;
+  
+  if(filename == nullptr){
+    error.code = PEN_DICOM_ERROR_NULL_FILENAME;
+    error.description = "pen_dicom::printContourMasksMHD:Error: Null filename provided";    
+    return error;
+  }
 
   FILE* OutMask = nullptr;
 
@@ -2890,10 +2920,9 @@ int pen_dicom::printContourMasksMHD(const char* filename) const{
       sfilename.append(".mhd");
       OutMask = fopen(sfilename.c_str(),"w");
       if(OutMask == nullptr){
-        printf("****************************************************\n");
-        printf("pen_dicom: Error: Cannot open output mhd image mask\n");
-        printf("****************************************************\n");
-        return PEN_DICOM_ERROR_CREATING_FILE;
+	error.code = PEN_DICOM_ERROR_CREATING_FILE;
+	error.description = "pen_dicom::printContourMasksMHD:Error: Unable to create mask file";    
+        return error;
       }
 
       fprintf(OutMask,"ObjectType = Image\n");
@@ -2921,10 +2950,9 @@ int pen_dicom::printContourMasksMHD(const char* filename) const{
       sfilename.append(".raw");
       OutMask = fopen(sfilename.c_str(),"wb");
       if(OutMask == nullptr){
-        printf("****************************************************\n");
-        printf("pen_dicom: Error: Cannot open output raw image mask\n");
-        printf("****************************************************\n");
-        return PEN_DICOM_ERROR_CREATING_FILE;
+	error.code = PEN_DICOM_ERROR_CREATING_FILE;
+	error.description = "pen_dicom::printContourMasksMHD:Error: Unable to create mask file";    
+        return error;
       }
      
 
@@ -2938,19 +2966,26 @@ int pen_dicom::printContourMasksMHD(const char* filename) const{
       fclose(OutMask);  
     }
   
-  return PEN_DICOM_SUCCESS;
+  return error;
 }
 
-int pen_dicom::printContours(const char* filename) const{
+penred::errors::Error pen_dicom::printContours(const char* filename) const{
 
-  if(filename == nullptr)
-    return PEN_DICOM_ERROR_NULL_FILENAME;
+  penred::errors::SpecificError<pen_dicom> error;
+  
+  if(filename == nullptr){
+    error.code = PEN_DICOM_ERROR_NULL_FILENAME;
+    error.description = "pen_dicom::printContours:Error: Null filename provided";    
+    return error;
+  }
   
   //Create a file to store contours data
   FILE* OutContorns = nullptr;
   OutContorns = fopen(filename,"w");
   if(OutContorns == nullptr){
-    return PEN_DICOM_ERROR_CREATING_FILE;
+    error.code = PEN_DICOM_ERROR_CREATING_FILE;
+    error.description = "pen_dicom::printContours:Error: Unable to create output file";    
+    return error;
   }
 		    
   fprintf(OutContorns,"# PenRed CONTOUR DATA\n");
@@ -2998,19 +3033,26 @@ int pen_dicom::printContours(const char* filename) const{
   fprintf(OutContorns,"# End of contour data\n");
   fclose(OutContorns);  
 
-  return PEN_DICOM_SUCCESS;
+  return error;
 }
 
-int pen_dicom::printSeeds(const char* filename) const{
+penred::errors::Error pen_dicom::printSeeds(const char* filename) const{
 
-  if(filename == nullptr)
-    return PEN_DICOM_ERROR_NULL_FILENAME;
+  penred::errors::SpecificError<pen_dicom> error;
+  
+  if(filename == nullptr){
+    error.code = PEN_DICOM_ERROR_NULL_FILENAME;
+    error.description = "pen_dicom::printSeeds:Error: Null filename provided";    
+    return error;
+  }
   
   //Create a file to store contours data
   FILE* OutSeeds = nullptr;
   OutSeeds = fopen(filename,"w");
   if(OutSeeds == nullptr){
-    return PEN_DICOM_ERROR_CREATING_FILE;
+    error.code = PEN_DICOM_ERROR_CREATING_FILE;
+    error.description = "pen_dicom::printSeeds:Error: Unable to create output file";    
+    return error;
   }
   
   fprintf(OutSeeds,"# \n");
@@ -3087,19 +3129,26 @@ int pen_dicom::printSeeds(const char* filename) const{
     }
   fclose(OutSeeds);
 
-  return PEN_DICOM_SUCCESS;
+  return error;
 }
 
-int pen_dicom::printImage(const char* filename) const{
+penred::errors::Error pen_dicom::printImage(const char* filename) const{
 
-  if(filename == nullptr)
-    return PEN_DICOM_ERROR_NULL_FILENAME;
+  penred::errors::SpecificError<pen_dicom> error;
+  
+  if(filename == nullptr){
+    error.code = PEN_DICOM_ERROR_NULL_FILENAME;
+    error.description = "pen_dicom::printImage:Error: Null filename provided";    
+    return error;
+  }
   
   //Create a file to store contours data
   FILE* OutImage = nullptr;
   OutImage = fopen(filename,"w");
   if(OutImage == nullptr){
-    return PEN_DICOM_ERROR_CREATING_FILE;
+    error.code = PEN_DICOM_ERROR_CREATING_FILE;
+    error.description = "pen_dicom::printImage:Error: Unable to create output file";    
+    return error;
   }
 
   fprintf(OutImage,"# \n");
@@ -3132,19 +3181,26 @@ int pen_dicom::printImage(const char* filename) const{
     fprintf(OutImage,"\n\n\n");    
   }
 
-  return PEN_DICOM_SUCCESS;
+  return error;
 }
 
-int pen_dicom::printContourVox(const char* filename) const{
+penred::errors::Error pen_dicom::printContourVox(const char* filename) const{
 
-  if(filename == nullptr)
-    return PEN_DICOM_ERROR_NULL_FILENAME;
+  penred::errors::SpecificError<pen_dicom> error;
+  
+  if(filename == nullptr){
+    error.code = PEN_DICOM_ERROR_NULL_FILENAME;
+    error.description = "pen_dicom::printContourVox:Error: Null filename provided";    
+    return error;
+  }
   
   //Create a file to store contours data
   FILE* OutImage = nullptr;
   OutImage = fopen(filename,"w");
   if(OutImage == nullptr){
-    return PEN_DICOM_ERROR_CREATING_FILE;
+    error.code = PEN_DICOM_ERROR_CREATING_FILE;
+    error.description = "pen_dicom::printContourVox:Error: Unable to create output file";    
+    return error;
   }
 
   fprintf(OutImage,"# PenRed CONTOUR VOXEL DATA\n");
@@ -3200,7 +3256,7 @@ int pen_dicom::printContourVox(const char* filename) const{
     fprintf(OutImage,"\n\n\n");    
   }
 
-  return PEN_DICOM_SUCCESS;
+  return error;
 }
 
 

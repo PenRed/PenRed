@@ -1478,6 +1478,29 @@ namespace penred{
       std::array<std::string, nHeaders> headers; 
 
       //Initialization functions
+
+      inline int initDims(const std::vector<unsigned long>& nBinsIn,
+			  const std::vector<std::pair<double, double>>& limitsIn){
+	if(nBinsIn.size() != limitsIn.size())
+	  return errors::DIMENSION_MISMATCH;
+
+	//Init auxiliary arrays
+	std::array<unsigned long, dim> nBinsAux;
+	std::fill(nBinsAux.begin(), nBinsAux.end(), 1ul);
+
+	std::array<std::pair<double, double>, dim> limitsAux;
+	const std::pair<double, double> defaultLimit(-1.0e35, 1.0e35);
+	std::fill(limitsAux.begin(), limitsAux.end(), defaultLimit);
+
+	for(size_t i = 0; i < nBinsIn.size(); ++i){
+	  nBinsAux[i] = nBinsIn[i];
+	}
+	for(size_t i = 0; i < limitsIn.size(); ++i){
+	  limitsAux[i] = limitsIn[i];
+	}
+
+	return initDims(nBinsAux, limitsAux);	
+      }
       
       template<size_t dimInit>
       inline std::enable_if_t< (dimInit < dim), int>
@@ -2481,12 +2504,53 @@ namespace penred{
       const std::vector<type>& readData() const { return data; }
       const std::vector<double>& readSigma() const { return sigma; }
 
+      inline int init(const std::vector<unsigned long>& nBinsIn,
+		      const std::vector<std::pair<double, double>>& limitsIn){
+
+	//Init dimensions
+	int err = this->initDims(nBinsIn, limitsIn);
+	if(err != errors::SUCCESS)
+	  return err;
+    
+	//Resize vectors
+	data.resize(this->totalBins);
+	std::fill(data.begin(), data.end(), static_cast<type>(0));
+
+	sigma.resize(this->totalBins);
+	std::fill(sigma.begin(), sigma.end(), 0.0);
+
+	return errors::SUCCESS;
+      }
+
+      inline int init(const std::vector<unsigned long>& nBinsIn,
+		      const std::vector<std::pair<double, double>>& limitsIn,
+		      const std::vector<type>& dataIn,
+		      const std::vector<double>& sigmaIn){
+
+	//Init dimensions
+	int err = this->initDims(nBinsIn, limitsIn);
+	if(err != errors::SUCCESS)
+	  return err;
+
+	//Check dimensions
+	if(dataIn.size() != this->totalBins || sigmaIn.size() != this->totalBins){
+	  return errors::DIMENSION_MISMATCH; 
+	}
+	
+	data = dataIn;
+	sigma = sigmaIn;
+
+	return errors::SUCCESS;
+      }      
+
       template<size_t dimInit>
       int init(const std::array<unsigned long, dimInit>& nBinsIn,
 	       const std::array<std::pair<double, double>, dimInit>& limitsIn){
 	
 	//Init dimensions
-	this->initDims(nBinsIn, limitsIn);
+	int err = this->initDims(nBinsIn, limitsIn);
+	if(err != errors::SUCCESS)
+	  return err;
     
 	//Resize vectors
 	data.resize(this->totalBins);
@@ -2754,12 +2818,39 @@ namespace penred{
       inline std::vector<type>& getData2() { return data2; }
 
       //Init functions
+      inline int init(const std::vector<unsigned long>& nBinsIn,
+		      const std::vector<std::pair<double, double>>& limitsIn){
+	
+	//Init dimensions
+	int err = this->initDims(nBinsIn, limitsIn);
+    	if(err != errors::SUCCESS)
+	  return err;
+
+	//Resize vectors
+	data.resize(this->totalBins);
+	std::fill(data.begin(), data.end(), static_cast<type>(0));
+
+	data2.resize(this->totalBins);
+	std::fill(data2.begin(), data2.end(), static_cast<type>(0));
+
+	tmp.resize(this->totalBins);
+	std::fill(tmp.begin(), tmp.end(), static_cast<type>(0));
+
+	lastHist.resize(this->totalBins);
+	std::fill(lastHist.begin(), lastHist.end(), 0ull);
+
+
+	return errors::SUCCESS;    
+      }
+      
       template<size_t dimInit>
       int init(const std::array<unsigned long, dimInit>& nBinsIn,
 	       const std::array<std::pair<double, double>, dimInit>& limitsIn){
 	
 	//Init dimensions
-	this->initDims(nBinsIn, limitsIn);
+	int err = this->initDims(nBinsIn, limitsIn);
+    	if(err != errors::SUCCESS)
+	  return err;
     
 	//Resize vectors
 	data.resize(this->totalBins);

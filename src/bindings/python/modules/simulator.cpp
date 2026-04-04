@@ -2,7 +2,7 @@
 //
 //    Copyright (C) 2024 Universitat de València - UV
 //    Copyright (C) 2024 Universitat Politècnica de València - UPV
-//    Copyright (C) 2025 Vicent Giménez Alventosa
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -26,10 +26,7 @@
 //    
 //
 
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#include <pybind11/numpy.h>
-#include <algorithm>
+#include "functions.hh"
 #include "pen_simulation.hh"
 
 #ifdef _PEN_XRAY_LIBS_
@@ -45,174 +42,25 @@ using MaterialList = std::vector<MaterialData>;
 using FilterData = std::tuple<double, double, MaterialComposition>;
 using FilterList = std::vector<FilterData>;
 
-std::string dict2SectionStringWithPrefix(const py::dict& dict, const std::string& prefixIn){
-
-  //Convert a python dictionary to a string compatible with pen_parserSection
-    
-  std::string result;
-  std::string prefix = prefixIn;
-  if(!prefix.empty()){
-    if(prefix.back() != '/'){
-      //Append a slash
-      prefix.append(1,'/');
-    }
-  }
-    
-  for(auto it : dict){
-    //Check data type
-
-    const std::string key = py::str(it.first).cast<std::string>();
-
-    if(py::isinstance<py::bool_>(it.second)){
-      //Boolean case
-      if(it.second.cast<bool>())
-	result += prefix + key + " true\n";
-      else
-	result += prefix + key + " false\n";
-    }    
-    else if(py::isinstance<py::int_>(it.second)){
-      //Number case
-      result += prefix + key + " " + std::to_string(it.second.cast<int>()) + "\n";
-    }
-    else if(py::isinstance<py::float_>(it.second)){
-      //Float  case
-      char aux[20];
-      snprintf(aux, 20, " %15.5E\n", it.second.cast<double>());
-      result += prefix + key + aux;
-    }
-    else if(py::isinstance<py::tuple>(it.second) ||
-	    py::isinstance<py::list>(it.second)){
-      //Array case
-      result += prefix + key + " [";
-      //Print each array element
-      bool first = true;
-      for(auto e : it.second){
-	//Ensure the element is a number
-	if(!py::isinstance<py::int_>(e) &&
-	   !py::isinstance<py::float_>(e)){
-	  printf("dict2SectionString: Error: The array at '%s' contains "
-		 "a non numeric element. Will be skipped.\n",
-		 (prefix + key).c_str());
-	  continue;
-	}
-	if(py::isinstance<py::bool_>(e)){
-	  if(it.second.cast<bool>())
-	    result += (first ? " true" : ", true");
-	  else
-	    result += (first ? " false" : ", false");
-	}
-	else if(py::isinstance<py::int_>(e))
-	  result += (first ? " " : ", ") + std::to_string(e.cast<int>());
-	else{
-	  char aux[25];
-	  snprintf(aux, 25, "%s%15.5E", (first ? " " : ", "), e.cast<double>());	  
-	  result += aux;
-	}
-	first = false;
-      }
-      result += " ]\n";
-    }
-    else if(py::isinstance<py::str>(it.second)){      
-      //String case
-      result += prefix + key + " \"" + it.second.cast<std::string>() + "\"\n";
-    }
-    else if(py::isinstance<py::dict>(it.second)){
-      //Dictionary case. Add the prefix and parse it
-      result += dict2SectionStringWithPrefix(it.second.cast<py::dict>(), prefix + key);
-    }
-    else{
-      printf("dict2SectionString: Error: incompatible element at '%s'. "
-	     "Only numbers, boolean, string, list, tuples and "
-	     "dictionaries are allowed. Will be skipped.\n",
-	     (prefix + key).c_str());
-    }
-  }
-  return result;
-}
-
-std::string dict2SectionString(const py::dict& dict){
-  return dict2SectionStringWithPrefix(dict, "");
-}
-
-inline int dict2section(const py::dict& dict,
-			pen_parserSection& result,
-			std::string& errorString){
-  
-  std::string text = dict2SectionStringWithPrefix(dict, "");
-
-  unsigned long errorLine;
-  return parseString(text, result, errorString, errorLine);
-}
-
-// + Results value extraction
-
-template<typename T, size_t dim>
-py::tuple result2numpy(const penred::measurements::results<T, dim>& results, const bool extractInfo){
-
-  size_t resTupleSize = 2;
-  if(extractInfo){
-    resTupleSize += dim + 2;
-  }
-  
-  py::tuple pyRes(resTupleSize);
-
-  //Get bins in each dimension
-  std::array<unsigned long, dim> nBins = results.readDimBins();
-  //Reverse bins to fit the numpy ordering for dimensions
-  std::reverse(nBins.begin(), nBins.end());
-  
-  pyRes[0] = py::array_t<T>(nBins, results.data.data());
-  pyRes[1] = py::array_t<T>(nBins, results.sigma.data());
-  
-  if(extractInfo){
-    //Get interval and description information for each dimension
-    const std::array<std::pair<double, double>, dim> limits = results.readLimits();
-
-    for(int i = static_cast<int>(dim)-1; i >= 0; --i){
-      py::tuple dimInfo(3);
-      dimInfo[0] = limits[i].first;
-      dimInfo[1] = limits[i].second;
-      const std::string header = results.readDimHeader(i);
-      dimInfo[2] = header;
-
-      //Append this dimension to returned results
-      pyRes[2+dim-(i+1)] = dimInfo;
-    }
-
-    //Append value and description info
-    pyRes[2+dim] = results.readValueHeader();
-    pyRes[2+dim+1] = results.description;
-  }
-
-  return pyRes;
-}
-
-template<typename T>
-py::array_t<T> result2numpy(const std::vector<T>& results, const bool){
-
-  py::tuple pyRes(1);  
-  pyRes[0] = py::array_t<T>(results.size(), results.data());
-
-  return pyRes;
-}
+// + Tally results extraction
 
 template<class TallyType, size_t I>
 typename std::enable_if<I >= std::tuple_size<typename TallyType::ResultsTypes>::value, void>::type
-tallyResults2numpy(const typename TallyType::ResultsTypes&, py::tuple&, const bool){}
+tallyResults2numpy(const typename TallyType::ResultsTypes&, py::tuple&, const bool, const bool){}
 
 template<class TallyType, size_t I>
 typename std::enable_if<I < std::tuple_size<typename TallyType::ResultsTypes>::value, void>::type
-tallyResults2numpy(const typename TallyType::ResultsTypes& r, py::tuple& pyRes, const bool extractInfo){
-  pyRes[I] = result2numpy(std::get<I>(r), extractInfo);
-  tallyResults2numpy<TallyType, I+1>(r, pyRes, extractInfo);
+tallyResults2numpy(const typename TallyType::ResultsTypes& r, py::tuple& pyRes, const bool extractInfo, const bool onlyEffective){
+  pyRes[I] = result2numpy(std::get<I>(r), extractInfo, onlyEffective);
+  tallyResults2numpy<TallyType, I+1>(r, pyRes, extractInfo, onlyEffective);
 }
 
 template<class TallyType>
-py::tuple tallyExtractResults(const typename TallyType::ResultsTypes& r, const bool extractInfo){
+py::tuple tallyExtractResults(const typename TallyType::ResultsTypes& r, const bool extractInfo, const bool onlyEffective){
 
   py::tuple pyRes(std::tuple_size<typename TallyType::ResultsTypes>::value);
 
-  tallyResults2numpy<TallyType, 0>(r, pyRes, extractInfo);
+  tallyResults2numpy<TallyType, 0>(r, pyRes, extractInfo, onlyEffective);
 
   return pyRes;
 }
@@ -221,13 +69,13 @@ py::tuple tallyExtractResults(const typename TallyType::ResultsTypes& r, const b
 
 template<size_t I = 0>
 typename std::enable_if<I >= std::tuple_size<penred::tally::typesGenericTallies>::value, py::tuple>::type
-getResults(const penred::tally::Results&, const std::string&, const unsigned){
+getResults(const penred::tally::Results&, const std::string&, const bool, const bool){
   return py::tuple();
 }  
 
 template<size_t I = 0>
 typename std::enable_if<I < std::tuple_size<penred::tally::typesGenericTallies>::value, py::tuple>::type
-getResults(const penred::tally::Results& results, const std::string& tallyName, const bool extractInfo){
+getResults(const penred::tally::Results& results, const std::string& tallyName, const bool extractInfo, const bool onlyEffective){
 
   using TallyType = typename std::tuple_element<I, penred::tally::typesGenericTallies>::type;
 
@@ -235,10 +83,10 @@ getResults(const penred::tally::Results& results, const std::string& tallyName, 
   for(const auto& element : tallyMap){
     if(element.first.compare(tallyName) == 0){
       const typename TallyType::ResultsTypes& tallyResults = element.second;
-      return tallyExtractResults<TallyType>(tallyResults, extractInfo);
+      return tallyExtractResults<TallyType>(tallyResults, extractInfo, onlyEffective);
     }
   }
-  return getResults<I+1>(results, tallyName, extractInfo);
+  return getResults<I+1>(results, tallyName, extractInfo, onlyEffective);
 }
 
 PYBIND11_MODULE(simulation,m){
@@ -804,23 +652,25 @@ Returns:
 )")
     .def("getResults",
 	 [](penred::simulation::simulator<pen_context>& obj,
-	    const std::string& tallyName, const bool extractInfo) -> py::tuple{
+	    const std::string& tallyName, const bool extractInfo, const bool onlyEffective) -> py::tuple{
 
 	   py::tuple toRet = obj.processResults<py::tuple>
-	     ([tallyName, extractInfo](const penred::tally::Results& results){
-	       return getResults<0>(results, tallyName, extractInfo);
+	     ([tallyName, extractInfo, onlyEffective](const penred::tally::Results& results){
+	       return getResults<0>(results, tallyName, extractInfo, onlyEffective);
 	     });
 	   return toRet;
 	 },
 	 py::arg("tally_name"),
 	 py::arg("extract_info") = false,
+	 py::arg("only_effective") = false,
 	 R"(
 
 Gets the simulation results from the specified tally.
 
 Args:
     tally_name (str): Name of the tally to get the results from.
-    extract_info (bool): If enabled, the limits and dimensions information will be returned along with results values. 
+    extract_info (bool): If enabled, the limits and dimensions information will be returned along with results values.
+    only_effective (bool): If enabled, dimensions with a single bin are ignored, reducing the result's dimension.
 Returns:
     On success, a tuple of numpy vectors storing the tally's specific results is returned. If the requested tally does not support retrieving results in that format, returned vectors will be empty.
 

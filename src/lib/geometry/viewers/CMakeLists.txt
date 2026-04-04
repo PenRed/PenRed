@@ -33,15 +33,15 @@
 #  GEOMETRY VIEWERS
 #############################
 
-# Create geoView executable
-add_executable(geoView ${PROJECT_SOURCE_DIR}/utilities/viewers/geometry/asciiView.cpp)
+#Find threads package
+find_package (Threads REQUIRED)
+
+# Create geoView lib
+add_library(geoViewLib STATIC ${PROJECT_SOURCE_DIR}/lib/geometry/viewers/source/pen_geoView.cpp)
+
+target_include_directories(geoViewLib PUBLIC ${PROJECT_SOURCE_DIR}/lib/geometry/viewers/includes)
 
 #target libs
-target_link_libraries(geoView geoViewLib)
-
-# Install executable
-install(
-    TARGETS geoView
-    DESTINATION ${PROJECT_SOURCE_DIR}/compiled/viewers/geometry/geoView
-)
-
+target_link_libraries(geoViewLib pen_geos)
+#Link thread libs
+target_link_libraries(geoViewLib ${CMAKE_THREAD_LIBS_INIT})

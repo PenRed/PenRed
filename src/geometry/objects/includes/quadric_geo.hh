@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2021 Universitat de València - UV
 //    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -35,56 +36,6 @@
 #include <algorithm>
 #include <functional>
 #include <utility>
-
-enum pen_quadErr{
-		 PEN_QUAD_GEO_SUCCESS = 0,
-		 PEN_QUAD_GEO_INPUT_SECTION,
-		 PEN_QUAD_GEO_OUTPUT_SECTION,
-		 PEN_QUAD_GEO_INPUT_FILE,
-		 PEN_QUAD_GEO_OUTPUT_FILE,
-		 PEN_QUAD_GEO_WR,
-		 PEN_QUAD_GEO_MEAN,
-		 PEN_QUAD_GEO_LABEL_FORMAT,
-		 PEN_QUAD_GEO_SAME_LABEL_SURF,
-		 PEN_QUAD_GEO_NS,
-		 PEN_QUAD_GEO_SURF_FORMAT,
-		 PEN_QUAD_GEO_SURF_IND,
-		 PEN_QUAD_GEO_NPINP,
-		 PEN_QUAD_GEO_XSCALE,
-		 PEN_QUAD_GEO_YSCALE,
-		 PEN_QUAD_GEO_ZSCALE,
-		 PEN_QUAD_GEO_SAME_LABEL_BODY,
-		 PEN_QUAD_GEO_NB,
-		 PEN_QUAD_GEO_MAT,
-		 PEN_QUAD_GEO_UNDEF_SURF_LABEL,
-		 PEN_QUAD_GEO_LIMIT_SURF_DEF_TWICE,
-		 PEN_QUAD_GEO_MANY_LIMIT_SURFACE,
-		 PEN_QUAD_GEO_SIDE_POINTER,
-		 PEN_QUAD_GEO_UNDEF_BODY_LABEL,
-		 PEN_QUAD_GEO_BODY_IS_MODULE,
-		 PEN_QUAD_GEO_MODULE_IS_BODY,
-		 PEN_QUAD_GEO_TWO_MOTHERS_LAST,
-		 PEN_QUAD_GEO_CLONED_NO_MODULE,
-		 PEN_QUAD_GEO_MODULE_UNDEF,
-		 PEN_QUAD_GEO_OBJECT_IS_BODY,
-		 PEN_QUAD_GEO_LABEL_NOT_MODULE,
-		 PEN_QUAD_GEO_WRONG,
-		 PEN_QUAD_GEO_LIMITING_BODY_NOT_DEF,
-		 PEN_QUAD_GEO_LEVELS,
-		 PEN_QUAD_GEO_NXG,
-		 PEN_QUAD_GEO_UNRESOLVED_BODY,
-		 PEN_QUAD_GEO_INCONSISTENT_BODY_LAB,
-		 PEN_QUAD_GEO_INCONSISTENT_SIDE,
-		 PEN_QUAD_GEO_INPUT,
-		 PEN_QUAD_GEO_BAD_READ_DSMAX,
-		 PEN_QUAD_GEO_INVALID_DSMAX,
-		 PEN_QUAD_GEO_BAD_READ_KDET,
-		 PEN_QUAD_GEO_INVALID_KDET,
-		 PEN_QUAD_GEO_UNKNOWN_PARTICLE,
-		 PEN_QUAD_GEO_BAD_READ_EABS,
-		 PEN_QUAD_GEO_INVALID_EABS,
-		 PEN_QUAD_GEO_UNKNOWN_ERROR
-};
 
 struct pen_surfDS{
   double S;
@@ -200,9 +151,9 @@ protected:
   bool LVERB;
   unsigned NMATG;
 
-  virtual int GEOMIN(FILE* IRD,
-		     FILE* IWR,
-		     const unsigned verbose);
+  virtual penred::errors::Error GEOMIN(FILE* IRD,
+				       FILE* IWR,
+				       const unsigned verbose);
 
   void move(const double DS, pen_particleState& state) const;
   bool inBody(const pen_quadBody* pbody, const unsigned KSP[NS]) const;
@@ -218,6 +169,39 @@ protected:
   void STEPLB(const pen_quadBody* pbody, pen_particleState& state, const unsigned KSP[NS], int &IERR) const;
   
 public:
+
+  enum errors{
+    SUCCESS = 0,
+    MISSING_PARAMETER,
+    BAD_VALUE,
+    UNABLE_TO_OPEN_FILE,
+    NO_FILE_PROVIDED,
+    GEOMIN_ERROR,
+    NB_LIMIT_REACHED,
+    NS_LIMIT_REACHED,
+    NXG_LIMIT_REACHED,
+    UNRESOLVED_BODY,
+    INCONSISTENT_LABEL,
+    UNKNOWN_PARTICLE,
+    UNKNOWN_ERROR,
+  };
+
+  static constexpr const char* errorMessage(const int val) noexcept {
+    switch(val){
+    case SUCCESS: return "Success";
+    case MISSING_PARAMETER: return "Missing parameter";
+    case BAD_VALUE: return "Invalid value";
+    case UNABLE_TO_OPEN_FILE: return "Unable to open file";
+    case NO_FILE_PROVIDED: return "No file provided";
+    case GEOMIN_ERROR: return "GEOMIN rutine error";
+    case NB_LIMIT_REACHED: return "Maximum number of bodies reached";
+    case NS_LIMIT_REACHED: return "Maximum number of surfaces reached";
+    case NXG_LIMIT_REACHED: return "Maximum number of surfaces per body reached";
+    case UNKNOWN_PARTICLE: return "Unknown particle";
+    case UNRESOLVED_BODY: return "Unable to resolve body";
+    default: return "Unknown error";
+    }
+  }
 
   static const unsigned int NXG = pen_quadBody::NXG;
   
@@ -236,7 +220,8 @@ public:
   std::string getBodyName(const unsigned ibody) const final override;
   
   
-  int configure(const pen_parserSection& config, const unsigned verbose) final override;
+  penred::errors::Error specificConfigure(const pen_parserSection& config,
+					  const unsigned verbose) final override;
   void locate(pen_particleState& state) const final override;
   void step(pen_particleState& state, double DS, double &DSEF, double &DSTOT, int &NCROSS) const final override;
   //PENGEOM_mod (except DSTOT and KSLAST. This varaibles will be passed as STEP arguments)
@@ -390,5 +375,10 @@ void ROTSHF(double OMEGA,
 	    double &AY,
 	    double &AZ,
 	    double &A0);
+
+template<>
+constexpr const char* penred::errors::errorMessage<pen_quadricGeo>(const int val) noexcept {
+  return pen_quadricGeo::errorMessage(val);
+}
 
 #endif

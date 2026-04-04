@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -143,13 +144,49 @@ class pen_dicomGeo : public pen_voxelGeo{
   
   public:
 
-  int configure(const pen_parserSection& config, const unsigned verbose) override;
+  enum errors{
+    SUCCESS = 0,
+    MISSING_CONFIG_PARAMETER,
+    CORRUPTED_FILE,
+    BAD_VALUE,
+    UNKNOWN_BODY,
+    INTENSITY_RANGE_CONFIG_ERROR,
+    DENSITY_RANGE_CONFIG_ERROR,
+    DICOM_LOAD_ERROR,
+    DICOM_CONTOUR_ERROR,
+    LIMIT_EXCEEDED,
+    VOXEL_ASSIGN_ERROR,
+    NULL_FILENAME,
+    UNABLE_TO_CREATE_FILE,
+  };
 
-  virtual int printImage(const char* filename) const override;
+  static constexpr const char* errorMessage(const int val) noexcept {
+    switch(val){
+    case SUCCESS: return "Success";
+    case MISSING_CONFIG_PARAMETER: return "Missing configuration parameter";
+    case CORRUPTED_FILE: return "Corrupted file";
+    case BAD_VALUE: return "Bad parameter value";
+    case UNKNOWN_BODY: return "Unknown body";
+    case INTENSITY_RANGE_CONFIG_ERROR: return "Error configuring intensity range";
+    case DENSITY_RANGE_CONFIG_ERROR: return "Error configuring density range";
+    case DICOM_LOAD_ERROR: return "Error loading DICOMs";
+    case DICOM_CONTOUR_ERROR: return "Error on DICOM contours";
+    case LIMIT_EXCEEDED: return "Limit exceeded";
+    case VOXEL_ASSIGN_ERROR: return "Voxel assign error";
+    case NULL_FILENAME: return "Null filename provided";
+    case UNABLE_TO_CREATE_FILE: return "Unable to create file";
+    default: return "Unknown error";
+    }
+  }
 
-  int printContourMasks(const char* filename) const;
+  penred::errors::Error specificConfigure(const pen_parserSection& config,
+					  const unsigned verbose) override;
 
-  int printContourMaskSummary(const char* filename) const;
+  virtual penred::errors::Error printImage(const char* filename) const override;
+
+  penred::errors::Error printContourMasks(const char* filename) const;
+
+  penred::errors::Error printContourMaskSummary(const char* filename) const;
   
   inline const pen_dicom& readDicom() const {return dicom;}
 
@@ -158,20 +195,25 @@ class pen_dicomGeo : public pen_voxelGeo{
     offset[1] = dicom.getOriginY();
     offset[2] = dicom.getOriginZ();
   }
+
+  static penred::errors::Error readIntensityRanges(const pen_parserSection& config,
+						   std::vector<intensityRange>& data,
+						   const unsigned verbose);
+
+  static penred::errors::Error readDensityRanges(const pen_parserSection& config,
+						 std::vector<densityRange>& data,
+						 const unsigned verbose);
+
+  static penred::errors::Error readSegmentConstraints(const pen_parserSection& config,
+						      std::vector<segmentConstraints>& data,
+						      const unsigned verbose);  
 };
 
-int readIntensityRanges(const pen_parserSection& config,
-			std::vector<intensityRange>& data,
-			const unsigned verbose);
-
-int readDensityRanges(const pen_parserSection& config,
-		      std::vector<densityRange>& data,
-		      const unsigned verbose);
-
-int readSegmentConstraints(const pen_parserSection& config,
-			   std::vector<segmentConstraints>& data,
-			   const unsigned verbose);
-
+//Define pen_dicomGeo error message function
+template<>
+constexpr const char* penred::errors::errorMessage<pen_dicomGeo>(const int val) noexcept {
+  return pen_dicomGeo::errorMessage(val);
+}
 
 #endif
 #endif

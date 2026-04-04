@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2021 Universitat de València - UV
 //    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -36,11 +37,10 @@ class pen_dummyGeo : public abc_geometry<pen_baseBody>{
   DECLARE_GEOMETRY(pen_dummyGeo)
 
   public:
-  pen_dummyGeo() {
-    configStatus = 0;
-  }
+  pen_dummyGeo() {}
   
-  int configure(const pen_parserSection& /*config*/, unsigned verbose){
+  penred::errors::Error specificConfigure(const pen_parserSection& /*config*/, unsigned verbose){
+    
     NBODYS = 1; //The geometry consists of a single body
     bodies[0].MATER = 1; //of material 1
     bodies[0].DSMAX = 1.0e35; //with infinite eabs
@@ -56,7 +56,7 @@ class pen_dummyGeo : public abc_geometry<pen_baseBody>{
 
     }
     
-    return 0;
+    return penred::errors::Error();
   }
   void locate(pen_particleState&) const;
   void step(pen_particleState&,
@@ -70,5 +70,11 @@ class pen_dummyGeo : public abc_geometry<pen_baseBody>{
   inline std::string getBodyName(const unsigned) const {return std::string("NONE");}
   
 };
+
+//Define dummy error message function
+template<>
+constexpr const char* penred::errors::errorMessage<pen_dummyGeo>(const int) noexcept {
+  return "Success";
+}
 
 #endif
