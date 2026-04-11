@@ -106,6 +106,16 @@ set_target_properties(pyPSF PROPERTIES
       SUFFIX ""
       PREFIX "")
 
+## Geometry module
+add_library(pyGeo MODULE ${CMAKE_CURRENT_SOURCE_DIR}/geometry.cpp)
+target_link_libraries(pyGeo PUBLIC pybind11::module)
+target_link_libraries(pyGeo PUBLIC pyFunctions)
+target_link_libraries(pyGeo PUBLIC geoHandlerLib)
+set_target_properties(pyGeo PROPERTIES
+      OUTPUT_NAME geometry${MODULE_SUFFIX}
+      SUFFIX ""
+      PREFIX "")
+
 #-----------------------------------------------------------------------------
 # Install python modules
 install(
@@ -120,6 +130,11 @@ install(
   
 install(
   TARGETS pyPSF
+  DESTINATION ${PROJECT_SOURCE_DIR}/bindings/python/pyPenred/pyPenred
+  )
+
+install(
+  TARGETS pyGeo
   DESTINATION ${PROJECT_SOURCE_DIR}/bindings/python/pyPenred/pyPenred
   )
 #-----------------------------------------------------------------------------

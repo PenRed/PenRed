@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2021-2022 Universitat de València - UV
 //    Copyright (C) 2021-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -214,7 +215,7 @@ namespace penred{
       }
     }
 
-    void Viewer::renderX(unsigned char* renderMat,unsigned int* renderBody,
+    void Viewer::renderX(unsigned int* renderMat,unsigned int* renderBody,
 			 const float x, const float y, const float z,
 			 const float dy, const float dz,
 			 const unsigned ny, const unsigned nz,
@@ -238,7 +239,7 @@ namespace penred{
 
 	    geometry->locate(state);
 
-	    renderMat[j*ny+i] = static_cast<unsigned char>(state.MAT);
+	    renderMat[j*ny+i] = static_cast<unsigned int>(state.MAT);
 	    renderBody[j*ny+i] = static_cast<unsigned int>(state.IBODY);
 	  }
 	}
@@ -262,7 +263,7 @@ namespace penred{
 
 		geometry->locate(state);
 
-		renderMat[j*ny+i] = static_cast<unsigned char>(state.MAT);
+		renderMat[j*ny+i] = static_cast<unsigned int>(state.MAT);
 		renderBody[j*ny+i] = static_cast<unsigned int>(state.IBODY);
 	      }
 	    }
@@ -277,7 +278,7 @@ namespace penred{
   
     }
 
-    void Viewer::renderXtoLeft(unsigned char* renderMat,
+    void Viewer::renderXtoLeft(unsigned int* renderMat,
 			       unsigned int* renderBody,
 			       const unsigned nPixels,				
 			       const float x, const float y, const float z,
@@ -310,7 +311,7 @@ namespace penred{
 
 	  geometry->locate(state);
 
-	  renderMat[j*ny+i] = static_cast<unsigned char>(state.MAT);
+	  renderMat[j*ny+i] = static_cast<unsigned int>(state.MAT);
 	  renderBody[j*ny+i] = static_cast<unsigned int>(state.IBODY);
 	}
 
@@ -318,7 +319,7 @@ namespace penred{
   
     }
 
-    void Viewer::renderXtoRight(unsigned char* renderMat,
+    void Viewer::renderXtoRight(unsigned int* renderMat,
 				unsigned int* renderBody,
 				const unsigned nPixels,
 				const float x, const float y, const float z,
@@ -351,7 +352,7 @@ namespace penred{
 
 	  geometry->locate(state);
 
-	  renderMat[j*ny+i] = static_cast<unsigned char>(state.MAT);
+	  renderMat[j*ny+i] = static_cast<unsigned int>(state.MAT);
 	  renderBody[j*ny+i] = static_cast<unsigned int>(state.IBODY);
 	}
 
@@ -359,7 +360,7 @@ namespace penred{
   
     }
 
-    void Viewer::renderXtoUp(unsigned char* renderMat,
+    void Viewer::renderXtoUp(unsigned int* renderMat,
 			     unsigned int* renderBody,
 			     const unsigned nPixels,				
 			     const float x, const float y, const float z,
@@ -395,14 +396,14 @@ namespace penred{
 
 	  geometry->locate(state);
 
-	  renderMat[j*ny+i] = static_cast<unsigned char>(state.MAT);
+	  renderMat[j*ny+i] = static_cast<unsigned int>(state.MAT);
 	  renderBody[j*ny+i] = static_cast<unsigned int>(state.IBODY);
 	}
       }
   
     }
 
-    void Viewer::renderXtoDown(unsigned char* renderMat,
+    void Viewer::renderXtoDown(unsigned int* renderMat,
 			       unsigned int* renderBody,
 			       const unsigned nPixels,
 			       const float x, const float y, const float z,
@@ -437,7 +438,7 @@ namespace penred{
 
 	  geometry->locate(state);
 
-	  renderMat[j*ny+i] = static_cast<unsigned char>(state.MAT);
+	  renderMat[j*ny+i] = static_cast<unsigned int>(state.MAT);
 	  renderBody[j*ny+i] = static_cast<unsigned int>(state.IBODY);
 	}    
       }  
@@ -496,7 +497,7 @@ namespace penred{
       }
     }
 
-    void Viewer::renderY(unsigned char* renderMat,unsigned int* renderBody,
+    void Viewer::renderY(unsigned int* renderMat,unsigned int* renderBody,
 			 const float x, const float y, const float z,
 			 const float dx, const float dz,
 			 const unsigned nx, const unsigned nz,
@@ -521,7 +522,7 @@ namespace penred{
 
 	    geometry->locate(state);
 
-	    renderMat[j*nx+i] = static_cast<unsigned char>(state.MAT);
+	    renderMat[j*nx+i] = static_cast<unsigned int>(state.MAT);
 	    renderBody[j*nx+i] = static_cast<unsigned int>(state.IBODY);
 	  }
 	}
@@ -546,7 +547,7 @@ namespace penred{
 
 		geometry->locate(state);
 
-		renderMat[j*nx+i] = static_cast<unsigned char>(state.MAT);
+		renderMat[j*nx+i] = static_cast<unsigned int>(state.MAT);
 		renderBody[j*nx+i] = static_cast<unsigned int>(state.IBODY);
 	      }
 	    }
@@ -560,7 +561,7 @@ namespace penred{
   
     }
 
-    void Viewer::renderYtoLeft(unsigned char* renderMat,
+    void Viewer::renderYtoLeft(unsigned int* renderMat,
 			       unsigned int* renderBody,
 			       const unsigned nPixels,				
 			       const float x, const float y, const float z,
@@ -593,7 +594,7 @@ namespace penred{
 
 	  geometry->locate(state);
 
-	  renderMat[j*nx+i] = static_cast<unsigned char>(state.MAT);
+	  renderMat[j*nx+i] = static_cast<unsigned int>(state.MAT);
 	  renderBody[j*nx+i] = static_cast<unsigned int>(state.IBODY);
 	}
 
@@ -601,7 +602,7 @@ namespace penred{
   
     }
 
-    void Viewer::renderYtoRight(unsigned char* renderMat,
+    void Viewer::renderYtoRight(unsigned int* renderMat,
 				unsigned int* renderBody,
 				const unsigned nPixels,
 				const float x, const float y, const float z,
@@ -634,7 +635,7 @@ namespace penred{
 
 	  geometry->locate(state);
 
-	  renderMat[j*nx+i] = static_cast<unsigned char>(state.MAT);
+	  renderMat[j*nx+i] = static_cast<unsigned int>(state.MAT);
 	  renderBody[j*nx+i] = static_cast<unsigned int>(state.IBODY);
 	}
 
@@ -642,7 +643,7 @@ namespace penred{
   
     }
 
-    void Viewer::renderYtoUp(unsigned char* renderMat,
+    void Viewer::renderYtoUp(unsigned int* renderMat,
 			     unsigned int* renderBody,
 			     const unsigned nPixels,				
 			     const float x, const float y, const float z,
@@ -678,14 +679,14 @@ namespace penred{
 
 	  geometry->locate(state);
 
-	  renderMat[j*nx+i] = static_cast<unsigned char>(state.MAT);
+	  renderMat[j*nx+i] = static_cast<unsigned int>(state.MAT);
 	  renderBody[j*nx+i] = static_cast<unsigned int>(state.IBODY);
 	}
       }
   
     }
 
-    void Viewer::renderYtoDown(unsigned char* renderMat,
+    void Viewer::renderYtoDown(unsigned int* renderMat,
 			       unsigned int* renderBody,
 			       const unsigned nPixels,
 			       const float x, const float y, const float z,
@@ -720,7 +721,7 @@ namespace penred{
 
 	  geometry->locate(state);
 
-	  renderMat[j*nx+i] = static_cast<unsigned char>(state.MAT);
+	  renderMat[j*nx+i] = static_cast<unsigned int>(state.MAT);
 	  renderBody[j*nx+i] = static_cast<unsigned int>(state.IBODY);
 	}
       }
@@ -779,7 +780,7 @@ namespace penred{
       }
     }
 
-    void Viewer::renderZ(unsigned char* renderMat,unsigned int* renderBody,
+    void Viewer::renderZ(unsigned int* renderMat,unsigned int* renderBody,
 			 const float x, const float y, const float z,
 			 const float dx, const float dy,
 			 const unsigned nx, const unsigned ny,
@@ -806,7 +807,7 @@ namespace penred{
 
 	    geometry->locate(state);
 
-	    renderMat[j*nx+i] = static_cast<unsigned char>(state.MAT);
+	    renderMat[j*nx+i] = static_cast<unsigned int>(state.MAT);
 	    renderBody[j*nx+i] = static_cast<unsigned int>(state.IBODY);
 	  }
 	}
@@ -831,7 +832,7 @@ namespace penred{
 
 		geometry->locate(state);
 
-		renderMat[j*nx+i] = static_cast<unsigned char>(state.MAT);
+		renderMat[j*nx+i] = static_cast<unsigned int>(state.MAT);
 		renderBody[j*nx+i] = static_cast<unsigned int>(state.IBODY);
 	      }
 	    }
@@ -846,7 +847,7 @@ namespace penred{
   
     }
 
-    void Viewer::renderZtoLeft(unsigned char* renderMat,
+    void Viewer::renderZtoLeft(unsigned int* renderMat,
 			       unsigned int* renderBody,
 			       const unsigned nPixels,				
 			       const float x, const float y, const float z,
@@ -879,7 +880,7 @@ namespace penred{
 
 	  geometry->locate(state);
 
-	  renderMat[j*nx+i] = static_cast<unsigned char>(state.MAT);
+	  renderMat[j*nx+i] = static_cast<unsigned int>(state.MAT);
 	  renderBody[j*nx+i] = static_cast<unsigned int>(state.IBODY);
 	}
 
@@ -887,7 +888,7 @@ namespace penred{
   
     }
 
-    void Viewer::renderZtoRight(unsigned char* renderMat,
+    void Viewer::renderZtoRight(unsigned int* renderMat,
 				unsigned int* renderBody,
 				const unsigned nPixels,
 				const float x, const float y, const float z,
@@ -920,7 +921,7 @@ namespace penred{
 
 	  geometry->locate(state);
 
-	  renderMat[j*nx+i] = static_cast<unsigned char>(state.MAT);
+	  renderMat[j*nx+i] = static_cast<unsigned int>(state.MAT);
 	  renderBody[j*nx+i] = static_cast<unsigned int>(state.IBODY);
 	}
 
@@ -928,7 +929,7 @@ namespace penred{
   
     }
 
-    void Viewer::renderZtoUp(unsigned char* renderMat,
+    void Viewer::renderZtoUp(unsigned int* renderMat,
 			     unsigned int* renderBody,
 			     const unsigned nPixels,				
 			     const float x, const float y, const float z,
@@ -964,14 +965,14 @@ namespace penred{
 
 	  geometry->locate(state);
 
-	  renderMat[j*nx+i] = static_cast<unsigned char>(state.MAT);
+	  renderMat[j*nx+i] = static_cast<unsigned int>(state.MAT);
 	  renderBody[j*nx+i] = static_cast<unsigned int>(state.IBODY);
 	}
       }
   
     }
 
-    void Viewer::renderZtoDown(unsigned char* renderMat,
+    void Viewer::renderZtoDown(unsigned int* renderMat,
 			       unsigned int* renderBody,
 			       const unsigned nPixels,
 			       const float x, const float y, const float z,
@@ -1006,13 +1007,13 @@ namespace penred{
 
 	  geometry->locate(state);
 
-	  renderMat[j*nx+i] = static_cast<unsigned char>(state.MAT);
+	  renderMat[j*nx+i] = static_cast<unsigned int>(state.MAT);
 	  renderBody[j*nx+i] = static_cast<unsigned int>(state.IBODY);
 	}
       }
     }
 
-    int Viewer::render3Dortho(unsigned char* renderMat,unsigned int* renderBody,
+    int Viewer::render3Dortho(unsigned int* renderMat,unsigned int* renderBody,
 			      const float x, const float y, const float z,
 			      const float u, const float v, const float w,
 			      const float t,
@@ -1070,7 +1071,7 @@ namespace penred{
 	  int ncross;
 	  geometry->step(state,1.0e35,dsef,dstot,ncross);
       
-	  renderMat[j*nx+i] = static_cast<unsigned char>(state.MAT);
+	  renderMat[j*nx+i] = static_cast<unsigned int>(state.MAT);
 	  renderBody[j*nx+i] = static_cast<unsigned int>(state.IBODY);
 	  const float fdstot = static_cast<float>(dstot);
 	  distances[j*nx+i] = fdstot;
@@ -1151,7 +1152,7 @@ namespace penred{
   
     }
 
-    int Viewer::render3D(unsigned char* renderMat,unsigned int* renderBody,
+    int Viewer::render3D(unsigned int* renderMat,unsigned int* renderBody,
 			 const float x, const float y, const float z,
 			 const float u, const float v, const float w,
 			 const float t,
@@ -1214,7 +1215,7 @@ namespace penred{
 	  geometry->step(state,1.0e35,dsef,dstot,ncross);
       
 	  renderMat[j*nx3D+i] =
-	    static_cast<unsigned char>(state.MAT == 0 ? initMat : state.MAT);
+	    static_cast<unsigned int>(state.MAT == 0 ? initMat : state.MAT);
 	  renderBody[j*nx3D+i] =
 	    static_cast<unsigned int>(state.MAT == 0 ? initBody : state.IBODY);
 	  const float fdsef = static_cast<float>(dsef);

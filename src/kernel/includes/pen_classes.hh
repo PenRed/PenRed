@@ -302,34 +302,12 @@ public:
   virtual unsigned getDET(const unsigned ibody) const = 0;
   virtual unsigned getMat(const unsigned ibody) const = 0;
   virtual unsigned long getElements() const = 0;
+  virtual unsigned long getDimElements(const unsigned long idim) const = 0;
+  virtual unsigned long getElementsDim() const = 0;
   virtual unsigned getBodies() const = 0;
   virtual unsigned getIBody(const char* elementName) const = 0;
   virtual std::string getBodyName(const unsigned ibody) const = 0;
   virtual void getOffset(double* offset) const { offset[0] = 0.0; offset[1] = 0.0; offset[2] = 0.0; }
-
-  inline penred::errors::Error configFromFile(const char* filename, const unsigned verbose) {
-    
-    //Parse configuration file
-    pen_parserSection config;
-    std::string errorLine;
-    unsigned long errorLineNum;
-    int err = parseFile(filename,config,errorLine,errorLineNum);
-  
-    if(err != INTDATA_SUCCESS){
-      penred::errors::SpecificError<wrapper_geometry> error;
-      error.code = ERROR_ON_CONFIGURAITON_PARSING;
-      error.description = "  Error code: " + std::to_string(err) +  "\n";
-      error.description += "  Error message: ";
-      error.description += pen_parserError(err);
-      error.description += "\n";
-      error.description += "  Error located at line " + std::to_string(errorLineNum);
-      error.description += ", at text: ";
-      error.description += errorLine + "\n";
-      return error;
-    }
-
-    return configure(config, verbose);    
-  }
 
   //Method to try to convert the wrapper to a specific geometry type
   template<class geoType>

@@ -528,7 +528,7 @@ public:
 
 //Define pen_dicom error message function
 template<>
-constexpr const char* penred::errors::errorMessage<pen_dicomGeo>(const int val) noexcept {
+constexpr const char* penred::errors::errorMessage<pen_dicom>(const int val) noexcept {
   return pen_dicom::errorMessage(val);
 }
 

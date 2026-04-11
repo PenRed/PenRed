@@ -70,7 +70,9 @@ penred::errors::Error pen_dicomGeo::specificConfigure(const pen_parserSection& c
     defMat = 1;
   }
 
-  printf("DICOM default material: %d\n",defMat);
+    if(verbose > 1){
+      printf("DICOM default material: %d\n",defMat);
+    }
   if(defMat < 1){
     error.code = BAD_VALUE;
     error.description = "pen_dicomGeo:configure: Error: Default material must be greater than zero.";
@@ -84,7 +86,10 @@ penred::errors::Error pen_dicomGeo::specificConfigure(const pen_parserSection& c
     }
     defDens = 0.0012;  //assign air density
   }
-  printf("DICOM default density: %14.5E g/cm^3\n",defDens);
+  
+    if(verbose > 1){
+      printf("DICOM default density: %14.5E g/cm^3\n",defDens);
+    }
   if(defDens <= 0.0){
     error.code = BAD_VALUE;
     error.description = "pen_dicomGeo:configure: Error: Invalid default density.";
@@ -95,7 +100,7 @@ penred::errors::Error pen_dicomGeo::specificConfigure(const pen_parserSection& c
   //****************************************
 
   std::vector<intensityRange> intensityRanges;
-  penred::errors::SpecificError<pen_dicomGeo> errorIR;
+  penred::errors::Error errorIR;
   errorIR = readIntensityRanges(config, intensityRanges, verbose);
   if(errorIR){
     error.code = INTENSITY_RANGE_CONFIG_ERROR;
@@ -308,10 +313,10 @@ penred::errors::Error pen_dicomGeo::specificConfigure(const pen_parserSection& c
 	}
 	
 	//Load intensity and density ranges
-	penred::errors::SpecificError<pen_dicomGeo> errorIRC;
+	penred::errors::Error errorIRC;
 	errorIRC = readIntensityRanges(contourNameSec,
-				       contAssigns.intensityRanges,
-				       verbose);
+                                   contAssigns.intensityRanges,
+                                   verbose);
 	if(errorIRC){
 	  error.code = INTENSITY_RANGE_CONFIG_ERROR;
 	  error.description = "pen_dicomGeo:configure: Error configuring intensity ranges "
@@ -328,7 +333,7 @@ penred::errors::Error pen_dicomGeo::specificConfigure(const pen_parserSection& c
 	  printf("  - Density ranges defined in this contour:\n");
 	}
 	
-	penred::errors::SpecificError<pen_dicomGeo> errorDRC;
+	penred::errors::Error errorDRC;
 	errorDRC = readDensityRanges(contourNameSec,
 				     contAssigns.densityRanges,
 				     verbose);
@@ -359,7 +364,7 @@ penred::errors::Error pen_dicomGeo::specificConfigure(const pen_parserSection& c
   //Check for density range material assign
   //****************************************
 
-  penred::errors::SpecificError<pen_dicomGeo> errorDR;
+  penred::errors::Error errorDR;
   std::vector<densityRange> densityRanges;
   errorDR = readDensityRanges(config, densityRanges, verbose);
   if(errorDR){
@@ -386,7 +391,7 @@ penred::errors::Error pen_dicomGeo::specificConfigure(const pen_parserSection& c
   //Check for segmentation constrains
   //****************************************
   std::vector<segmentConstraints> constraints;
-  penred::errors::SpecificError<pen_dicomGeo> errorSC;
+  penred::errors::Error errorSC;
   errorSC = readSegmentConstraints(config, constraints, verbose);
   if(errorSC){
     error.code = MISSING_CONFIG_PARAMETER;
@@ -510,7 +515,7 @@ penred::errors::Error pen_dicomGeo::specificConfigure(const pen_parserSection& c
     calibrationVect.resize(calibration.size());
     for(unsigned long i = 0; i < calibration.size(); i++){
       double aux;
-      err = calibration.read(aux,i);
+      int err = calibration.read(aux,i);
       if(err != INTDATA_SUCCESS){
 	error.code = BAD_VALUE;
 	error.description = "pen_dicomGeo:configure: Error on calibration coefficient " +
@@ -821,7 +826,7 @@ penred::errors::Error pen_dicomGeo::specificConfigure(const pen_parserSection& c
   }
   
   //Create voxelized geometry
-  penred::errors::Error errVox = setVoxels(nvox,dvox,mats.data(),dens.data(),verbose);
+  penred::errors::Error errVox = setVoxels(nvox,dvox,mats.data(),dens.data());
   if(errVox){
     error.code = VOXEL_ASSIGN_ERROR;
     error.description = "pen_dicomGeo:configure:Error: Unable to create voxel "
@@ -971,7 +976,7 @@ penred::errors::Error pen_dicomGeo::printImage(const char* filename) const{
   
   if(filename == nullptr){
     error.code = NULL_FILENAME;
-    error.description = "pen_dicomGeo:printImage:Error: No filename provided."
+    error.description = "pen_dicomGeo:printImage:Error: No filename provided.";
     return error;
   }
   
@@ -980,7 +985,7 @@ penred::errors::Error pen_dicomGeo::printImage(const char* filename) const{
   OutVox = fopen(filename,"w");
   if(OutVox == nullptr){
     error.code = UNABLE_TO_CREATE_FILE;
-    error.description = "pen_dicomGeo:printImage:Error: Unable to create output file."
+    error.description = "pen_dicomGeo:printImage:Error: Unable to create output file.";
     return error;
   }
 
@@ -1030,7 +1035,7 @@ penred::errors::Error pen_dicomGeo::printContourMasks(const char* filename) cons
   
   if(filename == nullptr){
     error.code = NULL_FILENAME;
-    error.description = "pen_dicomGeo:printContourMasks:Error: No filename provided."
+    error.description = "pen_dicomGeo:printContourMasks:Error: No filename provided.";
     return error;
   }
 
@@ -1062,7 +1067,7 @@ penred::errors::Error pen_dicomGeo::printContourMasks(const char* filename) cons
     OutMask = fopen(sfilename.c_str(),"w");
     if(OutMask == nullptr){
       error.code = UNABLE_TO_CREATE_FILE;
-      error.description = "pen_dicomGeo:printContourMasks:Error: Unable to create output file."
+      error.description = "pen_dicomGeo:printContourMasks:Error: Unable to create output file.";
       return error;
     }
     
@@ -1131,7 +1136,7 @@ penred::errors::Error pen_dicomGeo::printContourMaskSummary(const char* filename
   
   if(filename == nullptr){
     error.code = NULL_FILENAME;
-    error.description = "pen_dicomGeo:printContourMaskSummary:Error: No filename provided."
+    error.description = "pen_dicomGeo:printContourMaskSummary:Error: No filename provided.";
     return error;
   }
 
@@ -1142,7 +1147,7 @@ penred::errors::Error pen_dicomGeo::printContourMaskSummary(const char* filename
   OutSumMask = fopen(sfilenameSum.c_str(),"w");
   if(OutSumMask == nullptr){
     error.code = UNABLE_TO_CREATE_FILE;
-    error.description = "pen_dicomGeo:printContourMaskSummary:Error: Unable to create output file."
+    error.description = "pen_dicomGeo:printContourMaskSummary:Error: Unable to create output file.";
     return error;
   }
 
@@ -1197,9 +1202,9 @@ penred::errors::Error pen_dicomGeo::printContourMaskSummary(const char* filename
   return error;
 }
 
-penred::errors::Error readIntensityRanges(const pen_parserSection& config,
-					  std::vector<intensityRange>& data,
-					  const unsigned verbose){
+penred::errors::Error pen_dicomGeo::readIntensityRanges(const pen_parserSection& config,
+                                                        std::vector<intensityRange>& data,
+                                                        const unsigned verbose){
 
   penred::errors::SpecificError<pen_dicomGeo> error;
 
@@ -1317,9 +1322,9 @@ penred::errors::Error readIntensityRanges(const pen_parserSection& config,
   return error;
 }
 
-penred::errors::Error readDensityRanges(const pen_parserSection& config,
-					std::vector<densityRange>& data,
-					const unsigned verbose){
+penred::errors::Error pen_dicomGeo::readDensityRanges(const pen_parserSection& config,
+                                                      std::vector<densityRange>& data,
+                                                      const unsigned verbose){
 
   penred::errors::SpecificError<pen_dicomGeo> error;
   
@@ -1422,9 +1427,9 @@ penred::errors::Error readDensityRanges(const pen_parserSection& config,
   return error;
 }
 
-penred::errors::Error readSegmentConstraints(const pen_parserSection& config,
-					     std::vector<segmentConstraints>& data,
-					     const unsigned verbose){
+penred::errors::Error pen_dicomGeo::readSegmentConstraints(const pen_parserSection& config,
+                                                           std::vector<segmentConstraints>& data,
+                                                           const unsigned verbose){
 
   penred::errors::SpecificError<pen_dicomGeo> error;
 

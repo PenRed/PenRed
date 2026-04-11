@@ -100,6 +100,7 @@ public:
     ERROR_SETTING_VOXELS,
     ERROR_LOADING_DATA,
     GEOMETRY_NOT_LOADED,
+    ERROR_CREATING_FILE,
   };
       
   static constexpr const char* errorMessage(const int val) noexcept {
@@ -115,6 +116,7 @@ public:
     case ERROR_SETTING_VOXELS: return "Unable to set voxels";
     case ERROR_LOADING_DATA: return "Error loading data";
     case GEOMETRY_NOT_LOADED: return "No geometry has been loaded yet";
+    case ERROR_CREATING_FILE: return "Unable to create file";
     default: return "Unknown error";
     }
   }
@@ -130,7 +132,18 @@ public:
   inline double ySize() const {return dy;}
   inline double zSize() const {return dz;}
 
-  
+  inline unsigned long getDimElements(const unsigned long idim) const override{
+    switch(idim){
+    case 0: return nx;
+    case 1: return ny;
+    case 2: return nz;
+    default: return 0;
+    };
+  }
+
+  constexpr unsigned long getElementsDim() const override{
+    return 3;
+  }
   
   virtual penred::errors::Error specificConfigure(const pen_parserSection& config,
 						  const unsigned verbose) override;
@@ -188,8 +201,10 @@ public:
   unsigned getIBody(const char* bname) const override;
 
   std::string getBodyName(const unsigned ibody) const override;
+
+  int saveASCII(const char* filename) const;
   
-  virtual int printImage(const char* filename) const;
+  virtual penred::errors::Error printImage(const char* filename) const;
 };
 
 inline void pen_voxelGeo::move(const double ds, pen_particleState& state) const{

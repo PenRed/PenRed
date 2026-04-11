@@ -1434,13 +1434,13 @@ namespace penred{
 
       //Configure geometry
       geoConfig.addSubsection("materials", matInfo);
-      
-      if(geometry->configure(geoConfig,
-			     verbose > 2 ? verbose : 1) != PEN_MESHBODY_GEO_SUCCESS){
-	printf("Unexpected Error: Unable to construct the geometry. "
-	       "Please, report this error\n");
-	return errors::ERROR_ON_GEOMETRY_INITIALIZATION;
-      }      
+
+      penred::errors::Error errGeoConf = geometry->configure(geoConfig, verbose > 2 ? verbose : 1);
+      if(errGeoConf){
+        printf("Unexpected Error: Unable to construct the geometry. "
+               "Please, report this error:\n%s\n", errGeoConf.stringify().c_str());
+        return errors::ERROR_ON_GEOMETRY_INITIALIZATION;
+      }
       
       //Set the geometry to the simulation context
       context.setGeometry(geometry.get());      

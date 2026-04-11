@@ -280,7 +280,7 @@ penred::errors::Error pen_voxelGeo::specificConfigure(const pen_parserSection& c
   }
 
   if(toASCII){
-    printImage("voxelsASCII.rep");    
+    saveASCII("voxelsASCII.rep");    
   }
   
   //Print report
@@ -1083,7 +1083,7 @@ penred::errors::Error pen_voxelGeo::loadASCII(const char* filename) {
   return error;
 }
 
-int pen_voxelGeo::printImage(const char* filename) const{
+int pen_voxelGeo::saveASCII(const char* filename) const{
 
   if(filename == nullptr)
     return -1;
@@ -1119,6 +1119,64 @@ int pen_voxelGeo::printImage(const char* filename) const{
   return 0;
 }
 
+penred::errors::Error pen_voxelGeo::printImage(const char* filename) const{
+  
+  penred::errors::SpecificError<pen_voxelGeo> error;
+  
+  if(filename == nullptr){
+    error.code = INVALID_FILE;
+    error.description = "pen_voxelGeo:printImage:Error: No filename provided.";
+    return error;
+  }
+  
+  //Create a file to store contours data
+  FILE* OutVox = nullptr;
+  OutVox = fopen(filename,"w");
+  if(OutVox == nullptr){
+    error.code = ERROR_CREATING_FILE;
+    error.description = "pen_voxelGeo:printImage:Error: Unable to create output file "
+      "for image data.";
+    return error;
+  }
+
+  fprintf(OutVox,"# \n");
+  fprintf(OutVox,"# Voxel geometry file\n");
+  fprintf(OutVox,"# Nº of voxels (nx,ny,nz):\n");  
+  fprintf(OutVox,"# %5u %5u %5u\n",nx,ny,nz);
+  fprintf(OutVox,"# Voxel sizes (dx,dy,dz):\n");  
+  fprintf(OutVox,"# %8.5E %8.5E %8.5E\n",dx,dy,dz);
+  fprintf(OutVox,"# Voxel data:\n");
+  fprintf(OutVox,"#    X(cm)   |    Y(cm)   | MAT | density factor\n");
+
+  //Iterate over Z planes
+  for(unsigned k = 0; k < nz; k++){
+    unsigned long indexZ = nxy*static_cast<unsigned long>(k);
+    fprintf(OutVox,"# Index Z = %4d\n",k);
+
+    //Iterate over rows
+    for(unsigned j = 0; j < ny; j++){
+      unsigned long indexYZ = indexZ +
+	static_cast<unsigned long>(j)*static_cast<unsigned long>(nx);
+      fprintf(OutVox,"# Index Y = %4d\n",j);
+
+      //Iterate over columns
+      for(unsigned i = 0; i < nx; i++){
+	unsigned long ivoxel = indexYZ + static_cast<unsigned long>(i);
+
+	//Save voxel X Y, material and density factor
+	fprintf(OutVox," %12.5E %12.5E %4u   %12.5E\n",
+		i*dx, j*dy, mesh[ivoxel].MATER, mesh[ivoxel].densityFact);
+      }
+      
+    }
+    //Set a space between planes
+    fprintf(OutVox,"\n\n\n");    
+  }
+
+  fclose(OutVox);
+  
+  return error;
+}
 
 bool moveIn(double pos,
 	    const double dir,

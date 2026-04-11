@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2019 Universitat de València - UV
 //    Copyright (C) 2019 Universitat Politècnica de València - UPV
-//    Copyright (C) 2025 Vicent Giménez Alventosa
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -151,10 +151,17 @@ public:
     return bodies[ibody].KDET;
   }  
   
-  inline unsigned long getElements() const{
+  inline unsigned long getElements() const override{
     return NBODYS;
   }
+  inline unsigned long getDimElements(const unsigned long idim) const override{
+    return idim == 0 ? NBODYS : 0;
+  }
 
+  inline unsigned long getElementsDim() const override{
+    return 1;
+  }
+  
   inline unsigned getBodies() const{
     return NBODYS;
   }
@@ -272,10 +279,10 @@ public:
   inline const char* getType() const {return "MESH";}
   
   inline pen_meshStates getStatus() const {return meshStatus;}
-  inline unsigned long getElements() const {
+  inline unsigned long getElements() const  override{
     return nElements;
   }
-
+  
   inline unsigned getBodies() const{
     return nBodies;
   }

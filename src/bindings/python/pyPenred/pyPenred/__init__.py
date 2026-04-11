@@ -8,8 +8,10 @@ import numpy as np
 from pyPenred import simulation
 from pyPenred import psf
 from pyPenred import data
+from pyPenred import geometry
 
 simulation.create = simulation.simulator
+geometry.create = geometry.geometry
 
 def readConfigFile(filename):
     '''

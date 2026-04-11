@@ -3,7 +3,7 @@ import os
 import codecs
 
 # Read the version from an environment variable or use the default
-VERSION = os.getenv("PENRED_VERSION", "1.14.0")
+VERSION = os.getenv("PENRED_VERSION", "1.15.0")
 
 ext_modules = [
     Extension(
@@ -33,7 +33,7 @@ setup(
         'Operating System :: MacOS',
     ],
     package_data={
-        'pyPenred': ['*.so', '*.dll', '*.pyd', 'simulation*', 'psf*', 'data*']
+        'pyPenred': ['*.so', '*.dll', '*.pyd', 'simulation*', 'psf*', 'data*', 'geometry*']
     },
     install_requires=[
         'pyyaml',

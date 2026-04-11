@@ -41,18 +41,18 @@ int main(int argc, char** argv){
   pen_dicom dicom;
 
   //Load dicom directory
-  int err = dicom.loadDicom(argv[1],3);
-  if(err != PEN_DICOM_SUCCESS){
-    printf("Error loading dicoms.\n");
-    printf("   Error code: %d\n",err);
+  penred::errors::Error errDICOMLoad = dicom.loadDicom(argv[1],3);
+  if(errDICOMLoad){
+    printf("Error loading dicoms:\n%s\n",
+           errDICOMLoad.stringify().c_str());
     return -1;
   }
 
   //Assign contours without priorities
-  err = dicom.assignContours();
-  if(err != PEN_DICOM_SUCCESS){
-    printf("Error assigning contours.\n");
-    printf("   Error code: %d\n",err);
+  penred::errors::Error errDICOMCont = dicom.assignContours();
+  if(errDICOMCont){
+    printf("Error assigning contours:\n%s\n",
+           errDICOMCont.stringify().c_str());
     return -2;
   }
 
