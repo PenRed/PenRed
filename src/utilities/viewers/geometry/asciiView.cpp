@@ -28,7 +28,7 @@
 #include <array>
 #include "pen_geoView.hh"
 
-void printRender(std::string filename, unsigned char* render, unsigned nx, unsigned ny);
+void printRender(std::string filename, unsigned int* render, unsigned nx, unsigned ny);
 
 int main(int argc, char** argv){
 
@@ -72,7 +72,7 @@ int main(int argc, char** argv){
   const unsigned nxmax = 512;
   const unsigned nymax = 512;
   const unsigned nxymax = nxmax*nymax;
-  std::array<unsigned char, nxymax> renderMat;
+  std::array<unsigned int, nxymax> renderMat;
   std::array<unsigned int, nxymax> renderBody;
   std::array<float, nxymax> distances;
 
@@ -394,7 +394,7 @@ int main(int argc, char** argv){
   
 }
 
-void printRender(std::string filename, unsigned char* render, unsigned nx, unsigned ny){
+void printRender(std::string filename, unsigned int* render, unsigned nx, unsigned ny){
 
   FILE* fout = nullptr;
   fout = fopen(filename.c_str(),"w");
@@ -403,7 +403,7 @@ void printRender(std::string filename, unsigned char* render, unsigned nx, unsig
   
   for(unsigned j = 0; j < ny; ++j){
     for(unsigned i = 0; i < nx; ++i){
-      fprintf(fout,"%u ", static_cast<unsigned>(render[j*nx+i]));
+      fprintf(fout,"%u ", render[j*nx+i]);
     }
     fprintf(fout,"\n");
   }

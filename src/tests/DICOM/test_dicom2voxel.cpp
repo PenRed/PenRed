@@ -69,17 +69,17 @@ int main(int argc, char** argv){
   //Create dicom voxelized geometry
   pen_dicomGeo geometry;
   
-  err = geometry.configure(config,verbose);
-  if(err != 0){
-    printf("Error at geometry configuration.\n");
-    printf("                 Error code: %d\n",err);
+  penred::errors::Error errConf = geometry.configure(config,verbose);
+  if(errConf){
+    printf("Error at geometry configuration:\n%s\n",
+           errConf.stringify().c_str());
     return -2;
   }
 
-  err = geometry.printImage("image.dat");
-  if(err != 0){
-    printf("Error printing processed image.\n");
-    printf("                 Error code: %d\n",err);
+  penred::errors::Error errPrintImage = geometry.printImage("image.dat");
+  if(errPrintImage){
+    printf("Error printing processed image:\n%s\n",
+           errPrintImage.stringify().c_str());
     return -3;
   }
   

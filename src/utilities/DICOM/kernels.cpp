@@ -85,10 +85,10 @@ int main(int argc, char** argv){
   //Create dicom voxelized geometry
   pen_dicomGeo geometry;
   
-  err = geometry.configure(config,verbose);
-  if(err != 0){
-    printf("Error at geometry configuration.\n");
-    printf("                 Error code: %d\n",err);
+  penred::errors::Error errConfGeo = geometry.configure(config,verbose);
+  if(errConfGeo){
+    printf("Error at geometry configuration:\n%s\n",
+           errConfGeo.stringify().c_str());
     return -2;
   }
 
@@ -155,7 +155,7 @@ int main(int argc, char** argv){
               }
           }
           pen_voxelGeo kernelGeo;
-          kernelGeo.setVoxels(nkvox,dsvox,mats,densFact,verbose);
+          kernelGeo.setVoxels(nkvox,dsvox,mats,densFact);
           char filename[100];
           sprintf(filename,"kernel-%lu-%ux%ux%u.dump",
                   nkernels,kernelSize,kernelSize,kernelSize);

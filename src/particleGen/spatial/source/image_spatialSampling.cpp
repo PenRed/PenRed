@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2021-2022 Universitat de València - UV
 //    Copyright (C) 2021-2022 Universitat Politècnica de València - UPV
-//    Copyright (C) 2025 Vicent Giménez Alventosa
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -190,12 +190,12 @@ int image_spatialSampling::configure(const pen_parserSection& config,
   // Try to load the DICOM
   //************************
   pen_dicom dicom;
-  err = dicom.loadDicom(directoryPath.c_str(),verbose);
-  if(err != PEN_DICOM_SUCCESS){
+  penred::errors::Error errLoadDICOM = dicom.loadDicom(directoryPath.c_str(),verbose);
+  if(errLoadDICOM){
     if(verbose > 0){
       printf("image_spatialSampling:configure: "
-	     "Error loading DICOM '%s'\n",directoryPath.c_str());
-      printf("                 Error code: %d\n",err);
+             "Error loading DICOM '%s':\n%s\n",
+             directoryPath.c_str(), errLoadDICOM.stringify().c_str());
     }
     return 2;
   }  

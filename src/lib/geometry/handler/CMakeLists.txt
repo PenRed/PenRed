@@ -1,8 +1,7 @@
 
 #
 #
-#    Copyright (C) 2019-2022 Universitat de València - UV
-#    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+#    Copyright (C) 2026 Vicent Giménez Alventosa
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -23,21 +22,23 @@
 #    contact emails:
 #
 #        vicent.gimenez.alventosa@gmail.com (Vicent Giménez Alventosa)
-#        vicente.gimenez@uv.es (Vicente Giménez Gómez)
-#    
 #
 
-#############################
-#  LIBS
-#############################
 
 
 #############################
-#  ADD SUB-FOLDERS
+#  GEOMETRY HANDLER
 #############################
 
-# viewers folder
-add_subdirectory(viewers)
+#Find threads package
+find_package (Threads REQUIRED)
 
-# viewers folder
-add_subdirectory(handler)
+# Create geoView lib
+add_library(geoHandlerLib STATIC ${PROJECT_SOURCE_DIR}/lib/geometry/handler/geoHandler.cpp)
+
+target_include_directories(geoHandlerLib PUBLIC ${PROJECT_SOURCE_DIR}/lib/geometry/handler)
+
+#target libs
+target_link_libraries(geoHandlerLib geoViewLib)
+#Link thread libs
+target_link_libraries(geoHandlerLib ${CMAKE_THREAD_LIBS_INIT})

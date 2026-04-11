@@ -809,8 +809,11 @@ penred::errors::Error pen_dicom::loadDicom(const char* dirName,
   
   const double minvoxSide=1.0E-6;
 
-  if(dirName == nullptr)
-    return PEN_DICOM_FOLDER_NOT_SPECIFIED;
+  if(dirName == nullptr){
+    error.code = PEN_DICOM_FOLDER_NOT_SPECIFIED;
+    error.description = "pen_dicom:loadDicom:Error: DICOM folder path is null";
+    return error;
+  }
 
   //Change dcmtk log level
   dcmtk::log4cplus::Logger rootLogger = dcmtk::log4cplus::Logger::getRoot();
@@ -1983,7 +1986,7 @@ penred::errors::Error pen_dicom::loadDicom(const char* dirName,
     if(verbose > 1){
       printf(" Loaded DICOM metada\n");fflush(stdout);
     }    
-    return PEN_DICOM_SUCCESS;
+    return error;
   }
 	  
   // Allocate arrays:
@@ -2403,7 +2406,9 @@ penred::errors::Error pen_dicom::assignContours(){
       voxelContour2 = (int*) malloc(sizeof(int)*tnvox);
 
       if(voxelContour2 == nullptr){
-	return PEN_DICOM_BAD_ALLOCATION;
+        error.code = PEN_DICOM_BAD_ALLOCATION;
+        error.description = "pen_dicom:assignContours:Error: Low memory";
+        return error;
       }
 
       //Clear voxels contour

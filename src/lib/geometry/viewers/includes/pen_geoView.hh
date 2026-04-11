@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2021-2022 Universitat de València - UV
 //    Copyright (C) 2021-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -158,6 +159,10 @@ namespace penred{
 	return init(config,verbose);
       }
 
+      inline void clear() noexcept {
+	geometry.reset();
+      }
+
       int init(const pen_parserSection& configIn,
 	       const unsigned verbose = 5);
 
@@ -167,14 +172,14 @@ namespace penred{
 		 const unsigned ny, const unsigned nz,
 		 const float t) const;
   
-      void renderX(unsigned char* renderMat,unsigned int* renderBody,
+      void renderX(unsigned int* renderMat,unsigned int* renderBody,
 		   const float x, const float y, const float z,
 		   const float dy, const float dz,
 		   const unsigned ny, const unsigned nz,
 		   const float t,
 		   const unsigned nthreads = 1) const;
 
-      void renderXtoLeft(unsigned char* renderMat,
+      void renderXtoLeft(unsigned int* renderMat,
 			 unsigned int* renderBody,
 			 const unsigned nPixels,				
 			 const float x, const float y, const float z,
@@ -182,7 +187,7 @@ namespace penred{
 			 const unsigned ny, const unsigned nz,
 			 const float t) const;
 
-      void renderXtoRight(unsigned char* renderMat,
+      void renderXtoRight(unsigned int* renderMat,
 			  unsigned int* renderBody,
 			  const unsigned nPixels,
 			  const float x, const float y, const float z,
@@ -190,7 +195,7 @@ namespace penred{
 			  const unsigned ny, const unsigned nz,
 			  const float t) const;
 
-      void renderXtoUp(unsigned char* renderMat,
+      void renderXtoUp(unsigned int* renderMat,
 		       unsigned int* renderBody,
 		       const unsigned nPixels,				
 		       const float x, const float y, const float z,
@@ -198,7 +203,7 @@ namespace penred{
 		       const unsigned ny, const unsigned nz,
 		       const float t) const;
 
-      void renderXtoDown(unsigned char* renderMat,
+      void renderXtoDown(unsigned int* renderMat,
 			 unsigned int* renderBody,
 			 const unsigned nPixels,
 			 const float x, const float y, const float z,
@@ -212,14 +217,14 @@ namespace penred{
 		 const unsigned nx, const unsigned nz,
 		 const float t) const;
   
-      void renderY(unsigned char* renderMat,unsigned int* renderBody,
+      void renderY(unsigned int* renderMat,unsigned int* renderBody,
 		   const float x, const float y, const float z,
 		   const float dx, const float dz,
 		   const unsigned nx, const unsigned nz,
 		   const float t,
 		   const unsigned nthreads = 1) const;
 
-      void renderYtoLeft(unsigned char* renderMat,
+      void renderYtoLeft(unsigned int* renderMat,
 			 unsigned int* renderBody,
 			 const unsigned nPixels,				
 			 const float x, const float y, const float z,
@@ -227,7 +232,7 @@ namespace penred{
 			 const unsigned nx, const unsigned nz,
 			 const float t) const;
 
-      void renderYtoRight(unsigned char* renderMat,
+      void renderYtoRight(unsigned int* renderMat,
 			  unsigned int* renderBody,
 			  const unsigned nPixels,
 			  const float x, const float y, const float z,
@@ -235,7 +240,7 @@ namespace penred{
 			  const unsigned nx, const unsigned nz,
 			  const float t) const;
 
-      void renderYtoUp(unsigned char* renderMat,
+      void renderYtoUp(unsigned int* renderMat,
 		       unsigned int* renderBody,
 		       const unsigned nPixels,				
 		       const float x, const float y, const float z,
@@ -243,7 +248,7 @@ namespace penred{
 		       const unsigned nx, const unsigned nz,
 		       const float t) const;
 
-      void renderYtoDown(unsigned char* renderMat,
+      void renderYtoDown(unsigned int* renderMat,
 			 unsigned int* renderBody,
 			 const unsigned nPixels,
 			 const float x, const float y, const float z,
@@ -257,14 +262,14 @@ namespace penred{
 		 const unsigned nx, const unsigned ny,
 		 const float t) const;
   
-      void renderZ(unsigned char* renderMat,unsigned int* renderBody,
+      void renderZ(unsigned int* renderMat,unsigned int* renderBody,
 		   const float x, const float y, const float z,
 		   const float dx, const float dy,
 		   const unsigned nx, const unsigned ny,
 		   const float t,
 		   const unsigned nthreads = 1) const;
 
-      void renderZtoLeft(unsigned char* renderMat,
+      void renderZtoLeft(unsigned int* renderMat,
 			 unsigned int* renderBody,
 			 const unsigned nPixels,				
 			 const float x, const float y, const float z,
@@ -272,7 +277,7 @@ namespace penred{
 			 const unsigned nx, const unsigned ny,
 			 const float t) const;
 
-      void renderZtoRight(unsigned char* renderMat,
+      void renderZtoRight(unsigned int* renderMat,
 			  unsigned int* renderBody,
 			  const unsigned nPixels,
 			  const float x, const float y, const float z,
@@ -280,7 +285,7 @@ namespace penred{
 			  const unsigned nx, const unsigned ny,
 			  const float t) const;
 
-      void renderZtoUp(unsigned char* renderMat,
+      void renderZtoUp(unsigned int* renderMat,
 		       unsigned int* renderBody,
 		       const unsigned nPixels,				
 		       const float x, const float y, const float z,
@@ -288,7 +293,7 @@ namespace penred{
 		       const unsigned nx, const unsigned ny,
 		       const float t) const;
 
-      void renderZtoDown(unsigned char* renderMat,
+      void renderZtoDown(unsigned int* renderMat,
 			 unsigned int* renderBody,
 			 const unsigned nPixels,
 			 const float x, const float y, const float z,
@@ -296,7 +301,7 @@ namespace penred{
 			 const unsigned nx, const unsigned ny,
 			 const float t) const;  
   
-      inline int render3Dortho(unsigned char* renderMat,unsigned int* renderBody,
+      inline int render3Dortho(unsigned int* renderMat,unsigned int* renderBody,
 			       const float x, const float y, const float z,
 			       const float u, const float v, const float w,
 			       const float t,
@@ -309,7 +314,7 @@ namespace penred{
 			     distances,minDistance,maxDistance,threshold);
       }
   
-      int render3Dortho(unsigned char* renderMat,unsigned int* renderBody,
+      int render3Dortho(unsigned int* renderMat,unsigned int* renderBody,
 			const float x, const float y, const float z,
 			const float u, const float v, const float w,
 			const float t,
@@ -325,7 +330,7 @@ namespace penred{
 			   const float perspective);
 
 
-      int render3D(unsigned char* renderMat, unsigned int* renderBody,
+      int render3D(unsigned int* renderMat, unsigned int* renderBody,
 		   const float x, const float y, const float z,
 		   const float u, const float v, const float w,
 		   const float t,
