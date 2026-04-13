@@ -52,7 +52,7 @@ int main(){
     printf("READ CHECK ----------------------------\n");
     
     int err;
-    err = data1.read(iRead);
+    err = data1.read(cRead);
     if(err != INTDATA_SUCCESS)
     {
         printf("set1: Error code %d\n", err);

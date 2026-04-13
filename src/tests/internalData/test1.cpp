@@ -54,51 +54,94 @@ int main(){
     err = root.set("data4",data4);
     if(err != INTDATA_SUCCESS){
         printf("set1:Error code %d\n",err);
+        return -1;
     }
         
     err = root.set("array1",array);
     if(err != INTDATA_SUCCESS){
         printf("set2:Error code %d\n",err);
+        return -1;
     }
 
     err = root.set("futureSection",546);
     if(err != INTDATA_SUCCESS){
         printf("set3:Error code %d\n",err);
+        return -1;
     }
 
     err = root.set("sec0/element32",98.2e2);
     if(err != INTDATA_SUCCESS){
         printf("set4:Error code %d\n",err);
+        return -1;
     }
     
     err = root.set("sec0/sec1/en","hi");
     if(err != INTDATA_SUCCESS){
         printf("set5:Error code %d\n",err);
+        return -1;
     }
     
     std::string auxstr("sec0/sec1/es");
     err = root.set(auxstr,"hola");
     if(err != INTDATA_SUCCESS){
         printf("set6:Error code %d\n",err);
+        return -1;
     }
     
     err = root.set("sec0/sec1/¿?",1234);
     if(err != INTDATA_SUCCESS){
         printf("set7:Error code %d\n",err);
-    }
-    
-    err = root.set("sec0/sec2/array_cp",array);
-    if(err != INTDATA_SUCCESS){
-        printf("set8:Error code %d\n",err);
-    }
-    err = root.set("sec0/sec2/array_cp2",array);
-    if(err != INTDATA_SUCCESS){
-        printf("set9:Error code %d\n",err);
+        return -1;
     }
 
+    err = root.set("sec0/sec2/array_cp2",array);
+    if(err != INTDATA_SUCCESS){
+        printf("set8:Error code %d\n",err);
+        return -1;
+    }    
+    err = root.set("sec0/sec2/array_cp",array);
+    if(err != INTDATA_SUCCESS){
+        printf("set9:Error code %d\n",err);
+        return -1;
+    }
+    err = root.set("sec0/sec2/array_cp3",array);
+    if(err != INTDATA_SUCCESS){
+        printf("set9.1:Error code %d\n",err);
+        return -1;
+    }    
+    
+    if(root.isSection("sec0/sec2")){
+      printf("Key 'sec0/sec2' is a section!\n");
+    }else{
+      printf("Erroneous 'sec0/sec2' not considered a section!\n");
+      return -1;
+    }
+
+    if(root.isSection("sec0/sec2/")){
+      printf("Key 'sec0/sec2/' is a section!\n");
+    }else{
+      printf("Erroneous 'sec0/sec2/' not considered a section!\n");
+      return -1;
+    }
+    
+    if(root.isSection("sec0/sec")){
+      printf("Erroneous 'sec0/sec' considered as a section\n");
+      return -1;
+    }else{
+      printf("Key 'sec0/sec' is not a section!\n");
+    }
+
+    if(root.isSection("sec0/sec/")){
+      printf("Erroneous 'sec0/sec/' considered as a section\n");
+      return -1;
+    }else{
+      printf("Key 'sec0/sec/' is not a section!\n");
+    }
+    
     err = root.set("sec6/scalar",'v');
     if(err != INTDATA_SUCCESS){
         printf("set10:Error code %d\n",err);
+        return -1;
     }
     
     
@@ -112,6 +155,7 @@ int main(){
     err = root.readSubsection("/sec0/sec1",sec0sec1);
     if(err != INTDATA_SUCCESS){
         printf("readSubsection:Error code %d\n",err);
+        return -1;
     }
 
     printf("\n\n");
@@ -122,6 +166,7 @@ int main(){
     err = root.ls("/sec0/",vectSec0);
     if(err != INTDATA_SUCCESS){
         printf("ls:Error code %d\n",err);
+        return -1;
     }
 
     for(unsigned j = 0; j < vectSec0.size(); j++){
@@ -133,6 +178,7 @@ int main(){
     err = root.ls("/sec0",vectSec0);
     if(err != INTDATA_SUCCESS){
         printf("ls:Error code %d\n",err);
+        return -1;
     }
 
     for(unsigned j = 0; j < vectSec0.size(); j++){
@@ -143,7 +189,10 @@ int main(){
     vectSec0.clear();
     err = root.ls("/sec0/element32",vectSec0);
     if(err != INTDATA_SUCCESS){
-        printf("ls:Error code %d\n",err);
+        printf("ls:Error expected. Code %d\n",err);
+    }else{
+      printf("ls:Missing expected error!\n");      
+      return -1;
     }
 
     for(unsigned j = 0; j < vectSec0.size(); j++){
@@ -155,5 +204,6 @@ int main(){
     sec0sec1.stringify(sec0sec1String);
     printf("%s\n",sec0sec1String.c_str());
     
+    printf("Test passed!\n");
     return 0;
 }
