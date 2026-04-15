@@ -536,26 +536,20 @@ struct pen_meshBody : public pen_baseBody{
   std::vector<superRegion> regions;
 
   //Sister bodies with overlap
-  static const unsigned maxDaughters = 300;
-  std::array<unsigned,maxDaughters> overlapedBodies;
-  //Number of syster overlaps
-  unsigned nOverlap;
-
+  std::vector<unsigned> overlapedBodies;
   
   //Flags if the body can overlap its parent
   bool canOverlapParent;
 
-  //Daughters bodies array
-  std::array<unsigned,maxDaughters> daughters;
-  //Number of daughter bodies
-  unsigned nDaughters;
+  //Daughters bodies vector
+  std::vector<unsigned> daughters;
 
   //Parent body index
   unsigned parent;
   
   pen_meshBody() : nTriangles(0), meanTrianglesRegion(0),
-		   meanRegionsSuperRegion(0), nOverlap(0),
-		   canOverlapParent(false), nDaughters(0) {}
+		   meanRegionsSuperRegion(0),
+		   canOverlapParent(false) {}
     
   bool inside(const v3D pos) const;
     
@@ -568,18 +562,13 @@ struct pen_meshBody : public pen_baseBody{
   inline size_t nSupRegions() const {return regions.size();}
   
   inline void addDaughter(const unsigned i){
-    if(nDaughters < maxDaughters){
-      daughters[nDaughters++] = i;
-    }else{
-      printf("meshBody_geo: Error: maximum number of daughters is %u\n",
-	     maxDaughters);
-    }
+    daughters.push_back(i);
   }
-    
+  
   inline void printDaughters(const int indent, const pen_meshBody* bodies) const{
         
     printf("%*s|-%s\n",indent,"",BALIAS);
-    for(size_t i = 0; i < nDaughters; ++i){
+    for(size_t i = 0; i < daughters.size(); ++i){
       bodies[daughters[i]].printDaughters(indent+2,bodies);
     }
   }
@@ -607,6 +596,7 @@ public:
   enum errors{
     SUCCESS = 0,
     SECTION_READ_FAIL,
+    LIMIT_REACHED,
     MISSING_PARAMETER,
     BAD_VALUE,
     LOW_ON_MEMORY,
@@ -638,6 +628,7 @@ public:
     switch(val){
     case SUCCESS: return "Success";
     case SECTION_READ_FAIL: return "Unable to read section";
+    case LIMIT_REACHED: return "Limit reached";
     case MISSING_PARAMETER: return "Missing parameter";
     case BAD_VALUE: return "Invalid value";
     case LOW_ON_MEMORY: return "Low on memory";
@@ -751,11 +742,11 @@ public:
     //Get body reference
     const pen_meshBody& body = bodies[ibody];
 
-    if(body.nOverlap == 0)
+    if(body.overlapedBodies.size() == 0)
       return false;
     
     //Check all overlaps at the same level
-    for(unsigned iover = 0; iover < body.nOverlap; ++iover){
+    for(unsigned iover = 0; iover < body.overlapedBodies.size(); ++iover){
         
       //Get body index
       const unsigned overIndex = body.overlapedBodies[iover];
@@ -871,7 +862,7 @@ public:
     const pen_meshBody& body = bodies[ibody];
     
     //Iterate over all daughters to check possible overlaps
-    for(unsigned idaught = 0; idaught < body.nDaughters; ++idaught){
+    for(unsigned idaught = 0; idaught < body.daughters.size(); ++idaught){
         
       //Get daught index and reference
       const unsigned daughtIndex = body.daughters[idaught];

@@ -188,6 +188,7 @@ void pen_DetectionSpatialDistrib::saveData(const unsigned long long nhist) const
   out = fopen(filename.c_str(), "w");
 
   results.print(out, nhist, 2, printCoord, printBins);
+  fclose(out);
 }
 
 

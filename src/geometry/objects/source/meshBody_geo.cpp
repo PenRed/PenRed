@@ -245,7 +245,7 @@ void pen_meshBodyGeo::locate(pen_particleState& state) const{
   do{
     currentBody = nextBody;
     //Check if it is inside of some daughter
-    for(unsigned i = 0; i < bodies[nextBody].nDaughters; ++i){
+    for(unsigned i = 0; i < bodies[nextBody].daughters.size(); ++i){
       unsigned daugIndex = bodies[nextBody].daughters[i];
 
       //Check if the dauther is animated and transform
@@ -289,7 +289,6 @@ void pen_meshBodyGeo::step(pen_particleState& state,
   //Check if it is outside the geometry system
   if(state.IBODY >= getBodies()){
     //Particle is outside.
-    
     //Check if the world is animated
     if(bodies[iworld].inAnimation(state.PAGE)){
       //Transform position and direction
@@ -303,7 +302,6 @@ void pen_meshBodyGeo::step(pen_particleState& state,
       //The particle enters the world
       state.IBODY = iworld;
       state.MAT = bodies[iworld].MATER;
-      dstot = dsIn;
       ncross = 1;
 
       //If the world is not void, stop the particle
@@ -313,6 +311,12 @@ void pen_meshBodyGeo::step(pen_particleState& state,
 	DSTOT = dsIn;
 	NCROSS = 1;
 	return;
+      }
+      else{
+        //The world is a void region. Move the position and
+        //continue to find a material
+        move(dsIn,dir,pos);
+        dsef = dsIn; //Score in dsef because void is the original material
       }
     }else{
       //The particle escapes
@@ -333,7 +337,6 @@ void pen_meshBodyGeo::step(pen_particleState& state,
   
 
   //The particle is inside the geometry system. It could be in a void region
-    
   const unsigned MAT0 = state.MAT;
   bool inVoid = state.MAT == 0 ? true : false;
     
@@ -343,7 +346,6 @@ void pen_meshBodyGeo::step(pen_particleState& state,
   unsigned nextBody = state.IBODY;
   double toTravel = DS;
   for(;;){
-        
     currentBody = nextBody;
     //Check if the current body or some daughters can be crossed
     const pen_meshBody& body = bodies[currentBody];
@@ -362,7 +364,7 @@ void pen_meshBodyGeo::step(pen_particleState& state,
     //Check if any daughter is closer
     v3D closestDaughPos(pos);
     v3D closestDaughDir(dir);
-    for(unsigned i = 0; i< body.nDaughters; ++i){
+    for(unsigned i = 0; i< body.daughters.size(); ++i){
       const unsigned iDaugh = body.daughters[i];
       const pen_meshBody& daughter = bodies[iDaugh];
 
@@ -440,7 +442,7 @@ void pen_meshBodyGeo::step(pen_particleState& state,
 
     //Get material of the next body
     MATNext = bodies[nextBody].MATER;
-            
+
     if(MATNext == 0){ //Entering in a void region
       if(!inVoid){
 	++ncross;
@@ -1496,8 +1498,8 @@ penred::errors::Error pen_meshBodyGeo::specificConfigure(const pen_parserSection
 		body.PALIAS,
 		body.canOverlapParent ? "(Overlaps)" : "(No overlaps)");
 	fprintf(freport,"    Body daughters: %u\n",
-		body.nDaughters);
-	for(unsigned id = 0; id < body.nDaughters; ++id){
+            static_cast<unsigned>(body.daughters.size()));
+	for(unsigned id = 0; id < body.daughters.size(); ++id){
 	  const pen_meshBody& daughter = bodies[body.daughters[id]];
 	  fprintf(freport,"     - %s: %s\n",
 		  daughter.BALIAS,
@@ -1505,8 +1507,9 @@ penred::errors::Error pen_meshBodyGeo::specificConfigure(const pen_parserSection
 	}
 	
 	//Print sister overlaps
-	fprintf(freport,"\n    Body sister overlaps: %u\n",body.nOverlap);
-	for(unsigned is = 0; is < body.nOverlap; ++is){
+	fprintf(freport,"\n    Body sister overlaps: %lu\n",
+            static_cast<unsigned long>(body.overlapedBodies.size()));
+	for(unsigned is = 0; is < body.overlapedBodies.size(); ++is){
 	  fprintf(freport,"     - %s\n",bodies[body.overlapedBodies[is]].BALIAS);
 	}
 
@@ -1630,7 +1633,7 @@ penred::errors::Error pen_meshBodyGeo::specificConfigure(const pen_parserSection
 	  overlapThreads.push_back(std::thread([&](){
 
 	    unsigned int iover = atomicCount++;
-	    while(iover < body.nOverlap){
+	    while(iover < body.overlapedBodies.size()){
 	      const unsigned overlapBodyIndex = body.overlapedBodies[iover];
 	      const pen_meshBody& overlapBody = bodies[overlapBodyIndex];
 
@@ -2217,8 +2220,8 @@ penred::errors::Error pen_meshBodyGeo::GEOMESH(std::istream& in,
 	printf("no overlaps with her parent %u (%s).\n", bodies[i].parent, bodies[i].PALIAS);
       }
             
-      if(bodies[i].nOverlap > 0){
-	for(size_t j=0; j<bodies[i].nOverlap; ++j){
+      if(bodies[i].overlapedBodies.size() > 0){
+	for(size_t j=0; j<bodies[i].overlapedBodies.size(); ++j){
 	  long unsigned int iOverlap = bodies[i].overlapedBodies[j];
 	  printf("overlaps with her sister: %lu (%s).\n",
 		 iOverlap, bodies[iOverlap].BALIAS);
@@ -2358,7 +2361,7 @@ void pen_meshBodyGeo::checkCross(const unsigned iparent){
   //Get parent reference
   const pen_meshBody& parent = bodies[iparent];
     
-  for(unsigned i = 0; i < parent.nDaughters; ++i){
+  for(unsigned i = 0; i < parent.daughters.size(); ++i){
         
     //Save daughter index
     const unsigned idaugh1 = parent.daughters[i];
@@ -2373,7 +2376,7 @@ void pen_meshBodyGeo::checkCross(const unsigned iparent){
     }
         
     //Check crosses with other daughters (sisters)
-    for(unsigned j = i+1; j < parent.nDaughters; ++j){
+    for(unsigned j = i+1; j < parent.daughters.size(); ++j){
             
       //Save second daughter index
       const unsigned idaugh2 = parent.daughters[j];
@@ -2381,8 +2384,8 @@ void pen_meshBodyGeo::checkCross(const unsigned iparent){
       pen_meshBody& body2 = bodies[idaugh2];
             
       if(canOverlap(idaugh1,idaugh2)){
-	body1.overlapedBodies[body1.nOverlap++] = idaugh2;
-	body2.overlapedBodies[body2.nOverlap++] = idaugh1;
+        body1.overlapedBodies.push_back(idaugh2);
+        body2.overlapedBodies.push_back(idaugh1);
       }
     }
         
