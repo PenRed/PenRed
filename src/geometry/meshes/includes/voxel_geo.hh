@@ -141,7 +141,7 @@ public:
     };
   }
 
-  constexpr unsigned long getElementsDim() const override{
+  inline unsigned long getElementsDim() const override{
     return 3;
   }
   
