@@ -262,8 +262,8 @@ Raises:
            }
 
            //Check if is a voxelized-based geometry
-           std::shared_ptr<const pen_voxelGeo> voxGeo = std::dynamic_pointer_cast<const pen_voxelGeo>(geo);
-           if(voxGeo){
+           if(strcmp(geo->getType(), "VOXEL") == 0 || strcmp(geo->getType(), "DICOM") == 0){
+             std::shared_ptr<const pen_voxelGeo> voxGeo = std::static_pointer_cast<const pen_voxelGeo>(geo);
              return py::make_tuple(voxGeo->xSize(), voxGeo->ySize(), voxGeo->zSize());
            }else{
              throw py::value_error("Configured geometry is not voxel-based");
