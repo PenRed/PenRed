@@ -4046,7 +4046,7 @@ namespace penred{
 		  iss.getline(line);
 		  int readCheck = sscanf(line.c_str(), "%d %lf %lf",
 			 &IZ[I], &HOLLOW, &STF[I]);
-		  if(!disableOutput and readCheck != 3){
+		  if(!disableOutput && readCheck != 3){
 		    printf ("Unable to  read from corrupted line: %s\n"
 			    "  Expected to read: 3\n"
 			    "  Read (%d): %d %E %E\n",
