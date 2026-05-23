@@ -293,6 +293,7 @@ public:
 
   inline penred::errors::Error configureStatus() const {return configError;}
   inline virtual const char* getType() const {return "UNKNOWN";}
+  inline virtual const char* readID() const {return "UNKNOWN";}
   
   virtual void locate(pen_particleState& state) const = 0;
   virtual void step(pen_particleState& state, double DS, double &DSEF, double &DSTOT, int &NCROSS) const = 0;
