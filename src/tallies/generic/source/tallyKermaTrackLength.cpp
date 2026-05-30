@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2020-2024 Universitat de València - UV
 //    Copyright (C) 2020-2024 Universitat Politècnica de València - UPV
-//    Copyright (C) 2025 Vicent Giménez Alventosa
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -39,6 +39,7 @@ pen_tallyKermaTrackLength::pen_tallyKermaTrackLength() :
   cartesian2(nullptr),
   cartesianTmp(nullptr),
   cartesianLastHist(nullptr),
+  printCartCoord(false),
   activeCart(false),
   cylindrical(nullptr),
   cylindrical2(nullptr),
@@ -2187,12 +2188,18 @@ int pen_tallyKermaTrackLength::configure(const wrapper_geometry& geometry,
       return -14;
     }
 
+    err = config.read("cartesian/print-coord", printCartCoord);
+    if(err != INTDATA_SUCCESS){
+      printCartCoord = false;
+    }
+    
     if(verbose > 1){
-      printf("Cartesian ranges (cm):\n"
-	     "   x: %14.4E - %14.4E\n"
-	     "   y: %14.4E - %14.4E\n"
-	     "   z: %14.4E - %14.4E\n",
-	     minsCart.x,maxsCart.x,minsCart.y,maxsCart.y,minsCart.z,maxsCart.z);
+      printf("Cartesian ranges (cm) (Printing coordinates %s):\n"
+             "   x: %14.4E - %14.4E\n"
+             "   y: %14.4E - %14.4E\n"
+             "   z: %14.4E - %14.4E\n",
+             printCartCoord ? "enabled" : "disabled",
+             minsCart.x,maxsCart.x,minsCart.y,maxsCart.y,minsCart.z,maxsCart.z);
     }
 
     if(minsCart.x >= maxsCart.x ||
@@ -2779,7 +2786,12 @@ void pen_tallyKermaTrackLength::saveData(const unsigned long long nhist) const{
     fprintf(fout,"# Bin sizes (dx,dy,dz):\n");
     fprintf(fout,"#  %14.4E %14.4E %14.4E\n",dbinCart.x,dbinCart.y,dbinCart.z);
     fprintf(fout,"#\n");
-    fprintf(fout,"#   x   |   y   |   z   |    value    |   2*sigma  \n");
+    if(printCartCoord){
+      fprintf(fout,"#         index         |          lower coord (cm)         |    value    |   2*sigma  \n");
+      fprintf(fout,"#   x   |   y   |   z   |     x     |     y     |     z     |\n");
+    }
+    else
+      fprintf(fout,"#   x   |   y   |   z   |    value    |   2*sigma  \n");
 
     unsigned long t = 0;
     for(long int k = 0; k < nbinsCart.z; ++k){
@@ -2791,9 +2803,19 @@ void pen_tallyKermaTrackLength::saveData(const unsigned long long nhist) const{
 
 	  q /= volumeCart;
 	  sigma /= volumeCart;
-	  
-	  fprintf(fout," %6ld  %6ld  %6ld  %12.5E %12.5E\n",
-		  i,j,k,q,2.0*sigma);
+
+      if(printCartCoord){
+        fprintf(fout," %6ld  %6ld  %6ld   %9.3E   %9.3E   %9.3E  %12.5E %12.5E\n",
+                i,j,k,
+                static_cast<double>(i)*dbinCart.x,
+                static_cast<double>(j)*dbinCart.y,
+                static_cast<double>(k)*dbinCart.z,
+                q,2.0*sigma);
+      }
+      else{
+        fprintf(fout," %6ld  %6ld  %6ld  %12.5E %12.5E\n",
+                i,j,k,q,2.0*sigma);
+      }
 	  ++t;
 	}
 	fprintf(fout,"\n");

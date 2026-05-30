@@ -275,6 +275,7 @@ class pen_tallyKermaTrackLength: public pen_genericTally<pen_particleState> {
   double* cartesianTmp;
   unsigned long long* cartesianLastHist;
   double volumeCart;
+  bool printCartCoord;
   bool activeCart;
   
   //Cylindrical
