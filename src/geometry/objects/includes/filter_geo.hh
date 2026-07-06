@@ -72,12 +72,12 @@ class pen_filterGeo : public abc_geometry<pen_filterBody>{
   
   penred::errors::Error specificConfigure(const pen_parserSection& config, unsigned verbose);
   
-  void locate(pen_particleState&) const;
-  void step(pen_particleState&,
-	    double,
-	    double &,
-	    double &,
-	    int &) const;
+  void locateLocal(pen_particleState&) const final override;
+  void stepLocal(pen_particleState&,
+                 double,
+                 double &,
+                 double &,
+                 int &) const final override;
 
   inline unsigned getIBody(const char*) const {return getElements();}
 

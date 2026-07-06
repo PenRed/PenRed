@@ -1,8 +1,7 @@
 
 //
 //
-//    Copyright (C) 2019-2021 Universitat de València - UV
-//    Copyright (C) 2019-2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -22,26 +21,30 @@
 //    contact emails:
 //
 //        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
 //    
 //
 
 
-#include "dummy_geo.hh"
+#ifndef __CIRCLE_SPATIAL_SAMPLING__
+#define __CIRCLE_SPATIAL_SAMPLING__
 
-void pen_dummyGeo::locateLocal(pen_particleState& state) const{
-  state.MAT = bodies[0].MATER;
-  state.IBODY = 0;  
-}
+class circle_spatialSampling : public abc_spatialSampler {
+  
+  DECLARE_SAMPLER(circle_spatialSampling)
 
-void pen_dummyGeo::stepLocal(pen_particleState& state, double DS, double &DSEF, double &DSTOT, int &NCROSS) const{
+  private:
 
-  DSEF = DS;
-  DSTOT = DS;
-  NCROSS = 0;
-  state.X += DS*state.U;
-  state.Y += DS*state.V;
-  state.Z += DS*state.W;
-}
+  double beamRad;
+  
+public:
 
-REGISTER_GEOMETRY(pen_dummyGeo,DUMMY)
+  circle_spatialSampling() : beamRad(1.0)
+  {}
+
+  void geoSampling(double pos[3], pen_rand& random) const;
+
+  int configure(const pen_parserSection& config, const unsigned verbose = 0);
+  
+};
+
+#endif

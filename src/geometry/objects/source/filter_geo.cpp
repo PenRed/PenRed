@@ -273,7 +273,7 @@ penred::errors::Error pen_filterGeo::specificConfigure(const pen_parserSection& 
   return error;
 }
 
-void pen_filterGeo::locate(pen_particleState& state) const{
+void pen_filterGeo::locateLocal(pen_particleState& state) const{
 
   for(unsigned i = 0; i < getBodies(); ++i)
     if(bodies[i].isIn(state)){
@@ -289,7 +289,7 @@ void pen_filterGeo::locate(pen_particleState& state) const{
   
  
 
-void pen_filterGeo::step(pen_particleState& state, double DS, double &DSEF, double &DSTOT, int &NCROSS) const{
+void pen_filterGeo::stepLocal(pen_particleState& state, double DS, double &DSEF, double &DSTOT, int &NCROSS) const{
 
   double dsef = 0.0;
   double dstot = 0.0;

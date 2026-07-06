@@ -148,14 +148,14 @@ public:
   virtual penred::errors::Error specificConfigure(const pen_parserSection& config,
 						  const unsigned verbose) override;
 
-  void locate(pen_particleState& state) const final override;
+  void locateLocal(pen_particleState& state) const final override;
   void locateInMesh(pen_particleState& state) const;
 
-  void step(pen_particleState& state,
-	    double DS,
-	    double &DSEF,
-	    double &DSTOT,
-	    int &NCROSS) const final override;
+  void stepLocal(pen_particleState& state,
+                 double DS,
+                 double &DSEF,
+                 double &DSTOT,
+                 int &NCROSS) const final override;
   void stepInMesh(pen_particleState& state,
 	    double DS,
 	    double &DSEF,

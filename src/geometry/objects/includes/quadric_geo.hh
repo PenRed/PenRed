@@ -222,8 +222,12 @@ public:
   
   penred::errors::Error specificConfigure(const pen_parserSection& config,
 					  const unsigned verbose) final override;
-  void locate(pen_particleState& state) const final override;
-  void step(pen_particleState& state, double DS, double &DSEF, double &DSTOT, int &NCROSS) const final override;
+  void locateLocal(pen_particleState& state) const final override;
+  void stepLocal(pen_particleState& state,
+                 double DS,
+                 double &DSEF,
+                 double &DSTOT,
+                 int &NCROSS) const final override;
   //PENGEOM_mod (except DSTOT and KSLAST. This varaibles will be passed as STEP arguments)
   //QSURF
   

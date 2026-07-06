@@ -1432,23 +1432,28 @@ Example:
 )doc");
   
   xray.def("deviceSim",
-	   [](const std::array<double, 3>& sourcePos,
+	   [](const std::array<double, 3>& detectorPos,
 	      const double focalSpot, const double inherentFilterWidth,
 	      const double minkeV, const double kvp,
 	      const unsigned anodeZ, const double anodeAngle,
-	      const std::string& spectrumFile, const std::string& spatialDistribFile,
-	      const double distrib2source,
+          const std::string& psfPath,
+          const std::array<double, 3>& PSFTrans,
+          const std::array<double, 3>& PSFRot,          
 	      const double source2filter,
 	      const double source2detector,
 	      const FilterList& filters,
 	      const double nHists, const double maxTime,
-	      const double dxDetector, double dyDetector,
+	      const double dxDetector, double dyDetector, double dzDetector,
+          const bool idealDetector, const MaterialData& detectorMat, 
 	      const unsigned xbins, const unsigned ybins, const unsigned ebins,
-	      const unsigned threads, const bool printGeometry,
-	      const unsigned seedPair, const double tolerance,
+	      const unsigned threads, const unsigned seedPair,
+	      const py::dict& userTallies,
 	      const py::dict& userGeometry,
 	      const MaterialList& geoMats,
-	      const bool onlyCheck, const bool printConfig, const unsigned verbose) -> py::tuple {
+          const bool generateDetectorPSF,
+          const bool generateFilteredPSF,
+          const bool printConfig,
+	      const unsigned verbose) -> std::unique_ptr<penred::simulation::simulator<pen_context>> {
 	     
 	     // Check parameters
 	     if(focalSpot < 0.0)
@@ -1475,12 +1480,6 @@ Example:
 	     if(anodeAngle <= 0.0 || anodeAngle >= 90.0)
 	       throw py::value_error("Error: Anode angle value must be within (0,90) deg");
 
-	     if(spectrumFile.empty() != spatialDistribFile.empty())
-	       throw py::value_error("Error: Both, spectrum ('spectrum-file') and spatial distribution ('spatial-file') file must be provided");
-
-	     if(distrib2source <= 0.0)
-	       throw py::value_error("Error: Distance between source and spatial distribution must be grater than zero");
-
 	     if(source2filter <= 0.0)
 	       throw py::value_error("Error: Distance between source and first filter must be grater than zero");
 
@@ -1493,9 +1492,9 @@ Example:
 	     if(maxTime <= 0.0)
 	       throw py::value_error("Error: Maximum simulation time must be greater than zero");
 
-	     if(dxDetector <= 0.0 || dyDetector <= 0.0)
+	     if(dxDetector <= 0.0 || dyDetector <= 0.0 || dzDetector <= 0.0)
 	       throw py::value_error("Error: Detector size must be greater than zero");
-	     
+         
 	     if(xbins == 0 || ybins == 0 || ebins == 0){
 	       throw py::value_error("Error: Number of bins must be greater than zero");
 	     }
@@ -1503,9 +1502,10 @@ Example:
 	     if(seedPair >= 1001)
 	       throw py::value_error("Error: Seed pair index must be lesser or equal to 1000");
 
-	     if(tolerance < 0.0)
-	       throw py::value_error("Error: Tolerance must be greater than zero");
-
+         if(generateDetectorPSF && generateFilteredPSF){
+	       throw py::value_error("Error: Only one type of PSF can be generated per execution.");
+         }
+         
 	     //Create config
 	     pen_parserSection config;
 	     config.set("simulation/detBins/nx", static_cast<int>(xbins));
@@ -1515,40 +1515,49 @@ Example:
 	     config.set("simulation/max-time", maxTime);
 	     config.set("simulation/min-energy", minEnergy);
 	     config.set("simulation/nthreads", static_cast<int>(threads));
-	     config.set("simulation/print-geometry", printGeometry);
 	     config.set("simulation/seedPair", static_cast<int>(seedPair));
 
-	     if(spectrumFile.empty())
+	     if(psfPath.empty()){
 	       config.set("simulation/sim-anode", true);
-	     else
+         }
+	     else{
 	       config.set("simulation/sim-anode", false);
-	     
-	     config.set("simulation/tolerance", tolerance);
+	       config.set("x-ray/source/psf/path", psfPath);
+           
+           pen_parserArray PSFTransArray;
+           PSFTransArray.append(PSFTrans[0]);
+           PSFTransArray.append(PSFTrans[1]);
+           PSFTransArray.append(PSFTrans[2]);
+	       config.set("x-ray/source/psf/translation", PSFTransArray);
 
+           pen_parserArray PSFRotArray;
+           PSFRotArray.append(PSFRot[0]);
+           PSFRotArray.append(PSFRot[1]);
+           PSFRotArray.append(PSFRot[2]);
+	       config.set("x-ray/source/psf/rotation", PSFRotArray);           
+         }
+	     
 	     config.set("x-ray/anode/angle", anodeAngle);
 	     config.set("x-ray/anode/z", static_cast<int>(anodeZ));
 	     
 	     config.set("x-ray/detector/dx", dxDetector);
 	     config.set("x-ray/detector/dy", dyDetector);
+	     config.set("x-ray/detector/dz", dzDetector);
+	     config.set("x-ray/detector/ideal", idealDetector);
+	     config.set("x-ray/detector/material", "detector.mat");
 	     config.set("x-ray/distance/detector", source2detector);
-	     config.set("x-ray/distance/distribution", distrib2source);
 	     config.set("x-ray/distance/filter", source2filter);
 	     
 	     config.set("x-ray/focal-spot", focalSpot);
 	     config.set("x-ray/inherent-filter/width", inherentFilterWidth);
 	     config.set("x-ray/kvp", kvp);
 
-	     if(!spectrumFile.empty()){
-	       config.set("x-ray/source/distribution/energy", spectrumFile);
-	       config.set("x-ray/source/distribution/spatial", spatialDistribFile);
-	     }
-
-	     pen_parserArray sourcePosArray;
-	     sourcePosArray.append(sourcePos[0]);
-	     sourcePosArray.append(sourcePos[1]);
-	     sourcePosArray.append(sourcePos[2]);
+	     pen_parserArray detectorPosArray;
+	     detectorPosArray.append(detectorPos[0]);
+	     detectorPosArray.append(detectorPos[1]);
+	     detectorPosArray.append(detectorPos[2]);
 	     
-	     config.set("x-ray/source/position", sourcePosArray);
+	     config.set("x-ray/detector/position", detectorPosArray);
 
 	     //Append filters
 	     unsigned nextFilter = 1;
@@ -1577,12 +1586,44 @@ Example:
 	       ++nextFilter;
 	     }
 
-	     //Get the number of reserved materials
-	     unsigned reservedMats;
-	     int err = penred::xray::checkSimDevice(config, reservedMats, verbose);
-	     if(err != penred::xray::errors::SUCCESS){
-	       throw py::value_error(penred::xray::errors::message(err));	       
-	     }	     
+         //Create detector material, if needed
+         if(idealDetector){
+	       std::string errorString;
+	       int errMat;
+	       std::vector<penred::massFraction> composition;
+	       for(const CompositionPair& e : detectorMat.second){
+             composition.emplace_back(e.first, e.second);
+	       }
+           if(composition.empty()){
+             //Release GIL during material creation
+             py::gil_scoped_release gil_release;
+             //Create Si by default
+             errMat = penred::penMaterialCreator::createMat(14, "detector.mat", errorString);
+           }
+           else{
+             //Release GIL during material creation
+             py::gil_scoped_release gil_release;
+             errMat = penred::penMaterialCreator::createMat("detector", detectorMat.first,
+                                                            composition,
+                                                            errorString,
+                                                            "detector.mat");
+	       }
+	       if(errMat != 0)		  
+             throw py::value_error(errorString);	       
+         }
+
+         //Append tally config
+         if(!userTallies.empty()){
+	       //Convert the dictionary to a configuration section
+	       pen_parserSection tallyConfSec;
+	       std::string errorString;
+	       if(dict2section(userTallies, tallyConfSec, errorString) != 0)
+             throw py::value_error(errorString);
+
+	       if(config.addSubsection("tallies", tallyConfSec) != INTDATA_SUCCESS)
+             throw py::value_error("Unable to set user tally configuration. "
+                                   "Please, report this error");
+         }
 
 	     //Append geometry config
 	     if(!userGeometry.empty()){
@@ -1597,7 +1638,7 @@ Example:
 				       "Please, report this error");
 
 	       //Append geometry materials
-	       unsigned nextMat = reservedMats+1;
+	       unsigned nextMat = 1;
 	       for(const MaterialData& geoMat : geoMats){
 		 std::string prefix = "geometry/materials/" + std::to_string(nextMat);
 		 config.set((prefix + "/density").c_str(), geoMat.first);
@@ -1610,152 +1651,90 @@ Example:
 	       }	       
 	     }
 
+         //Check PSF creation
+         if(generateFilteredPSF){
+           config.set("psf/filtered", true);
+         }
+         else if(generateDetectorPSF){
+           config.set("psf/detected", true);
+         }
+
 	     if(printConfig){
 	       FILE* fconf = fopen("simDevice.conf", "w");
 	       fprintf(fconf, "%s\n", config.stringify().c_str());
 	       fclose(fconf);
 	     }
 
-	     //If only a check is requested, finish the execution
-	     if(onlyCheck){
-	       return py::make_tuple(reservedMats);
-	     }
-	     
-	     //Create results containers
-	     penred::measurements::measurement<double, 2> detFluence;
-	     penred::measurements::measurement<double, 2> detEdep;
-	     penred::measurements::measurement<double, 1> detSpec;
-	     
-	     //Simulate the device
-	     unsigned long long simulatedHists;
-	     {
-	       //Release GIL during device simulation
-	       py::gil_scoped_release gil_release;
-	       err = penred::xray::simDevice(config,
-					     detFluence,
-					     detEdep,
-					     detSpec,
-					     simulatedHists,
-					     verbose);
-	     }
+         //Set log files
+         penred::logs::logger log;
+         log.setConfigurationLogFile("config.log");
+         log.setSimulationLogFile("simulation.log");
+
+         //Create the simulation
+         auto sim = std::make_unique<penred::simulation::simulator<pen_context>>();
+         int err = penred::xray::constructSimDevice(config,*sim,verbose);  
 	     if(err != penred::xray::errors::SUCCESS){
 	       throw py::value_error(penred::xray::errors::message(err));	       
 	     }
+         
+	     //Simulate the device
+	     {
+	       //Release GIL during device simulation
+	       py::gil_scoped_release gil_release;
+           err = sim->simulate();
+	     }
+	     if(err != penred::simulation::errors::SUCCESS){
+	       throw py::value_error(penred::simulation::errors::errorMessage(err));
+	     }
 
-	     //get results
-	     penred::measurements::results<double,2> fluenceRes;
-	     penred::measurements::results<double,2> edepRes;
-	     penred::measurements::results<double,1> specRes;
-	     detFluence.results(simulatedHists, fluenceRes);
-	     detEdep.results(simulatedHists, edepRes);
-	     detSpec.results(simulatedHists, specRes);
-	     
-
-	     py::array_t<double> npSpectrum =
-	       py::array_t<double>(specRes.readData().size(),
-				   specRes.readData().data());
-	     py::array_t<double> npSpectrumE =
-	       py::array_t<double>(specRes.readSigma().size(),
-				   specRes.readSigma().data());
-	       
-	     py::array_t<double> npEdep =
-	       py::array_t<double>({
-		   edepRes.readDimBins()[1],
-		   edepRes.readDimBins()[0]
-		 },
-		 edepRes.readData().data());
-	     py::array_t<double> npEdepE =
-	       py::array_t<double>({
-		   edepRes.readDimBins()[1],
-		   edepRes.readDimBins()[0]
-		 },
-		 edepRes.readSigma().data());
-
-	     py::array_t<double> npFluence =
-	       py::array_t<double>({
-		   fluenceRes.readDimBins()[1],
-		   fluenceRes.readDimBins()[0]
-		 },
-		 fluenceRes.readData().data());
-	     
-	     py::array_t<double> npFluenceE =
-	       py::array_t<double>({
-		   fluenceRes.readDimBins()[1],
-		   fluenceRes.readDimBins()[0]
-		 },
-		 fluenceRes.readSigma().data());
-
-	     //Get spectrum bin energy values
-	     std::array<double, 2> eLimits =
-	       {detSpec.readLimits()[0].first/1.0e3,
-		detSpec.readLimits()[0].second/1.0e3};
-
-	     py::array_t<double> npELimits =
-	       py::array_t<double>(2, eLimits.data());
-	     
-	     //Get x,y bin values
-	     std::vector<double> xLimits =
-	       {edepRes.readLimits()[0].first,
-		edepRes.readLimits()[0].second};
-	     
-	     std::vector<double> yLimits =
-	       {edepRes.readLimits()[1].first,
-		edepRes.readLimits()[1].second};
-
-	     py::array_t<double> npXLimits =
-	       py::array_t<double>(2, xLimits.data());
-	     py::array_t<double> npYLimits =
-	       py::array_t<double>(2, yLimits.data());
-	     
-	     return py::make_tuple(eLimits, npSpectrum, npSpectrumE,
-				   xLimits, yLimits,
-				   npEdep, npEdepE,
-				   npFluence, npFluenceE);
-	     
+         return sim;	     
 	   },
-	   py::arg("source_position")       = std::array<double, 3>{0.0, 0.0, 0.0},
-	   py::arg("focal_spot")            = 0.0,
-	   py::arg("inherent_filter_width") = -1.0,
-	   py::arg("min_energy")            = 10.0,
-	   py::arg("kvp")                   = 100.0,
-	   py::arg("anode_z")               = 74,
-	   py::arg("anode_angle")           = 13.0,
-	   py::arg("spectrum_file")         = "",
-	   py::arg("spatial_file")          = "",
-	   py::arg("source_to_distribution")= 0.68,
-	   py::arg("source_to_filter")      = 7.0,
-	   py::arg("source_to_detector")    = 14.0,
-	   py::arg("filters")               = FilterList{},
-	   py::arg("histories")             = 1.0e5,
-	   py::arg("max_time")              = 600.0,
-	   py::arg("detector_dx")           = 50.0,
-	   py::arg("detector_dy")           = 50.0,
-	   py::arg("xbins")                 = 100,
-	   py::arg("ybins")                 = 100,
-	   py::arg("ebins")                 = 200,
-	   py::arg("threads")               = 0,
-	   py::arg("print_geometry")        = false,
-	   py::arg("seed_pair")             = 0,
-	   py::arg("tolerance")             = 0.01,
-	   py::arg("user_geometry")         = py::dict(),
-	   py::arg("geometry_materials")    = MaterialList{},
-	   py::arg("only_check")            = false,
-	   py::arg("print_configuration")   = false,
-	   py::arg("verbose")               = 1,
+           py::arg("detector_position")     = std::array<double, 3>{0.0, 0.0, 0.0},
+           py::arg("focal_spot")            = 0.0,
+           py::arg("inherent_filter_width") = -1.0,
+           py::arg("min_energy")            = 10.0,
+           py::arg("kvp")                   = 100.0,
+           py::arg("anode_z")               = 74,
+           py::arg("anode_angle")           = 13.0,
+           py::arg("psf_file")              = std::string(""),
+           py::arg("psf_translation")       = std::array<double, 3>{0.0, 0.0, 0.0},
+           py::arg("psf_rotation")          = std::array<double, 3>{0.0, 0.0, 0.0},
+           py::arg("source_to_filter")      = 7.0,
+           py::arg("source_to_detector")    = 14.0,
+           py::arg("filters")               = FilterList{},
+           py::arg("histories")             = 1.0e5,
+           py::arg("max_time")              = 600.0,
+           py::arg("detector_dx")           = 50.0,
+           py::arg("detector_dy")           = 50.0,
+           py::arg("detector_dz")           = 1.0,
+           py::arg("detector_ideal")        = true,
+           py::arg("detector_material")     = MaterialData{},
+           py::arg("xbins")                 = 100,
+           py::arg("ybins")                 = 100,
+           py::arg("ebins")                 = 200,
+           py::arg("threads")               = 0,
+           py::arg("seed_pair")             = 0,
+           py::arg("user_tallies")          = py::dict(),
+           py::arg("user_geometry")         = py::dict(),
+           py::arg("geometry_materials")    = MaterialList{},
+           py::arg("create_detected_psf")   = false,           
+           py::arg("create_filtered_psf")   = false,           
+           py::arg("print_config")          = false,
+           py::arg("verbose")               = 1,
 	   R"doc(
 Simulates an electron beam impinging on an anode and records the resulting photon spectrum and spatial distribution.
 
 Args:
-    source_position (tuple[float, float, float]): Position of the source in cm. This point is interpreted as the location at the anode where the beam impacts.
+    detector_position (tuple[float, float, float]): Detector position in cm. This point is interpreted as the center of the detector's top face in Z axis.
     focal_spot (float): Focal spot size of the beam in cm.
     inherent_filter_width (float): Width in cm for the inherent filter. Set to zero or a negative value to disable it.
     min_energy (float): Minimum photon energy to be recorded, in keV.
     kvp (float): Peak kilovoltage (kVp) of the beam.
     anode_z (int): Atomic number (Z) of the anode material.
     anode_angle (float): Angle of the anode in degrees.
-    spectrum_file (str): Input file path to read the generated energy spectrum.
-    spatial_file (str): Input file path to read the photon spatial distribution.
-    source_to_distribution (float): Distance from source to the spatial distribution plane in cm.
+    psf_file (str): Filename of the phase space file to be used as source.
+    psf_translation (list): Translation to be applied to particles stored in the PSF (dx,dy,dz).
+    psf_rotation (list): Euler angles to rotate the PSF's particles. Rotation is performed around the Z,Y,Z axis, in that order. Notice the detector position is below the source position (-Z direction).
     source_to_filter (float): Distance from source to the first filter in cm.
     source_to_detector (float): Distance from source to the detector in cm.
     filters (list): List of additional filters beyond the inherent one. Each filter should be defined as:
@@ -1764,33 +1743,26 @@ Args:
     max_time (float): Maximum simulation run time in seconds.
     detector_dx (float): Detector size in the X direction in cm.
     detector_dy (float): Detector size in the Y direction in cm.
+    detector_dz (float): Detector depth in the Z direction in cm.
+    detector_ideal (bool): Enables/disables ideal detection, i.e. perfect absorber.
+    detector_material (list): Detector material for non-ideal detectors. The material must be defined as:
+        (density, [(Z1, fraction1), (Z2, fraction2), ...])
     xbins (int): Number of bins (pixels) along the X axis.
     ybins (int): Number of bins (pixels) along the Y axis.
     ebins (int): Number of energy bins for the spectrum.
     threads (int): Number of threads to use. If 0, use all available CPU cores.
-    print_geometry (bool): If True, saves the generated simulation geometry to a file.
     seed_pair (int): Seed pair index for RNG initialization. Must be less than 1001.
-    tolerance (float): Desired relative error (error/value) for the simulation.
+    user_tallies (dict): Configuration of additional tallies provided by the user.
     user_geometry (dict): Configuration of additional geometry provided by the user.
     geometry_materials (list): List of extra materials used in the user-defined geometry. Each material should be defined as:
         (density, [(Z1, fraction1), (Z2, fraction2), ...])
-    only_check (bool): If True, validates the configuration and returns material count without running the simulation.
-    print_configuration (bool): If True, saves the simulation configuration to a file named 'simDevice.conf'.
+    create_detected_psf (bool): If enabled, saves a PSF with the gammas reaching the detector. Only one PSF type can be created.
+    create_filtered_psf (bool): If enabled, saves a PSF with the gammas just crossing the last filter. Only one PSF type can be created.
+    print_config (bool): Prints the configuration using the penRed internal format. Only for debug purposes.
     verbose (int): Verbosity level (higher values provide more output).
 
 Returns:
-    tuple: if 'only_check' value is false, a tuple with the following information, in order:
-           - Energy limits for the generated spectrum (emin, emax) in keV
-           - A 1D numpy array with the detected gamma spectrum (prob/hist)
-           - A 1D numpy array with the uncertainty for each gamma spectrum bin
-           - X limits for spatial distribution (xmin, xmax) in cm
-           - Y limits for spatial distribution (ymin, ymax) in cm
-           - A 2D numpy array with the absorbed energy distribution, in eV, normalized per history. Notice that a perfect detector absorber is considered. The particle track is finished when the detector is reached.
-           - A 2D numpy array with the uncertainty for each energy deposition distribution bin
-           - A 2D numpy array with the detected gamma fluence distribution normalized per history
-           - A 2D numpy array with the uncertainty for each fluence distribution bin
-
-           if 'only_check' is true, the number of materials used to construct the device geometry is returned as a tuple with only one element. This can be used to know the first avaible material index, for user defined geometries construction.
+    Configured and executed 'simulator' object
 
 Raises:
     ValueError: Incompatible value has been provided.

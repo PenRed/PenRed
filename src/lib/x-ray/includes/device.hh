@@ -2,7 +2,7 @@
 //
 //    Copyright (C) 2024 Universitat de València - UV
 //    Copyright (C) 2024 Universitat Politècnica de València - UPV
-//    Copyright (C) 2025 Vicent Giménez Alventosa
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -49,28 +49,26 @@ namespace penred{
     class readerXRayDeviceSimulate;
 
     int constructDevice(std::ostream& out,
-			const double focalSpot,
-			const double source2det,
-			const double source2filter,
-			const double source2bowtie,
-			const double detectorDx,
-			const double detectorDy,
-			const double inherentFilterSize,
-			const std::vector<double>& filters,
-			std::vector<double> bowtieDz,
-			const vector3D<double> center =
-			vector3D<double>(0.0,0.0,0.0),
-			const bool constructAnode = false,
-			const double anodeAngle = 5.0,
-			const unsigned verbose = 1);
+                        const double focalSpot,
+                        const double source2det,
+                        const double source2filter,
+                        const double detectorDx,
+                        const double detectorDy,
+                        const double detectorDz,
+                        const double inherentFilterSize,
+                        const std::vector<double>& filters,
+                        unsigned& initMat,
+                        const vector3D<double> detectorPos =
+                        vector3D<double>(0.0,0.0,0.0),
+                        const bool constructAnode = false,
+                        const double anodeAngle = 5.0,
+                        const unsigned verbose = 1,
+                        const bool PSFFilter = false);
 
 
-    int simDevice(const pen_parserSection& config,
-		  measurements::measurement<double, 2>& detFluence,
-		  measurements::measurement<double, 2>& detEdep,
-		  measurements::measurement<double, 1>& detSpec,
-		  unsigned long long& simHistsOut,
-		  const unsigned verbose);
+    int constructSimDevice(const pen_parserSection& config,
+                           penred::simulation::simulator<pen_context>& simula,
+                           const unsigned verbose);
 
     int simDevice(const pen_parserSection& config,
 		  const unsigned verbose);
@@ -102,18 +100,15 @@ namespace penred{
       bool createAnode;
       double focalSpot;
       double anodeAngle;
-      vector3D<double> sourcePosition;
+      vector3D<double> detectorPosition;
       double source2det;
       double source2filter;
       double detectorDx;
       double detectorDy;
+      double detectorDz;
       double inherentFilterWidth;
   
-      std::vector<double> filters;
-
-      double source2bowtie;
-      std::vector<double> bowtieDz;
-      
+      std::vector<double> filters;      
 
       readerXRayDeviceCreate() : family(-1){ }
 
@@ -168,14 +163,17 @@ namespace penred{
       
       double focalSpot;
       
-      vector3D<double> sourcePosition;
-      std::string spatialDistribFile;
-      std::string energyDistribFile;
-      double distrib2source;
+      vector3D<double> detectorPosition;
+      std::string PSFFile;
+      vector3D<double> PSFTrans;
+      vector3D<double> PSFRotation;      
 
       double source2det;
       double detectorDx;
       double detectorDy;
+      double detectorDz;
+      bool detectorIdeal;
+      std::string detectorMatFile;
 
       double inherentFilterWidth;
       std::vector<double> filtersWidth;
@@ -183,26 +181,15 @@ namespace penred{
       std::vector<std::string> filtersMatFile;
       double source2filter;
 
-      double source2bowtie;
-      std::vector<double> bowtieDz;
-      unsigned bowtieZ;
-      std::string bowtieMatFile;
-      bool bowtieAutoDesign;
-      unsigned bowtieDesignBins;
-      unsigned bowtieDesignIterations;
+      bool storeDetectedPSF;
+      bool storeFilteredPSF;
       
       double anodeAngle;
       unsigned anodeZ;
       double kvp;
-  
-      std::vector<double> filters;
-
-      bool printGeo;
 
       unsigned long detBinsX, detBinsY;
       unsigned long eBins;
-
-      double tolerance;
 
       std::string outputPrefix;
 
@@ -261,56 +248,28 @@ namespace penred{
       readerXRayDeviceCreate reader;
       int err = reader.read(config, 2);
       if(err != penred::xray::readerXRayDeviceCreate::SUCCESS){
-	printf("Error: Bad configuration values\n");
-	return -2;
+        penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                     "Error: Bad configuration values\n");
+        return -2;
       }
 
+      unsigned initMat = 1;
       return constructDevice(out,
-			     reader.focalSpot,
-			     reader.source2det,
-			     reader.source2filter,
-			     reader.source2bowtie,
-			     reader.detectorDx,
-			     reader.detectorDy,
-			     reader.inherentFilterWidth,
-			     reader.filters,
-			     reader.bowtieDz,
-			     reader.sourcePosition,
-			     reader.createAnode,
-			     reader.anodeAngle,
-			     verbose);
+                             reader.focalSpot,
+                             reader.source2det,
+                             reader.source2filter,
+                             reader.detectorDx,
+                             reader.detectorDy,
+                             reader.detectorDz,
+                             reader.inherentFilterWidth,
+                             reader.filters,
+                             initMat,
+                             reader.detectorPosition,
+                             reader.createAnode,
+                             reader.anodeAngle,
+                             verbose);
     }
 
-    inline int checkSimDevice(const pen_parserSection& config,
-			      unsigned& nMats,
-			      const unsigned verbose){
-
-      // ** Parse configuration
-      
-      //Read information from config section
-      readerXRayDeviceSimulate reader;
-      int err = reader.read(config,verbose);
-      if(err != readerXRayDeviceSimulate::SUCCESS){
-	return err;
-      }
-
-      nMats = 2; //Collimators and detector
-      if(reader.simAnode)
-	nMats += 1; //Anode material
-
-      //Add inherent filter
-      if(reader.inherentFilterWidth > 0.0)
-	nMats += 1;
-
-      //Add filters materials
-      nMats += reader.filtersZ.size();
-
-      //Add bowtie material
-      if(reader.source2bowtie > 0.0 && reader.bowtieDz.size() > 0)
-	nMats += 1;
-
-      return err;
-    }
   } // namespace xray
 } // namespace penred
 
@@ -357,6 +316,26 @@ detector/dy/reader-value 20.0
 detector/dy/reader-conditions/gt0/type "greater"
 detector/dy/reader-conditions/gt0/value 0.0
 
+detector/dz/reader-description "Detector depth, in cm, in the Z axis"
+detector/dz/reader-value 1.0
+detector/dz/reader-required/type "optional"
+detector/dz/reader-conditions/gt0/type "greater"
+detector/dz/reader-conditions/gt0/value 0.0
+
+# Detector position
+detector/pos/x/reader-description "Detector position in X axis (cm)"
+detector/pos/x/reader-value 0.0
+detector/pos/x/reader-required/type "optional"
+
+detector/pos/y/reader-description "Detector position in Y axis (cm)"
+detector/pos/y/reader-value 0.0
+detector/pos/y/reader-required/type "optional"
+
+detector/pos/z/reader-description "Detector position in Z axis (cm)"
+detector/pos/z/reader-value 0.0
+detector/pos/z/reader-required/type "optional"
+
+
 #Inherent filter
 inherent-filter/width/reader-description "Inherent filter size, in cm"
 inherent-filter/width/reader-value 0.1
@@ -380,36 +359,6 @@ filters/${subsection}/width/reader-value 0.1
 filters/${subsection}/width/reader-conditions/gt0/type "greater"
 filters/${subsection}/width/reader-conditions/gt0/value 0.0
 
-## Bowtie
-
-# Distance source to bowtie
-distance/bowtie/reader-description "Distance, in cm, from source to bowtie"
-distance/bowtie/reader-value -1.0
-distance/bowtie/reader-conditions/greaterThanFilters/type "greater"
-distance/bowtie/reader-conditions/greaterThanFilters/value "distance/filter"
-distance/bowtie/reader-required/type "required_if_exist"
-distance/bowtie/reader-required/value "bowtie/dz"
-
-bowtie/dz/reader-description "Bowtie heights"
-bowtie/dz/reader-value [0.5,0.5,0.4,0.3,0.2,0.3,0.4,0.5,0.5]
-bowtie/dz/reader-required/type "required_if_exist"
-bowtie/dz/reader-required/value "distance/bowtie"
-
-# Source position
-source/pos/x/reader-description "Source position in X axis (cm)"
-source/pos/x/reader-value 0.0
-source/pos/x/reader-required/type "optional"
-
-# Source position
-source/pos/y/reader-description "Source position in Y axis (cm)"
-source/pos/y/reader-value 0.0
-source/pos/y/reader-required/type "optional"
-
-# Source position
-source/pos/z/reader-description "Source position in Z axis (cm)"
-source/pos/z/reader-value 0.0
-source/pos/z/reader-required/type "optional"
-
 )===";
 };
 
@@ -420,7 +369,7 @@ struct pen_format<penred::xray::readerXRayDeviceSimulate>{
 
 # Simulation generic parameters
 simulation/sim-anode/reader-description "Enable/disable anode simulation"
-simulation/sim-anode/reader-value false
+simulation/sim-anode/reader-value true
 simulation/sim-anode/reader-required/type "optional"
 
 simulation/histories/reader-description "Maximum number of histories to simulate"
@@ -442,15 +391,6 @@ simulation/min-energy/reader-value 1.0e3
 simulation/min-energy/reader-conditions/gt/type "greater"
 simulation/min-energy/reader-conditions/gt/value 50.0
 simulation/min-energy/reader-required/type "optional"
-
-simulation/tolerance/reader-description "Tolerance to finish the simulation, in %"
-simulation/tolerance/reader-value 0.0
-simulation/tolerance/reader-conditions/positive/type "positive"
-simulation/tolerance/reader-required/type "optional"
-
-simulation/print-geometry/reader-description "Enable/disable geometry print"
-simulation/print-geometry/reader-value false
-simulation/print-geometry/reader-required/type "optional"
 
 simulation/nthreads/reader-description "Number of threads to be used. Set it to 0 to get all available threads."
 simulation/nthreads/reader-value 0
@@ -491,26 +431,24 @@ x-ray/focal-spot/reader-description "X-ray focal spot in cm"
 x-ray/focal-spot/reader-value 0.1
 x-ray/focal-spot/reader-conditions/positive/type "positive"
 
-#Source position
-x-ray/source/position/reader-description "Position (x,y,z) of the source, in cm. If the anode is simulated, this position corresponds to the center of the anode face where the electron beam collides.\n If a spatial distribution is used instead, the position specify where the center of the distribution is located."
-x-ray/source/position/reader-value [0.0,0.0,0.0]
+#Detector position
+x-ray/detector/position/reader-description "Position (x,y,z) of the detector's top face center, in cm."
+x-ray/detector/position/reader-value [0.0,0.0,0.0]
+x-ray/detector/position/reader-required/type "optional"
 
-#Source distributions
-x-ray/source/distribution/spatial/reader-description "Path to the spatial source distribution file"
-x-ray/source/distribution/spatial/reader-value "path/to/distrib.dat"
-x-ray/source/distribution/spatial/reader-required/type "optional_if"
-x-ray/source/distribution/spatial/reader-required/value "simulation/sim-anode"
+#Source PSF
+x-ray/source/psf/path/reader-description "Path to the source phase space file"
+x-ray/source/psf/path/reader-value "path/to/data.psf"
+x-ray/source/psf/path/reader-required/type "optional_if"
+x-ray/source/psf/path/reader-required/value "simulation/sim-anode"
 
-x-ray/source/distribution/energy/reader-description "Path to the energy source distribution file"
-x-ray/source/distribution/energy/reader-value "path/to/distrib.dat"
-x-ray/source/distribution/energy/reader-required/type "optional_if"
-x-ray/source/distribution/energy/reader-required/value "simulation/sim-anode"
+x-ray/source/psf/translation/reader-description "Translation applied to each particle stored in the PSF."
+x-ray/source/psf/translation/reader-value [0.0,0.0,0.0]
+x-ray/source/psf/translation/reader-required/type "optional"
 
-x-ray/distance/distribution/reader-description "Distance between the source spatial distribution and the anode impacting point in cm."
-x-ray/distance/distribution/reader-value 0.4
-x-ray/distance/distribution/reader-required/type "optional_if"
-x-ray/distance/distribution/reader-required/value "simulation/sim-anode"
-x-ray/distance/distribution/reader-conditions/positive/type "positive"
+x-ray/source/psf/rotation/reader-description "Euler angles to rotate the PSF's particles. Rotation is performed around the Z,Y,Z axis, in that order. Notice the detector position is below the source position (-Z direction)."
+x-ray/source/psf/rotation/reader-value [0.0,0.0,0.0]
+x-ray/source/psf/rotation/reader-required/type "optional"
 
 #Distance source to detector
 x-ray/distance/detector/reader-description "Distance, in cm, from anode impact point to the detector."
@@ -528,6 +466,22 @@ x-ray/detector/dy/reader-description "Detector size, in cm, in the Y axis"
 x-ray/detector/dy/reader-value 20.0
 x-ray/detector/dy/reader-conditions/gt0/type "greater"
 x-ray/detector/dy/reader-conditions/gt0/value 0.0
+
+x-ray/detector/dz/reader-description "Detector depth, in cm, in the Z axis"
+x-ray/detector/dz/reader-value 1.0
+x-ray/detector/dz/reader-required/type "optional"
+x-ray/detector/dz/reader-conditions/gt0/type "greater"
+x-ray/detector/dz/reader-conditions/gt0/value 0.0
+
+# Detector absorption
+x-ray/detector/ideal/reader-description "Enable/disable ideal detection, i.e. perfect absorber"
+x-ray/detector/ideal/reader-value true
+x-ray/detector/ideal/reader-required/type "optional"
+
+x-ray/detector/material/reader-description "Sets the detector material. Only for non ideal detectors"
+x-ray/detector/material/reader-value "detector.mat"
+x-ray/detector/material/reader-required/type "optional_if"
+x-ray/detector/material/reader-required/value "x-ray/detector/ideal"
 
 #Inherent filter
 x-ray/inherent-filter/width/reader-description "Inherent filter width, in cm"
@@ -565,49 +519,6 @@ x-ray/filters/${subsection}/mat-file/reader-value "-"
 x-ray/filters/${subsection}/mat-file/reader-required/type "optional_if_exist"
 x-ray/filters/${subsection}/mat-file/reader-required/value "z"
 
-## Bowtie
-
-# Distance source to bowtie
-x-ray/distance/bowtie/reader-description "Distance, in cm, from anode impact point to bowtie"
-x-ray/distance/bowtie/reader-value -1.0
-x-ray/distance/bowtie/reader-conditions/greaterThanFilters/type "greater"
-x-ray/distance/bowtie/reader-conditions/greaterThanFilters/value "x-ray/distance/filter"
-x-ray/distance/bowtie/reader-conditions/lesserThanDet/type "lesser"
-x-ray/distance/bowtie/reader-conditions/lesserThanDet/value "x-ray/distance/detector"
-x-ray/distance/bowtie/reader-required/type "required_if_exist"
-x-ray/distance/bowtie/reader-required/value "x-ray/bowtie/dz"
-
-x-ray/bowtie/dz/reader-description "Bowtie top face displacements"
-x-ray/bowtie/dz/reader-value [0.5,0.5,0.4,0.3,0.2,0.3,0.4,0.5,0.5]
-x-ray/bowtie/dz/reader-required/type "required_if_exist"
-x-ray/bowtie/dz/reader-required/value "x-ray/distance/bowtie"
-
-x-ray/bowtie/z/reader-description "Bowtie material atomic number Z"
-x-ray/bowtie/z/reader-value 13
-x-ray/bowtie/z/reader-conditions/gt0/type "greater"
-x-ray/bowtie/z/reader-conditions/gt0/value 0
-x-ray/bowtie/z/reader-required/type "optional"
-
-x-ray/bowtie/mat-file/reader-description "Bowtie filter material file path"
-x-ray/bowtie/mat-file/reader-value "-"
-x-ray/bowtie/mat-file/reader-required/type "optional"
-
-x-ray/bowtie/auto-design/reader-description "Eanble/disable bowtie automatic design"
-x-ray/bowtie/auto-design/reader-value false
-x-ray/bowtie/auto-design/reader-required/type "optional"
-
-x-ray/bowtie/design-bins/reader-description "Number of bins to design bowtie"
-x-ray/bowtie/design-bins/reader-value 0
-x-ray/bowtie/design-bins/reader-conditions/gt0/type "greater"
-x-ray/bowtie/design-bins/reader-conditions/gt0/value 0
-x-ray/bowtie/design-bins/reader-required/type "optional"
-
-x-ray/bowtie/design-iterations/reader-description "Maximum iterations to design bowtie"
-x-ray/bowtie/design-iterations/reader-value 20
-x-ray/bowtie/design-iterations/reader-conditions/gt0/type "greater"
-x-ray/bowtie/design-iterations/reader-conditions/gt0/value 0
-x-ray/bowtie/design-iterations/reader-required/type "optional"
-
 #Anode configuration
 
 ## Anode
@@ -630,13 +541,13 @@ x-ray/anode/z/reader-conditions/gt0/value 0
 
 #Beam energy
 x-ray/kvp/reader-description "X-ray KVP value"
-x-ray/kvp/reader-value 120.0e3
+x-ray/kvp/reader-value 120
 x-ray/kvp/reader-required/type "required_if"
 x-ray/kvp/reader-required/value "simulation/sim-anode"
-x-ray/kvp/reader-conditions/gt0/type "greater"
-x-ray/kvp/reader-conditions/gt0/value 1.0
+x-ray/kvp/reader-conditions/gt1/type "greater"
+x-ray/kvp/reader-conditions/gt1/value 1.0
 x-ray/kvp/reader-conditions/lesserThan1MeV/type "lesser"
-x-ray/kvp/reader-conditions/lesserThan1MeV/value 1.0e6
+x-ray/kvp/reader-conditions/lesserThan1MeV/value 1000.0
 
 ## Added geometry
 
@@ -665,6 +576,22 @@ geometry/materials/${subsection}/elements/reader-description "The value of ${sub
 geometry/materials/${subsection}/elements/${subsection}/reader-value 1.0
 geometry/materials/${subsection}/elements/${subsection}/reader-conditions/gt0/type "greater"
 geometry/materials/${subsection}/elements/${subsection}/reader-conditions/gt0/value 0.0
+
+## Added tallies
+
+# Geometry configuration section
+tallies/${subsection}/reader-description "User defined tallies. Each tally name will be prefixed with 'added_'"
+tallies/${subsection}/reader-required/type "optional"
+
+
+## Create PSFs
+psf/detected/reader-description "If enabled, a PSF is created at the detector"
+psf/detected/reader-value false
+psf/detected/reader-required/type "optional"
+
+psf/filtered/reader-description "If enabled, a PSF is created after the last filter"
+psf/filtered/reader-value false
+psf/filtered/reader-required/type "optional"
 
 )===";
 };

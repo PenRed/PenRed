@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2023 Universitat de València - UV
 //    Copyright (C) 2019-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -36,25 +37,28 @@
 #include "image_spatialSampling.hh"
 #include "cylinder_spatialSampling.hh"
 #include "measure_spatialSampling.hh"
+#include "circle_spatialSampling.hh"
 
 namespace penred{
   namespace sampler{
 
 #ifdef _PEN_USE_DICOM_
     using typesGenericSpatial = std::tuple<box_spatialSampling,
-					   point_spatialSampling,
-					   image_spatialSampling,
-					   cylinder_spatialSampling,
-					   measure3D_spatialSampling,
-					   measure2D_spatialSampling,
-					   measure1D_spatialSampling>;
+                                           point_spatialSampling,
+                                           image_spatialSampling,
+                                           cylinder_spatialSampling,
+                                           circle_spatialSampling,
+                                           measure3D_spatialSampling,
+                                           measure2D_spatialSampling,
+                                           measure1D_spatialSampling>;
 #else
     using typesGenericSpatial = std::tuple<box_spatialSampling,
-					   point_spatialSampling,
-					   cylinder_spatialSampling,
-					   measure3D_spatialSampling,
-					   measure2D_spatialSampling,
-					   measure1D_spatialSampling>;    
+                                           point_spatialSampling,
+                                           cylinder_spatialSampling,
+                                           circle_spatialSampling,
+                                           measure3D_spatialSampling,
+                                           measure2D_spatialSampling,
+                                           measure1D_spatialSampling>;    
 #endif
 
     template<size_t T>

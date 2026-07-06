@@ -307,7 +307,7 @@ penred::errors::Error pen_voxelGeo::specificConfigure(const pen_parserSection& c
   return error;
 }
 
-void pen_voxelGeo::locate(pen_particleState& state) const{
+void pen_voxelGeo::locateLocal(pen_particleState& state) const{
     
   //Check if it is in the voxel mesh
   locateInMesh(state);
@@ -361,11 +361,11 @@ void pen_voxelGeo::locateInMesh(pen_particleState& state) const{
   
 }
 
-void pen_voxelGeo::step(pen_particleState& state,
-			double DS,
-			double &DSEF,
-			double &DSTOT,
-			int &NCROSS) const{
+void pen_voxelGeo::stepLocal(pen_particleState& state,
+                             double DS,
+                             double &DSEF,
+                             double &DSTOT,
+                             int &NCROSS) const{
     
     //Check if the particle is outside the enclosure
     if(state.MAT == 0){
@@ -423,7 +423,7 @@ void pen_voxelGeo::step(pen_particleState& state,
             move(ds2mesh,state);
             
             //Locate the particle in the mesh
-            locate(state);
+            locateLocal(state);
             if(state.IBODY != 0){
                 //Has been located in the mesh
                 DSEF = ds2mesh;

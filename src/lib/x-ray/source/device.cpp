@@ -2,7 +2,7 @@
 //
 //    Copyright (C) 2024 Universitat de València - UV
 //    Copyright (C) 2024 Universitat Politècnica de València - UPV
-//    Copyright (C) 2025 Vicent Giménez Alventosa
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -33,22 +33,27 @@ namespace penred{
   namespace xray{
 
     int constructDevice(std::ostream& out,
-			const double focalSpot,
-			const double source2det,
-			const double source2filter,
-			const double source2bowtie,
-			const double detectorDx,
-			const double detectorDy,
-			const double inherentFilterSize,
-			const std::vector<double>& filters,
-			std::vector<double> bowtieDz,
-			const vector3D<double> sourcePos,
-			const bool constructAnode,
-			const double anodeAngle,
-			const unsigned verbose){
+                        const double focalSpot,
+                        const double source2det,
+                        const double source2filter,
+                        const double detectorDx,
+                        const double detectorDy,
+                        const double detectorDz,
+                        const double inherentFilterSize,
+                        const std::vector<double>& filters,
+                        unsigned& initMat,
+                        const vector3D<double> detectorPos,
+                        const bool constructAnode,
+                        const double anodeAngle,
+                        const unsigned verbose,
+                        const bool PSFFilter){
 
       //This function constructs a mesh based geometry of a x-ray device
       //following the specifications provided by the function parameters
+
+      //Calculate source pos
+      vector3D<double> sourcePos = detectorPos;
+      sourcePos.z += source2det;
 
       // ** Distances
       
@@ -65,13 +70,14 @@ namespace penred{
 	
       if(inherentFilter2filters < 4.0*elementSpacing+2.0*collHeight){
 	if(verbose > 0){
-	  printf("constructDevice: Error: The minimum distance between "
-		 "inherent filter and first added filter must be %f cm\n"
-		 "    Inherent filter end to source: %f\n"
-		 "    Added filter start to source   : %f\n",
-		 4.0*elementSpacing+2.0*collHeight,
-		 inherentFilter2filters,
-		 source2filter);
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                   "constructDevice: Error: The minimum distance between "
+                                   "inherent filter and first added filter must be %f cm\n"
+                                   "    Inherent filter end to source: %f\n"
+                                   "    Added filter start to source   : %f\n",
+                                   4.0*elementSpacing+2.0*collHeight,
+                                   inherentFilter2filters,
+                                   source2filter);
 	}
 	return errors::INVALID_DISTANCE;
       }
@@ -86,27 +92,24 @@ namespace penred{
       }
 
       double source2filtersEnd = source2filter + filtersWidth;
-      if(source2bowtie > 0.0 && bowtieDz.size() > 0){
-	const double maxDz = *std::max_element(bowtieDz.cbegin(), bowtieDz.cend());
-	const double source2BowtieBot = source2bowtie + maxDz;
-	
-	source2filtersEnd = source2BowtieBot;
-      }
       const double source2detCollTop = source2filtersEnd + elementSpacing;
       const double source2detCollBot = source2detCollTop + collHeight;
 
       if(verbose > 1){
-	printf("\n + X-ray characteristics:\n"
-	       "     Source to detector   : %.4f cm\n"
-	       "     Source to inherent f.: %.4f cm\n"
-	       "     Source to filters    : %.4f cm\n"
-	       "     Detector X size      : %.4f cm\n"
-	       "     Detector Y size      : %.4f cm\n",
-	       source2det,
-	       source2inherentFilter,
-	       source2filter,
-	       detectorDx,
-	       detectorDy);
+        penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                     "\n + X-ray characteristics:\n"
+                                     "     Source to detector   : %.4f cm\n"
+                                     "     Source to inherent f.: %.4f cm\n"
+                                     "     Source to filters    : %.4f cm\n"
+                                     "     Detector X size      : %.4f cm\n"
+                                     "     Detector Y size      : %.4f cm\n"
+                                     "     Detector depth       : %.4f cm\n",
+                                     source2det,
+                                     source2inherentFilter,
+                                     source2filter,
+                                     detectorDx,
+                                     detectorDy,
+                                     detectorDz);
       }
       
       // ** Number of objects
@@ -122,16 +125,17 @@ namespace penred{
       if(filters.size() > 0)
 	nBodies += filters.size() + 1; //Filters and collimator
 
-      if(source2bowtie > 0.0)
-	nBodies += 1; //Bowtie
+      if(PSFFilter)
+        nBodies += 1;
 
       out << "# Number of bodies" << std::endl;
       out << " " << nBodies << std::endl;
       out << "#" << std::endl;
 
       // ** Material index counter
-      unsigned collMat = 1; //Collimator material
-      unsigned nextMat = 2;
+      initMat = std::max(initMat,1u);
+      unsigned collMat = initMat; //Collimator material
+      unsigned nextMat = initMat+1;
       
       // ** Anode
       //-----------------
@@ -140,9 +144,10 @@ namespace penred{
       if(constructAnode){
 
 	if(verbose > 1){
-	  printf("\n + Creating anode: \n"
-		 "     Angle          : %.3f deg\n",
-		 anodeAngle);
+	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                   "\n + Creating anode: \n"
+                                   "     Angle          : %.3f deg\n",
+                                   anodeAngle);
 	}
 
 	createAnode(out, anodeAngle, nextMat++,
@@ -268,10 +273,10 @@ namespace penred{
 		  source2det,
 		  filtersEnd);
 
+      double zorigin = source2filter;
       if(filters.size() > 0){
       
 	size_t ifilter = 0;
-	double zorigin = source2filter;
 	for(const double& f : filters){
 
 	  //Create ith-filter
@@ -332,60 +337,24 @@ namespace penred{
 			     detCollCenter);
 
       }
-
-      // ** Bowtie
-      //
-
-      if(source2bowtie > 0.0 && bowtieDz.size() > 0){
-
-	if(source2bowtie <= filtersEnd){
-	  if(verbose > 0){
-	    printf("constructDevice: Error: The distance between source"
-		   "and bowtie filter is lesser than the distance between the "
-		   "source and the collimator after flat filters\n"
-		   "    Distance source to bowtie         : %f cm\n"
-		   "    Distance source to last collimator: %f cm\n",
-		   source2bowtie,
-		   filtersEnd);
-	  }
-	  return errors::INVALID_DISTANCE;
-	}
-	
-	//Get the maximum bowtie height
-	const double maxDz = *std::max_element(bowtieDz.cbegin(), bowtieDz.cend());
-	const double source2BowtieBot = source2bowtie + maxDz;
-
-	//Check if the maximum dz is positive
-	if(maxDz <= 0.0){
-	  if(verbose > 0){
-	    printf("constructDevice: Error: The maximum bowtie height must be greater than 0.\n"
-		   "                        Bowtie maximum height: %f cm\n",
-		   maxDz);
-	  }
-	  return errors::INVALID_DISTANCE;
-	}
-
-	//Calculate field size at bowtie bot face
-	const std::pair<double, double> bowtieCollBotSizes =
-	  fieldSize(focalSpot,
-		    detectorDx,
-		    detectorDy,
-		    source2det,
-		    source2BowtieBot);
-
-	vector3D<double> bowtieCenter = sourcePos;
-	bowtieCenter.z -= source2bowtie + maxDz/2.0;
-	createTopFaceIrregularFilter(bowtieCollBotSizes.first,
-				     bowtieCollBotSizes.second,
-				     bowtieDz,
-				     out,
-				     nextMat++,
-				     "bowtie",
-				     "world",
-				     false,
-				     bowtieCenter);	
+      
+      if(PSFFilter){
+        //Create auxiliary psf filter
+        std::string filterName("filter-psf");
+        vector3D<double> filterCenter = sourcePos;
+        filterCenter.z -= zorigin + 0.05;
+        createBaseFilter(1.2*filterFieldSizes.first,
+                         1.2*filterFieldSizes.second,
+                         0.1,
+                         1,
+                         out,
+                         collMat,
+                         filterName,
+                         "world",
+                         false,
+                         filterCenter);
       }
-
+      
       // ** Detector
       //
 
@@ -394,7 +363,7 @@ namespace penred{
       detCenter.z -= source2det + 0.5;
       createBaseFilter(detectorDx,
 		       detectorDy,
-		       1.0,
+		       detectorDz,
 		       1,
 		       out,
 		       nextMat++,
@@ -410,25 +379,33 @@ namespace penred{
       vector3D<double> worldCenter = sourcePos;
       worldCenter.z -= source2det/2.0;
       createBaseFilter(2.0*detectorDx,
-		       2.0*detectorDy,
-		       1.2*source2det,
-		       1,
-		       out,
-		       0,
-		       "world",
-		       "void",
-		       false,
-		       worldCenter);
+                       2.0*detectorDy,
+                       1.2*(source2det + detectorDz),
+                       1,
+                       out,
+                       0,
+                       "world",
+                       "void",
+                       false,
+                       worldCenter);
+
+      if(verbose > 1){
+        penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                     "\n + X-ray materials:\n"
+                                     "     Initial material index   : %u\n"
+                                     "     Used                     : %u\n"
+                                     "     Next free material index : %u\n",
+                                     initMat, nextMat-initMat, nextMat);
+      }
       
+      initMat = nextMat;
       return errors::SUCCESS;
     }
     
-    int simDevice(const pen_parserSection& config,
-		  measurements::measurement<double, 2>& detFluence,
-		  measurements::measurement<double, 2>& detEdep,
-		  measurements::measurement<double, 1>& detSpec,		  
-		  unsigned long long& simHistsOut,
-		  const unsigned verbose){
+    int constructSimDevice(const pen_parserSection& config,
+                           penred::simulation::simulator<pen_context>& simula,
+                           const unsigned verbose){
+
       
       // ** Parse configuration
       
@@ -436,1132 +413,526 @@ namespace penred{
       readerXRayDeviceSimulate reader;
       int err = reader.read(config,verbose);
       if(err != readerXRayDeviceSimulate::SUCCESS){
-	return errors::INVALID_CONFIGURATION;
+        return errors::INVALID_CONFIGURATION;
       }
 
-      //Save added geometry configuration
-      config.readSubsection("geometry/config", reader.addedGeoConf);
-      //Try to read geometry type
-      if(config.read("geometry/config/type", reader.addedGeoType) != INTDATA_SUCCESS){
-	reader.addedGeoType = "-";
-      }
+      //If a PSF is created at the detector, force an ideal detector
+      if(reader.storeFilteredPSF)
+        reader.detectorIdeal = true;
 
-      // ** Comon simulation configuration
-      penred::simulation::simConfig baseSimConfig;
-      err = baseSimConfig.configure("simulation",config);
-      if(err != penred::simulation::errors::SUCCESS){
-	if(verbose > 0)
-	  printf("simDevice: Error: Unable to parse 'simulation' "
-		 "section: Invalid seeds\n");
-	return errors::INVALID_CONFIGURATION;
-      }
-      //Set verbose level
-      baseSimConfig.verbose = verbose;      
-      if(verbose > 1){
-	printf("%s\n", baseSimConfig.stringifyConfig().c_str());
-      }
+      //Create the simulation configuration
+      pen_parserSection simConf;
 
-      // ** Sampling function
+      // ** Sampling configuration
       
-      measurements::results<double, 2> spatialDistrib;
-      measurements::results<double, 1> energyDistrib;
+      double maxE = 1.0e6;
 
-      sampling::aliasing<2> spatialSampler;
-      sampling::aliasing<1> energySampler;
-
-      simulation::sampleFuncType<pen_particleState> fsample;
-      double maxE;
-
-      const vector3D<double> sourcePos = reader.sourcePosition;      
+      const vector3D<double> sourcePos =
+        vector3D<double>(reader.detectorPosition.x,
+                         reader.detectorPosition.y,
+                         reader.detectorPosition.z + reader.source2det);      
 
       //Calculate beam radius
       constexpr double pi = 3.141592653589793;
       constexpr double pi05 = pi/2.0;
-      constexpr double pi2 = 2.0*pi;
       constexpr double deg2rad = pi/180.0;
       
       const double anodeAngleRad = deg2rad*reader.anodeAngle;
       const double beamDiameter = reader.focalSpot*tan(pi05-anodeAngleRad);
       const double beamRad = beamDiameter/2.0;
-      const double tanAnodeAngle = tan(anodeAngleRad);
+
+
+      simConf.set("sources/generic/beam/nhist", static_cast<double>(reader.nHists));
       
       if(reader.simAnode){
 	
-	const double beamE = reader.kvp*1.0e3;
-	maxE = beamE;
-	if(maxE > 1.0e6){
-	  if(verbose > 0)
-	    printf("simDevice: Error: Beam energy must be lesser than 1 MeV for anode simulations.\n");
-	  return errors::BEAM_ENERGY_TOO_HIGH;
-	}
-	
-	//It is a primary (source) particle, set ILB[0] = 1
-	pen_particleState baseState;
-	baseState.X = sourcePos.x;
-	baseState.Y = sourcePos.y;
-	baseState.Z = sourcePos.z;
+        const double beamE = reader.kvp*1.0e3;
+        maxE = beamE;
+        if(maxE > 1.0e6){
+          if(verbose > 0){
+            penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                         "simDevice: Error: Beam energy must be "
+                                         "lesser than 1 MeV for anode simulations.\n");
+          }
+          return errors::BEAM_ENERGY_TOO_HIGH;
+        }
 
-	baseState.U = 0.0;
-	baseState.V = -1.0;
-	baseState.W = 0.0;
+        simConf.set("sources/generic/beam/kpar", "electron");
+        
+        //Configure a circle spatial source
+        simConf.set("sources/generic/beam/spatial/type", "CIRCLE");
+        simConf.set("sources/generic/beam/spatial/position/x", sourcePos.x);
+        simConf.set("sources/generic/beam/spatial/position/y", sourcePos.y + 10.0);
+        simConf.set("sources/generic/beam/spatial/position/z", sourcePos.z);
 
-	baseState.E = beamE;
-	
-	//Flag it as primary particle
-	baseState.ILB[0] = 1;
-	
-	fsample = [beamRad, baseState, pi2]
-	  (pen_particleState& state,    //Generated state
-	   pen_KPAR& kpar,          //Generated kpar
-	   unsigned long long& dh,  //History increment
-	   const unsigned,          //Thread number
-	   pen_rand& random) -> void{
+        simConf.set("sources/generic/beam/spatial/euler/omega",  0.0);
+        simConf.set("sources/generic/beam/spatial/euler/theta", 90.0);
+        simConf.set("sources/generic/beam/spatial/euler/phi"  ,-90.0);
 
-	  dh = 1;
-	  kpar = PEN_ELECTRON;
-	  
-	  //Sample particle position in the beam radius
-	  double r = beamRad * sqrt(random.rand());
-	  double theta = random.rand() * pi2; 
+        simConf.set("sources/generic/beam/spatial/radius", beamRad);
 
-	  state = baseState;
-	  
-	  state.X += r * cos(theta);
-	  state.Z += r * sin(theta);
-	};
+        //Configure a monoenergetic beam
+        simConf.set("sources/generic/beam/energy/type", "MONOENERGETIC");
+        simConf.set("sources/generic/beam/energy/energy", beamE);
+
+        //Configure direction (-Y)
+        simConf.set("sources/generic/beam/direction/type", "SOLID_ANGLE");
+        simConf.set("sources/generic/beam/direction/u", 0.0);
+        simConf.set("sources/generic/beam/direction/v",-1.0);
+        simConf.set("sources/generic/beam/direction/w", 0.0);
+
+        simConf.set("sources/generic/beam/direction/theta0", 0.0);
+        simConf.set("sources/generic/beam/direction/theta1", 0.0);
+        
+        simConf.set("sources/generic/beam/direction/phi0", 0.0);
+        simConf.set("sources/generic/beam/direction/dphi", 0.0);
       }
       else{
 
-	//Read energy distribution
-	std::ifstream fin(reader.energyDistribFile, std::ifstream::in);
-	if(!fin){
-	  if(verbose > 0)
-	    printf("Unable to open energy distribution file '%s'\n",
-		   reader.energyDistribFile.c_str());
-	  return errors::ERROR_UNABLE_TO_OPEN_FILE;
-	}
-  
-	err = energyDistrib.read(fin);
-	fin.close();
-	if(err != 0){
-	  if(verbose > 0){
-	    printf("Error reading energy distribution data file '%s'.\n"
-		   "  Error code: %d\n"
-		   "  Error message: %s\n",
-		   reader.energyDistribFile.c_str(),
-		   err,
-		   penred::measurements::errorToString(err));
-	  }
-	  return errors::ERROR_INVALID_FILE;
-	}
+        //Use a PSF
+        simConf.set("sources/generic/beam/specific/type", "PSF");
+        simConf.set("sources/generic/beam/specific/translation/dx", reader.PSFTrans.x);
+        simConf.set("sources/generic/beam/specific/translation/dy", reader.PSFTrans.y);
+        simConf.set("sources/generic/beam/specific/translation/dz", reader.PSFTrans.z);
 
-	if(verbose > 1){
-	  printf("Configuring samplers...\n");
-	}
+        simConf.set("sources/generic/beam/specific/rotation/omega",
+                   reader.PSFRotation.x);
+        simConf.set("sources/generic/beam/specific/rotation/theta",
+                   reader.PSFRotation.y);
+        simConf.set("sources/generic/beam/specific/rotation/phi",
+                   reader.PSFRotation.z);
+        
+        pen_parserArray window;
+        window.append(0.0);
+        window.append(5.0e-2);
+        simConf.set("sources/generic/beam/specific/wght-window", window);
+        simConf.set("sources/generic/beam/specific/nsplit", 10);
 
-	//Configure energy sampler
-	err = energySampler.init(energyDistrib.readData(),
-				 energyDistrib.readDimBins(),
-				 energyDistrib.readLimits());
-	if(err != 0){
-	  if(verbose > 0){
-	    printf("Error on energy sampler initialization from file '%s'.\n"
-		   "  Error code: %d\n"
-		   "  Please, report this error\n",
-		   reader.energyDistribFile.c_str(),
-		   err);
-	  }
-	  return errors::ERROR_INVALID_FILE;
-	}
-
-	//Read spatial distribution
-	fin.open(reader.spatialDistribFile, std::ifstream::in);
-	if(!fin){
-	  if(verbose > 0)
-	    printf("Unable to open spatial distribution file '%s'\n",
-		   reader.spatialDistribFile.c_str());
-	  return errors::ERROR_UNABLE_TO_OPEN_FILE;
-	}
-  
-	err = spatialDistrib.read(fin);
-	fin.close();
-	if(err != 0){
-	  if(verbose > 0)
-	    printf("Error reading spatial distribution data file '%s'.\n"
-		   "  Error code: %d\n"
-		   "  Error message: %s\n",
-		   reader.spatialDistribFile.c_str(),
-		   err,
-		   penred::measurements::errorToString(err));
-	  return errors::ERROR_INVALID_FILE;
-	}
-
-	//Configure spatial sampler
-	err = spatialSampler.init(spatialDistrib.readData(),
-				  spatialDistrib.readDimBins(),
-				  spatialDistrib.readLimits());
-	if(err != 0){
-	  if(verbose > 0){
-	    printf("Error on spatial sampler initialization from file '%s'.\n"
-		   "  Error code: %d\n"
-		   "  Please, report this error\n",
-		   reader.energyDistribFile.c_str(),
-		   err);
-	  }
-	  return errors::ERROR_INVALID_FILE;
-	}
-
-	if(verbose > 1){
-	  printf("Samplers configured!\n");
-	}
-	
-	const double distrib2source = reader.distrib2source;
-	maxE = energyDistrib.readLimits()[0].second;
-	
-	fsample = [tanAnodeAngle, pi2, beamRad, sourcePos, distrib2source, &spatialSampler, &energySampler]
-	  (pen_particleState& state,    //Generated state
-	   pen_KPAR& kpar,          //Generated kpar
-	   unsigned long long& dh,  //History increment
-	   const unsigned,          //Thread number
-	   pen_rand& random) -> void{
-
-	  dh = 1;
-	  kpar = PEN_PHOTON;
-
-	  //Sample a position in the beam radius
-	  double r = beamRad * sqrt(random.rand());
-	  double theta = random.rand() * pi2;
-
-	  const double dx = r * cos(theta);
-	  const double dz = r * sin(theta);
-
-	  //Calculate the displacement in y axis
-	  //_________                        n +Z
-	  //   | |  /                        |
-	  //   | | /____________beam center  |--> +Y
-	  //   | |/_|dz
-	  //   |a/dy
-	  //___|/
-	  //
-	  //      tan(a) = dy/dz -> dy = tan(a)*dz
-	  //
-	  const double dy = tanAnodeAngle*dz; //Notice the dz sign
-
-	  //Sample particle position
-	  std::array<double, 2> posXY = spatialSampler.samplePositions(random);
-
-	  //shift the distribution
-	  posXY[0] += dx;
-	  posXY[1] += dy;
-
-	  state.reset();
-	  state.ILB[0] = 1;
-	  
-	  state.X = posXY[0] + sourcePos.x;
-	  state.Y = posXY[1] + sourcePos.y;
-	  state.Z =  sourcePos.z - distrib2source + dz;
-
-	  //Sample energy
-	  const std::array<double, 1> energy = energySampler.samplePositions(random);
-
-	  state.E = energy[0];
-
-	  //Set direction
-	  vector3D<double> dir(posXY[0], posXY[1], -distrib2source + dz);
-	  dir.normalize();
-	  state.U = dir.x;
-	  state.V = dir.y;
-	  state.W = dir.z;
-
-	};
-	
+        simConf.set("sources/generic/beam/specific/Emax", 1.0e6);
+        simConf.set("sources/generic/beam/specific/filename", reader.PSFFile);
       }
 
-      auto itMinMax = std::minmax_element(reader.bowtieDz.cbegin(), reader.bowtieDz.cend());
-      const double bowtieMin = *itMinMax.first;
-      const double bowtieMax = *itMinMax.second;
-      const unsigned long nSpatBinsX = reader.detBinsX;
-      const unsigned long nSpatBinsY = reader.detBinsY;
-      const double tolerance = reader.tolerance;
-
-      if(reader.bowtieAutoDesign){
-	if(reader.bowtieDesignBins > reader.bowtieDz.size()){
-	  reader.bowtieDz.resize(reader.bowtieDesignBins);
-	  std::fill(reader.bowtieDz.begin(), reader.bowtieDz.end(), bowtieMin);
-	  reader.bowtieDz[0] = bowtieMax;
-	  reader.bowtieDz.back() = bowtieMax;
-	}
-	reader.detBinsX = reader.bowtieDz.size();
-	reader.detBinsY = 1;
-
-	//Set initial tolerance to 10%
-	reader.tolerance = 0.1;
-
-	//Set verbose to 1
-	baseSimConfig.verbose = 1;
-      }
-
+      // ** Geometry
       
-      if(reader.bowtieAutoDesign){	
-	double midVal = 1.0;
-	const double maxChangeFactor = 0.5*bowtieMax/bowtieMin;
-	const double minChangeFactor = 0.2;
-	double changeFactor = minChangeFactor;
-
-	const double maxTolerance = 0.1;
-	const double minTolerance = tolerance/10.0;
-
-	bool reached = false;
-	for(unsigned i = 0; i < reader.bowtieDesignIterations; ++i){
-
-	  if(verbose > 1){
-	    printf("\n+ Bowtie design iteration %u:\n"
-		   "   - Tolerance: %.2f %%\n",
-		   i, reader.tolerance*100.0);
-	  }
-	  
-	  unsigned long long simHists;
-	
-	  err = simDevice(reader, maxE, fsample, baseSimConfig,
-			  detFluence, detEdep, detSpec, simHists,
-			  1);
-	  if(err != errors::SUCCESS){
-	    return err;
-	  }
-
-	  std::string sufix("_");
-	  sufix += std::to_string(i);
-	
-	  //Generate results
-	  penred::measurements::results<double, 2> fluenceResults;
-	  detFluence.results(simHists, fluenceResults);
-	  
-	  //Generate fluence profile
-	  penred::measurements::results<double, 1> profile;
-
-	  err = fluenceResults.profile1D(0, profile);
-	  if(err != 0){
-	    printf("Unexpected error profiling data.\n"
-		   "  Error code: %d\n"
-		   "  Error message: %s\n",
-		   err,
-		   penred::measurements::errorToString(err));
-	    return errors::UNKNOWN_ERROR;
-	  }
-
-	  FILE* fout = nullptr;
-	  std::string filename = reader.outputPrefix + "fluenceProfile.dat" + sufix;
-	  fout = fopen(filename.c_str(), "w");
-	  profile.print(fout, 2, true, false);
-	  fclose(fout);
-
-	  fout = nullptr;
-	  filename = reader.outputPrefix + "bowtie.dat" + sufix;
-	  fout = fopen(filename.c_str(), "w");
-	  for(size_t j = 0; j < reader.bowtieDz.size(); ++j){
-	    fprintf(fout, "%E\n", reader.bowtieDz[j]);
-	  }
-	  fclose(fout);
-	      
-	  //Get fluence relative differences
-	  std::vector<double> relDiff = profile.readData();
-
-	  //At the first iteration, calculate the medium value at the detector center
-	  if(i == 0){
-	    //Get central value
-	    if(relDiff.size() % 2 == 0){
-	      midVal = (relDiff[relDiff.size()/2] + relDiff[relDiff.size()/2+1])/2.0;
-	    }else{
-	      midVal = (relDiff[relDiff.size()/2] +
-			relDiff[relDiff.size()/2+1] +
-			relDiff[relDiff.size()/2-1])/3.0;	    
-	    }	  
-	  }
-
-	  double maxRelDiff = 0.0;
-	  for(double& val : relDiff){
-	    val = (val-midVal)/midVal;
-	    if(val > maxRelDiff)
-	      maxRelDiff = val;
-	  }
-
-	  if(verbose > 1){
-	    printf("   - Maximum relative difference: %.3f %%\n",
-		   maxRelDiff*100.0);
-	  }
-
-	  //Update change bowtie reshape factor
-	  changeFactor = maxRelDiff/2.0;
-	  if(changeFactor > maxChangeFactor)
-	    changeFactor = maxChangeFactor;
-	  if(changeFactor < minChangeFactor)
-	    changeFactor = minChangeFactor;
-
-	  //Update tolerance
-	  reader.tolerance = maxRelDiff/10.0;
-	  if(reader.tolerance > maxTolerance)
-	    reader.tolerance = maxTolerance;
-	  if(reader.tolerance < minTolerance)
-	    reader.tolerance = minTolerance;
-
-	  fout = nullptr;
-	  filename = reader.outputPrefix + "fluenceRelativeDiff.dat" + sufix;
-	  fout = fopen(filename.c_str(), "w");
-	  for(size_t j = 0; j < relDiff.size(); ++j){
-	    fprintf(fout, "%E\n", relDiff[j]);
-	  }
-	  fclose(fout);
-
-	  if(maxRelDiff < tolerance){
-	    //Required tolerance reached
-
-	    if(reached){
-	      //Smooth already done
-	      break;
-	    }
-	    
-	    if(verbose > 1){
-	      printf("   - Tolerance reached, smooth the bowtie and simulate again\n");
-	    }
-
-	    //Flag tolerance as reached and smooth the bowtie
-	    reached = true;
-	    //Smooth the bowtie
-	    for(size_t k = 0; k < 10; ++k){
-	      std::vector<double> bowtieDz = reader.bowtieDz;
-	      for(size_t j = 1; j < relDiff.size()-1; ++j){
-		reader.bowtieDz[j] =
-		  bowtieDz[j]*0.7 + bowtieDz[j-1]*0.15 + bowtieDz[j+1]*0.15;
-	      }
-	    }
-	    continue;
-	  }
-	  reached = false;
-
-	  if(verbose > 1){
-	    printf("   - Maximum bowtie change factor: %.3f %%\n",
-		   changeFactor*100.0);
-	  }
-
-	  //Reshape bowtie
-	  for(size_t j = 0; j < relDiff.size(); ++j){
-	    double factor = relDiff[j];
-	    if(std::fabs(factor) > changeFactor){
-	      if(std::signbit(factor))
-		reader.bowtieDz[j] -= reader.bowtieDz[j]*changeFactor;
-	      else
-		reader.bowtieDz[j] += reader.bowtieDz[j]*changeFactor;
-	    }
-	    else{
-	      reader.bowtieDz[j] += reader.bowtieDz[j]*factor;
-	    }
-	      
-	      
-	    if(reader.bowtieDz[j] > bowtieMax)
-	      reader.bowtieDz[j] = bowtieMax;
-	    if(reader.bowtieDz[j] < bowtieMin)
-	      reader.bowtieDz[j] = bowtieMin;
-	  }
-
-	  //Smooth bowtie with a smooth filter
-	  for(size_t k = 0; k < 5; ++k){
-	    std::vector<double> bowtieDz = reader.bowtieDz;
-	    for(size_t j = 1; j < relDiff.size()-1; ++j){
-	      reader.bowtieDz[j] =
-		bowtieDz[j]*0.7 + bowtieDz[j-1]*0.15 + bowtieDz[j+1]*0.15;
-	    }
-	  }
-	}
-      }
-
-      //Perform the final simulation
-      reader.detBinsX = nSpatBinsX;
-      reader.detBinsY = nSpatBinsY;
-      reader.tolerance = tolerance;
-      baseSimConfig.verbose = verbose;
-      
-      unsigned long long simHists;
-	
-      err = simDevice(reader, maxE, fsample, baseSimConfig,
-		      detFluence, detEdep, detSpec, simHists,
-		      verbose);
-      if(err != errors::SUCCESS){
-	return err;
-      }
-
-      simHistsOut = simHists;
-      
-      return errors::SUCCESS;
-      
-    }
-
-    int simDevice(const pen_parserSection& config,
-		  const unsigned verbose){
-      
-      measurements::measurement<double, 2> detFluence;
-      measurements::measurement<double, 2> detEdep;
-      measurements::measurement<double, 1> detSpec;
-
-      //Read information from config section
-      readerXRayDeviceSimulate reader;
-      int err = reader.read(config,verbose);
-      if(err != readerXRayDeviceSimulate::SUCCESS){
-	return errors::INVALID_CONFIGURATION;
-      }
-
-      unsigned long long simHists;
-      err = simDevice(config, detFluence, detEdep, detSpec, simHists, verbose);
-      if(err != errors::SUCCESS){
-	return err;
-      }
-
-      // ** Print results
-      FILE* fout = nullptr;
-      std::string filename = reader.outputPrefix + "detectedFluence.dat";
-      fout = fopen(filename.c_str(), "w");
-      detFluence.print(fout, simHists, 2, true, false);
-      fclose(fout);
-
-      fout = nullptr;
-      filename = reader.outputPrefix + "detectedEdep.dat";
-      fout = fopen(filename.c_str(), "w");
-      detEdep.print(fout, simHists, 2, true, false);
-      fclose(fout);
-
-      fout = nullptr;
-      filename = reader.outputPrefix + "detectedSpectrum.dat";
-      fout = fopen(filename.c_str(), "w");
-      detSpec.print(fout, simHists, 2, true, false);
-      fclose(fout);      
-
-      return errors::SUCCESS;
-    }
-
-    int simDevice(const readerXRayDeviceSimulate& reader,
-		  const double maxE,
-		  const simulation::sampleFuncType<pen_particleState>& fsample,
-		  const penred::simulation::simConfig& baseSimConfig,
-		  measurements::measurement<double, 2>& detFluence,
-		  measurements::measurement<double, 2>& detEdep,
-		  measurements::measurement<double, 1>& detSpec,
-		  unsigned long long& simHistsOut,
-		  const unsigned verbose){
-      
-      // ** Threads number
-
-      //Get the number of threads to use
-      unsigned nThreads = reader.nThreads;
-      if(nThreads == 0){
-	nThreads = std::max(static_cast<unsigned int>(2),
-			    std::thread::hardware_concurrency());
-      }
-
-      // ** Tally function
-
-      const vector3D<double> sourcePos = reader.sourcePosition;      
-      
-      std::vector<measurements::measurement<double, 2>> detectedFluence(nThreads);
-      for(size_t i = 0; i < nThreads; ++i){
-	detectedFluence[i].
-	  initFromLists({reader.detBinsX, reader.detBinsY},
-			{std::pair<double,double>(sourcePos.x-reader.detectorDx/2.0,
-						  sourcePos.x+reader.detectorDx/2.0),
-			 std::pair<double,double>(sourcePos.y-reader.detectorDy/2.0,
-						  sourcePos.y+reader.detectorDy/2.0)});
-	
-	detectedFluence[i].setDimHeader(0, "X (cm)");
-	detectedFluence[i].setDimHeader(1, "Y (cm)");
-	detectedFluence[i].setValueHeader("Value (prob)");	
-	
-      }
-
-      std::vector<measurements::measurement<double, 2>> detectedEdep(nThreads);
-      for(size_t i = 0; i < nThreads; ++i){
-	detectedEdep[i].
-	  initFromLists({reader.detBinsX, reader.detBinsY},
-			{std::pair<double,double>(sourcePos.x-reader.detectorDx/2.0,
-						  sourcePos.x+reader.detectorDx/2.0),
-			 std::pair<double,double>(sourcePos.y-reader.detectorDy/2.0,
-						  sourcePos.y+reader.detectorDy/2.0)});
-
-	detectedEdep[i].setDimHeader(0, "X (cm)");
-	detectedEdep[i].setDimHeader(1, "Y (cm)");
-	detectedEdep[i].setValueHeader("Edep (eV)");	
-      }
-
-      std::vector<measurements::measurement<double, 1>> detectedSpectrum(nThreads);
-      for(size_t i = 0; i < nThreads; ++i){
-	detectedSpectrum[i].
-	  initFromLists({reader.eBins},
-			{std::pair<double,double>(reader.minEnergy,maxE)});
-	detectedSpectrum[i].setDimHeader(0, "Energy (eV)");
-	detectedSpectrum[i].setValueHeader("Value (prob)");
-      }
-
-      std::vector<simulation::tallyFuncType> ftallies(nThreads);
-	
-      for(size_t i = 0; i < nThreads; ++i){
-	ftallies[i] = [&detectedFluence, &detectedEdep, &detectedSpectrum, i]
-	  (const pen_particleState& state,  //Resulting state
-	   const pen_KPAR kpar,  //State kpar
-	   const unsigned long long& hist, //History number
-	   const int kdet){        //Returned value by 'simulatePartCond' function
-
-	  if(kdet == 1 && kpar == PEN_PHOTON){
-	    detectedFluence[i].add({state.X, state.Y}, state.WGHT, hist);
-	    detectedEdep[i].add({state.X, state.Y}, state.E*state.WGHT, hist);
-	    detectedSpectrum[i].add({state.E}, state.WGHT, hist);
-	  }
-	  
-	};
-      
-      }
-
-      // ** Simulation configuration for each thread
-      
-      std::vector<penred::simulation::simConfig> simConfigs(nThreads);
-
-      //Copy basic configuration
-      const double tolerance = reader.tolerance*sqrt(static_cast<double>(nThreads))*0.8;
-      for(unsigned i = 0; i < nThreads; i++){
-	simConfigs[i].iThread = i;
-	simConfigs[i].copyCommonConfig(baseSimConfig);
-	//Set seed pair
-	simConfigs[i].setSeeds(reader.seedPair+i);
-	simConfigs[i].fSimFinish =
-	  [tolerance, i, &detectedFluence]
-	  (const unsigned long long ihist){
-	    
-	    if(ihist % 10000 == 0){
-	      //Get mean relative error
-	      const double erel = detectedFluence[i].errorRel(ihist);
-	      if(erel < tolerance)
-		return false;
-	    }
-	    return true;
-	  };
-      }
-      
-      // ** Device Geometry
-
       //Create device geometry
       std::stringstream geoStream;
-      int err = constructDevice(geoStream,
-				reader.focalSpot,
-				reader.source2det,
-				reader.source2filter,
-				reader.source2bowtie,
-				reader.detectorDx,
-				reader.detectorDy,
-				reader.inherentFilterWidth,
-				reader.filtersWidth,
-				reader.bowtieDz,
-				reader.sourcePosition,
-				reader.simAnode,
-				reader.anodeAngle,
-				verbose);
+      unsigned deviceNextMat = 1;
+      err = constructDevice(geoStream,
+                            reader.focalSpot,
+                            reader.source2det,
+                            reader.source2filter,
+                            reader.detectorDx,
+                            reader.detectorDy,
+                            reader.detectorDz,
+                            reader.inherentFilterWidth,
+                            reader.filtersWidth,
+                            deviceNextMat,
+                            reader.detectorPosition,
+                            reader.simAnode,
+                            reader.anodeAngle,
+                            verbose,
+                            reader.storeFilteredPSF);
 
       if(err != 0){
-	if(verbose > 0)
-	  printf("simDevice: Error: Unable to create device geometry\n");
-	return errors::ERROR_ON_GEOMETRY_INITIALIZATION;
+        if(verbose > 0)
+          penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                       "simDevice: Error: Unable to create device geometry\n");
+        return errors::ERROR_ON_GEOMETRY_INITIALIZATION;
       }
 
-      // ** Geometry configuration
-
-      pen_parserSection geoConfig;
-      std::shared_ptr<wrapper_geometry> geometry;
-
-      if(reader.addedGeoType.compare("-") == 0){
-	//Use Mesh geometry
-
-	if(verbose > 1){
-	  printf("No added geometry provided\n");
-	}
-
-	//Create a mesh geometry instance
-	std::shared_ptr<pen_meshBodyGeo> geometryMesh =
-	  std::make_shared<pen_meshBodyGeo>();
-
-	//Set geometry file in geometry instance
-	geometryMesh->preloadGeo.assign(geoStream.str());
-
-	if(reader.printGeo){
 	  //Print geometry file
 	  std::ofstream out("device.msh", std::ofstream::out);
 	  out << geoStream.str() << std::endl;
 	  out.close();
-	}
-	
-	geometry = geometryMesh;
-	if(!geometry){
-	  printf("Unexpected Error: Unable to create a geometry instance "
-		 "of type 'MESH_BODY'\n"
-		 "                  Please, report this error");
-	  return errors::ERROR_ON_GEOMETRY_INITIALIZATION;
-	}
-
-	//Set in-memory geometry
-	geoConfig.set("memory-file", true);
-
-	//Assign kdet 1 to detector object
-	geoConfig.set("kdet/detector", 1);
-
-	//Limit anode dsmax if it is simulated
-	if(reader.simAnode)
-	  geoConfig.set("dsmax/anode", 2.0e-2);
-	
-      }
-      else{
-
-	if(verbose > 1){
-	  printf("Added geometry provided\n");
-	}
-	
-	//Create combo geometry
-	std::shared_ptr<pen_comboGeo> geometryCombo =
-	  std::make_shared<pen_comboGeo>();
-
-	//Print geometry file
-	std::ofstream out("device.msh", std::ofstream::out);
-	out << geoStream.str() << std::endl;
-	out.close();	
-	  
-	geometry = geometryCombo;
-	if(!geometry){
-	  printf("Unexpected Error: Unable to create a geometry instance "
-		 "of type 'COMBO'\n"
-		 "                  Please, report this error");
-	  return errors::ERROR_ON_GEOMETRY_INITIALIZATION;
-	}
-  
-	// * Configure device geometry
-	
-	geoConfig.set("geometries/device/priority", 0);
-	geoConfig.set("geometries/device/config/type", "MESH_BODY");
-	geoConfig.set("geometries/device/config/input-file", "device.msh");
-
-	//Assign kdet 1 to detector object
-	geoConfig.set("geometries/device/config/kdet/detector", 1);
-
-	//Limit anode dsmax if it is simulated
-	if(reader.simAnode)
-	  geoConfig.set("geometries/device/config/dsmax/anode", 2.0e-2);
-
-	// * Configure added geometry
-
-	//Read configuration section
-	if(reader.addedGeoConf.size() == 0){
-	  if(verbose > 0){
-	    printf("simDevice: Error: Configuration for added "
-		   "geometry not provided.\n"
-		   "                  Missing section at: 'geometry/config'\n");
-	  }
-	  return errors::ERROR_ON_GEOMETRY_INITIALIZATION;
-	}
-
-	geoConfig.addSubsection("geometries/added/config", reader.addedGeoConf);
-	geoConfig.set("geometries/added/priority", 1);
-	geoConfig.set("geometries/added/config/type", reader.addedGeoType);	
-      }
-
-      //Clear geometry stream
-      geoStream.clear();      
       
-      // ** Context configuration
+      //Save added geometry configuration
+      pen_parserSection geoAddConf;
+      config.readSubsection("geometry/config", geoAddConf);
+      
+      //Try to read geometry type
+      int nextkdet = 1;
+      bool isCombo;
+      if(config.read("geometry/config/type", reader.addedGeoType) == INTDATA_SUCCESS){
+        //Combined geometry
+        isCombo = true;
+        simConf.set("geometry/type", "COMBO");
+        simConf.set("geometry/geometries/device/priority", 0);
+        simConf.set("geometry/geometries/added/priority", 1);
 
-      pen_parserSection simConf;
+        simConf.set("geometry/geometries/device/config/type", "MESH_BODY");
+        simConf.set("geometry/geometries/device/config/input-file", "device.msh");
+    
+        //Set detectors (kdet)
+        simConf.set("geometry/geometries/device/config/kdet/detector", nextkdet++);
+
+        if(reader.inherentFilterWidth > 0.0)
+          simConf.set("geometry/geometries/device/config/kdet/inherent-filter", nextkdet++);
+        for(unsigned i = 0; i < reader.filtersZ.size(); ++i){
+          std::string filterName("filter-");
+          filterName += std::to_string(i);
+          std::string kdetKey = "geometry/geometries/device/config/kdet/";
+          kdetKey += filterName;
+          simConf.set(kdetKey, nextkdet++);
+        }
+        
+        //Set PSF filter kdet, if needed
+        if(reader.storeFilteredPSF){
+          simConf.set("geometry/geometries/device/config/kdet/filter-psf", nextkdet++);
+        }
+        
+        simConf.addSubsection("geometry/geometries/added/config", geoAddConf);
+        simConf.set("geometry/geometries/added/config/material-shift", int(deviceNextMat)-1);
+        
+        if(reader.simAnode){
+          simConf.set("geometry/geometries/device/config/dsmax/anode", 2.0e-2);
+        }
+      }else{
+        //Device-only geometry
+        isCombo = false;
+        simConf.set("geometry/type", "MESH_BODY");
+        simConf.set("geometry/input-file", "device.msh");
+        
+        simConf.set("geometry/kdet/detector", nextkdet++);
+
+        if(reader.inherentFilterWidth > 0.0){
+          simConf.set("geometry/kdet/inherent-filter", nextkdet++);
+        }
+        for(unsigned i = 0; i < reader.filtersZ.size(); ++i){
+          std::string filterName("filter-");
+          filterName += std::to_string(i);
+          std::string kdetKey = "geometry/kdet/";
+          kdetKey += filterName;
+          simConf.set(kdetKey, nextkdet++);
+        }
+
+        //Set PSF filter kdet, if needed
+        if(reader.storeFilteredPSF){
+          simConf.set("geometry/kdet/filter-psf", nextkdet++);
+        }
+        
+        if(reader.simAnode){
+          simConf.set("geometry/dsmax/anode", 2.0e-2);
+        }
+      }
+
+      // ** Materials
       int nextMat = 1;
-      
-      // ** Collimators (perfect absorber)
+
+      // Collimators (perfect absorber)
 
       //Create collimators material file
       std::string errorString;
       err = penred::penMaterialCreator::createMat(82,
-						  "collimator.mat",
-						  errorString);
+                                                  "collimator.mat",
+                                                  errorString);
 
       if(err != 0){
-	printf ("simDevice: Error: Unable to create "
-		"collimator material: %s\n", errorString.c_str());
-	printf ("IRETRN =%d\n", err);
-	return errors::UNABLE_TO_CREATE_MATERIAL;
+        penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                     "simDevice: Error: Unable to create "
+                                     "collimator material: %s\n", errorString.c_str());
+        penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                     "IRETRN =%d\n", err);
+        return errors::UNABLE_TO_CREATE_MATERIAL;
       }
 	
       simConf.set("materials/collimators/number", nextMat++);
       for(unsigned i = 0; i < constants::nParTypes; ++i){
-	std::string path("materials/collimators/eabs/");
-	path += particleName(i);
-	simConf.set(path, 1.0e35);
+        std::string path("materials/collimators/eabs/");
+        path += particleName(i);
+        simConf.set(path, 1.0e35);
       }
       simConf.set("materials/collimators/filename", "collimator.mat");
 
-      // ** Anode
-      
+      // Anode
       if(reader.simAnode){
 
-	//Create anode material file
-	err = penred::penMaterialCreator::createMat(reader.anodeZ,
-						    "anode.mat",
-						    errorString);
-	if(err != 0){
-	  printf ("simDevice: Error: Unable to create "
-		  "anode material: %s\n", errorString.c_str());
-	  printf ("IRETRN =%d\n", err);
-	  return errors::UNABLE_TO_CREATE_MATERIAL;
-	}
+        //Create anode material file
+        err = penred::penMaterialCreator::createMat(reader.anodeZ,
+                                                    "anode.mat",
+                                                    errorString);
+        if(err != 0){
+          penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                       "simDevice: Error: Unable to create "
+                                       "anode material: %s\n", errorString.c_str());
+          penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                       "IRETRN =%d\n", err);
+          return errors::UNABLE_TO_CREATE_MATERIAL;
+        }
 	
-	//Configure anode material
-	simConf.set("materials/anode/number", nextMat++);
-	for(unsigned i = 0; i < constants::nParTypes; ++i){
-	  std::string path("materials/anode/eabs/");
-	  path += particleName(i);
-	  simConf.set(path, reader.minEnergy);
-	}
+        //Configure anode material
+        simConf.set("materials/anode/number", nextMat++);
+        for(unsigned i = 0; i < constants::nParTypes; ++i){
+          std::string path("materials/anode/eabs/");
+          path += particleName(i);
+          simConf.set(path, reader.minEnergy);
+        }
 	
-	simConf.set("materials/anode/C1", 0.05);
-	simConf.set("materials/anode/C2", 0.05);
-	simConf.set("materials/anode/WCC", std::min(5e3,reader.minEnergy/100.0));
-	simConf.set("materials/anode/WCR", std::min(5e3,reader.minEnergy/100.0));
-	simConf.set("materials/anode/filename", "anode.mat");
-
-	//VR
-	simConf.set("VR/IForcing/bremss/particle", "electron");
-	simConf.set("VR/IForcing/bremss/interaction", BETAe_HARD_BREMSSTRAHLUNG);
-	simConf.set("VR/IForcing/bremss/factor", 400);
-	simConf.set("VR/IForcing/bremss/min-weight", 0.1);
-	simConf.set("VR/IForcing/bremss/max-weight", 2.0);
-	if(reader.addedGeoType.compare("-") == 0)
-	  simConf.set("VR/IForcing/bremss/bodies/anode", true);
-	else
-	  simConf.set("VR/IForcing/bremss/bodies/device_anode", true);
-
-	simConf.set("VR/IForcing/innerShell/particle", "electron");
-	simConf.set("VR/IForcing/innerShell/interaction", BETAe_HARD_INNER_SHELL);
-	simConf.set("VR/IForcing/innerShell/factor", 400);
-	simConf.set("VR/IForcing/innerShell/min-weight", 0.1);
-	simConf.set("VR/IForcing/innerShell/max-weight", 2.0);
-	if(reader.addedGeoType.compare("-") == 0)
-	  simConf.set("VR/IForcing/innerShell/bodies/anode", true);
-	else
-	  simConf.set("VR/IForcing/innerShell/bodies/device_anode", true);
-
-	simConf.set("VR/bremss/split4/splitting", 4);
-	if(reader.addedGeoType.compare("-") == 0)
-	  simConf.set("VR/bremss/split4/bodies/anode", true);
-	else
-	  simConf.set("VR/bremss/split4/bodies/device_anode", true);
+        simConf.set("materials/anode/C1", 0.05);
+        simConf.set("materials/anode/C2", 0.05);
+        simConf.set("materials/anode/WCC", std::min(5e3,reader.minEnergy/100.0));
+        simConf.set("materials/anode/WCR", std::min(5e3,reader.minEnergy/100.0));
+        simConf.set("materials/anode/filename", "anode.mat");
 	
       }
 
-      // ** Inherent filter
-
+      // Inherent filter
       if(reader.inherentFilterWidth > 0.0){
 
-	//Create inherent filter material
-	err = penred::penMaterialCreator::createMat(13,
-						    "inherent.mat",
-						    errorString);
-	if(err != 0){
-	  printf ("simDevice: Error: Unable to create "
-		  "inherent filter material: %s\n",
-		  errorString.c_str());
-	  printf ("IRETRN =%d\n", err);
-	  return errors::UNABLE_TO_CREATE_MATERIAL;
-	}
+        //Create inherent filter material
+        err = penred::penMaterialCreator::createMat(13,
+                                                    "inherent.mat",
+                                                    errorString);
+        if(err != 0){
+          penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                       "simDevice: Error: Unable to create "
+                                       "inherent filter material: %s\n",
+                                       errorString.c_str());
+          penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                       "IRETRN =%d\n", err);
+          return errors::UNABLE_TO_CREATE_MATERIAL;
+        }
 
-	//Configure inherent filter material
-	simConf.set("materials/inherentFilter/number", nextMat++);
-	for(unsigned j = 0; j < constants::nParTypes; ++j){
-	  std::string path = "materials/inherentFilter/eabs/";
-	  path += particleName(j);
-	  if(j == PEN_PHOTON)
-	    simConf.set(path, reader.minEnergy);
-	  else
-	    simConf.set(path, 1.0e35);
-	}
-	simConf.set("materials/inherentFilter/filename", "inherent.mat");
+        //Configure inherent filter material
+        simConf.set("materials/inherentFilter/number", nextMat++);
+        for(unsigned j = 0; j < constants::nParTypes; ++j){
+          std::string path = "materials/inherentFilter/eabs/";
+          path += particleName(j);
+          if(j == PEN_PHOTON)
+            simConf.set(path, reader.minEnergy);
+          else
+            simConf.set(path, 1.0e35);
+        }
+        simConf.set("materials/inherentFilter/filename", "inherent.mat");
 
       }
 
-      // ** Filters
+      // Filters
       for(size_t i = 0; i < reader.filtersZ.size(); ++i){
 
-	//Create filter material file
-	std::string filterName("filter_");
-	filterName += std::to_string(i);
+        //Create filter material file
+        std::string filterName("filter_");
+        filterName += std::to_string(i);
 	
-	std::string filterMatFile = filterName + ".mat";
+        std::string filterMatFile = filterName + ".mat";
 	
-	if(reader.filtersMatFile[i].compare("-") == 0){
-	  err = penred::penMaterialCreator::createMat(reader.filtersZ[i],
-						      filterMatFile.c_str(),
-						      errorString);
-	  if(err != 0){
-	    printf ("simDevice: Error: Unable to create "
-		    "filter %lu material: %s\n",
-		    static_cast<unsigned long>(i),
-		    errorString.c_str());
-	    printf ("IRETRN =%d\n", err);
-	    return errors::UNABLE_TO_CREATE_MATERIAL;
-	  }
-	}else{
-	  filterMatFile = reader.filtersMatFile[i];
-	}
+        if(reader.filtersMatFile[i].compare("-") == 0){
+          err = penred::penMaterialCreator::createMat(reader.filtersZ[i],
+                                                      filterMatFile.c_str(),
+                                                      errorString);
+          if(err != 0){
+            penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                         "simDevice: Error: Unable to create "
+                                         "filter %lu material: %s\n",
+                                         static_cast<unsigned long>(i),
+                                         errorString.c_str());
+            penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                         "IRETRN =%d\n", err);
+            return errors::UNABLE_TO_CREATE_MATERIAL;
+          }
+        }else{
+          filterMatFile = reader.filtersMatFile[i];
+        }
 	
-	//Configure material
-	std::string prefix = "materials/" + filterName + "/";
-	simConf.set((prefix + "number").c_str(), nextMat++);
-	for(unsigned j = 0; j < constants::nParTypes; ++j){
-	  std::string path = prefix + "eabs/";
-	  path += particleName(j);
-	  if(j == PEN_PHOTON)
-	    simConf.set(path, reader.minEnergy);
-	  else
-	    simConf.set(path, 1.0e35);
-	}
+        //Configure material
+        std::string prefix = "materials/" + filterName + "/";
+        simConf.set((prefix + "number").c_str(), nextMat++);
+        for(unsigned j = 0; j < constants::nParTypes; ++j){
+          std::string path = prefix + "eabs/";
+          path += particleName(j);
+          if(j == PEN_PHOTON)
+            simConf.set(path, reader.minEnergy);
+          else
+            simConf.set(path, 1.0e35);
+        }
 
-	//simConf.set((prefix + "C1").c_str(), 0.05);
-	//simConf.set((prefix + "C2").c_str(), 0.05);
-	//simConf.set((prefix + "WCC").c_str(), std::min(5e3,reader.minEnergy/100.0));
-	//simConf.set((prefix + "WCR").c_str(), std::min(5e3,reader.minEnergy/100.0));
-	simConf.set((prefix + "filename").c_str(), filterMatFile);
+        //simConf.set((prefix + "C1").c_str(), 0.05);
+        //simConf.set((prefix + "C2").c_str(), 0.05);
+        //simConf.set((prefix + "WCC").c_str(), std::min(5e3,reader.minEnergy/100.0));
+        //simConf.set((prefix + "WCR").c_str(), std::min(5e3,reader.minEnergy/100.0));
+        simConf.set((prefix + "filename").c_str(), filterMatFile);
 		
       }
 
-      // ** Bowtie filter
-
-      if(reader.source2bowtie > 0.0 && reader.bowtieDz.size() > 0){
-
-	//Create bowtie material
-	std::string matFilename;
-	if(reader.bowtieMatFile.compare("-") == 0){
-	  matFilename.assign("bowtie.mat");
-	  err = penred::penMaterialCreator::createMat(reader.bowtieZ,
-						      matFilename.c_str(),
-						      errorString);
-	  if(err != 0){
-	    printf ("simDevice: Error: Unable to create "
-		    "bowtie filter material: %s\n",
-		    errorString.c_str());
-	    printf ("IRETRN =%d\n", err);
-	    return errors::UNABLE_TO_CREATE_MATERIAL;
-	  }
-	}else{
-	  matFilename = reader.bowtieMatFile;
-	}
-
-	//Configure inherent filter material
-	simConf.set("materials/bowtie/number", nextMat++);
-	for(unsigned j = 0; j < constants::nParTypes; ++j){
-	  std::string path = "materials/bowtie/eabs/";
-	  path += particleName(j);
-	  if(j == PEN_PHOTON)
-	    simConf.set(path, reader.minEnergy);
-	  else
-	    simConf.set(path, 1.0e35);
-	}
-	simConf.set("materials/bowtie/filename", matFilename);
-      }      
-
-      // ** Detector
+      // Detector
       simConf.set("materials/detector/number", nextMat++);
-      for(unsigned i = 0; i < constants::nParTypes; ++i){
-	std::string path("materials/detector/eabs/");
-	path += particleName(i);
-	simConf.set(path, 1.0e35);
+      if(reader.detectorIdeal){
+        for(unsigned i = 0; i < constants::nParTypes; ++i){
+          std::string path("materials/detector/eabs/");
+          path += particleName(i);
+          simConf.set(path, 1.0e35);
+        }
+        simConf.set("materials/detector/filename", "collimator.mat");
       }
-      simConf.set("materials/detector/filename", "collimator.mat");
-
-      // ** Added geometry
-
-      if(reader.addedGeoType.compare("-") != 0){
-	//Provided geometry
-	for(const readerXRayDeviceSimulate::materialData& mat : reader.addedGeoMats){
-	  if(mat.index < nextMat && mat.index != 0){
-	    if(verbose > 0){
-	      printf("simDevice: Error: Added geometry uses a non void material "
-		     "reserved for device geometry (mat %d).\n"
-		     "           Number of reserved materials: %d\n",
-		     mat.index, nextMat);
-	    }
-	    return errors::USING_RESERVED_MATERIAL;
-	  }
-
-	  //Add configuration for this material
-	  std::string prefix = "materials/added_" + mat.name + "/";
-	  simConf.set((prefix + "number").c_str(), mat.index);
-	  for(unsigned j = 0; j < constants::nParTypes; ++j){
-	    std::string path = prefix + "eabs/";
-	    path += particleName(j);
-	    if(j == PEN_PHOTON)
-	      simConf.set(path, reader.minEnergy);
-	    else
-	      simConf.set(path, 1.0e35);
-	  }
-
-	  for(const penred::massFraction& mf : mat.composition){
-	    std::string prefixElement = prefix + "elements/" + std::to_string(mf.Z);
-	    simConf.set(prefixElement, mf.fraction);
-	  }
-
-	  simConf.set((prefix + "density").c_str(), mat.density);
-	  simConf.set((prefix + "filename").c_str(), "added_" + mat.name + ".mat");
-	  simConf.set((prefix + "force-creation").c_str(), true);
-	}
+      else{
+        double minSize = std::min(reader.detectorDx, std::min(reader.detectorDx, reader.detectorDz));
+        for(unsigned i = 0; i < constants::nParTypes; ++i){
+          std::string path("materials/detector/range/");
+          path += particleName(i);
+          simConf.set(path, minSize/10.0);
+        }
+        simConf.set("materials/detector/filename", reader.detectorMatFile.c_str());        
       }
 
-      // ** Create context
+      // Added geometry
+      if(isCombo){
+        //Provided geometry
+        for(const readerXRayDeviceSimulate::materialData& mat : reader.addedGeoMats){
 
-      //Create simulation context
-      std::shared_ptr<pen_context> pcontext = createContext<pen_context>();
-      //Get context reference. Notice that pcontext will
-      //not be released until the function ends
-      pen_context& context = *pcontext.get();
+          //Add configuration for this material
+          std::string prefix = "materials/added_" + mat.name + "/";
+          simConf.set((prefix + "number").c_str(), mat.index + int(deviceNextMat) - 1);
+          for(unsigned j = 0; j < constants::nParTypes; ++j){
+            std::string path = prefix + "eabs/";
+            path += particleName(j);
+            if(j == PEN_PHOTON)
+              simConf.set(path, reader.minEnergy);
+            else
+              simConf.set(path, 1.0e35);
+          }
+
+          for(const penred::massFraction& mf : mat.composition){
+            std::string prefixElement = prefix + "elements/" + std::to_string(mf.Z);
+            simConf.set(prefixElement, mf.fraction);
+          }
+
+          simConf.set((prefix + "density").c_str(), mat.density);
+          simConf.set((prefix + "filename").c_str(), "added_" + mat.name + ".mat");
+          simConf.set((prefix + "force-creation").c_str(), true);
+        }
+      }
+
+      // ** VR
       
+      if(reader.simAnode){
+        simConf.set("VR/IForcing/bremss/particle", "electron");
+        simConf.set("VR/IForcing/bremss/interaction", BETAe_HARD_BREMSSTRAHLUNG);
+        simConf.set("VR/IForcing/bremss/factor", 400);
+        simConf.set("VR/IForcing/bremss/min-weight", 0.1);
+        simConf.set("VR/IForcing/bremss/max-weight", 2.0);
+        if(isCombo)
+          simConf.set("VR/IForcing/bremss/bodies/device_anode", true);
+        else
+          simConf.set("VR/IForcing/bremss/bodies/anode", true);
 
-      //Run context configuration step with no geometry
-      pen_parserSection matInfo;
-      if(context.configure(maxE,
-			   simConf,
-			   matInfo,
-			   verbose > 2 ? verbose : 1) != pen_context::SUCCESS){
-	if(verbose > 0)
-	  printf("simDevice: Error at simulation context initialization. "
-		 "See context report.\n");
-	return errors::ERROR_ON_CONTEXT_INITIALIZATION;
+        simConf.set("VR/IForcing/innerShell/particle", "electron");
+        simConf.set("VR/IForcing/innerShell/interaction", BETAe_HARD_INNER_SHELL);
+        simConf.set("VR/IForcing/innerShell/factor", 400);
+        simConf.set("VR/IForcing/innerShell/min-weight", 0.1);
+        simConf.set("VR/IForcing/innerShell/max-weight", 2.0);
+        if(isCombo)
+          simConf.set("VR/IForcing/innerShell/bodies/device_anode", true);
+        else
+          simConf.set("VR/IForcing/innerShell/bodies/anode", true);
+
+        simConf.set("VR/bremss/split4/splitting", 4);
+        if(isCombo)
+          simConf.set("VR/bremss/split4/bodies/device_anode", true);
+        else
+          simConf.set("VR/bremss/split4/bodies/anode", true);
       }
 
-      //Configure geometry
-      geoConfig.addSubsection("materials", matInfo);
+      // ** Simulation parameters
+      simConf.set("simulation/threads", (int)reader.nThreads);
+      simConf.set("simulation/max-time", reader.maxTime);
 
-      penred::errors::Error errGeoConf = geometry->configure(geoConfig, verbose > 2 ? verbose : 1);
-      if(errGeoConf){
-        printf("Unexpected Error: Unable to construct the geometry. "
-               "Please, report this error:\n%s\n", errGeoConf.stringify().c_str());
-        return errors::ERROR_ON_GEOMETRY_INITIALIZATION;
-      }
+      // ** Tallies
       
-      //Set the geometry to the simulation context
-      context.setGeometry(geometry.get());      
+      // Spatial energy detector
+      simConf.set("tallies/SpatialDetector/type", "DETECTION_SPATIAL_DISTRIB");
 
-      //Run context configuration step with geometry
-      if(context.configureWithGeo(simConf,
-				  verbose > 2 ? verbose : 1) != pen_context::SUCCESS){
-	printf("simDevice: Error at simulation context initialization with geometry. "
-	       "Please, report this error.\n");
-	return errors::ERROR_ON_CONTEXT_INITIALIZATION;
-      }
+      simConf.set("tallies/SpatialDetector/spatial/nx", (int)reader.detBinsX);
+      simConf.set("tallies/SpatialDetector/spatial/xmin",
+                  reader.detectorPosition.x-reader.detectorDx/2.0);
+      simConf.set("tallies/SpatialDetector/spatial/xmax",
+                  reader.detectorPosition.x+reader.detectorDx/2.0);
 
-      if(reader.printGeo){
-	//Print configuration also
-	geoConfig.remove("materials");
-	simConf.addSubsection("geometry", geoConfig);
-	std::ofstream out("device.conf", std::ofstream::out);
-	out << "## Simulation " << std::endl;
-	out << "###############\n" << std::endl;
-	out << "simulation/threads " << reader.nThreads << std::endl;
-	out << "simulation/max-time " << reader.maxTime << std::endl;
-	out << "\n" << std::endl;
-	out << "## Source " << std::endl;
-	out << "###############\n" << std::endl;
-	out << "sources/generic/source1/nhist " << reader.nHists << std::endl;
-	out << "sources/generic/source1/kpar \"gamma\"" << std::endl;
-	out << "\n" << std::endl;
-	out << "## Tallies " << std::endl;
-	out << "###############\n" << std::endl;
-	out << "tallies/SpatialDetectior/type \"DETECTION_SPATIAL_DISTRIB\" " << std::endl;
-	out << "tallies/SpatialDetectior/spatial/nx " << reader.detBinsX << std::endl;
-	out << "tallies/SpatialDetectior/spatial/xmin " <<
-	  detectedFluence[0].readLimits()[0].first << std::endl;
-	out << "tallies/SpatialDetectior/spatial/xmax " <<
-	  detectedFluence[0].readLimits()[0].second << std::endl;
-	out << "tallies/SpatialDetectior/spatial/ny " << reader.detBinsY << std::endl;
-	out << "tallies/SpatialDetectior/spatial/ymin " <<
-	  detectedFluence[0].readLimits()[1].first << std::endl;
-	out << "tallies/SpatialDetectior/spatial/ymax  " <<
-	  detectedFluence[0].readLimits()[1].second << std::endl;
-	out << "tallies/SpatialDetectior/detector 1 " << std::endl;
-	out << "tallies/SpatialDetectior/particle \"gamma\" " << std::endl;
-	out << "\n" << std::endl;
-	out << "tallies/SpectrumDetectior/type \"DETECTION_SPATIAL_DISTRIB\" " << std::endl;
-	out << "tallies/SpectrumDetectior/spatial/nbins " << reader.eBins << std::endl;
-	out << "tallies/SpectrumDetectior/spatial/emin " <<
-	  detectedSpectrum[0].readLimits()[0].first << std::endl;
-	out << "tallies/SpectrumDetectior/spatial/emax " <<
-	  detectedSpectrum[0].readLimits()[0].second << std::endl;
-	out << "tallies/SpectrumDetectior/detector 1 " << std::endl;
-	out << "tallies/SpectrumDetectior/particle \"gamma\" " << std::endl;	
-	out << "\n" << std::endl;
-	out << "## Geometry " << std::endl;
-	out << "###############\n" << std::endl;
-	pen_parserSection geoConfOut;
-	geoConfOut.addSubsection("geometry", geoConfig);
-	if(reader.addedGeoType.compare("-") == 0){
-	  geoConfOut.set("geometry/type", "MESH_BODY");
-	}
-	else{
-	  geoConfOut.set("geometry/type", "COMBO");
-	}
-	out << geoConfOut.stringify() << std::endl;
-	out << "\n" << std::endl;
-	out << "## Materials " << std::endl;
-	out << "###############\n" << std::endl;
-	simConf.remove("geometry");
-	out << simConf.stringify() << std::endl;
-	out.close();
-      }
+      simConf.set("tallies/SpatialDetector/spatial/ny", (int)reader.detBinsY);
+      simConf.set("tallies/SpatialDetector/spatial/ymin",
+                  reader.detectorPosition.y-reader.detectorDy/2.0);
+      simConf.set("tallies/SpatialDetector/spatial/ymax",
+                  reader.detectorPosition.y+reader.detectorDy/2.0);
+
+      simConf.set("tallies/SpatialDetector/spatial/nz", 1);
+      simConf.set("tallies/SpatialDetector/spatial/zmin",
+                  reader.detectorPosition.z-reader.detectorDz);
+      simConf.set("tallies/SpatialDetector/spatial/zmax",
+                  reader.detectorPosition.z+0.1);
       
-      // ** Simulate
+      simConf.set("tallies/SpatialDetector/detector",  1);
+      simConf.set("tallies/SpatialDetector/particle",  "gamma");
+      if(!reader.outputPrefix.empty())
+        simConf.set("tallies/SpatialDetector/outputdir", reader.outputPrefix);
 
-      std::vector<std::thread> simThreads;
+      // Energy Spectrum
+      simConf.set("tallies/SpectrumDetector/type", "DETECTION_SPATIAL_DISTRIB");
 
-      std::string sourceName = "deviceSource";
-      for(size_t i = 0; i < nThreads; ++i){
-	unsigned long long hists = reader.nHists/nThreads;
-	if(nThreads == 0)
-	  hists += reader.nHists % nThreads;
-	simThreads.emplace_back([i, hists, &simConfigs, &context, &sourceName,
-				 &fsample, &ftallies]() -> void {
-	  
-	  simulation::sampleAndSimulateCondContext(simConfigs[i],
-						   context,
-						   hists,
-						   sourceName,
-						   fsample,
-						   simulation::finishTypes::DETECTOR_REACHED,
-						   1,
-						   ftallies[i]);
-	});
+      simConf.set("tallies/SpectrumDetector/spatial/nx", 1);
+      simConf.set("tallies/SpectrumDetector/spatial/xmin",
+                  reader.detectorPosition.x-reader.detectorDx/2.0);
+      simConf.set("tallies/SpectrumDetector/spatial/xmax",
+                  reader.detectorPosition.x+reader.detectorDx/2.0);
+
+      simConf.set("tallies/SpectrumDetector/spatial/ny", 1);
+      simConf.set("tallies/SpectrumDetector/spatial/ymin",
+                  reader.detectorPosition.y-reader.detectorDy/2.0);
+      simConf.set("tallies/SpectrumDetector/spatial/ymax",
+                  reader.detectorPosition.y+reader.detectorDy/2.0);
+
+      simConf.set("tallies/SpectrumDetector/spatial/nz", 1);
+      simConf.set("tallies/SpectrumDetector/spatial/zmin",
+                  reader.detectorPosition.z-reader.detectorDz);
+      simConf.set("tallies/SpectrumDetector/spatial/zmax",
+                  reader.detectorPosition.z+0.1);
+      
+      simConf.set("tallies/SpectrumDetector/energy/nbins", (int)reader.eBins);
+      simConf.set("tallies/SpectrumDetector/energy/emin", reader.minEnergy);
+      simConf.set("tallies/SpectrumDetector/energy/emax", maxE);
+      simConf.set("tallies/SpectrumDetector/detector",  1);
+      simConf.set("tallies/SpectrumDetector/particle",  "gamma");
+      if(!reader.outputPrefix.empty())
+        simConf.set("tallies/SpectrumDetector/outputdir", reader.outputPrefix);
+
+      //Check if a PSF is requested
+      if(reader.storeFilteredPSF || reader.storeDetectedPSF){
+        simConf.set("tallies/psf/type", "PSF");
+        simConf.set("tallies/psf/detector", reader.storeFilteredPSF ? nextkdet-1 : 1);
+        simConf.set("tallies/psf/emin", reader.minEnergy);
+        simConf.set("tallies/psf/emax", 1.0e6);        
+        simConf.set("tallies/psf/particles/default", false);        
+        simConf.set("tallies/psf/particles/gamma", true);        
+        if(!reader.outputPrefix.empty())
+          simConf.set("tallies/psf/outputdir", reader.outputPrefix);
       }
 
-      //Join threads
-      for(size_t i = 0; i < nThreads; ++i){
-	simThreads[i].join();
-	if(i > 0){
-	  detectedFluence[0].add(detectedFluence[i]);
-	  detectedEdep[0].add(detectedEdep[i]);
-	  detectedSpectrum[0].add(detectedSpectrum[i]);
-	}
+      //Check user-defined tallies
+      std::vector<std::string> userTallies;
+      config.ls("tallies", userTallies);
+      for(const std::string& tallyName : userTallies){
+        pen_parserSection tallyConf;
+        std::string key = "tallies/" + tallyName;
+        config.readSubsection(key, tallyConf);
+        
+        std::string safeName = "tallies/added_" + tallyName;
+        simConf.addSubsection(safeName.c_str(), tallyConf);
+
+        if(!reader.outputPrefix.empty()){
+          key = safeName + "/outputdir";
+          simConf.set(key, reader.outputPrefix, true);
+        }
       }
 
-      unsigned long long simHists = 0;
-      for(size_t i = 0; i < nThreads; ++i){
-	simHists += simConfigs[i].getTotalSimulated();
-      }
-
-      //Save results
-      detFluence = detectedFluence[0];
-      detEdep = detectedEdep[0];
-      detSpec = detectedSpectrum[0];
-      simHistsOut = simHists;
+      // Print configuration
+      out.open("device.in", std::ofstream::out);
+	  out << simConf.stringify() << std::endl;
+	  out.close();
+      
+      // Configure simulator
+      //***********************
+      simula.configure(simConf);
       
       return errors::SUCCESS;
-      
     }
-    
 
-    // ** Device creation. Reader functions
     int readerXRayDeviceCreate::beginSectionFamily(const std::string& pathInSection,
 						   const size_t,
 						   const unsigned){
@@ -1628,23 +999,23 @@ namespace penred{
 	else if(pathInSection.compare("detector/dy") == 0){
 	  detectorDy = element;
 	}
+	else if(pathInSection.compare("detector/dz") == 0){
+	  detectorDz = element;
+	}
 	else if(pathInSection.compare("inherent-filter/width") == 0){
 	  inherentFilterWidth = element;
 	}
 	else if(pathInSection.compare("distance/filter") == 0){
 	  source2filter = element;
 	}
-	else if(pathInSection.compare("distance/bowtie") == 0){
-	  source2bowtie = element;
-	}	
-	else if(pathInSection.compare("source/pos/x") == 0){
-	  sourcePosition.x = element;
+	else if(pathInSection.compare("detector/pos/x") == 0){
+	  detectorPosition.x = element;
 	}    
-	else if(pathInSection.compare("source/pos/y") == 0){
-	  sourcePosition.y = element;
+	else if(pathInSection.compare("detector/pos/y") == 0){
+	  detectorPosition.y = element;
 	}    
-	else if(pathInSection.compare("source/pos/z") == 0){
-	  sourcePosition.z = element;
+	else if(pathInSection.compare("detector/pos/z") == 0){
+	  detectorPosition.z = element;
 	}
 	else{
 	  return errors::UNHANDLED;
@@ -1667,14 +1038,9 @@ namespace penred{
   
     }
 
-    int readerXRayDeviceCreate::beginArray(const std::string& pathInSection,
+    int readerXRayDeviceCreate::beginArray(const std::string& /*pathInSection*/,
 					   const size_t,
 					   const unsigned){
-      if(family == -1){
-	if(pathInSection.compare("bowtie/dz") == 0){
-	  return errors::SUCCESS;
-	}
-      }
       return errors::UNHANDLED;
     }
       
@@ -1686,16 +1052,10 @@ namespace penred{
       return errors::UNHANDLED;
     }
 
-    int readerXRayDeviceCreate::storeArrayElement(const std::string& pathInSection,
-						  const pen_parserData& element,
-						  const size_t,
-						  const unsigned){
-      if(family == -1){
-	if(pathInSection.compare("bowtie/dz") == 0){
-	  bowtieDz.push_back(static_cast<float>(element));
-	  return errors::SUCCESS;
-	}
-      }
+    int readerXRayDeviceCreate::storeArrayElement(const std::string& /*pathInSection*/,
+                                                  const pen_parserData& /*element*/,
+                                                  const size_t,
+                                                  const unsigned){
       return errors::UNHANDLED;
     }
 
@@ -1767,7 +1127,8 @@ namespace penred{
 	unsigned Z;
 	if(sscanf(name.c_str(), "%u", &Z) != 1){
 	  if(verbose > 0){
-	    printf("Error: Unknown atomic number: %s\n", name.c_str());
+	    penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                     "Error: Unknown atomic number: %s\n", name.c_str());
 	  }
 	  return errors::INVALID_ATOMIC_NUMBER;      
 	}
@@ -1804,13 +1165,6 @@ namespace penred{
 	else if(pathInSection.compare("simulation/min-energy") == 0){
 	  minEnergy = element;
 	}
-	else if(pathInSection.compare("simulation/tolerance") == 0){
-	  tolerance = element;
-	  tolerance /= 100.0;
-	}	
-	else if(pathInSection.compare("simulation/print-geometry") == 0){
-	  printGeo = element;
-	}
 	else if(pathInSection.compare("simulation/nthreads") == 0){
 	  nThreads = element;
 	}
@@ -1828,9 +1182,6 @@ namespace penred{
 	}
 	else if(pathInSection.compare("x-ray/focal-spot") == 0){
 	  focalSpot = element;
-	}	
-	else if(pathInSection.compare("x-ray/distance/distribution") == 0){
-	  distrib2source = element;
 	}
 	else if(pathInSection.compare("x-ray/distance/detector") == 0){
 	  source2det = element;
@@ -1841,27 +1192,18 @@ namespace penred{
 	else if(pathInSection.compare("x-ray/detector/dy") == 0){
 	  detectorDy = element;
 	}
+	else if(pathInSection.compare("x-ray/detector/dz") == 0){
+	  detectorDz = element;
+	}
+	else if(pathInSection.compare("x-ray/detector/ideal") == 0){
+	  detectorIdeal = element;
+	}
 	else if(pathInSection.compare("x-ray/inherent-filter/width") == 0){
 	  inherentFilterWidth = element;
 	}
 	else if(pathInSection.compare("x-ray/distance/filter") == 0){
 	  source2filter = element;
 	}
-	else if(pathInSection.compare("x-ray/distance/bowtie") == 0){
-	  source2bowtie = element;
-	}
-	else if(pathInSection.compare("x-ray/bowtie/z") == 0){
-	  bowtieZ = element;
-	}
-	else if(pathInSection.compare("x-ray/bowtie/auto-design") == 0){
-	  bowtieAutoDesign = element;
-	}
-	else if(pathInSection.compare("x-ray/bowtie/design-bins") == 0){
-	  bowtieDesignBins = element;
-	}
-	else if(pathInSection.compare("x-ray/bowtie/design-iterations") == 0){
-	  bowtieDesignIterations = element;
-	}	
 	else if(pathInSection.compare("x-ray/anode/angle") == 0){
 	  anodeAngle = element;
 	}
@@ -1870,6 +1212,12 @@ namespace penred{
 	}	
 	else if(pathInSection.compare("x-ray/kvp") == 0){
 	  kvp = element;
+	}
+	else if(pathInSection.compare("psf/detected") == 0){
+	  storeDetectedPSF = element;
+	}
+	else if(pathInSection.compare("psf/filtered") == 0){
+	  storeFilteredPSF = element;
 	}
 	else{
 	  return errors::UNHANDLED;
@@ -1921,18 +1269,15 @@ namespace penred{
 					      const unsigned){
 
       if(family == -1){ //Root
-	if(pathInSection.compare("x-ray/source/distribution/spatial") == 0){	  
-	  spatialDistribFile = element;
-	}
-	else if(pathInSection.compare("x-ray/source/distribution/energy") == 0){	  
-	  energyDistribFile = element;
-	}
-	else if(pathInSection.compare("x-ray/bowtie/mat-file") == 0){
-	  bowtieMatFile = element;
+	if(pathInSection.compare("x-ray/source/psf/path") == 0){	  
+	  PSFFile = element;
 	}
 	else if(pathInSection.compare("simulation/output-prefix") == 0){
 	  outputPrefix = element;
 	}
+	else if(pathInSection.compare("x-ray/detector/material") == 0){
+      detectorMatFile = element;
+    }    
 	else{
 	  return errors::UNHANDLED;
 	}
@@ -1958,20 +1303,42 @@ namespace penred{
 					     const unsigned verbose){
 
       if(family == -1){
-	if(pathInSection.compare("x-ray/source/position") == 0){
+	if(pathInSection.compare("x-ray/detector/position") == 0){
 	  if(size != 3){
 	    if(verbose > 0){
-	      printf("Error: Bad position vector (x,y,z).\n"
-		     "      Required coordinates: 3\n"
-		     "      provided coordinates: %lu\n",
-		     static_cast<unsigned long>(size));
+	      penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                       "Error: Bad position vector (x,y,z).\n"
+                                       "      Required coordinates: 3\n"
+                                       "      provided coordinates: %lu\n",
+                                       static_cast<unsigned long>(size));
 	    }
 	    return errors::BAD_DIMENSIONS;
 	  }
 	}
-	else if(pathInSection.find("x-ray/bowtie/dz") == 0){
-	  return errors::SUCCESS;
-	}	
+	else if(pathInSection.compare("x-ray/source/psf/translation") == 0){
+	  if(size != 3){
+	    if(verbose > 0){
+	      penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                       "Error: Bad PSF translation vector (dx,dy,dz).\n"
+                                       "      Required coordinates: 3\n"
+                                       "      provided coordinates: %lu\n",
+                                       static_cast<unsigned long>(size));
+	    }
+	    return errors::BAD_DIMENSIONS;
+	  }
+	}
+	else if(pathInSection.compare("x-ray/source/psf/rotation") == 0){
+	  if(size != 3){
+	    if(verbose > 0){
+	      penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                       "Error: Bad PSF rotation angles (Z,Y,Z).\n"
+                                       "      Required angles: 3\n"
+                                       "      provided angles: %lu\n",
+                                       static_cast<unsigned long>(size));
+	    }
+	    return errors::BAD_DIMENSIONS;
+	  }
+	}
 	else{
 	  return errors::UNHANDLED;
 	}
@@ -1991,22 +1358,47 @@ namespace penred{
 						    const unsigned){
 
       if(family == -1){
-	if(pathInSection.compare("x-ray/source/position") == 0){
+	if(pathInSection.compare("x-ray/detector/position") == 0){
 	  if(pos == 0){
-	    sourcePosition.x = element;
+	    detectorPosition.x = element;
 	  }
 	  else if(pos == 1){
-	    sourcePosition.y = element;	    
+	    detectorPosition.y = element;	    
 	  }
 	  else if(pos == 2){
-	    sourcePosition.z = element;	    
+	    detectorPosition.z = element;	    
 	  }
 	  else{
 	    return errors::UNHANDLED;
 	  }
 	}
-	else if(pathInSection.compare("x-ray/bowtie/dz") == 0){
-	  bowtieDz.push_back(static_cast<float>(element));
+    else if(pathInSection.compare("x-ray/source/psf/translation") == 0){
+	  if(pos == 0){
+	    PSFTrans.x = element;
+	  }
+	  else if(pos == 1){
+	    PSFTrans.y = element;	    
+	  }
+	  else if(pos == 2){
+	    PSFTrans.z = element;	    
+	  }
+	  else{
+	    return errors::UNHANDLED;
+	  }
+	}
+    else if(pathInSection.compare("x-ray/source/psf/rotation") == 0){
+	  if(pos == 0){
+	    PSFRotation.x = element;
+	  }
+	  else if(pos == 1){
+	    PSFRotation.y = element;	    
+	  }
+	  else if(pos == 2){
+	    PSFRotation.z = element;	    
+	  }
+	  else{
+	    return errors::UNHANDLED;
+	  }
 	}
 	else{
 	  return errors::UNHANDLED;
