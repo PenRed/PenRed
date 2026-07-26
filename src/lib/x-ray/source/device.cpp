@@ -46,7 +46,7 @@ namespace penred{
                         const bool constructAnode,
                         const double anodeAngle,
                         const unsigned verbose,
-                        const bool PSFFilter){
+                        FilterGeo* PSFFilterGeo){
 
       //This function constructs a mesh based geometry of a x-ray device
       //following the specifications provided by the function parameters
@@ -125,7 +125,7 @@ namespace penred{
       if(filters.size() > 0)
 	nBodies += filters.size() + 1; //Filters and collimator
 
-      if(PSFFilter)
+      if(PSFFilterGeo != nullptr)
         nBodies += 1;
 
       out << "# Number of bodies" << std::endl;
@@ -338,13 +338,33 @@ namespace penred{
 
       }
       
-      if(PSFFilter){
-        //Create auxiliary psf filter
-        std::string filterName("filter-psf");
+      if(PSFFilterGeo){
+
+        //Calculate filter position and size
         vector3D<double> filterCenter = sourcePos;
-        filterCenter.z -= zorigin + 0.05;
-        createBaseFilter(1.2*filterFieldSizes.first,
-                         1.2*filterFieldSizes.second,
+        std::pair<double, double> PSFFilterFieldSizes;
+        
+        if(filtersWidth + inherentFilterSize <= 0.0){
+          //The PSF/distribution will be recorded just before the inherent filter position
+
+          //Calculate field size and position
+          PSFFilterFieldSizes = fieldSize(focalSpot,
+                                          detectorDx,
+                                          detectorDy,
+                                          source2det,
+                                          source2inherentFilter);
+          filterCenter.z -= source2inherentFilter - 0.05;
+        }
+        else{
+          //The PSF/distribution will be recorded after the last filter
+          filterCenter.z -= zorigin + 0.05;
+          PSFFilterFieldSizes = filterFieldSizes;
+        }
+        
+        //Create the auxiliary recording filter
+        std::string filterName("filter-psf");
+        createBaseFilter(1.2*PSFFilterFieldSizes.first,
+                         1.2*PSFFilterFieldSizes.second,
                          0.1,
                          1,
                          out,
@@ -353,6 +373,12 @@ namespace penred{
                          "world",
                          false,
                          filterCenter);
+
+        PSFFilterGeo->size.x = 1.2*PSFFilterFieldSizes.first;
+        PSFFilterGeo->size.y = 1.2*PSFFilterFieldSizes.first;
+        PSFFilterGeo->size.z = 0.1;
+
+        PSFFilterGeo->center = filterCenter;
       }
       
       // ** Detector
@@ -517,6 +543,7 @@ namespace penred{
       //Create device geometry
       std::stringstream geoStream;
       unsigned deviceNextMat = 1;
+      FilterGeo PSFFilterGeo;
       err = constructDevice(geoStream,
                             reader.focalSpot,
                             reader.source2det,
@@ -531,7 +558,8 @@ namespace penred{
                             reader.simAnode,
                             reader.anodeAngle,
                             verbose,
-                            reader.storeFilteredPSF);
+                            (reader.storeFilteredPSF || reader.storeFilteredDistrib) ?
+                            &PSFFilterGeo : nullptr);
 
       if(err != 0){
         if(verbose > 0)
@@ -576,7 +604,7 @@ namespace penred{
         }
         
         //Set PSF filter kdet, if needed
-        if(reader.storeFilteredPSF){
+        if(reader.storeFilteredPSF || reader.storeFilteredDistrib){
           simConf.set("geometry/geometries/device/config/kdet/filter-psf", nextkdet++);
         }
         
@@ -606,7 +634,7 @@ namespace penred{
         }
 
         //Set PSF filter kdet, if needed
-        if(reader.storeFilteredPSF){
+        if(reader.storeFilteredPSF || reader.storeFilteredDistrib){
           simConf.set("geometry/kdet/filter-psf", nextkdet++);
         }
         
@@ -834,63 +862,20 @@ namespace penred{
       // ** Simulation parameters
       simConf.set("simulation/threads", (int)reader.nThreads);
       simConf.set("simulation/max-time", reader.maxTime);
+      if(!reader.dump2Read.empty())
+        simConf.set("simulation/dump2read", reader.dump2Read);
+      if(!reader.dump2Write.empty()){
+        simConf.set("simulation/dump2write", reader.dump2Write);
+        simConf.set("simulation/finalDump", true);
+        if(reader.dumpTime > 0.0)
+          simConf.set("simulation/dump-interval", reader.dumpTime);
+        else
+          simConf.set("simulation/dump-interval", 3600.0);
+      }
 
       // ** Tallies
-      
-      // Spatial energy detector
-      simConf.set("tallies/SpatialDetector/type", "DETECTION_SPATIAL_DISTRIB");
 
-      simConf.set("tallies/SpatialDetector/spatial/nx", (int)reader.detBinsX);
-      simConf.set("tallies/SpatialDetector/spatial/xmin",
-                  reader.detectorPosition.x-reader.detectorDx/2.0);
-      simConf.set("tallies/SpatialDetector/spatial/xmax",
-                  reader.detectorPosition.x+reader.detectorDx/2.0);
-
-      simConf.set("tallies/SpatialDetector/spatial/ny", (int)reader.detBinsY);
-      simConf.set("tallies/SpatialDetector/spatial/ymin",
-                  reader.detectorPosition.y-reader.detectorDy/2.0);
-      simConf.set("tallies/SpatialDetector/spatial/ymax",
-                  reader.detectorPosition.y+reader.detectorDy/2.0);
-
-      simConf.set("tallies/SpatialDetector/spatial/nz", 1);
-      simConf.set("tallies/SpatialDetector/spatial/zmin",
-                  reader.detectorPosition.z-reader.detectorDz);
-      simConf.set("tallies/SpatialDetector/spatial/zmax",
-                  reader.detectorPosition.z+0.1);
-      
-      simConf.set("tallies/SpatialDetector/detector",  1);
-      simConf.set("tallies/SpatialDetector/particle",  "gamma");
-      if(!reader.outputPrefix.empty())
-        simConf.set("tallies/SpatialDetector/outputdir", reader.outputPrefix);
-
-      // Energy Spectrum
-      simConf.set("tallies/SpectrumDetector/type", "DETECTION_SPATIAL_DISTRIB");
-
-      simConf.set("tallies/SpectrumDetector/spatial/nx", 1);
-      simConf.set("tallies/SpectrumDetector/spatial/xmin",
-                  reader.detectorPosition.x-reader.detectorDx/2.0);
-      simConf.set("tallies/SpectrumDetector/spatial/xmax",
-                  reader.detectorPosition.x+reader.detectorDx/2.0);
-
-      simConf.set("tallies/SpectrumDetector/spatial/ny", 1);
-      simConf.set("tallies/SpectrumDetector/spatial/ymin",
-                  reader.detectorPosition.y-reader.detectorDy/2.0);
-      simConf.set("tallies/SpectrumDetector/spatial/ymax",
-                  reader.detectorPosition.y+reader.detectorDy/2.0);
-
-      simConf.set("tallies/SpectrumDetector/spatial/nz", 1);
-      simConf.set("tallies/SpectrumDetector/spatial/zmin",
-                  reader.detectorPosition.z-reader.detectorDz);
-      simConf.set("tallies/SpectrumDetector/spatial/zmax",
-                  reader.detectorPosition.z+0.1);
-      
-      simConf.set("tallies/SpectrumDetector/energy/nbins", (int)reader.eBins);
-      simConf.set("tallies/SpectrumDetector/energy/emin", reader.minEnergy);
-      simConf.set("tallies/SpectrumDetector/energy/emax", maxE);
-      simConf.set("tallies/SpectrumDetector/detector",  1);
-      simConf.set("tallies/SpectrumDetector/particle",  "gamma");
-      if(!reader.outputPrefix.empty())
-        simConf.set("tallies/SpectrumDetector/outputdir", reader.outputPrefix);
+      bool simHalted = reader.storeFilteredPSF || reader.storeFilteredDistrib;
 
       //Check if a PSF is requested
       if(reader.storeFilteredPSF || reader.storeDetectedPSF){
@@ -902,6 +887,99 @@ namespace penred{
         simConf.set("tallies/psf/particles/gamma", true);        
         if(!reader.outputPrefix.empty())
           simConf.set("tallies/psf/outputdir", reader.outputPrefix);
+      }
+
+      //Check if a distribution is requested
+      if(reader.storeFilteredDistrib){
+        
+        simConf.set("tallies/FilteredDistrib/type", "DETECTION_SPATIAL_DISTRIB");
+        
+        simConf.set("tallies/FilteredDistrib/spatial/xmin",
+                    PSFFilterGeo.center.x - PSFFilterGeo.size.x/2.0);
+        simConf.set("tallies/FilteredDistrib/spatial/xmax",
+                    PSFFilterGeo.center.x + PSFFilterGeo.size.x/2.0);
+        simConf.set("tallies/FilteredDistrib/spatial/nx",
+                    (int)reader.detBinsX);
+
+        simConf.set("tallies/FilteredDistrib/spatial/ymin",
+                    PSFFilterGeo.center.y - PSFFilterGeo.size.y/2.0);
+        simConf.set("tallies/FilteredDistrib/spatial/ymax",
+                    PSFFilterGeo.center.y + PSFFilterGeo.size.y/2.0);
+        simConf.set("tallies/FilteredDistrib/spatial/ny",
+                    (int)reader.detBinsY);
+
+        simConf.set("tallies/FilteredDistrib/spatial/zmin",
+                    PSFFilterGeo.center.z - PSFFilterGeo.size.z/2.0);
+        simConf.set("tallies/FilteredDistrib/spatial/zmax",
+                    PSFFilterGeo.center.z + PSFFilterGeo.size.z/2.0);
+        simConf.set("tallies/FilteredDistrib/spatial/nz", 1);
+
+        simConf.set("tallies/FilteredDistrib/energy/nbins", (int)reader.eBins);
+        simConf.set("tallies/FilteredDistrib/energy/emin", reader.minEnergy);
+        simConf.set("tallies/FilteredDistrib/energy/emax", maxE);
+        
+        simConf.set("tallies/FilteredDistrib/detector", nextkdet-1);
+        simConf.set("tallies/FilteredDistrib/particle", "gamma");
+        if(!reader.outputPrefix.empty())
+          simConf.set("tallies/FilteredDistrib/outputdir", reader.outputPrefix);
+      }
+
+      //Check if the simulation is halted before reaching the detector
+      if(!simHalted){
+        // Spatial energy detector
+        simConf.set("tallies/SpatialDetector/type", "DETECTION_SPATIAL_DISTRIB");
+
+        simConf.set("tallies/SpatialDetector/spatial/nx", (int)reader.detBinsX);
+        simConf.set("tallies/SpatialDetector/spatial/xmin",
+                    reader.detectorPosition.x-reader.detectorDx/2.0);
+        simConf.set("tallies/SpatialDetector/spatial/xmax",
+                    reader.detectorPosition.x+reader.detectorDx/2.0);
+
+        simConf.set("tallies/SpatialDetector/spatial/ny", (int)reader.detBinsY);
+        simConf.set("tallies/SpatialDetector/spatial/ymin",
+                    reader.detectorPosition.y-reader.detectorDy/2.0);
+        simConf.set("tallies/SpatialDetector/spatial/ymax",
+                    reader.detectorPosition.y+reader.detectorDy/2.0);
+
+        simConf.set("tallies/SpatialDetector/spatial/nz", 1);
+        simConf.set("tallies/SpatialDetector/spatial/zmin",
+                    reader.detectorPosition.z-reader.detectorDz);
+        simConf.set("tallies/SpatialDetector/spatial/zmax",
+                    reader.detectorPosition.z+0.1);
+      
+        simConf.set("tallies/SpatialDetector/detector",  1);
+        simConf.set("tallies/SpatialDetector/particle",  "gamma");
+        if(!reader.outputPrefix.empty())
+          simConf.set("tallies/SpatialDetector/outputdir", reader.outputPrefix);
+
+        // Energy Spectrum
+        simConf.set("tallies/SpectrumDetector/type", "DETECTION_SPATIAL_DISTRIB");
+
+        simConf.set("tallies/SpectrumDetector/spatial/nx", 1);
+        simConf.set("tallies/SpectrumDetector/spatial/xmin",
+                    reader.detectorPosition.x-reader.detectorDx/2.0);
+        simConf.set("tallies/SpectrumDetector/spatial/xmax",
+                    reader.detectorPosition.x+reader.detectorDx/2.0);
+
+        simConf.set("tallies/SpectrumDetector/spatial/ny", 1);
+        simConf.set("tallies/SpectrumDetector/spatial/ymin",
+                    reader.detectorPosition.y-reader.detectorDy/2.0);
+        simConf.set("tallies/SpectrumDetector/spatial/ymax",
+                    reader.detectorPosition.y+reader.detectorDy/2.0);
+
+        simConf.set("tallies/SpectrumDetector/spatial/nz", 1);
+        simConf.set("tallies/SpectrumDetector/spatial/zmin",
+                    reader.detectorPosition.z-reader.detectorDz);
+        simConf.set("tallies/SpectrumDetector/spatial/zmax",
+                    reader.detectorPosition.z+0.1);
+      
+        simConf.set("tallies/SpectrumDetector/energy/nbins", (int)reader.eBins);
+        simConf.set("tallies/SpectrumDetector/energy/emin", reader.minEnergy);
+        simConf.set("tallies/SpectrumDetector/energy/emax", maxE);
+        simConf.set("tallies/SpectrumDetector/detector",  1);
+        simConf.set("tallies/SpectrumDetector/particle",  "gamma");
+        if(!reader.outputPrefix.empty())
+          simConf.set("tallies/SpectrumDetector/outputdir", reader.outputPrefix);        
       }
 
       //Check user-defined tallies
@@ -1180,6 +1258,9 @@ namespace penred{
 	else if(pathInSection.compare("simulation/eBins") == 0){
 	  eBins = element;
 	}
+	else if(pathInSection.compare("simulation/dump/time") == 0){
+	  dumpTime = element;
+	}    
 	else if(pathInSection.compare("x-ray/focal-spot") == 0){
 	  focalSpot = element;
 	}
@@ -1218,6 +1299,9 @@ namespace penred{
 	}
 	else if(pathInSection.compare("psf/filtered") == 0){
 	  storeFilteredPSF = element;
+	}
+	else if(pathInSection.compare("distributions/filtered") == 0){
+	  storeFilteredDistrib = element;
 	}
 	else{
 	  return errors::UNHANDLED;
@@ -1275,6 +1359,12 @@ namespace penred{
 	else if(pathInSection.compare("simulation/output-prefix") == 0){
 	  outputPrefix = element;
 	}
+	else if(pathInSection.compare("simulation/dump/read") == 0){
+	  dump2Read = element;
+	}
+	else if(pathInSection.compare("simulation/dump/write") == 0){
+	  dump2Write = element;
+	}    
 	else if(pathInSection.compare("x-ray/detector/material") == 0){
       detectorMatFile = element;
     }    

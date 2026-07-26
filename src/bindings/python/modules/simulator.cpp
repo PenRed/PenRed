@@ -435,6 +435,34 @@ Raises:
     ValueError: If configuraiton set fails.
 
     )")
+
+    .def("addDumps",
+         [](penred::simulation::simulator<pen_context>& obj, const std::vector<std::string>& filenames) -> void{
+
+           int err;
+           {
+             //Release GIL for (probably) long simulation
+             py::gil_scoped_release gil_release;
+             err = obj.addDumps(filenames);
+           }
+           if(err != penred::simulation::errors::SUCCESS){
+             throw py::value_error(penred::simulation::errors::errorMessage(err));
+           }
+         },
+         R"(
+
+Add dump files to produce a unified results dump or ASCII files. The simulation object must be configured previously.
+
+Args:
+    filenames (list of str): List of dump filenames to add
+
+Returns:
+    None
+
+Raises:
+    ValueError: If invalid configurations are detected.
+
+    )")
     
     .def("simulate",
 	 [](penred::simulation::simulator<pen_context>& obj, const bool async, const bool interactive) -> void {
@@ -1452,7 +1480,11 @@ Example:
 	      const MaterialList& geoMats,
           const bool generateDetectorPSF,
           const bool generateFilteredPSF,
+          const bool generateFilteredDistrib,
           const bool printConfig,
+          const std::string& dump2read,
+          const std::string& dump2write,
+          const double dumpInterval,
 	      const unsigned verbose) -> std::unique_ptr<penred::simulation::simulator<pen_context>> {
 	     
 	     // Check parameters
@@ -1517,6 +1549,14 @@ Example:
 	     config.set("simulation/nthreads", static_cast<int>(threads));
 	     config.set("simulation/seedPair", static_cast<int>(seedPair));
 
+         //Dump config
+         if(!dump2read.empty())
+           config.set("simulation/dump/read", dump2read);
+         if(!dump2write.empty())
+           config.set("simulation/dump/write", dump2write);
+         if(dumpInterval > 0.0)
+           config.set("simulation/dump/time", dumpInterval);
+         
 	     if(psfPath.empty()){
 	       config.set("simulation/sim-anode", true);
          }
@@ -1658,6 +1698,9 @@ Example:
          else if(generateDetectorPSF){
            config.set("psf/detected", true);
          }
+         if(generateFilteredDistrib){
+           config.set("distributions/filtered", true);
+         }
 
 	     if(printConfig){
 	       FILE* fconf = fopen("simDevice.conf", "w");
@@ -1689,38 +1732,42 @@ Example:
 
          return sim;	     
 	   },
-           py::arg("detector_position")     = std::array<double, 3>{0.0, 0.0, 0.0},
-           py::arg("focal_spot")            = 0.0,
-           py::arg("inherent_filter_width") = -1.0,
-           py::arg("min_energy")            = 10.0,
-           py::arg("kvp")                   = 100.0,
-           py::arg("anode_z")               = 74,
-           py::arg("anode_angle")           = 13.0,
-           py::arg("psf_file")              = std::string(""),
-           py::arg("psf_translation")       = std::array<double, 3>{0.0, 0.0, 0.0},
-           py::arg("psf_rotation")          = std::array<double, 3>{0.0, 0.0, 0.0},
-           py::arg("source_to_filter")      = 7.0,
-           py::arg("source_to_detector")    = 14.0,
-           py::arg("filters")               = FilterList{},
-           py::arg("histories")             = 1.0e5,
-           py::arg("max_time")              = 600.0,
-           py::arg("detector_dx")           = 50.0,
-           py::arg("detector_dy")           = 50.0,
-           py::arg("detector_dz")           = 1.0,
-           py::arg("detector_ideal")        = true,
-           py::arg("detector_material")     = MaterialData{},
-           py::arg("xbins")                 = 100,
-           py::arg("ybins")                 = 100,
-           py::arg("ebins")                 = 200,
-           py::arg("threads")               = 0,
-           py::arg("seed_pair")             = 0,
-           py::arg("user_tallies")          = py::dict(),
-           py::arg("user_geometry")         = py::dict(),
-           py::arg("geometry_materials")    = MaterialList{},
-           py::arg("create_detected_psf")   = false,           
-           py::arg("create_filtered_psf")   = false,           
-           py::arg("print_config")          = false,
-           py::arg("verbose")               = 1,
+           py::arg("detector_position")       = std::array<double, 3>{0.0, 0.0, 0.0},
+           py::arg("focal_spot")              = 0.0,
+           py::arg("inherent_filter_width")   = -1.0,
+           py::arg("min_energy")              = 10.0,
+           py::arg("kvp")                     = 100.0,
+           py::arg("anode_z")                 = 74,
+           py::arg("anode_angle")             = 13.0,
+           py::arg("psf_file")                = std::string(""),
+           py::arg("psf_translation")         = std::array<double, 3>{0.0, 0.0, 0.0},
+           py::arg("psf_rotation")            = std::array<double, 3>{0.0, 0.0, 0.0},
+           py::arg("source_to_filter")        = 7.0,
+           py::arg("source_to_detector")      = 14.0,
+           py::arg("filters")                 = FilterList{},
+           py::arg("histories")               = 1.0e5,
+           py::arg("max_time")                = 600.0,
+           py::arg("detector_dx")             = 50.0,
+           py::arg("detector_dy")             = 50.0,
+           py::arg("detector_dz")             = 1.0,
+           py::arg("detector_ideal")          = true,
+           py::arg("detector_material")       = MaterialData{},
+           py::arg("xbins")                   = 100,
+           py::arg("ybins")                   = 100,
+           py::arg("ebins")                   = 200,
+           py::arg("threads")                 = 0,
+           py::arg("seed_pair")               = 0,
+           py::arg("user_tallies")            = py::dict(),
+           py::arg("user_geometry")           = py::dict(),
+           py::arg("geometry_materials")      = MaterialList{},
+           py::arg("create_detected_psf")     = false,           
+           py::arg("create_filtered_psf")     = false,           
+           py::arg("create_filtered_distrib") = false,           
+           py::arg("print_config")            = false,
+           py::arg("dump_read")               = std::string(),
+           py::arg("dump_write")              = std::string(),
+           py::arg("dump_interval")           = -1.0,
+           py::arg("verbose")                 = 1,
 	   R"doc(
 Simulates an electron beam impinging on an anode and records the resulting photon spectrum and spatial distribution.
 
@@ -1758,7 +1805,11 @@ Args:
         (density, [(Z1, fraction1), (Z2, fraction2), ...])
     create_detected_psf (bool): If enabled, saves a PSF with the gammas reaching the detector. Only one PSF type can be created.
     create_filtered_psf (bool): If enabled, saves a PSF with the gammas just crossing the last filter. Only one PSF type can be created.
+    create_filtered_distrib (bool): If enabled, saves the distribution of gammas just crossing the last filter. If no filter is configured (including inherent filtering), the scoring volume is set before the inherent filter position.
     print_config (bool): Prints the configuration using the penRed internal format. Only for debug purposes.
+    dump_read (str): Specify the dumps' base-filename to be used to resume the simulation
+    dump_write (str): Specify the dumps' base-filename to save the simulation status
+    dump_interval (float): Specify the time interval, in seconds, to store simulation state dumps 
     verbose (int): Verbosity level (higher values provide more output).
 
 Returns:

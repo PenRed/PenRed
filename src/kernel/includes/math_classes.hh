@@ -41,6 +41,7 @@
 #include <set>
 #include <sstream>
 #include <type_traits>
+#include <algorithm>
 
 //--------------------------------
 // Auxiliar structs and classes
@@ -1408,6 +1409,299 @@ namespace penred{
       return std::string(str);
     }
   };
+
+  namespace interpolation{
+
+    enum errors{
+      SUCCESS = 0,
+      DIMENSION_MISMATCH = 1,
+      NOT_ENOUGH_DATA_POINTS = 2,
+      UNORDERED_DATA = 3,
+    };
+
+    constexpr const char* errorToString( const unsigned i ){
+      switch(i){
+      case SUCCESS: return "Success";
+      case DIMENSION_MISMATCH: return "Dimensions mismatch";
+      case NOT_ENOUGH_DATA_POINTS: return "Not enough data points";
+      case UNORDERED_DATA: return "Unordered data";
+      default: return "Unknown error";
+      };
+    }    
+
+    template<class T>
+    struct CubicSpline {
+      
+      struct Coefficients{
+        double A,B,C,D;
+      };
+
+    private:
+      std::vector<double> x;
+      std::vector<Coefficients> coef;
+      
+    public:
+      
+      CubicSpline() = default;
+
+      template<class CType>
+      int init(const std::vector<CType>& X, const std::vector<T>& Y, const double S1=0, const double SN=0){
+        //     Cubic spline interpolation of tabulated data.
+        //
+        //  Input:
+        //     X(I) (I=0:N-1) ... grid points (the X values must be in increasing
+        //                      order).
+        //     Y(I) (I=0:N-1) ... corresponding function values.
+        //     S1,SN .......... second derivatives at X(0) and X(N-1). The natural
+        //                      spline corresponds to taking S1=SN=0.
+        //     N .............. number of grid points.
+        //  Output:
+        //     A(I),B(I),C(I),D(I) (I=1:N) ... spline coefficients.
+        //
+        //  The interpolating cubic polynomial in the I-th interval, from X(I) to
+        //  X(I+1), is
+        //               P(x) = A(I)+x*(B(I)+x*(C(I)+x*D(I)))
+
+        //  Reference: M.J. Maron, 'Numerical Analysis: a Practical Approach',
+        //             MacMillan Publ. Co., New York, 1982.
+
+        //Check dimensions
+        if(X.size() != Y.size()){
+          return DIMENSION_MISMATCH;
+        }
+
+        if(X.size() < 4){
+          return NOT_ENOUGH_DATA_POINTS;
+        }
+
+        //Auxiliary storage
+        int N  = X.size();
+        std::vector<double> A(N);
+        std::vector<double> B(N);
+        std::vector<double> C(N);
+        std::vector<double> D(N);
+
+        //Coefficient calculation
+        int N1 = N-1;
+        int N2 = N-2;
+        int K;
+        //  ****  Auxiliary arrays H(=A) and DELTA(=D).
+        for(int I = 0; I < N1; I++){
+          A[I] = X[I+1]-X[I];
+          if(A[I] < 1.0E-12*( (fabs(X[I]) > fabs(X[I+1])) ? fabs(X[I]) : fabs(X[I+1]) )){
+            return UNORDERED_DATA;
+          }
+          D[I] = (Y[I+1]-Y[I])/A[I];
+        }
+        //  ****  Symmetric coefficient matrix (augmented).
+        for(int I = 0; I < N2; I++){
+          B[I] = 2.0*(A[I]+A[I+1]);
+          K = N1-(I+1)+1;
+          D[K-1] = 6.0*(D[K-1]-D[K-2]);
+        }
+        D[1] = D[1]-A[0]*S1;
+        D[N1-1] = D[N1-1]-A[N1-1]*SN;
+        //  ****  Gauss solution of the tridiagonal system.
+        for(int I = 1; I < N2; I++){
+          double R = A[I]/B[I-1];
+          B[I] = B[I]-R*A[I];
+          D[I+1] = D[I+1]-R*D[I];
+        }
+        //  ****  The SIGMA coefficients are stored in array D.
+        D[N1-1] = D[N1-1]/B[N2-1];
+        for(int I = 1; I < N2; I++){
+          K = N1-(I+1)+1;
+          D[K-1] = (D[K-1]-A[K-1]*D[K+1-1])/B[K-2];
+        }
+        D[N-1] = SN;
+        //  ****  Spline coefficients.
+        double SI1 = S1;
+        for(int I = 0; I < N1; I++){
+          double SI = SI1;
+          SI1 = D[I+1];
+          double H = A[I];
+          double HI = 1.0/H;
+          A[I] = (HI/6.0)*(SI*pow(X[I+1],3)-SI1*pow(X[I],3))
+            +HI*(Y[I]*X[I+1]-Y[I+1]*X[I])
+            +(H/6.0)*(SI1*X[I]-SI*X[I+1]);
+          B[I] = (HI/2.0)*(SI1*pow(X[I],2)-SI*pow(X[I+1],2))
+            +HI*(Y[I+1]-Y[I])+(H/6.0)*(SI-SI1);
+          C[I] = (HI/2.0)*(SI*X[I+1]-SI1*X[I]);
+          D[I] = (HI/6.0)*(SI1-SI);
+        }
+        //  ****  Natural cubic spline for X.GT.X(N).
+        double FNP = B[N1-1]+X[N-1]*(2.0*C[N1-1]+X[N-1]*3.0*D[N1-1]);
+        A[N-1] = Y[N-1]-X[N-1]*FNP;
+        B[N-1] = FNP;
+        C[N-1] = 0.0;
+        D[N-1] = 0.0;
+
+        //Save X and coefficients
+        x = X;
+        coef.resize(X.size());
+        for(size_t i = 0; i < X.size(); ++i){
+          coef[i].A = A[i];
+          coef[i].B = B[i];
+          coef[i].C = C[i];
+          coef[i].D = D[i];
+        }
+        
+        return SUCCESS;
+      }
+
+
+      // Find which interval contains xVal
+      inline size_t findInterval(const double xVal) const {
+        if(x.size() == 0 || xVal <= x[0]) return 0;
+        if(xVal >= x.back()) return x.size() - 1;
+        
+        auto it = std::upper_bound(x.begin(), x.end(), xVal);
+        return std::distance(x.begin(), it) - 1;
+      }
+
+      //Evaluate a point
+      inline T evaluate(const double xVal) const {
+        if(x.size() == 0) return static_cast<T>(0);
+
+        //Find the corresponding interval
+        const size_t i = findInterval(xVal);
+        const Coefficients& c = coef[i];
+        const double val = c.A + xVal * (c.B + xVal * (c.C + xVal * c.D));
+        return static_cast<T>(val);
+      }
+
+      // Evaluate multiple points
+      std::vector<T> evaluate(const std::vector<double>& xVals) const {
+        std::vector<T> result(xVals.size());
+        for (size_t i = 0; i < xVals.size(); ++i) {
+          result[i] = evaluate(xVals[i]);
+        }
+        return result;
+      }
+
+      //Evaluate first derivative
+      inline T derivative(const double xVal) const {
+        if(x.size() == 0) return static_cast<T>(0);
+
+        const size_t i = findInterval(xVal);
+        const Coefficients& c = coef[i];
+
+        const double deriv = c.B + xVal * (2.0 * c.C  + xVal * 3.0 * c.D );
+        
+        return static_cast<T>(deriv);
+      }
+
+      //Evaluate second derivative
+      inline T derivative2(const double xVal) const {
+        if(x.size() == 0) return static_cast<T>(0);
+
+        const size_t i = findInterval(xVal);
+        const Coefficients& c = coef[i];
+
+        const double deriv2 = 2.0 * c.C + xVal * 6.0 * c.D;
+        
+        return static_cast<T>(deriv2);
+      }
+
+      inline const std::vector<double>& readX() const { return x; }
+      inline bool initialized() const noexcept { return x.size() > 0; }
+      inline void clear() noexcept {
+        x.clear();
+        coef.clear();
+      }
+    };
+
+    template<class T>
+    struct BicubicSpline {
+
+    private:
+      std::vector<double> x;
+      std::vector<double> y;
+
+      std::vector<CubicSpline<double>> rowSplines;
+
+    public:
+
+      BicubicSpline() = default;
+
+      template<class CType>
+      int init(const std::vector<CType>& xIn,
+               const std::vector<CType>& yIn,
+               const std::vector<T>& values){
+
+        if(xIn.size() < 4 || yIn.size() < 4)
+          return NOT_ENOUGH_DATA_POINTS;
+        if(xIn.size() * yIn.size() != values.size())
+          return DIMENSION_MISMATCH;
+
+        //Copy data
+        x = xIn;
+        y = yIn;
+
+        //Create splines for each row
+        rowSplines.resize(y.size());
+        const size_t nx = x.size();
+        for(size_t j = 0; j < y.size(); ++j){
+          std::vector<T> rowValues(values.begin() + j*nx, values.begin() + (j+1)*nx);
+          int err = rowSplines[j].init(x, rowValues);
+          if(err != SUCCESS){
+            clear();
+            return err;
+          }
+        }
+        return SUCCESS;
+      }
+
+      //Evaluate a point
+      inline T evaluate(const double xVal, const double yVal) const {
+        if(x.size() == 0) return static_cast<T>(0);
+
+        //Get interpolated values in Y axis
+        std::vector<double> yProfile(y.size());
+        for(size_t j = 0; j < y.size(); ++j){
+          yProfile[j] = rowSplines[j].evaluate(xVal);
+        }
+
+        //Build a spline for Y profile and evaluate it
+        CubicSpline<T> ySpline;
+        ySpline.init(y,yProfile);
+        return ySpline.evaluate(yVal);
+      }
+
+      std::vector<T> evaluateGrid(const std::vector<double>& xVals, const std::vector<double>& yVals) const {
+
+        if(xVals.size() == 0 || yVals.size() == 0)
+          return std::vector<T>();
+
+        std::vector<T> results(xVals.size()*yVals.size());
+        for(size_t i = 0; i < xVals.size(); ++i){
+          const double xVal = xVals[i];
+
+          //Build the Y profile for each X value
+          std::vector<double> yProfile(y.size());
+          for(size_t j = 0; j < y.size(); ++j){
+            yProfile[j] = rowSplines[j].evaluate(xVal);
+          }
+
+          //Build cubic splines from the profile
+          CubicSpline<T> ySpline;
+          ySpline.init(y, yProfile);
+          
+          for(size_t j = 0; j < yVals.size(); ++j){
+            results[j*xVals.size() + i] = ySpline.evaluate(yVals[j]);
+          }
+        }
+        return results;
+      }
+
+      inline void clear() {
+        x.clear();
+        y.clear();
+        rowSplines.clear();
+      }
+    };
+    
+  } //namespace interpolation
   
   namespace measurements{
 
@@ -2616,7 +2910,7 @@ namespace penred{
 	//the bin range [minBin, maxBin) in that dimension
 
 	//Check profile dimension
-	if(profDim >= dim){
+	if(profDim > dim){
 	  return errors::DIMENSION_OUT_OF_RANGE;
 	}
 	for(size_t i = 0; i < profDim; ++i){
@@ -2701,7 +2995,7 @@ namespace penred{
 
 	for(size_t i = 0; i < binLimits.size(); ++i){
 	  unsigned long idim = binLimits[i][0];
-	  if(idim >= dim){
+	  if(idim > dim){
 	    return errors::DIMENSION_OUT_OF_RANGE;
 	  }
 	  auxBinLimits[idim] =
@@ -2739,6 +3033,233 @@ namespace penred{
 	}
 	
 	return profileByBins(aux, binLimits, profile);
+      }
+
+      // Profile to 2D with full array bin limits
+      int profile2D(const unsigned long profDim1,
+                    const unsigned long profDim2,
+                    const std::array<std::pair<unsigned long, unsigned long>, dim>& binLimits,
+                    results<type, 2>& profile) const {
+    
+        // Check that the two profile dimensions are different
+        if(profDim1 == profDim2) {
+          return errors::DIMENSION_REPEATED;
+        }
+    
+        // Check that dimensions are within range
+        if(profDim1 >= dim || profDim2 >= dim) {
+          return errors::DIMENSION_OUT_OF_RANGE;
+        }
+    
+        // Create the 2D profile dimensions array
+        std::array<size_t, 2> profDimsIndex;
+        profDimsIndex[0] = profDim1;
+        profDimsIndex[1] = profDim2;
+    
+        // Call the existing profileByBins function
+        return profileByBins(profDimsIndex, binLimits, profile);
+      }
+
+      // Profile to 2D with vector-based bin limits
+      inline int profile2D(const unsigned long profDim1,
+                           const unsigned long profDim2,
+                           const std::vector<std::array<unsigned long, 3>>& binLimits,
+                           results<type, 2>& profile) const {
+    
+        // Check that the two profile dimensions are different
+        if(profDim1 == profDim2) {
+          return errors::DIMENSION_REPEATED;
+        }
+    
+        // Check that dimensions are within range
+        if(profDim1 >= dim || profDim2 >= dim) {
+          return errors::DIMENSION_OUT_OF_RANGE;
+        }
+    
+        // Create the 2D profile dimensions array
+        std::array<size_t, 2> profDimsIndex;
+        profDimsIndex[0] = profDim1;
+        profDimsIndex[1] = profDim2;
+    
+        // Call the existing profileByBins function with vector limits
+        return profileByBins(profDimsIndex, binLimits, profile);
+      }
+
+      // Profile to 2D with no bin limits (full range)
+      int profile2D(const unsigned long profDim1,
+                    const unsigned long profDim2,
+                    results<type, 2>& profile) const {
+    
+        // Check that the two profile dimensions are different
+        if(profDim1 == profDim2) {
+          return errors::DIMENSION_REPEATED;
+        }
+    
+        // Check that dimensions are within range
+        if(profDim1 >= dim || profDim2 >= dim) {
+          return errors::DIMENSION_OUT_OF_RANGE;
+        }
+    
+        // Create the 2D profile dimensions array
+        std::array<size_t, 2> profDimsIndex;
+        profDimsIndex[0] = profDim1;
+        profDimsIndex[1] = profDim2;
+    
+        // Create full range bin limits
+        std::array<std::pair<unsigned long, unsigned long>, dim> binLimits;
+        for(size_t i = 0; i < dim; ++i) {
+          binLimits[i].first = 0;
+          binLimits[i].second = this->getNBins(i);
+        }
+    
+        // Call the existing profileByBins function
+        return profileByBins(profDimsIndex, binLimits, profile);
+      }
+
+      // Create 1D cubic spline interpolation from a profile
+      int interpolate1D(const unsigned long profDim,
+                        const std::array<std::pair<unsigned long, unsigned long>, dim>& binLimits,
+                        interpolation::CubicSpline<type>& spline) const {
+    
+        // Create 1D profile first
+        results<type, 1> profile;
+        int err = profile1D(profDim, binLimits, profile);
+        if(err != errors::SUCCESS) {
+          return err;
+        }
+    
+        // Extract X values (bin centers) and Y values
+        std::vector<double> xVals(profile.getNBins());
+        std::vector<type> yVals(profile.getNBins());
+    
+        const double xLow = profile.readLimits()[0].first;
+        const double binWidth = profile.readBinWidth(0);
+    
+        for(unsigned long i = 0; i < profile.getNBins(); ++i) {
+          xVals[i] = xLow + (i + 0.5) * binWidth;  // Bin centers
+          yVals[i] = profile.data[i];
+        }
+    
+        // Initialize spline
+        return spline.init(xVals, yVals);
+      }
+
+      // Overload with vector bin limits
+      inline int interpolate1D(const unsigned long profDim,
+                               const std::vector<std::array<unsigned long, 3>>& binLimits,
+                               interpolation::CubicSpline<type>& spline) const {
+    
+        // Convert vector limits to array limits
+        std::array<std::pair<unsigned long, unsigned long>, dim> auxBinLimits;
+        for(size_t i = 0; i < dim; ++i) {
+          auxBinLimits[i] = std::pair<unsigned long, unsigned long>(0lu, this->nBins[i]);
+        }
+    
+        for(size_t i = 0; i < binLimits.size(); ++i) {
+          unsigned long idim = binLimits[i][0];
+          if(idim >= dim) {
+            return errors::DIMENSION_OUT_OF_RANGE;
+          }
+          auxBinLimits[idim] = std::pair<unsigned long, unsigned long>(binLimits[i][1], binLimits[i][2]);
+        }
+    
+        return interpolate1D(profDim, auxBinLimits, spline);
+      }
+
+      // Overload with full range
+      inline int interpolate1D(const unsigned long profDim,
+                               interpolation::CubicSpline<type>& spline) const {
+    
+        // Create full range bin limits
+        std::array<std::pair<unsigned long, unsigned long>, dim> binLimits;
+        for(size_t i = 0; i < dim; ++i) {
+          binLimits[i].first = 0;
+          binLimits[i].second = this->getNBins(i);
+        }
+    
+        return interpolate1D(profDim, binLimits, spline);
+      }
+
+      // Create 2D bicubic spline interpolation from a profile
+      int interpolate2D(const unsigned long profDim1,
+                        const unsigned long profDim2,
+                        const std::array<std::pair<unsigned long, unsigned long>, dim>& binLimits,
+                        interpolation::BicubicSpline<type>& spline) const {
+    
+        // Create 2D profile first
+        results<type, 2> profile;
+        int err = profile2D(profDim1, profDim2, binLimits, profile);
+        if(err != errors::SUCCESS) {
+          return err;
+        }
+    
+        // Extract X and Y values (bin centers)
+        const unsigned long nx = profile.readDimBins()[0];
+        const unsigned long ny = profile.readDimBins()[1];
+    
+        std::vector<double> xVals(nx);
+        std::vector<double> yVals(ny);
+        std::vector<type> values(nx * ny);
+    
+        const double xLow = profile.readLimits()[0].first;
+        const double xWidth = profile.readBinWidth(0);
+        const double yLow = profile.readLimits()[1].first;
+        const double yWidth = profile.readBinWidth(1);
+    
+        // Fill x values (bin centers)
+        for(unsigned long i = 0; i < nx; ++i) {
+          xVals[i] = xLow + (i + 0.5) * xWidth;
+        }
+    
+        // Fill y values (bin centers)
+        for(unsigned long j = 0; j < ny; ++j) {
+          yVals[j] = yLow + (j + 0.5) * yWidth;
+        }
+
+    
+        // Fill z values (2D matrix)
+        values = profile.data;
+    
+        // Initialize bicubic spline
+        return spline.init(xVals, yVals, values);
+      }
+
+      // Overload with vector bin limits
+      inline int interpolate2D(const unsigned long profDim1,
+                               const unsigned long profDim2,
+                               const std::vector<std::array<unsigned long, 3>>& binLimits,
+                               interpolation::BicubicSpline<type>& spline) const {
+    
+        // Convert vector limits to array limits
+        std::array<std::pair<unsigned long, unsigned long>, dim> auxBinLimits;
+        for(size_t i = 0; i < dim; ++i) {
+          auxBinLimits[i] = std::pair<unsigned long, unsigned long>(0lu, this->nBins[i]);
+        }
+    
+        for(size_t i = 0; i < binLimits.size(); ++i) {
+          unsigned long idim = binLimits[i][0];
+          if(idim >= dim) {
+            return errors::DIMENSION_OUT_OF_RANGE;
+          }
+          auxBinLimits[idim] = std::pair<unsigned long, unsigned long>(binLimits[i][1], binLimits[i][2]);
+        }
+    
+        return interpolate2D(profDim1, profDim2, auxBinLimits, spline);
+      }
+
+      // Overload with full range
+      inline int interpolate2D(const unsigned long profDim1,
+                               const unsigned long profDim2,
+                               interpolation::BicubicSpline<type>& spline) const {
+    
+        // Create full range bin limits
+        std::array<std::pair<unsigned long, unsigned long>, dim> binLimits;
+        for(size_t i = 0; i < dim; ++i) {
+          binLimits[i].first = 0;
+          binLimits[i].second = this->getNBins(i);
+        }
+    
+        return interpolate2D(profDim1, profDim2, binLimits, spline);
       }
       
       //Print functions

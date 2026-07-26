@@ -48,6 +48,11 @@ namespace penred{
 
     class readerXRayDeviceSimulate;
 
+    struct FilterGeo{
+      vector3D<double> size;
+      vector3D<double> center;
+    };
+
     int constructDevice(std::ostream& out,
                         const double focalSpot,
                         const double source2det,
@@ -63,7 +68,7 @@ namespace penred{
                         const bool constructAnode = false,
                         const double anodeAngle = 5.0,
                         const unsigned verbose = 1,
-                        const bool PSFFilter = false);
+                        FilterGeo* PSFFilterGeo = nullptr);
 
 
     int constructSimDevice(const pen_parserSection& config,
@@ -183,6 +188,8 @@ namespace penred{
 
       bool storeDetectedPSF;
       bool storeFilteredPSF;
+
+      bool storeFilteredDistrib;
       
       double anodeAngle;
       unsigned anodeZ;
@@ -192,6 +199,9 @@ namespace penred{
       unsigned long eBins;
 
       std::string outputPrefix;
+      std::string dump2Read;
+      std::string dump2Write;
+      double dumpTime;
 
       struct materialData{
 	std::string name;
@@ -426,6 +436,18 @@ simulation/output-prefix/reader-description "Output prefix path"
 simulation/output-prefix/reader-value ""
 simulation/output-prefix/reader-required/type "optional"
 
+simulation/dump/read/reader-description "Dump filename to resume a previous simulation"
+simulation/dump/read/reader-value ""
+simulation/dump/read/reader-required/type "optional"
+
+simulation/dump/write/reader-description "Dump filename to save the simulation state"
+simulation/dump/write/reader-value ""
+simulation/dump/write/reader-required/type "optional"
+
+simulation/dump/time/reader-description "Time interval to generate dumps"
+simulation/dump/time/reader-value -1.0
+simulation/dump/time/reader-required/type "optional"
+
 #X-ray device common characteristics
 x-ray/focal-spot/reader-description "X-ray focal spot in cm"
 x-ray/focal-spot/reader-value 0.1
@@ -592,6 +614,11 @@ psf/detected/reader-required/type "optional"
 psf/filtered/reader-description "If enabled, a PSF is created after the last filter"
 psf/filtered/reader-value false
 psf/filtered/reader-required/type "optional"
+
+## Create source distributions
+distributions/filtered/reader-description "If enabled, field-filtered distributions are recorded. If no filter is configured, the distributions are recorded before the inherent filter position. The particle simulation will be halted when the scoring volume is reached."
+distributions/filtered/reader-value false
+distributions/filtered/reader-required/type "optional"
 
 )===";
 };
