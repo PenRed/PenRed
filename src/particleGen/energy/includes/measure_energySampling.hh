@@ -1,8 +1,7 @@
 
 //
 //
-//    Copyright (C) 2021 Universitat de València - UV
-//    Copyright (C) 2021 Universitat Politècnica de València - UPV
+//    Copyright (C) 2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -22,34 +21,24 @@
 //    contact emails:
 //
 //        vicent.gimenez.alventosa@gmail.com
-//        vicente.gimenez@uv.es
 //    
 //
 
 
-#ifndef __FILE_ENERGY_SPECTRUM_SAMPLING__
-#define __FILE_ENERGY_SPECTRUM_SAMPLING__
+#ifndef __MEASURE_ENERGY_SPECTRUM_SAMPLING__
+#define __MEASURE_ENERGY_SPECTRUM_SAMPLING__
 
-#include "pen_auxiliar.hh"
-
-class fileSpectrum_energySampling : public abc_energySampler{
-  DECLARE_SAMPLER(fileSpectrum_energySampling)
+class measure_energySampling : public abc_energySampler{
+  DECLARE_SAMPLER(measure_energySampling)
 private:
 
-  std::vector<double> energies;
-  std::vector<double> dE;
-  std::vector<double> cumulative;
-  unsigned nEBins;
-  
+  penred::sampling::aliasing<1> sampler;
   
 public:
   void energySampling(double& energy, pen_rand& random) const;
-  int configure(double& Emax, const pen_parserSection& config, const unsigned verbose);
-  inline double minE(){return energies.front();}
-  inline const std::vector<double>& readEnergy() const {return energies;}
-  inline const std::vector<double>& readDE() const {return dE;}
-  inline const std::vector<double>& readCumulative() const {return cumulative;}
-  inline unsigned nBins() const {return nEBins;}
+  int configure(double& Emax,
+                const pen_parserSection& config,
+                const unsigned verbose) final override;
 };
 
 #endif

@@ -38,23 +38,26 @@
 #include "pennuc.hh"
 #include "brachySource.hh"
 #include "memoryPSFsource.hh"
+#include "distributionSE.hh"
 
 namespace penred{
   namespace sampler{
 
 #ifdef _PEN_USE_DICOM_
     using typesSpecificCommonState = std::tuple<random_specificSampler,
-						psf_specificSampler,
-						ct_specificSampler,
-						pennuc_specificSampler,
-						brachy_specificSampler,
-						psfMemory_specificSampler>;
+                                                psf_specificSampler,
+                                                ct_specificSampler,
+                                                pennuc_specificSampler,
+                                                brachy_specificSampler,
+                                                psfMemory_specificSampler,
+                                                distribSE_specificSampler>;
 #else
     using typesSpecificCommonState = std::tuple<random_specificSampler,
-						psf_specificSampler,
-						ct_specificSampler,
-						pennuc_specificSampler,
-						psfMemory_specificSampler>;    
+                                                psf_specificSampler,
+                                                ct_specificSampler,
+                                                pennuc_specificSampler,
+                                                psfMemory_specificSampler,
+                                                distribSE_specificSampler>;    
 #endif
 
     using typesSpecificGPolState = std::tuple<gammaPolarised_specificSampler>;

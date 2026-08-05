@@ -36,10 +36,10 @@ void intervals_energySampling::energySampling(double& energy, pen_rand& random) 
   double rand = random.rand();
 
   // Get interval
-  unsigned interval = seeki(cummulative,rand,nIntervals);
+  unsigned interval = seeki(cumulative,rand,nIntervals);
 
   // Calculate sampled energy
-  energy = energies[interval]+(rand-cummulative[interval])*dE[interval];
+  energy = energies[interval]+(rand-cumulative[interval])*dE[interval];
 }
 
 int intervals_energySampling::configure(double& Emax, const pen_parserSection& config, const unsigned verbose){
@@ -66,7 +66,7 @@ int intervals_energySampling::configure(double& Emax, const pen_parserSection& c
   //Get configuration arrays
   pen_parserArray configElow;
   pen_parserArray configEtop;
-  pen_parserArray configCummul;
+  pen_parserArray configCumul;
   err = config.read("lowE",configElow);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
@@ -82,16 +82,16 @@ int intervals_energySampling::configure(double& Emax, const pen_parserSection& c
     return -2;
   }
   
-  err = config.read("probabilities",configCummul);
+  err = config.read("probabilities",configCumul);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0){
-      printf("energy_intervals:configure:unable to read 'cummulative' in configuration. Array expected\n");
+      printf("energy_intervals:configure:unable to read 'probabilities' in configuration. Array expected\n");
     }
     return -2;
   }
 
   // Store data
-  cummulative[0] = 0.0; //Set lower cummulative prob to 0
+  cumulative[0] = 0.0; //Set lower cumulative prob to 0
   double Etop[maxIntervals];
   for(unsigned i = 0; i < nIntervals; i++){
     int err1,err2;
@@ -103,26 +103,26 @@ int intervals_energySampling::configure(double& Emax, const pen_parserSection& c
       }
       return -3;
     }
-    err = configCummul[i].read(cummulative[i+1]);
+    err = configCumul[i].read(cumulative[i+1]);
     if(err != INTDATA_SUCCESS){
       if(verbose > 0){
-	printf("energy_intervals:configure:unable to read 'cummulative' in configuration at position %d. Double expected\n",i);
+	printf("energy_intervals:configure:unable to read 'probabilities' in configuration at position %d. Double expected\n",i);
       }
       return -3;
     }
 
-    if(energies[i] < 0.0 || Etop[i] < 0.0 || energies[i] > Etop[i] || cummulative[i+1] <= 0.0){
+    if(energies[i] < 0.0 || Etop[i] < 0.0 || energies[i] > Etop[i] || cumulative[i+1] <= 0.0){
       if(verbose > 0){
 	printf("energy_intervals:configure: Invalid energy and probability interval at position %d\n",i);
       }
       return i;
     }
     
-    cummulative[i+1] += cummulative[i];
+    cumulative[i+1] += cumulative[i];
   }
   
   //Check probability
-  if(cummulative[nIntervals] <= 0.0){
+  if(cumulative[nIntervals] <= 0.0){
     if(verbose > 0){
       printf("energy_intervals:configure: Null probability\n");
     }
@@ -131,12 +131,12 @@ int intervals_energySampling::configure(double& Emax, const pen_parserSection& c
   
   //Normalize prob
   for(unsigned j = 1; j <= nIntervals; j++){
-    cummulative[j] /= cummulative[nIntervals];
+    cumulative[j] /= cumulative[nIntervals];
   }
 
   //Prepare array for sampling
   for(unsigned j = 0; j < nIntervals; j++){
-    dE[j] = (Etop[j]-energies[j])/(cummulative[j+1]-cummulative[j]);
+    dE[j] = (Etop[j]-energies[j])/(cumulative[j+1]-cumulative[j]);
   }
 
   //Get maximum possible value of sampled energy
@@ -146,13 +146,13 @@ int intervals_energySampling::configure(double& Emax, const pen_parserSection& c
       Emax = Etop[j];
   
   //Add an extra interval for the seeki function because we
-  //add a 0.0 value at the beginning of the cummulative array
+  //add a 0.0 value at the beginning of the cumulative array
   nIntervals++;
 
   if(verbose > 1){
-    printf("      Elow          Etop       LowCummul     topCummul\n");
+    printf("      Elow          Etop       LowCumul     topCumul\n");
     for(unsigned j = 0; j < nIntervals-1; j++)
-      printf(" %12.4E  %12.4E  %12.4E  %12.4E\n",energies[j],Etop[j],cummulative[j],cummulative[j+1]);
+      printf(" %12.4E  %12.4E  %12.4E  %12.4E\n",energies[j],Etop[j],cumulative[j],cumulative[j+1]);
 
     printf("Maximum possible energy: %12.4E eV\n",Emax);
   }

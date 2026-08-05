@@ -173,6 +173,10 @@ namespace penred{
       vector3D<double> PSFTrans;
       vector3D<double> PSFRotation;      
 
+      std::string spatialDistribFile;
+      std::string energyDistribFile;
+      double distrib2det;
+      
       double source2det;
       double detectorDx;
       double detectorDy;
@@ -460,9 +464,8 @@ x-ray/detector/position/reader-required/type "optional"
 
 #Source PSF
 x-ray/source/psf/path/reader-description "Path to the source phase space file"
-x-ray/source/psf/path/reader-value "path/to/data.psf"
-x-ray/source/psf/path/reader-required/type "optional_if"
-x-ray/source/psf/path/reader-required/value "simulation/sim-anode"
+x-ray/source/psf/path/reader-value ""
+x-ray/source/psf/path/reader-required/type "optional"
 
 x-ray/source/psf/translation/reader-description "Translation applied to each particle stored in the PSF."
 x-ray/source/psf/translation/reader-value [0.0,0.0,0.0]
@@ -471,6 +474,22 @@ x-ray/source/psf/translation/reader-required/type "optional"
 x-ray/source/psf/rotation/reader-description "Euler angles to rotate the PSF's particles. Rotation is performed around the Z,Y,Z axis, in that order. Notice the detector position is below the source position (-Z direction)."
 x-ray/source/psf/rotation/reader-value [0.0,0.0,0.0]
 x-ray/source/psf/rotation/reader-required/type "optional"
+
+#Source distribution
+x-ray/source/distribution/spatial/reader-description "Path to the spatial 2D (x,y) distribution file"
+x-ray/source/distribution/spatial/reader-value ""
+x-ray/source/distribution/spatial/reader-required/type "required_if_exist"
+x-ray/source/distribution/spatial/reader-required/value "x-ray/source/distribution/energy"
+
+x-ray/source/distribution/energy/reader-description "Path to the energy 4D (E,x,y,z) distribution file"
+x-ray/source/distribution/energy/reader-value ""
+x-ray/source/distribution/energy/reader-required/type "required_if_exist"
+x-ray/source/distribution/energy/reader-required/value "x-ray/source/distribution/spatial"
+
+x-ray/source/distribution/distance/reader-description "Distance between the spatial distribution and the detector"
+x-ray/source/distribution/distance/reader-value 0.0
+x-ray/source/distribution/distance/reader-required/type "required_if_exist"
+x-ray/source/distribution/distance/reader-required/value "x-ray/source/distribution/spatial"
 
 #Distance source to detector
 x-ray/distance/detector/reader-description "Distance, in cm, from anode impact point to the detector."

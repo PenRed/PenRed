@@ -247,8 +247,8 @@ void test_1d_interpolation_basic() {
         indexes[0] = i % bins[0];
         indexes[1] = i / bins[0];
         
-        double x = limits[0].first + (indexes[0] + 0.5) * res2D.readBinWidth(0);
-        double y = limits[1].first + (indexes[1] + 0.5) * res2D.readBinWidth(1);
+        double x = limits[0].first + static_cast<double>(indexes[0]) * res2D.readBinWidth(0);
+        double y = limits[1].first + static_cast<double>(indexes[1]) * res2D.readBinWidth(1);
         res2D.data[i] = std::sin(x) * std::cos(y);
         res2D.sigma[i] = 0.01;
     }
@@ -267,7 +267,7 @@ void test_1d_interpolation_basic() {
         double expected = std::sin(x);
         double cos_sum = 0.0;
         for(int j = 0; j < 5; ++j) {
-            double y = limits[1].first + (j + 0.5) * res2D.readBinWidth(1);
+            double y = limits[1].first + static_cast<double>(j) * res2D.readBinWidth(1);
             cos_sum += std::cos(y);
         }
         expected *= cos_sum;
@@ -307,9 +307,9 @@ void test_1d_interpolation_with_limits() {
             temp /= bins[d];
         }
         
-        double x = limits[0].first + (indexes[0] + 0.5) * res3D.readBinWidth(0);
-        double y = limits[1].first + (indexes[1] + 0.5) * res3D.readBinWidth(1);
-        double z = limits[2].first + (indexes[2] + 0.5) * res3D.readBinWidth(2);
+        double x = limits[0].first + static_cast<double>(indexes[0]) * res3D.readBinWidth(0);
+        double y = limits[1].first + static_cast<double>(indexes[1]) * res3D.readBinWidth(1);
+        double z = limits[2].first + static_cast<double>(indexes[2]) * res3D.readBinWidth(2);
         res3D.data[i] = x * x + y + z;
         res3D.sigma[i] = 0.01;
     }
@@ -327,13 +327,13 @@ void test_1d_interpolation_with_limits() {
     // Calculate expected: sum(x_i^2) + 20*y + sum(z_k over restricted range)
     double sum_x2 = 0.0;
     for(int i = 0; i < 20; ++i) {
-        double x = limits[0].first + (i + 0.5) * res3D.readBinWidth(0);
+        double x = limits[0].first + static_cast<double>(i) * res3D.readBinWidth(0);
         sum_x2 += x * x;
     }
     
     double sum_z = 0.0;
     for(int k = 1; k < 4; ++k) {
-        double z = limits[2].first + (k + 0.5) * res3D.readBinWidth(2);
+        double z = limits[2].first + static_cast<double>(k) * res3D.readBinWidth(2);
         sum_z += z;
     }
     
@@ -377,9 +377,9 @@ void test_1d_interpolation_vector_limits() {
             temp /= bins[d];
         }
         
-        double x = limits[0].first + (idx[0] + 0.5) * res3D.readBinWidth(0);
-        double y = limits[1].first + (idx[1] + 0.5) * res3D.readBinWidth(1);
-        double z = limits[2].first + (idx[2] + 0.5) * res3D.readBinWidth(2);
+        double x = limits[0].first + static_cast<double>(idx[0]) * res3D.readBinWidth(0);
+        double y = limits[1].first + static_cast<double>(idx[1]) * res3D.readBinWidth(1);
+        double z = limits[2].first + static_cast<double>(idx[2]) * res3D.readBinWidth(2);
         res3D.data[i] = x + 2.0 * y + 3.0 * z;
         res3D.sigma[i] = 0.01;
     }
@@ -396,13 +396,13 @@ void test_1d_interpolation_vector_limits() {
     // Expected: sum(x_i) + 2*10*y + 3*sum(z_k over range)
     double sum_x = 0.0;
     for(int i = 0; i < 10; ++i) {
-        double x = limits[0].first + (i + 0.5) * res3D.readBinWidth(0);
+        double x = limits[0].first + static_cast<double>(i) * res3D.readBinWidth(0);
         sum_x += x;
     }
     
     double sum_z = 0.0;
     for(int k = 2; k < 8; ++k) {
-        double z = limits[2].first + (k + 0.5) * res3D.readBinWidth(2);
+        double z = limits[2].first + static_cast<double>(k) * res3D.readBinWidth(2);
         sum_z += z;
     }
     
@@ -435,7 +435,7 @@ void test_1d_spline_derivatives() {
     TEST_ASSERT_EQ(err, pmeas::errors::SUCCESS, "Failed to initialize 1D results");
     
     for(unsigned long i = 0; i < res1D.getNBins(); ++i) {
-        double x = limits[0].first + (i + 0.5) * res1D.readBinWidth(0);
+        double x = limits[0].first + static_cast<double>(i) * res1D.readBinWidth(0);
         res1D.data[i] = x * x;
         res1D.sigma[i] = 0.001;
     }
@@ -486,7 +486,7 @@ void test_interpolation_vector_evaluation() {
     TEST_ASSERT_EQ(err, pmeas::errors::SUCCESS, "Failed to initialize 1D results");
     
     for(unsigned long i = 0; i < res1D.getNBins(); ++i) {
-        double x = limits[0].first + (i + 0.5) * res1D.readBinWidth(0);
+        double x = limits[0].first + static_cast<double>(i) * res1D.readBinWidth(0);
         res1D.data[i] = x * x;
         res1D.sigma[i] = 0.001;
     }
@@ -535,8 +535,8 @@ void test_2d_interpolation_basic() {
         indexes[0] = i % bins[0];
         indexes[1] = i / bins[0];
         
-        double x = limits[0].first + (indexes[0] + 0.5) * res2D.readBinWidth(0);
-        double y = limits[1].first + (indexes[1] + 0.5) * res2D.readBinWidth(1);
+        double x = limits[0].first + static_cast<double>(indexes[0]) * res2D.readBinWidth(0);
+        double y = limits[1].first + static_cast<double>(indexes[1]) * res2D.readBinWidth(1);
         res2D.data[i] = std::sin(x/2.0) * std::cos(y/2.0) + 1.0;
         res2D.sigma[i] = 0.01;
     }
@@ -589,9 +589,9 @@ void test_2d_interpolation_from_3d() {
             temp /= bins[d];
         }
         
-        double x = limits[0].first + (indexes[0] + 0.5) * res3D.readBinWidth(0);
-        double y = limits[1].first + (indexes[1] + 0.5) * res3D.readBinWidth(1);
-        double z = limits[2].first + (indexes[2] + 0.5) * res3D.readBinWidth(2);
+        double x = limits[0].first + static_cast<double>(indexes[0]) * res3D.readBinWidth(0);
+        double y = limits[1].first + static_cast<double>(indexes[1]) * res3D.readBinWidth(1);
+        double z = limits[2].first + static_cast<double>(indexes[2]) * res3D.readBinWidth(2);
         res3D.data[i] = x * y + z * z;
         res3D.sigma[i] = 0.01;
     }
@@ -604,7 +604,7 @@ void test_2d_interpolation_from_3d() {
     // Calculate expected: sum over z of (x*y + z^2) = 4*x*y + sum(z^2)
     double sum_z2 = 0.0;
     for(int k = 0; k < 4; ++k) {
-        double z = limits[2].first + (k + 0.5) * res3D.readBinWidth(2);
+        double z = limits[2].first + static_cast<double>(k) * res3D.readBinWidth(2);
         sum_z2 += z * z;
     }
     
@@ -651,10 +651,10 @@ void test_2d_interpolation_with_limits() {
             temp /= bins[d];
         }
         
-        double w = limits[0].first + (idx[0] + 0.5) * res4D.readBinWidth(0);
-        double x = limits[1].first + (idx[1] + 0.5) * res4D.readBinWidth(1);
-        double y = limits[2].first + (idx[2] + 0.5) * res4D.readBinWidth(2);
-        double z = limits[3].first + (idx[3] + 0.5) * res4D.readBinWidth(3);
+        double w = limits[0].first + static_cast<double>(idx[0]) * res4D.readBinWidth(0);
+        double x = limits[1].first + static_cast<double>(idx[1]) * res4D.readBinWidth(1);
+        double y = limits[2].first + static_cast<double>(idx[2]) * res4D.readBinWidth(2);
+        double z = limits[3].first + static_cast<double>(idx[3]) * res4D.readBinWidth(3);
         res4D.data[i] = w * x + y + z * z;
         res4D.sigma[i] = 0.01;
     }
@@ -678,13 +678,13 @@ void test_2d_interpolation_with_limits() {
     
     double sum_w = 0.0;
     for(int i = 0; i < 6; ++i) {
-        double w = limits[0].first + (i + 0.5) * res4D.readBinWidth(0);
+        double w = limits[0].first + static_cast<double>(i) * res4D.readBinWidth(0);
         sum_w += w;
     }
     
     double sum_z2 = 0.0;
     for(int k = 1; k < 3; ++k) {
-        double z = limits[3].first + (k + 0.5) * res4D.readBinWidth(3);
+        double z = limits[3].first + static_cast<double>(k) * res4D.readBinWidth(3);
         sum_z2 += z * z;
     }
     
@@ -729,8 +729,8 @@ void test_2d_grid_evaluation() {
     
     for(unsigned long j = 0; j < bins[1]; ++j) {
         for(unsigned long i = 0; i < bins[0]; ++i) {
-            double x = limits[0].first + (i + 0.5) * res2D.readBinWidth(0);
-            double y = limits[1].first + (j + 0.5) * res2D.readBinWidth(1);
+            double x = limits[0].first + static_cast<double>(i) * res2D.readBinWidth(0);
+            double y = limits[1].first + static_cast<double>(j) * res2D.readBinWidth(1);
             res2D.data[j * bins[0] + i] = x + y;
             res2D.sigma[j * bins[0] + i] = 0.01;
         }
@@ -823,7 +823,7 @@ void test_interpolation_clear_and_reuse() {
     TEST_ASSERT_EQ(err, pmeas::errors::SUCCESS, "Failed to initialize first dataset");
     
     for(unsigned long i = 0; i < res1D_1.getNBins(); ++i) {
-        double x = limits1[0].first + (i + 0.5) * res1D_1.readBinWidth(0);
+        double x = limits1[0].first + static_cast<double>(i) * res1D_1.readBinWidth(0);
         res1D_1.data[i] = x * x;
     }
     
@@ -846,7 +846,7 @@ void test_interpolation_clear_and_reuse() {
     TEST_ASSERT_EQ(err, pmeas::errors::SUCCESS, "Failed to initialize second dataset");
     
     for(unsigned long i = 0; i < res1D_2.getNBins(); ++i) {
-        double x = limits2[0].first + (i + 0.5) * res1D_2.readBinWidth(0);
+        double x = limits2[0].first + static_cast<double>(i) * res1D_2.readBinWidth(0);
         res1D_2.data[i] = x * x * x;
     }
     
@@ -883,7 +883,7 @@ void test_interpolation_out_of_range() {
     TEST_ASSERT_EQ(err, pmeas::errors::SUCCESS, "Failed to initialize 1D results");
     
     for(unsigned long i = 0; i < res1D.getNBins(); ++i) {
-        double x = limits[0].first + (i + 0.5) * res1D.readBinWidth(0);
+        double x = limits[0].first + static_cast<double>(i) * res1D.readBinWidth(0);
         res1D.data[i] = x * x;
     }
     

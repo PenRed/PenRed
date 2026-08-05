@@ -36,6 +36,7 @@
 #include <thread>
 #include <atomic>
 #include <chrono>
+#include <memory>
 #include "pen_classes.hh"
 #include "pen_math.hh"
 #include "instantiator.hh"
@@ -590,6 +591,20 @@ public:
 				  std::vector<std::string>& direction,
 				  std::vector<std::string>& energy,
 				  std::vector<std::string>& time);
+
+  static inline std::shared_ptr<abc_spatialSampler> instanceSpatial(const char* ID) {
+    return std::shared_ptr<abc_spatialSampler>(spatialSamplers().createInstance(ID));
+  }
+  static inline std::shared_ptr<abc_directionSampler> instanceDirection(const char* ID) {
+    return std::shared_ptr<abc_directionSampler>(directionSamplers().createInstance(ID));
+  }
+  static inline std::shared_ptr<abc_energySampler> instanceEnergy(const char* ID) {
+    return std::shared_ptr<abc_energySampler>(energySamplers().createInstance(ID));
+  }
+  static inline std::shared_ptr<abc_timeSampler> instanceTime(const char* ID) {
+    return std::shared_ptr<abc_timeSampler>(timeSamplers().createInstance(ID));
+  }  
+  
   int setGeometry(const wrapper_geometry* geometryIn);
 
   //Post-sampling transformations
@@ -1208,21 +1223,37 @@ public:
       throw std::out_of_range("abc_specificSampler: specific: Specified thread out of range");
     return specificSamplerVect[ithread];}
   
-  static std::string samplersList(){
+  static inline std::string samplersList(){
     std::string aux(pen_genericStateGen::samplersList());
     aux += " --- Specific:\n";
     aux += specificSamplers().typesList();
     return aux;
   }
-  static std::string samplersList(std::vector<std::string>& spatial,
-				  std::vector<std::string>& direction,
-				  std::vector<std::string>& energy,
-				  std::vector<std::string>& time,
-				  std::vector<std::string>& specific){
+  static inline std::string samplersList(std::vector<std::string>& spatial,
+                                         std::vector<std::string>& direction,
+                                         std::vector<std::string>& energy,
+                                         std::vector<std::string>& time,
+                                         std::vector<std::string>& specific){
     std::string aux(pen_genericStateGen::samplersList(spatial,direction,energy,time));
     aux += "Specific:\n";
     aux += specificSamplers().typesList(specific);
     return aux;
+  }
+
+  static inline std::shared_ptr<abc_specificSampler<particleState>> instanceSpecific(const char* ID) {
+    return std::shared_ptr<abc_specificSampler<particleState>>(specificSamplers().createInstance(ID));
+  }
+  static inline std::shared_ptr<abc_spatialSampler> instanceSpatial(const char* ID) {
+    return pen_genericStateGen::instanceSpatial(ID);
+  }
+  static inline std::shared_ptr<abc_directionSampler> instanceDirection(const char* ID) {
+    return pen_genericStateGen::instanceDirection(ID);
+  }
+  static inline std::shared_ptr<abc_energySampler> instanceEnergy(const char* ID) {
+    return pen_genericStateGen::instanceEnergy(ID);
+  }
+  static inline std::shared_ptr<abc_timeSampler> instanceTime(const char* ID) {
+    return pen_genericStateGen::instanceTime(ID);
   }
   
   inline int setGeometry(const wrapper_geometry* geometryIn){
@@ -1525,10 +1556,11 @@ public:
     else{ //No generic sampling
       //If specified, perform specific sampling
       if(useSpecific){
-	specificSamplerVect[thread]->sample(state,genKpar,dhist,random);
+        state.reset();
+        specificSamplerVect[thread]->sample(state,genKpar,dhist,random);
 
-	//Locate particle in geometry
-	geometry->locate(state);
+        //Locate particle in geometry
+        geometry->locate(state);
       }
       else{
 	//No sampler specified!

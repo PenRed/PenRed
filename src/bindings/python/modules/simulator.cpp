@@ -451,7 +451,7 @@ Raises:
          },
          R"(
 
-Add dump files to produce a unified results dump or ASCII files. The simulation object must be configured previously.
+Add dump files to generate either a unified results dump or ASCII files, depending on the configuration. The simulation object must already be configured with the same settings used to run the dumped simulations.
 
 Args:
     filenames (list of str): List of dump filenames to add
@@ -462,6 +462,16 @@ Returns:
 Raises:
     ValueError: If invalid configurations are detected.
 
+Example:
+    .. code-block:: python
+
+        #!/usr/bin/env python3
+        import pyPenred
+
+        sim = pyPenred.simulation.create()
+        sim.configFromFile("config.in")
+
+        sim.addDumps(["th0test.dump", "th1test.dump", "th3test.dump"])
     )")
     
     .def("simulate",
@@ -1466,7 +1476,10 @@ Example:
 	      const unsigned anodeZ, const double anodeAngle,
           const std::string& psfPath,
           const std::array<double, 3>& PSFTrans,
-          const std::array<double, 3>& PSFRot,          
+          const std::array<double, 3>& PSFRot,
+          const std::string& spatialDistribPath,
+          const std::string& energyDistribPath,
+          const double distrib2detector,
 	      const double source2filter,
 	      const double source2detector,
 	      const FilterList& filters,
@@ -1517,7 +1530,10 @@ Example:
 
 	     if(source2detector <= 0.0)
 	       throw py::value_error("Error: Distance between source and detector must be grater than zero");
-
+         
+	     if(!energyDistribPath.empty() && distrib2detector <= 0.0)
+	       throw py::value_error("Error: Distance between distribution and detector must be grater than zero");
+         
 	     if(nHists <= 0.0)
 	       throw py::value_error("Error: Number of histories must be grater than zero");
 
@@ -1557,8 +1573,14 @@ Example:
          if(dumpInterval > 0.0)
            config.set("simulation/dump/time", dumpInterval);
          
-	     if(psfPath.empty()){
+	     if(psfPath.empty() && energyDistribPath.empty()){
 	       config.set("simulation/sim-anode", true);
+         }
+         else if(!energyDistribPath.empty()){
+	       config.set("simulation/sim-anode", false);
+	       config.set("x-ray/source/distribution/spatial", spatialDistribPath);
+	       config.set("x-ray/source/distribution/energy", energyDistribPath);
+	       config.set("x-ray/source/distribution/distance", distrib2detector);
          }
 	     else{
 	       config.set("simulation/sim-anode", false);
@@ -1742,6 +1764,9 @@ Example:
            py::arg("psf_file")                = std::string(""),
            py::arg("psf_translation")         = std::array<double, 3>{0.0, 0.0, 0.0},
            py::arg("psf_rotation")            = std::array<double, 3>{0.0, 0.0, 0.0},
+           py::arg("spatial_distribution")    = "",
+           py::arg("energy_distribution")     = "",
+           py::arg("distribution_to_detector")= -1.0,
            py::arg("source_to_filter")        = 7.0,
            py::arg("source_to_detector")      = 14.0,
            py::arg("filters")                 = FilterList{},
@@ -1769,7 +1794,7 @@ Example:
            py::arg("dump_interval")           = -1.0,
            py::arg("verbose")                 = 1,
 	   R"doc(
-Simulates an electron beam impinging on an anode and records the resulting photon spectrum and spatial distribution.
+Simulates an electron beam impinging on an anode and records the resulting photon spectrum and spatial distribution. Alternatively, the simulation can be carried out from a Phase Space File (PSF) or sampling the initial photons from 2D (x,y) and 4D (E,x,y,z) spatial and energetic distributions respectively. Both, PSF and distributions can be obtained using this tool, enabling the 'create_filtered_psf' or 'create_filtered_distrib' options. 
 
 Args:
     detector_position (tuple[float, float, float]): Detector position in cm. This point is interpreted as the center of the detector's top face in Z axis.
@@ -1782,6 +1807,9 @@ Args:
     psf_file (str): Filename of the phase space file to be used as source.
     psf_translation (list): Translation to be applied to particles stored in the PSF (dx,dy,dz).
     psf_rotation (list): Euler angles to rotate the PSF's particles. Rotation is performed around the Z,Y,Z axis, in that order. Notice the detector position is below the source position (-Z direction).
+    spatial_distribution (str): Path to the 2D spatial distribution (x,y) to be used as a source.
+    energy_distribution (str): Path to the 4D energy distribution (e,x,y,z) to be used as a source.
+    distribution_to_detector (float): Distance between the detector and the spatial source distribution
     source_to_filter (float): Distance from source to the first filter in cm.
     source_to_detector (float): Distance from source to the detector in cm.
     filters (list): List of additional filters beyond the inherent one. Each filter should be defined as:
@@ -1825,54 +1853,56 @@ Example:
         import numpy as np
         import pyPenred
 
-        results = pyPenred.simulation.xray.deviceSim(ebins=100, inherent_filter_width=0.15, anode_angle=16, source_to_detector=100.0, max_time=600, histories=1.0e8)
+        sim = pyPenred.simulation.xray.deviceSim(ebins=100, inherent_filter_width=0.15, anode_angle=16, source_to_detector=100.0, max_time=600, histories=1.0e8)
 
-        # Extract energy and spatial ranges
-        eLimits = results[0]
-        xLimits = results[3]
-        yLimits = results[4]
+        # Extract spatial distribution
+        results = sim.getResults("SpatialDetector", extract_info=True, only_effective=True)
 
-        # Create X values for energy spectrum
-        e_plot = np.linspace(eLimits[0], eLimits[1], len(results[1]))
+        # Extract spatial ranges
+        xLimits = results[0][3]
+        yLimits = results[0][2]
 
-        # Plot spectrum
-        plt.plot(e_plot, results[1])
-        plt.title("Device spectrum")
-        plt.xlabel("keV")
-        plt.ylabel("Prob/hist")
-        plt.savefig('device-spectrum.png')
-
-        plt.close()
-
-        # Plot energy deposition
-        plt.imshow(results[5],
-                   extent=[xLimits[0], xLimits[1], yLimits[0], yLimits[1]],
-                   aspect='auto',
+        # Plot it
+        plt.figure(figsize=(6,5))
+        plt.imshow(data,
                    origin='lower',
-                   interpolation='none',
-                   cmap='viridis')
-
-        plt.title("Detector energy deposition")
-        plt.colorbar()
-        plt.xlabel("X cm")
-        plt.ylabel("Y cm")
-        plt.savefig('detector-energy-deposition.png')
-
+                   extent=[xLimits[0], xLimits[1], yLimits[0], yLimits[1]],
+                   cmap='viridis',
+                   aspect='equal')
+        plt.xlabel('x (cm)')
+        plt.ylabel('y (cm)')
+        plt.colorbar(label='Total counts')
+        plt.title('Energy-integrated detector image')
+        plt.savefig("spatial-distrib.png", dpi=300)
         plt.close()
 
-        # Plot fluence
-        plt.imshow(results[7],
-                   extent=[xLimits[0], xLimits[1], yLimits[0], yLimits[1]],
-                   aspect='auto',  
-                   origin='lower', 
-                   interpolation='none',
-                   cmap='viridis')
+        # Extract mean detected spectrum
+        resultsSpec = sim.getResults("SpectrumDetector", extract_info=True, only_effective=True)
 
-        plt.title("Detected fluence")
-        plt.colorbar()
-        plt.xlabel("X cm")
-        plt.ylabel("Y cm")
-        plt.savefig('detector-fluence.png')
+        # Extract energy limits (in eV)
+        eLimits = resultsSpec[0][2]
+        e_plot = np.linspace(eLimits[0]/1000.0, eLimits[1]/1000.0, resultsSpec[0][0].shape[0])
+
+        spectrum = resultsSpec[0][0]
+        spectrumError = resultsSpec[0][1]
+
+        plt.figure(figsize=(6,5))
+        plt.errorbar(
+            e_plot,
+            spectrum,
+            yerr=spectrumError,
+            fmt='-',
+            linewidth=1.2,
+            ecolor='gray',
+            elinewidth=0.8,
+            capsize=2,
+        )
+
+        plt.xlabel("Energy (KeV)")
+        plt.ylabel("Counts")
+        plt.grid(True)
+        plt.savefig("spectrum", dpi=300)
+        plt.close()
 
 )doc");
   

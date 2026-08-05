@@ -442,6 +442,14 @@ namespace penred{
         return errors::INVALID_CONFIGURATION;
       }
 
+      //Ensure a source is provided
+      if(!reader.simAnode && reader.PSFFile.empty() && reader.energyDistribFile.empty()){
+        penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                     "simDevice: Error: No source defined. Enable"
+                                     " anode simulation, PSF or distribution source.\n");
+        return errors::INVALID_CONFIGURATION;
+      }
+
       //If a PSF is created at the detector, force an ideal detector
       if(reader.storeFilteredPSF)
         reader.detectorIdeal = true;
@@ -515,27 +523,76 @@ namespace penred{
       }
       else{
 
-        //Use a PSF
-        simConf.set("sources/generic/beam/specific/type", "PSF");
-        simConf.set("sources/generic/beam/specific/translation/dx", reader.PSFTrans.x);
-        simConf.set("sources/generic/beam/specific/translation/dy", reader.PSFTrans.y);
-        simConf.set("sources/generic/beam/specific/translation/dz", reader.PSFTrans.z);
+        if(!reader.energyDistribFile.empty()){
+          //Use a distribution
 
-        simConf.set("sources/generic/beam/specific/rotation/omega",
-                   reader.PSFRotation.x);
-        simConf.set("sources/generic/beam/specific/rotation/theta",
-                   reader.PSFRotation.y);
-        simConf.set("sources/generic/beam/specific/rotation/phi",
-                   reader.PSFRotation.z);
+          //Read the distribution
+          penred::measurements::results<double, 4> eDistrib;
+          std::ifstream fin(reader.energyDistribFile, std::ifstream::in);
+          if(!fin){
+            if(verbose > 0){
+              penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                           "simDevice: Error: Unable to "
+                                           "open distribution file '%s'",
+                                           reader.energyDistribFile.c_str());
+            }
+            return errors::ERROR_UNABLE_TO_OPEN_FILE;
+          }
+  
+          int errDis = eDistrib.read(fin);
+          if(errDis != 0){
+            if(verbose > 0){
+              penred::logs::logger::printf(penred::logs::CONFIGURATION,
+                                           "simDevice: Error: Unable to "
+                                           "read distribution file '%s'.\n  "
+                                           "Error code: %d\n",
+                                           reader.energyDistribFile.c_str(), errDis);
+            }
+            return errors::ERROR_INVALID_FILE;
+          }
+
+          //Get energy limits
+          std::pair<double, double> elimits = eDistrib.readLimits()[0];
+          maxE = elimits.second;
+
+          //Energy 4D distribution
+          simConf.set("sources/generic/beam/specific/type", "COMBINED_DISTRIBUTIONS");
+          simConf.set("sources/generic/beam/specific/distribution/filename", reader.energyDistribFile);
+          simConf.set("sources/generic/beam/specific/distribution/origin/x", reader.detectorPosition.x);
+          simConf.set("sources/generic/beam/specific/distribution/origin/y", reader.detectorPosition.y);
+          simConf.set("sources/generic/beam/specific/distribution/origin/z",
+                      reader.detectorPosition.z + reader.source2det);
+
+          //Spatial sampler using the 2D distribution
+          simConf.set("sources/generic/beam/spatial/type", "2D_MEASURE");
+          simConf.set("sources/generic/beam/spatial/filename", reader.spatialDistribFile);
+          simConf.set("sources/generic/beam/spatial/plane", "xy");
+          simConf.set("sources/generic/beam/spatial/constant-coordinate",
+                      reader.detectorPosition.z + reader.distrib2det);
+        }
+        else{
+          //Use a PSF
+          simConf.set("sources/generic/beam/specific/type", "PSF");
+          simConf.set("sources/generic/beam/specific/translation/dx", reader.PSFTrans.x);
+          simConf.set("sources/generic/beam/specific/translation/dy", reader.PSFTrans.y);
+          simConf.set("sources/generic/beam/specific/translation/dz", reader.PSFTrans.z);
+
+          simConf.set("sources/generic/beam/specific/rotation/omega",
+                      reader.PSFRotation.x);
+          simConf.set("sources/generic/beam/specific/rotation/theta",
+                      reader.PSFRotation.y);
+          simConf.set("sources/generic/beam/specific/rotation/phi",
+                      reader.PSFRotation.z);
         
-        pen_parserArray window;
-        window.append(0.0);
-        window.append(5.0e-2);
-        simConf.set("sources/generic/beam/specific/wght-window", window);
-        simConf.set("sources/generic/beam/specific/nsplit", 10);
+          pen_parserArray window;
+          window.append(0.0);
+          window.append(5.0e-2);
+          simConf.set("sources/generic/beam/specific/wght-window", window);
+          simConf.set("sources/generic/beam/specific/nsplit", 10);
 
-        simConf.set("sources/generic/beam/specific/Emax", 1.0e6);
-        simConf.set("sources/generic/beam/specific/filename", reader.PSFFile);
+          simConf.set("sources/generic/beam/specific/Emax", 1.0e6);
+          simConf.set("sources/generic/beam/specific/filename", reader.PSFFile);
+        }
       }
 
       // ** Geometry
@@ -1294,6 +1351,9 @@ namespace penred{
 	else if(pathInSection.compare("x-ray/kvp") == 0){
 	  kvp = element;
 	}
+	else if(pathInSection.compare("x-ray/source/distribution/distance") == 0){
+	  distrib2det = element;
+	}
 	else if(pathInSection.compare("psf/detected") == 0){
 	  storeDetectedPSF = element;
 	}
@@ -1355,6 +1415,12 @@ namespace penred{
       if(family == -1){ //Root
 	if(pathInSection.compare("x-ray/source/psf/path") == 0){	  
 	  PSFFile = element;
+	}
+	else if(pathInSection.compare("x-ray/source/distribution/spatial") == 0){
+	  spatialDistribFile = element;
+	}
+	else if(pathInSection.compare("x-ray/source/distribution/energy") == 0){
+	  energyDistribFile = element;
 	}
 	else if(pathInSection.compare("simulation/output-prefix") == 0){
 	  outputPrefix = element;
