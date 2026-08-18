@@ -58,12 +58,12 @@ class pen_dummyGeo : public abc_geometry<pen_baseBody>{
     
     return penred::errors::Error();
   }
-  void locate(pen_particleState&) const;
-  void step(pen_particleState&,
+  void locateLocal(pen_particleState&) const final override;
+  void stepLocal(pen_particleState&,
 	    double,
 	    double &,
 	    double &,
-	    int &) const;
+	    int &) const final override;
 
   inline unsigned getIBody(const char*) const {return getElements();}
 

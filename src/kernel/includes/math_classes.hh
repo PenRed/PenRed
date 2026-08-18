@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2023-2024 Universitat de València - UV
 //    Copyright (C) 2023-2024 Universitat Politècnica de València - UPV
-//    Copyright (C) 2025 Vicent Giménez Alventosa
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -41,6 +41,7 @@
 #include <set>
 #include <sstream>
 #include <type_traits>
+#include <algorithm>
 
 //--------------------------------
 // Auxiliar structs and classes
@@ -1408,6 +1409,278 @@ namespace penred{
       return std::string(str);
     }
   };
+
+  namespace interpolation{
+
+    enum errors{
+      SUCCESS = 0,
+      DIMENSION_MISMATCH = 1,
+      NOT_ENOUGH_DATA_POINTS = 2,
+      UNORDERED_DATA = 3,
+    };
+
+    constexpr const char* errorToString( const unsigned i ){
+      switch(i){
+      case SUCCESS: return "Success";
+      case DIMENSION_MISMATCH: return "Dimensions mismatch";
+      case NOT_ENOUGH_DATA_POINTS: return "Not enough data points";
+      case UNORDERED_DATA: return "Unordered data";
+      default: return "Unknown error";
+      };
+    }    
+
+    template<class T>
+    struct CubicSpline {
+      
+      struct Coefficients{
+        double A,B,C,D; // P(dx) = A + B*dx + C*dx^2 + D*dx^3
+      };
+
+    private:
+      std::vector<double> x;
+      std::vector<Coefficients> coef;
+      
+    public:
+      
+      CubicSpline() = default;
+
+      inline const std::vector<double>& readX() const { return x; }
+      inline bool initialized() const noexcept { return !coef.empty(); }
+      inline void clear() noexcept {
+        x.clear();
+        coef.clear();
+      }      
+
+      /**
+       * @brief Constructs a cubic spline with specified boundary second derivatives.
+       * 
+       * @tparam CType Data type of X coordinates.
+       * @param X Vector of strictly increasing grid coordinates (N >= 4).
+       * @param Y Vector of corresponding function values.
+       * @param S1 Second derivative at lower boundary X[0] (default = 0 for Natural Spline).
+       * @param SN Second derivative at upper boundary X[N-1] (default = 0 for Natural Spline).
+       * @return SUCCESS (0), or error code (DIMENSION_MISMATCH, NOT_ENOUGH_DATA_POINTS, UNORDERED_DATA).
+       */      
+      template<class CType>
+      int init(const std::vector<CType>& X, const std::vector<T>& Y,
+               const double S1 = 0.0, const double SN = 0.0) {
+
+        
+        if (X.size() != Y.size()) return DIMENSION_MISMATCH;
+        if (X.size() < 4) return NOT_ENOUGH_DATA_POINTS;
+
+        const size_t N = X.size();
+        const size_t N1 = N - 1;
+        const size_t N2 = N - 2;
+
+        std::vector<double> A(N1); // Interval widths h_i
+        std::vector<double> B(N2); // Matrix main diagonal
+        std::vector<double> D(N);  // RHS / Second derivatives sigma_i
+
+        for (size_t i = 0; i < N1; ++i) {
+          A[i] = static_cast<double>(X[i + 1] - X[i]);
+          if (A[i] <= 0.0) {
+            clear();
+            return UNORDERED_DATA;
+          }
+          D[i] = static_cast<double>(Y[i + 1] - Y[i]) / A[i];
+        }
+
+        for (size_t i = 0; i < N2; ++i) {
+          B[i] = 2.0 * (A[i] + A[i + 1]);
+          size_t K = N1 - i;
+          D[K - 1] = 6.0 * (D[K - 1] - D[K - 2]);
+        }
+
+        D[1] -= A[0] * S1;
+        D[N1 - 1] -= A[N1 - 1] * SN;
+
+        // Tridiagonal solve
+        for (size_t i = 1; i < N2; ++i) {
+          double R = A[i] / B[i - 1];
+          B[i] -= R * A[i];
+          D[i + 1] -= R * D[i];
+        }
+
+        D[N1 - 1] /= B[N2 - 1];
+        for (size_t i = 1; i < N2; ++i) {
+          size_t K = N1 - i;
+          D[K - 1] = (D[K - 1] - A[K - 1] * D[K]) / B[K - 2];
+        }
+
+        D[0] = S1;
+        D[N - 1] = SN;
+
+        // Store local relative coefficients
+        x.assign(X.begin(), X.end());
+        coef.resize(N1);
+
+        for (size_t i = 0; i < N1; ++i) {
+          const double h = A[i];
+          const double sigi = D[i];
+          const double sigi1 = D[i + 1];
+
+          coef[i].A = static_cast<double>(Y[i]);
+          coef[i].B = (static_cast<double>(Y[i + 1] - Y[i])) / h - (h / 6.0) * (sigi1 + 2.0 * sigi);
+          coef[i].C = sigi / 2.0;
+          coef[i].D = (sigi1 - sigi) / (6.0 * h);
+        }
+
+        return SUCCESS;
+      }
+
+      inline size_t findInterval(const double xVal) const noexcept {
+        if (xVal <= x[0]) return 0;
+        if (xVal >= x.back()) return x.size() - 2;
+
+        auto it = std::upper_bound(x.begin(), x.end(), xVal);
+        return static_cast<size_t>(std::distance(x.begin(), it) - 1);
+      }
+
+      inline T evaluate(const double xVal) const {
+        if (x.empty()) return static_cast<T>(0);
+
+        const size_t i = findInterval(xVal);
+        const double dx = xVal - x[i];
+        const Coefficients& c = coef[i];
+
+        const double val = c.A + dx * (c.B + dx * (c.C + dx * c.D));
+        return static_cast<T>(val);
+      }
+
+      // Evaluate multiple points
+      std::vector<T> evaluate(const std::vector<double>& xVals) const {
+        std::vector<T> result(xVals.size());
+        for (size_t i = 0; i < xVals.size(); ++i) {
+          result[i] = evaluate(xVals[i]);
+        }
+        return result;
+      }
+
+      //Evaluate first derivative
+      inline T derivative(const double xVal) const {
+        if(coef.empty()) return static_cast<T>(0);
+
+        const size_t i = findInterval(xVal);
+        const double dx = xVal - x[i];
+        const Coefficients& c = coef[i];
+
+        const double deriv = c.B + dx * (2.0 * c.C  + dx * 3.0 * c.D );
+        
+        return static_cast<T>(deriv);
+      }
+
+      //Evaluate second derivative
+      inline T derivative2(const double xVal) const {
+        if(coef.empty()) return static_cast<T>(0);
+
+        const size_t i = findInterval(xVal);
+        const double dx = xVal - x[i];
+        const Coefficients& c = coef[i];
+
+        const double deriv2 = 2.0 * c.C + dx * 6.0 * c.D;
+        
+        return static_cast<T>(deriv2);
+      }
+    };
+
+    template<class T>
+    struct BicubicSpline {
+
+    private:
+      std::vector<double> x;
+      std::vector<double> y;
+
+      std::vector<CubicSpline<T>> rowSplines;
+
+    public:
+
+      BicubicSpline() = default;
+
+      template<class CType>
+      int init(const std::vector<CType>& xIn,
+               const std::vector<CType>& yIn,
+               const std::vector<T>& values){
+
+        if(xIn.size() < 4 || yIn.size() < 4)
+          return NOT_ENOUGH_DATA_POINTS;
+        if(xIn.size() * yIn.size() != values.size())
+          return DIMENSION_MISMATCH;
+
+        //Copy data
+        x = xIn;
+        y = yIn;
+
+        //Create splines for each row
+        rowSplines.resize(y.size());
+        const size_t nx = x.size();
+        for(size_t j = 0; j < y.size(); ++j){
+          std::vector<T> rowValues(values.begin() + j*nx, values.begin() + (j+1)*nx);
+          int err = rowSplines[j].init(x, rowValues);
+          if(err != SUCCESS){
+            clear();
+            return err;
+          }
+        }
+        return SUCCESS;
+      }
+
+      /**
+       * @brief Evaluates the 2D tensor-product cubic spline at (xVal, yVal).
+       * 
+       * @param xVal Target X coordinate.
+       * @param yVal Target Y coordinate.
+       * @return Interpolated value T at (xVal, yVal).
+       */
+      inline T evaluate(const double xVal, const double yVal) const {
+        if(x.size() == 0) return static_cast<T>(0);
+
+        //Get interpolated values in Y axis
+        std::vector<T> yProfile(y.size());
+        for(size_t j = 0; j < y.size(); ++j){
+          yProfile[j] = rowSplines[j].evaluate(xVal);
+        }
+
+        //Build a spline for Y profile and evaluate it
+        CubicSpline<T> ySpline;
+        ySpline.init(y,yProfile);
+        return ySpline.evaluate(yVal);
+      }
+
+      std::vector<T> evaluateGrid(const std::vector<double>& xVals, const std::vector<double>& yVals) const {
+
+        if(xVals.size() == 0 || yVals.size() == 0)
+          return std::vector<T>();
+
+        std::vector<T> results(xVals.size()*yVals.size());
+        for(size_t i = 0; i < xVals.size(); ++i){
+          const double xVal = xVals[i];
+
+          //Build the Y profile for each X value
+          std::vector<T> yProfile(y.size());
+          for(size_t j = 0; j < y.size(); ++j){
+            yProfile[j] = rowSplines[j].evaluate(xVal);
+          }
+
+          //Build cubic splines from the profile
+          CubicSpline<T> ySpline;
+          ySpline.init(y, yProfile);
+          
+          for(size_t j = 0; j < yVals.size(); ++j){
+            results[j*xVals.size() + i] = ySpline.evaluate(yVals[j]);
+          }
+        }
+        return results;
+      }
+
+      inline void clear() {
+        x.clear();
+        y.clear();
+        rowSplines.clear();
+      }
+    };
+    
+  } //namespace interpolation
   
   namespace measurements{
 
@@ -1537,9 +1810,9 @@ namespace penred{
 
 	//Calculate total number of bins
 	totalBins = std::accumulate(nBinsIn.begin(),
-				    nBinsIn.end(), 1,
+				    nBinsIn.end(), 1ul,
 				    std::multiplies<unsigned long>());
-	if(totalBins == 0)
+	if(totalBins == 0ul)
 	  return errors::INVALID_NUMBER_OF_BINS;
     
 	//Check limits
@@ -1757,7 +2030,7 @@ namespace penred{
       //Headers functions
       inline const std::string& readDimHeader(const unsigned idim) const {
 	static const std::string emptyString("");
-	if(idim > dim){
+	if(idim >= dim){
 	  return emptyString;
 	}
 	return headers[idim];
@@ -1831,6 +2104,12 @@ namespace penred{
       }
 
       //Index functions
+      /**
+       * @brief Converts D-dimensional bin coordinates to a 1D flat vector offset.
+       * 
+       * @param index Array of bin indices [i_0, i_1, ..., i_{D-1}].
+       * @return 1D index offset into flat data arrays.
+       */
       inline unsigned long getGlobalIndex(const std::array<unsigned long, dim>& dimIndexes)const{
 	// Calculate the global index from local indexes in each dimension
 	unsigned long globIndex = dimIndexes[0];
@@ -2065,6 +2344,7 @@ namespace penred{
 	  }
 	  FILE* ferr = fopen((baseFilename + "_err.dat").c_str(), "w");
 	  if(ferr == nullptr){
+        fclose(fval);
 	    return 1;
 	  }
 	  
@@ -2276,10 +2556,10 @@ namespace penred{
 
 	//Calculate total number of bins
 	totalBins = std::accumulate(nBins.begin(),
-				    nBins.end(), 1,
+				    nBins.end(), 1ul,
 				    std::multiplies<unsigned long>());
 
-	if(totalBins == 0)
+	if(totalBins == 0ul)
 	  return errors::INVALID_NUMBER_OF_BINS;    
 
 	//Calculate bins per increment in each dimension
@@ -2491,6 +2771,8 @@ namespace penred{
     class results : public multiDimension<dim>{
       
     public:
+
+      template<class T, size_t D> friend class results;
       
       std::vector<type> data;
       std::vector<double> sigma;
@@ -2605,6 +2887,284 @@ namespace penred{
 	this->initHeaders();
       }
 
+      /**
+       * Extract a single linearly interpolated value at an arbitrary point
+       * within the grid. Returns both the value and its uncertainty.
+       * 
+       * @param position Array of coordinates in each dimension
+       * @param value Output interpolated value
+       * @param uncertainty Output interpolated uncertainty
+       * @return Error code (SUCCESS or error)
+       */
+      int extractValue(const std::array<double, dim>& position,
+                       type& value,
+                       double& uncertainty) const {
+        if(dim == 0){
+          return errors::DIMENSION_OUT_OF_RANGE;
+        }
+    
+        // Find bracketing indices and fractions for each dimension
+        std::array<unsigned long, dim> lowerIdx;
+        std::array<unsigned long, dim> upperIdx;
+        std::array<double, dim> fractions;
+    
+        for(size_t d = 0; d < dim; ++d) {
+          // Handle out-of-bounds with clamping
+          if(position[d] < this->limits[d].first) {
+            // Below lower limit, use first bin
+            lowerIdx[d] = 0;
+            upperIdx[d] = 0;
+            fractions[d] = 0.0;
+          } else if(position[d] >= this->limits[d].second) {
+            // Above upper limit, use last bin
+            lowerIdx[d] = this->nBins[d] - 1;
+            upperIdx[d] = this->nBins[d] - 1;
+            fractions[d] = 0.0;
+          } else {
+            // Inside range, find bracketing bins
+            double fracIdx = (position[d] - this->limits[d].first) / this->binWidths[d];
+            lowerIdx[d] = static_cast<unsigned long>(fracIdx);
+            upperIdx[d] = std::min(lowerIdx[d] + 1, this->nBins[d] - 1);
+            fractions[d] = fracIdx - lowerIdx[d];
+          }
+        }
+    
+        // Perform multi-linear interpolation
+        // Number of corners in the hypercube: 2^dim
+        const unsigned long nCorners = 1ul << dim;
+    
+        double dvalue = 0.0;
+        double sigma2 = 0.0;
+    
+        for(unsigned long corner = 0; corner < nCorners; ++corner) {
+          // Build index for this corner and calculate weight
+          std::array<unsigned long, dim> idx;
+          double weight = 1.0;
+        
+          for(size_t d = 0; d < dim; ++d) {
+            bool useUpper = (corner >> d) & 1;
+            idx[d] = useUpper ? upperIdx[d] : lowerIdx[d];
+            weight *= useUpper ? fractions[d] : (1.0 - fractions[d]);
+          }
+        
+          unsigned long globIdx = this->getGlobalIndex(idx);
+          dvalue += weight * static_cast<double>(data[globIdx]);
+          sigma2 += weight * weight * sigma[globIdx] * sigma[globIdx];
+        }
+
+        value = static_cast<type>(dvalue);
+        uncertainty = std::sqrt(sigma2);
+    
+        return errors::SUCCESS;
+      }
+
+      inline int extractValue(const std::vector<double>& position,
+                              type& value,
+                              double& uncertainty) const{
+        if(position.size() != dim){
+          return errors::DIMENSION_MISMATCH;
+        }
+        std::array<double, dim> positionA;
+        std::copy(position.cbegin(), position.cend(), positionA.begin());
+        return extractValue(positionA, value, uncertainty);
+      }
+
+      //Auxiliary overloads for 3D, 2D and 1D
+      template<size_t auxDim = dim>
+      typename std::enable_if_t<auxDim == 3 && dim == 3, int>
+      extractValue(const double x, const double y, const double z,
+                   type& value,
+                   double& uncertainty) const {
+        const std::array<double, 3> position = {x,y,z};
+        return extractValue(position,value,uncertainty);
+      }
+
+      template<size_t auxDim = dim>
+      typename std::enable_if_t<auxDim == 2 && dim == 2, int>
+      extractValue(const double x, const double y,
+                   type& value,
+                   double& uncertainty) const {
+        const std::array<double, 2> position = {x,y};
+        return extractValue(position,value,uncertainty);
+      }
+
+      template<size_t auxDim = dim>
+      typename std::enable_if_t<auxDim == 1 && dim == 1, int>
+      extractValue(const double x,
+                   type& value,
+                   double& uncertainty) const {
+        const std::array<double, 1> position = {x};
+        return extractValue(position,value,uncertainty);
+      }
+      
+      /**
+       * Extract a 1D spectrum along a specified dimension at a fixed position
+       * in all other dimensions, using multi-linear interpolation.
+       * 
+       * @param spectrumDim The dimension along which to extract the spectrum
+       * @param position Fixed coordinates for all other dimensions (size = dim-1)
+       * @param spectrum Output 1D spectrum
+       * @return Error code (SUCCESS or error)
+       */
+      template<size_t auxDim = dim>
+      typename std::enable_if_t<auxDim == 0 && dim == 0, int>      
+      extractSpectrum1D(const unsigned,
+                        const std::array<double, 0>&,
+                        results<type, 1>& spectrum) const {
+        // Handle no dimension case specially
+        return errors::DIMENSION_OUT_OF_RANGE;
+      }
+      
+      template<size_t auxDim = dim>
+      typename std::enable_if_t<auxDim == 1 && dim == 1, int>      
+      extractSpectrum1D(const unsigned,
+                        const std::array<double, dim-1>&,
+                        results<type, 1>& spectrum) const {
+        // Handle 1D case specially (just copy)
+        spectrum = *this;
+        return errors::SUCCESS;
+      }
+      
+      template<size_t auxDim = dim>
+      typename std::enable_if_t<(auxDim > 1 && dim > 1), int>
+      extractSpectrum1D(const unsigned spectrumDim,
+                        const std::array<double, dim-1>& position,
+                        results<type, 1>& spectrum) const {
+    
+        // Validate spectrum dimension
+        if(spectrumDim >= dim) {
+          return errors::DIMENSION_OUT_OF_RANGE;
+        }
+    
+        // Find bracketing indices and fractions for fixed dimensions
+        std::array<unsigned long, dim> lowerIdx;
+        std::array<unsigned long, dim> upperIdx;
+        std::array<double, dim> fractions;
+    
+        // For the spectrum dimension, we'll iterate over all bins
+        lowerIdx[spectrumDim] = 0;
+        upperIdx[spectrumDim] = 0;
+        fractions[spectrumDim] = 0.0;
+    
+        // For all other dimensions, find bracketing bins
+        size_t posIdx = 0;
+        for(size_t d = 0; d < dim; ++d) {
+          if(d == spectrumDim) continue;
+        
+          double coord = position[posIdx];
+        
+          // Handle out-of-bounds gracefully with clamping
+          if(coord < this->limits[d].first) {
+            lowerIdx[d] = 0;
+            upperIdx[d] = 0;
+            fractions[d] = 0.0;
+          } else if(coord >= this->limits[d].second) {
+            lowerIdx[d] = this->nBins[d] - 1;
+            upperIdx[d] = this->nBins[d] - 1;
+            fractions[d] = 0.0;
+          } else {
+            double fracIdx = (coord - this->limits[d].first) / this->binWidths[d];
+            lowerIdx[d] = static_cast<unsigned long>(fracIdx);
+            upperIdx[d] = std::min(lowerIdx[d] + 1, this->nBins[d] - 1);
+            fractions[d] = fracIdx - lowerIdx[d];
+          }
+        
+          posIdx++;
+        }
+    
+        // Initialize 1D spectrum
+        std::array<unsigned long, 1> spectrumBins = {this->nBins[spectrumDim]};
+        std::array<std::pair<double,double>, 1> spectrumLimits = {this->limits[spectrumDim]};
+        int err = spectrum.init(spectrumBins, spectrumLimits);
+        if(err != errors::SUCCESS) {
+          return err;
+        }
+    
+        // Copy headers
+        spectrum.setDimHeader(0, this->headers[spectrumDim]);
+        spectrum.setValueHeader(this->headers[dim]);
+        spectrum.setSigmaHeader(this->headers[dim+1]);
+    
+        // Number of corners in the interpolation hypercube
+        const unsigned long nCorners = 1ul << (dim - 1ul);
+    
+        // Iterate over all bins in the spectrum dimension
+        for(unsigned long ibin = 0; ibin < this->nBins[spectrumDim]; ++ibin) {
+          double value = 0.0;
+          double sigma2 = 0.0;
+        
+          // Multi-linear interpolation
+          for(unsigned long corner = 0; corner < nCorners; ++corner) {
+            std::array<unsigned long, dim> idx;
+            double weight = 1.0;
+            
+            // Build index for this corner
+            size_t bitPos = 0;
+            for(size_t d = 0; d < dim; ++d) {
+              if(d == spectrumDim) {
+                idx[d] = ibin;
+              }
+              else {
+                bool useUpper = (corner >> bitPos) & 1;
+                idx[d] = useUpper ? upperIdx[d] : lowerIdx[d];
+                weight *= useUpper ? fractions[d] : (1.0 - fractions[d]);
+                bitPos++;
+              }
+            }
+            
+            unsigned long globIdx = this->getGlobalIndex(idx);
+            value += weight * static_cast<double>(data[globIdx]);
+            sigma2 += weight * weight * sigma[globIdx] * sigma[globIdx];
+          }
+        
+          spectrum.data[ibin] = static_cast<type>(value);
+          spectrum.sigma[ibin] = std::sqrt(sigma2);
+        }
+    
+        // Copy description
+        spectrum.description = this->description;
+    
+        return errors::SUCCESS;
+      }
+
+      inline int extractSpectrum1D(const unsigned spectrumDim,
+                                   const std::vector<double>& position,
+                                   results<type, 1>& spectrum) const{
+        if(position.size() != dim-1){
+          return errors::DIMENSION_MISMATCH;
+        }
+        std::array<double, dim-1> positionA;
+        std::copy(position.cbegin(), position.cend(), positionA.begin());
+        return extractSpectrum1D(spectrumDim, positionA, spectrum);
+      }
+      
+      //Auxiliary overloads for 4D, 3D and 2D
+      template<size_t auxDim = dim>
+      typename std::enable_if_t<auxDim == 4 && dim == 4, int>
+      extractSpectrum1D(const unsigned spectrumDim,
+                        const double coord1, const double coord2, const double coord3,
+                        results<type, 1>& spectrum) const{
+        const std::array<double, 3> position = {coord1, coord2, coord3};
+        return extractSpectrum1D(spectrumDim,position,spectrum);
+      }
+      
+      template<size_t auxDim = dim>
+      typename std::enable_if_t<auxDim == 3 && dim == 3, int>
+      extractSpectrum1D(const unsigned spectrumDim,
+                        const double coord1, const double coord2,
+                        results<type, 1>& spectrum) const{
+        const std::array<double, 2> position = {coord1, coord2};
+        return extractSpectrum1D(spectrumDim,position,spectrum);
+      }
+
+      template<size_t auxDim = dim>
+      typename std::enable_if_t<auxDim == 2 && dim == 2, int>
+      extractSpectrum1D(const unsigned spectrumDim,
+                        const double coord,
+                        results<type, 1>& spectrum) const{
+        const std::array<double, 1> position = {coord};
+        return extractSpectrum1D(spectrumDim,position,spectrum);
+      }
 
       //Profile functions
       template<size_t profDim>
@@ -2616,7 +3176,7 @@ namespace penred{
 	//the bin range [minBin, maxBin) in that dimension
 
 	//Check profile dimension
-	if(profDim >= dim){
+	if(profDim > dim){
 	  return errors::DIMENSION_OUT_OF_RANGE;
 	}
 	for(size_t i = 0; i < profDim; ++i){
@@ -2740,6 +3300,233 @@ namespace penred{
 	
 	return profileByBins(aux, binLimits, profile);
       }
+
+      // Profile to 2D with full array bin limits
+      int profile2D(const unsigned long profDim1,
+                    const unsigned long profDim2,
+                    const std::array<std::pair<unsigned long, unsigned long>, dim>& binLimits,
+                    results<type, 2>& profile) const {
+    
+        // Check that the two profile dimensions are different
+        if(profDim1 == profDim2) {
+          return errors::DIMENSION_REPEATED;
+        }
+    
+        // Check that dimensions are within range
+        if(profDim1 >= dim || profDim2 >= dim) {
+          return errors::DIMENSION_OUT_OF_RANGE;
+        }
+    
+        // Create the 2D profile dimensions array
+        std::array<size_t, 2> profDimsIndex;
+        profDimsIndex[0] = profDim1;
+        profDimsIndex[1] = profDim2;
+    
+        // Call the existing profileByBins function
+        return profileByBins(profDimsIndex, binLimits, profile);
+      }
+
+      // Profile to 2D with vector-based bin limits
+      inline int profile2D(const unsigned long profDim1,
+                           const unsigned long profDim2,
+                           const std::vector<std::array<unsigned long, 3>>& binLimits,
+                           results<type, 2>& profile) const {
+    
+        // Check that the two profile dimensions are different
+        if(profDim1 == profDim2) {
+          return errors::DIMENSION_REPEATED;
+        }
+    
+        // Check that dimensions are within range
+        if(profDim1 >= dim || profDim2 >= dim) {
+          return errors::DIMENSION_OUT_OF_RANGE;
+        }
+    
+        // Create the 2D profile dimensions array
+        std::array<size_t, 2> profDimsIndex;
+        profDimsIndex[0] = profDim1;
+        profDimsIndex[1] = profDim2;
+    
+        // Call the existing profileByBins function with vector limits
+        return profileByBins(profDimsIndex, binLimits, profile);
+      }
+
+      // Profile to 2D with no bin limits (full range)
+      int profile2D(const unsigned long profDim1,
+                    const unsigned long profDim2,
+                    results<type, 2>& profile) const {
+    
+        // Check that the two profile dimensions are different
+        if(profDim1 == profDim2) {
+          return errors::DIMENSION_REPEATED;
+        }
+    
+        // Check that dimensions are within range
+        if(profDim1 >= dim || profDim2 >= dim) {
+          return errors::DIMENSION_OUT_OF_RANGE;
+        }
+    
+        // Create the 2D profile dimensions array
+        std::array<size_t, 2> profDimsIndex;
+        profDimsIndex[0] = profDim1;
+        profDimsIndex[1] = profDim2;
+    
+        // Create full range bin limits
+        std::array<std::pair<unsigned long, unsigned long>, dim> binLimits;
+        for(size_t i = 0; i < dim; ++i) {
+          binLimits[i].first = 0;
+          binLimits[i].second = this->getNBins(i);
+        }
+    
+        // Call the existing profileByBins function
+        return profileByBins(profDimsIndex, binLimits, profile);
+      }
+
+      // Create 1D cubic spline interpolation from a profile
+      int interpolate1D(const unsigned long profDim,
+                        const std::array<std::pair<unsigned long, unsigned long>, dim>& binLimits,
+                        interpolation::CubicSpline<type>& spline) const {
+    
+        // Create 1D profile first
+        results<type, 1> profile;
+        int err = profile1D(profDim, binLimits, profile);
+        if(err != errors::SUCCESS) {
+          return err;
+        }
+    
+        // Extract X values and Y values
+        std::vector<double> xVals(profile.getNBins());
+        std::vector<type> yVals(profile.getNBins());
+    
+        const double xLow = profile.readLimits()[0].first;
+        const double binWidth = profile.readBinWidth(0);
+    
+        for(unsigned long i = 0; i < profile.getNBins(); ++i) {
+          xVals[i] = xLow + static_cast<double>(i) * binWidth;
+          yVals[i] = profile.data[i];
+        }
+    
+        // Initialize spline
+        return spline.init(xVals, yVals);
+      }
+
+      // Overload with vector bin limits
+      inline int interpolate1D(const unsigned long profDim,
+                               const std::vector<std::array<unsigned long, 3>>& binLimits,
+                               interpolation::CubicSpline<type>& spline) const {
+    
+        // Convert vector limits to array limits
+        std::array<std::pair<unsigned long, unsigned long>, dim> auxBinLimits;
+        for(size_t i = 0; i < dim; ++i) {
+          auxBinLimits[i] = std::pair<unsigned long, unsigned long>(0lu, this->nBins[i]);
+        }
+    
+        for(size_t i = 0; i < binLimits.size(); ++i) {
+          unsigned long idim = binLimits[i][0];
+          if(idim >= dim) {
+            return errors::DIMENSION_OUT_OF_RANGE;
+          }
+          auxBinLimits[idim] = std::pair<unsigned long, unsigned long>(binLimits[i][1], binLimits[i][2]);
+        }
+    
+        return interpolate1D(profDim, auxBinLimits, spline);
+      }
+
+      // Overload with full range
+      inline int interpolate1D(const unsigned long profDim,
+                               interpolation::CubicSpline<type>& spline) const {
+    
+        // Create full range bin limits
+        std::array<std::pair<unsigned long, unsigned long>, dim> binLimits;
+        for(size_t i = 0; i < dim; ++i) {
+          binLimits[i].first = 0;
+          binLimits[i].second = this->getNBins(i);
+        }
+    
+        return interpolate1D(profDim, binLimits, spline);
+      }
+
+      // Create 2D bicubic spline interpolation from a profile
+      int interpolate2D(const unsigned long profDim1,
+                        const unsigned long profDim2,
+                        const std::array<std::pair<unsigned long, unsigned long>, dim>& binLimits,
+                        interpolation::BicubicSpline<type>& spline) const {
+    
+        // Create 2D profile first
+        results<type, 2> profile;
+        int err = profile2D(profDim1, profDim2, binLimits, profile);
+        if(err != errors::SUCCESS) {
+          return err;
+        }
+    
+        // Extract X and Y values
+        const unsigned long nx = profile.readDimBins()[0];
+        const unsigned long ny = profile.readDimBins()[1];
+    
+        std::vector<double> xVals(nx);
+        std::vector<double> yVals(ny);
+        std::vector<type> values(nx * ny);
+    
+        const double xLow = profile.readLimits()[0].first;
+        const double xWidth = profile.readBinWidth(0);
+        const double yLow = profile.readLimits()[1].first;
+        const double yWidth = profile.readBinWidth(1);
+    
+        // Fill x values
+        for(unsigned long i = 0; i < nx; ++i) {
+          xVals[i] = xLow + static_cast<double>(i) * xWidth;
+        }
+    
+        // Fill y values
+        for(unsigned long j = 0; j < ny; ++j) {
+          yVals[j] = yLow + static_cast<double>(j) * yWidth;
+        }
+
+    
+        // Fill z values (2D matrix)
+        values = profile.data;
+    
+        // Initialize bicubic spline
+        return spline.init(xVals, yVals, values);
+      }
+
+      // Overload with vector bin limits
+      inline int interpolate2D(const unsigned long profDim1,
+                               const unsigned long profDim2,
+                               const std::vector<std::array<unsigned long, 3>>& binLimits,
+                               interpolation::BicubicSpline<type>& spline) const {
+    
+        // Convert vector limits to array limits
+        std::array<std::pair<unsigned long, unsigned long>, dim> auxBinLimits;
+        for(size_t i = 0; i < dim; ++i) {
+          auxBinLimits[i] = std::pair<unsigned long, unsigned long>(0lu, this->nBins[i]);
+        }
+    
+        for(size_t i = 0; i < binLimits.size(); ++i) {
+          unsigned long idim = binLimits[i][0];
+          if(idim >= dim) {
+            return errors::DIMENSION_OUT_OF_RANGE;
+          }
+          auxBinLimits[idim] = std::pair<unsigned long, unsigned long>(binLimits[i][1], binLimits[i][2]);
+        }
+    
+        return interpolate2D(profDim1, profDim2, auxBinLimits, spline);
+      }
+
+      // Overload with full range
+      inline int interpolate2D(const unsigned long profDim1,
+                               const unsigned long profDim2,
+                               interpolation::BicubicSpline<type>& spline) const {
+    
+        // Create full range bin limits
+        std::array<std::pair<unsigned long, unsigned long>, dim> binLimits;
+        for(size_t i = 0; i < dim; ++i) {
+          binLimits[i].first = 0;
+          binLimits[i].second = this->getNBins(i);
+        }
+    
+        return interpolate2D(profDim1, profDim2, binLimits, spline);
+      }
       
       //Print functions
       inline void print(FILE* fout,
@@ -2802,6 +3589,8 @@ namespace penred{
       std::vector<unsigned long long> lastHist;
       
     public:
+
+      template<class T, size_t D> friend class measurement;
       
       static constexpr size_t dimensions = dim;
 
@@ -2913,6 +3702,14 @@ namespace penred{
       }
 
       //Measurement functions
+
+      /**
+       * @brief Tally a Monte Carlo score event into the corresponding grid bin.
+       * 
+       * @param pos D-dimensional coordinate vector.
+       * @param value Score/weight to deposit.
+       * @param hist Unique primary Monte Carlo history sequence ID.
+       */      
       void add(const std::array<double, dim>& pos,
 	       const type& value,
 	       const unsigned long long hist){
@@ -2928,6 +3725,9 @@ namespace penred{
 	std::array<unsigned long, dim> index;
 	for(size_t i = 0; i < dim; ++i){
 	  index[i] = (pos[i] - this->limits[i].first)/this->binWidths[i];
+      if(index[i] >= this->nBins[i]){ //Avoid index overflow due rounding
+        index[i] = this->nBins[i]-1;
+      }
 	}
 
 
@@ -2950,7 +3750,7 @@ namespace penred{
 	}
       }
 
-      int add(measurement<type,dim> toAdd){
+      int add(const measurement<type,dim>& toAdd){
 
 	//Check number of bins
 	for(size_t i = 0; i < dim; ++i){
@@ -2964,7 +3764,11 @@ namespace penred{
 
 	return 0;
       }
-  
+
+      /**
+       * @brief Forces uncommitted temporary history scores into primary accumulators.
+       *        Must be called at the end of simulation processing and before extracting results.
+       */      
       void flush(){
 	for(unsigned long i = 0; i < this->totalBins; ++i){
 	  //Skip empty bins
@@ -3047,8 +3851,8 @@ namespace penred{
 	return meanErel;
       }
 
-      //Cummulative function
-      measurement<type,dim> cummulative() const {
+      //Cumulative function
+      measurement<type,dim> cumulative() const {
 
 	//Generates a cumulative measurement with the last dimension
 
@@ -3077,7 +3881,7 @@ namespace penred{
 	  }
 	}
 
-	//Return the cummulative measurement
+	//Return the cumulative measurement
 	return out;
       }
       

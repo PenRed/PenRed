@@ -29,12 +29,12 @@
 
 #include "dummy_geo.hh"
 
-void pen_dummyGeo::locate(pen_particleState& state) const{
+void pen_dummyGeo::locateLocal(pen_particleState& state) const{
   state.MAT = bodies[0].MATER;
   state.IBODY = 0;  
 }
 
-void pen_dummyGeo::step(pen_particleState& state, double DS, double &DSEF, double &DSTOT, int &NCROSS) const{
+void pen_dummyGeo::stepLocal(pen_particleState& state, double DS, double &DSEF, double &DSTOT, int &NCROSS) const{
 
   DSEF = DS;
   DSTOT = DS;

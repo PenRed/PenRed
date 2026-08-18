@@ -37,10 +37,10 @@ void fileSpectrum_energySampling::energySampling(double& energy,
   double rand = random.rand();
 
   // Get interval
-  unsigned interval = seeki(&cummulative.front(),rand,nEBins);
+  unsigned interval = seeki(&cumulative.front(),rand,nEBins);
 
   // Calculate sampled energy
-  energy = energies[interval]+(rand-cummulative[interval])*dE[interval];
+  energy = energies[interval]+(rand-cumulative[interval])*dE[interval];
 }
 
 int fileSpectrum_energySampling::configure(double& Emax,
@@ -76,11 +76,11 @@ int fileSpectrum_energySampling::configure(double& Emax,
   //Clear vectors
   energies.clear();
   dE.clear();
-  cummulative.clear();
+  cumulative.clear();
   nEBins = 0;
 
-  //Set initial cummulative value (0.0)
-  cummulative.push_back(0.0);
+  //Set initial cumulative value (0.0)
+  cumulative.push_back(0.0);
   
   //Read the data
   char line[1000];
@@ -128,53 +128,53 @@ int fileSpectrum_energySampling::configure(double& Emax,
       //Finish the read
       break;
     }
-    cummulative.push_back(p);
+    cumulative.push_back(p);
     
   }
 
-  if(cummulative.size() != energies.size()){
+  if(cumulative.size() != energies.size()){
     printf("fileSpectrum_energySampling:configure: Error: "
 	   " Unexpected error, please, report it. CODE: 1\n");
     return -999;    
   }
   
-  //Obtain the cummulative probabilities
-  nEBins = cummulative.size();
+  //Obtain the cumulative probabilities
+  nEBins = cumulative.size();
   for(unsigned i = 2; i < nEBins; ++i)
-    cummulative[i] += cummulative[i-1];
+    cumulative[i] += cumulative[i-1];
   
   
   //Normalize the probabilities
-  double totalProb = cummulative.back();
+  double totalProb = cumulative.back();
   if(totalProb <= 1.0e-15){
     if(verbose > 0)
       printf("fileSpectrum_energySampling:configure: Error: "
 	     " Null probability\n");
     return -6;
   }
-  for(double& p : cummulative)
+  for(double& p : cumulative)
     p /= totalProb;
 
   //Precalculate weighted bin widths
   for(unsigned i = 0; i < nEBins-1; ++i){
-    double diffcummul = cummulative[i+1]-cummulative[i];
-    if(diffcummul < 1.0e-15)
+    double diffcumul = cumulative[i+1]-cumulative[i];
+    if(diffcumul < 1.0e-15)
       dE[i] = 0.0;
     else
-      dE[i] /= diffcummul;
+      dE[i] /= diffcumul;
   }
 
   //Get maximum energy
   Emax = energies.back();
 
   if(verbose > 1){
-    printf("      Energy          Etop       LowCummul"
-	   "     topCummul     prob\n");
+    printf("      Energy          Etop       LowCumul"
+	   "     topCumul     prob\n");
     for(unsigned j = 0; j < nEBins-1; j++)
       printf(" %12.4E  %12.4E  %12.4E  %12.4E  %12.4E\n",
 	     energies[j],energies[j+1],
-	     cummulative[j],cummulative[j+1],
-	     cummulative[j+1]-cummulative[j]);
+	     cumulative[j],cumulative[j+1],
+	     cumulative[j+1]-cumulative[j]);
 
     printf("Maximum possible energy: %12.4E eV\n",Emax);
   }  

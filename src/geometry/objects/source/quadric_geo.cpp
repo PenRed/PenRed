@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
-//    Copyright (C) 2024 Vicent Giménez Alventosa
+//    Copyright (C) 2024-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -4374,7 +4374,7 @@ penred::errors::Error pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigne
 //  *********************************************************************
 //                       SUBROUTINE LOCATE
 //  *********************************************************************
-void pen_quadricGeo::locate(pen_particleState& state) const
+void pen_quadricGeo::locateLocal(pen_particleState& state) const
 {
   //     This subroutine determines the body that contains the point with
   //  coordinates (X,Y,Z). The effects of numerical round-off errors are
@@ -4483,11 +4483,11 @@ void pen_quadricGeo::locate(pen_particleState& state) const
 //  *********************************************************************
 //                       SUBROUTINE LOCATE
 //  *********************************************************************
-void pen_quadricGeo::step(pen_particleState& state,
-			  double DS,
-			  double &DSEF,
-			  double &DSTOT,
-			  int &NCROSS) const
+void pen_quadricGeo::stepLocal(pen_particleState& state,
+                               double DS,
+                               double &DSEF,
+                               double &DSTOT,
+                               int &NCROSS) const
 {
   //     This subroutine handles the geometrical part of the track simula-
   //  tion. The particle starts from the point (X,Y,Z) and travels a length

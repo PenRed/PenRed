@@ -118,7 +118,7 @@ public:
   }
 
   inline const char* getType() const {return "BODIES";}
-  void usedMat(bool used[constants::MAXMAT+1]) const {
+  void usedMatLocal(bool used[constants::MAXMAT+1]) const final override{
 
     //Set all materials to unused
     for(unsigned i = 0; i <= constants::MAXMAT; i++)
@@ -135,7 +135,7 @@ public:
     return bodies[ibody].localEABS[kpar];
   }
   
-  inline unsigned getMat(const unsigned ibody) const{
+  inline unsigned getMatLocal(const unsigned ibody) const final override{
     if(ibody >= NBODYS)
       return 0;
     return bodies[ibody].MATER;
@@ -287,7 +287,7 @@ public:
     return nBodies;
   }
 
-  inline unsigned getMat(const unsigned ibody) const{
+  inline unsigned getMatLocal(const unsigned ibody) const final override{
     if(ibody == 0)
         return enclosureMat;
     if(ibody >= nBodies)
@@ -306,7 +306,7 @@ public:
     return KDET[ibody];
   }  
   
-  void usedMat(bool used[constants::MAXMAT+1]) const {
+  void usedMatLocal(bool used[constants::MAXMAT+1]) const final override{
 
     //Set all materials to unused
     for(unsigned i = 0; i <= constants::MAXMAT; i++)

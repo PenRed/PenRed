@@ -1,8 +1,7 @@
 
 //
 //
-//    Copyright (C) 2019-2022 Universitat de València - UV
-//    Copyright (C) 2019-2022 Universitat Politècnica de València - UPV
+//    Copyright (C) 2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -21,23 +20,31 @@
 //
 //    contact emails:
 //
-//        sanolgi@upvnet.upv.es (Sandra Oliver Gil)
-//        vicent.gimenez.alventosa@gmail.com  (Vicent Giménez Alventosa)
-//        vicente.gimenez@uv.es (Vicente Giménez Gómez)
+//        vicent.gimenez.alventosa@gmail.com
 //    
 //
 
-//Source_classes will be compiled with all specific samplers.
-//So, only particle states used in this samplers will be avaible
-//to instanciate the template class,
 
-// template <class particleState> class pen_specificStateGen
+#ifndef __CIRCLE_SPATIAL_SAMPLING__
+#define __CIRCLE_SPATIAL_SAMPLING__
 
-#include "randomState.cpp" 
-#include "PSFsource.cpp"
-#include "gammaPolarised.cpp"
-#include "CTsource.cpp"
-#include "pennuc.cpp"
-#include "brachySource.cpp"
-#include "memoryPSFsource.cpp"
-#include "distributionSE.cpp"
+class circle_spatialSampling : public abc_spatialSampler {
+  
+  DECLARE_SAMPLER(circle_spatialSampling)
+
+  private:
+
+  double beamRad;
+  
+public:
+
+  circle_spatialSampling() : beamRad(1.0)
+  {}
+
+  void geoSampling(double pos[3], pen_rand& random) const;
+
+  int configure(const pen_parserSection& config, const unsigned verbose = 0);
+  
+};
+
+#endif

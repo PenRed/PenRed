@@ -677,8 +677,8 @@ public:
 			 unsigned long& nRead);
   
   
-  void locate(pen_particleState&) const final override;
-  void step(pen_particleState&,
+  void locateLocal(pen_particleState&) const final override;
+  void stepLocal(pen_particleState&,
 	    double,
 	    double &,
 	    double &,

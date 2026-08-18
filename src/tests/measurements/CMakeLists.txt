@@ -46,3 +46,47 @@ install(
   DESTINATION ${PROJECT_SOURCE_DIR}/compiled/tests/measurement
   )  
 #-----------------------------------------------------------------------------
+
+add_executable(measure_t2 ${CMAKE_CURRENT_SOURCE_DIR}/test2.cpp)
+
+target_include_directories(measure_t2 PUBLIC ${PROJECT_SOURCE_DIR}/kernel/includes)
+
+#-----------------------------------------------------------------------------
+install(
+  TARGETS measure_t2
+  DESTINATION ${PROJECT_SOURCE_DIR}/compiled/tests/measurement
+  )
+#-----------------------------------------------------------------------------
+
+add_executable(measure_t3 ${CMAKE_CURRENT_SOURCE_DIR}/test3.cpp)
+
+target_include_directories(measure_t3 PUBLIC ${PROJECT_SOURCE_DIR}/kernel/includes)
+
+#-----------------------------------------------------------------------------
+install(
+  TARGETS measure_t3
+  DESTINATION ${PROJECT_SOURCE_DIR}/compiled/tests/measurement
+  )
+#-----------------------------------------------------------------------------
+
+add_executable(measure_t4 ${CMAKE_CURRENT_SOURCE_DIR}/test4.cpp)
+
+target_include_directories(measure_t4 PUBLIC ${PROJECT_SOURCE_DIR}/kernel/includes)
+
+#-----------------------------------------------------------------------------
+install(
+  TARGETS measure_t4
+  DESTINATION ${PROJECT_SOURCE_DIR}/compiled/tests/measurement
+  )
+#-----------------------------------------------------------------------------
+
+add_executable(measure_t5 ${CMAKE_CURRENT_SOURCE_DIR}/test5.cpp)
+
+target_include_directories(measure_t5 PUBLIC ${PROJECT_SOURCE_DIR}/kernel/includes)
+
+#-----------------------------------------------------------------------------
+install(
+  TARGETS measure_t5
+  DESTINATION ${PROJECT_SOURCE_DIR}/compiled/tests/measurement
+  )
+#-----------------------------------------------------------------------------

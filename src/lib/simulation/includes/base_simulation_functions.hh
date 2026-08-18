@@ -76,6 +76,7 @@ namespace penred{
 	KPAR_NOT_FOUND,
 	ERROR_INVALID_SEEDS,
 	ERROR_LOADING_DUMP,
+	ERROR_ADDING_DUMP,
 	ERROR_SECTION_NOT_FOUND,
 	ERROR_INVALID_SEED_PAIR,
 	ERROR_CORRUPTED_SEED_FILE,
@@ -110,6 +111,7 @@ namespace penred{
 	case ERROR_INVALID_SEEDS: return "Invalid seeds";
 	case ERROR_CORRUPTED_SEED_FILE: return "Corrupted seeds file";
 	case ERROR_LOADING_DUMP: return "Error loading dump";
+    case ERROR_ADDING_DUMP: return "Error adding dumps";
 	case ERROR_SECTION_NOT_FOUND: return "Section not found";
 	case ERROR_INVALID_SEED_PAIR: return "Invalid seed pair";
 	case ERROR_NO_SOURCE: return "No source defined";
@@ -2055,7 +2057,10 @@ namespace penred{
 	  }
 	  //Check if the simulation must be stopped
 	  if(simLimitWatch.check(tnow)){
-	      
+
+	    //Perform a configure report
+	    config.report(hist);
+        
 	    //Save dump
 	    unsigned long long currentHists =
 	      hist-simulated+config.getInitiallySimulated();
@@ -2069,7 +2074,7 @@ namespace penred{
 		     << " simulated in actual source, with seeds "
 		     << lseed1 << " " << lseed2 << simConfig::endl;
 	    }
-	    
+
 	    //Dump sim
 	    tallies.dump2file(config.dumpFilename.c_str(),
 			      hist,

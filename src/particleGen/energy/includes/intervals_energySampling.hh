@@ -39,7 +39,7 @@ private:
   static const unsigned maxIntervals = 200;
   double energies[maxIntervals];
   double dE[maxIntervals];
-  double cummulative[maxIntervals+1];
+  double cumulative[maxIntervals+1];
   unsigned nIntervals;
   
   

@@ -262,6 +262,8 @@ class wrapper_geometry : public penred::logs::logger{
 
 private:
   virtual penred::errors::Error specificConfigure(const pen_parserSection& config, const unsigned verbose) = 0;
+
+  unsigned matShift; //Allows to shift the configured materials for each element
   
 protected:
   penred::errors::Error configError;
@@ -283,10 +285,28 @@ public:
 
   std::string name;
     
-  wrapper_geometry() : name("unnamed") {}
+  wrapper_geometry() :
+    matShift(0),
+    name("unnamed")
+  {}
+
+  inline unsigned readMatShift() const noexcept{ return matShift; }
 
   inline penred::errors::Error configure(const pen_parserSection& config,
 					 const unsigned verbose){
+
+    int matShiftAux;
+	if(config.read("material-shift",matShiftAux) != INTDATA_SUCCESS){
+      matShiftAux = 0;
+      matShift = 0;
+	}
+    if(matShiftAux > 0){
+      matShift = matShiftAux;
+      if(verbose > 1){
+        printf("Material shift to be applied: %u\n\n", matShift);
+      }
+    }
+    
     configError = specificConfigure(config, verbose);
     return configError;
   }
@@ -295,13 +315,47 @@ public:
   inline virtual const char* getType() const {return "UNKNOWN";}
   inline virtual const char* readID() const {return "UNKNOWN";}
   
-  virtual void locate(pen_particleState& state) const = 0;
-  virtual void step(pen_particleState& state, double DS, double &DSEF, double &DSTOT, int &NCROSS) const = 0;
-  virtual void usedMat(bool[constants::MAXMAT+1]) const = 0;
+  virtual void locateLocal(pen_particleState& state) const = 0;
+  inline void locate(pen_particleState& state) const{
+    if(state.MAT > 0)
+      state.MAT -= matShift;
+    locateLocal(state);
+    if(state.MAT > 0)
+      state.MAT += matShift;
+  }
+  
+  virtual void stepLocal(pen_particleState& state, double DS, double &DSEF, double &DSTOT, int &NCROSS) const = 0;
+  inline void step(pen_particleState& state, double DS, double &DSEF, double &DSTOT, int &NCROSS) const{
+    if(state.MAT > 0)
+      state.MAT -= matShift;
+    stepLocal(state, DS, DSEF, DSTOT, NCROSS);
+    if(state.MAT > 0)
+      state.MAT += matShift;    
+  }
+  
+  virtual void usedMatLocal(bool[constants::MAXMAT+1]) const = 0;
+  inline void usedMat(bool mats[constants::MAXMAT+1]) const{
+    usedMatLocal(mats);
+    for(long int i = constants::MAXMAT; i > 0; --i){
+      if(mats[i]){
+        mats[i] = false;
+        if(i + matShift <= constants::MAXMAT){
+          mats[i + matShift] = true;
+        }
+      }
+    }
+  }
+  
   virtual double getEabs(const unsigned ibody, const unsigned kpar) const = 0;
   virtual double getDSMAX(const unsigned ibody) const = 0;
   virtual unsigned getDET(const unsigned ibody) const = 0;
-  virtual unsigned getMat(const unsigned ibody) const = 0;
+
+  virtual unsigned getMatLocal(const unsigned ibody) const = 0;
+  inline unsigned getMat(const unsigned ibody) const{
+    unsigned mat = getMatLocal(ibody);
+    return mat == 0 ? 0 : mat +  matShift;
+  }
+  
   virtual unsigned long getElements() const = 0;
   virtual unsigned long getDimElements(const unsigned long idim) const = 0;
   virtual unsigned long getElementsDim() const = 0;

@@ -33,3 +33,4 @@
 #include "image_spatialSampling.cpp"
 #include "cylinder_spatialSampling.cpp"
 #include "measure_spatialSampling.cpp"
+#include "circle_spatialSampling.cpp"

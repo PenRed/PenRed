@@ -311,14 +311,14 @@ void pen_DetectionEDep::saveData(const unsigned long long nhist) const{
   fclose(out);
 
   //Save cumulative results in time
-  filename.assign("spatial-detection-cummulative-");
+  filename.assign("spatial-detection-cumulative-");
   filename += std::to_string(idet);
   filename += ".dat";
 
   out = nullptr;
   out = fopen(filename.c_str(), "w");
   
-  measure.cummulative().print(out, nhist, 2, printCoord, printBins);
+  measure.cumulative().print(out, nhist, 2, printCoord, printBins);
   fclose(out);
 }
 

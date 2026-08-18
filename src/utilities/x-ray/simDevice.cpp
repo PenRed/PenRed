@@ -56,26 +56,17 @@ int main(int argc, char** argv){
     return -1;
   }
 
-  if(argc > 2){
-    if(strcmp(argv[2],"--numMats") == 0){
-      // ** Check device sim
-      unsigned nMats;
-      err = penred::xray::checkSimDevice(config, nMats, 2);
-      if(err != 0){
-	printf("Error on device configuration.\n");
-	return -2;
-      }
-      printf("Materials used by device geometry: %u\n", nMats);
-      return 0;
-    }
-  }
+  //Set log files
+  penred::logs::logger log;
+  log.setConfigurationLogFile("config.log");
+  log.setSimulationLogFile("simulation.log");
 
+  //Create the simulation
+  penred::simulation::simulator<pen_context> sim;
+  err = penred::xray::constructSimDevice(config,sim,2);  
+  
   // ** Simulate device
-  err = penred::xray::simDevice(config, 2);
-  if(err != 0){
-    printf("Error on device simulation.\n");
-    return -2;
-  }
+  sim.simulate();
   
   return 0;  
 }

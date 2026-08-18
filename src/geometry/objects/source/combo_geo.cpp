@@ -256,7 +256,7 @@ std::string pen_comboGeo::getBodyName(const unsigned ibody) const{
   }
 }
 
-void pen_comboGeo::locate(pen_particleState& state) const{
+void pen_comboGeo::locateLocal(pen_particleState& state) const{
 
   //Iterate through all geometries to find the body where
   //the particle is located
@@ -276,9 +276,9 @@ void pen_comboGeo::locate(pen_particleState& state) const{
   state.IBODY = getBodies();
 }
 
-void pen_comboGeo::step(pen_particleState& state,
-			double DS, double &DSEF, double &DSTOT,
-			int &NCROSS) const{
+void pen_comboGeo::stepLocal(pen_particleState& state,
+                             double DS, double &DSEF, double &DSTOT,
+                             int &NCROSS) const{
 
   // ** Check if the particle is in a void region
   if(state.MAT == 0){

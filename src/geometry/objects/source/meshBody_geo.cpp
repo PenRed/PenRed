@@ -221,7 +221,7 @@ void meshBodyTriangle::refresh(){
 // 
 
 
-void pen_meshBodyGeo::locate(pen_particleState& state) const{
+void pen_meshBodyGeo::locateLocal(pen_particleState& state) const{
     
   v3D pos(state.X, state.Y, state.Z);
 
@@ -271,10 +271,10 @@ void pen_meshBodyGeo::locate(pen_particleState& state) const{
   
 }
 
-void pen_meshBodyGeo::step(pen_particleState& state, 
-                           double DS, 
-                           double &DSEF, double &DSTOT, 
-                           int &NCROSS) const{
+void pen_meshBodyGeo::stepLocal(pen_particleState& state, 
+                                double DS, 
+                                double &DSEF, double &DSTOT, 
+                                int &NCROSS) const{
 
   const double inf = 1.0e36;
   

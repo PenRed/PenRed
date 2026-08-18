@@ -101,6 +101,7 @@ set_target_properties(pySimulator PROPERTIES
 add_library(pyPSF MODULE ${CMAKE_CURRENT_SOURCE_DIR}/psf.cpp)
 target_link_libraries(pyPSF PUBLIC pybind11::module)
 target_link_libraries(pyPSF PUBLIC pen_psf)
+target_link_libraries(pyPSF PUBLIC pyFunctions)
 set_target_properties(pyPSF PROPERTIES
       OUTPUT_NAME psf${MODULE_SUFFIX}
       SUFFIX ""
