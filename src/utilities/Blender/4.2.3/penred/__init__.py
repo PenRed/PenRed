@@ -30,7 +30,7 @@ bl_info = {
     "name": "PenRed for blender",
     "author": "PenRed colaboration",
     "version": (2, 0),
-    "blender": (4, 2, 3),
+    "blender": (4, 5, 0),
     "location": "File > Export",
     "description": "Adds geometry construction capabilities and simulation configuration for PenRed simulations",
     "warning": "",
@@ -39,7 +39,12 @@ bl_info = {
 }
 
 import bpy
+import importlib
 from . import addon_properties, operators, ui
+
+importlib.reload(addon_properties)
+importlib.reload(operators)
+importlib.reload(ui)
 
 # Register all modules
 def register():

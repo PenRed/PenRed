@@ -433,6 +433,375 @@ talliesOperatorClasses = (
     TALLY_OT_EmergingParticleTally,
 )
 
+### Dicom
+###############
+
+# Add Calibration Element
+class DICOM_OT_addCalibrationElement(bpy.types.Operator):
+    bl_idname = "dicom_calibration.add_item"
+    bl_label = "Add Element"
+    bl_description = "Add one calibration constant"
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            scene.penred_settings.dicomProperties.calibration.add()
+        return {"FINISHED"}
+
+# Remove Calibration Element
+class DICOM_OT_removeCalibrationElement(bpy.types.Operator):
+    bl_idname = "dicom_calibration.remove_item"
+    bl_label = "Remove Element"
+    bl_description = "Remove the last calibration constant"
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            calibLen = len(scene.penred_settings.dicomProperties.calibration)
+            if calibLen > 0:
+                scene.penred_settings.dicomProperties.calibration.remove(calibLen-1)
+        return {"FINISHED"}
+
+
+# Add IntensityRanges Element
+class DICOM_OT_addIntensityRangesElement(bpy.types.Operator):
+    bl_idname = "dicom_intensityranges.add_item"
+    bl_label = "Add Element"
+    bl_description = "Add one Intensity-Ranges"
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            scene.penred_settings.dicomProperties.intensityRanges.add()
+        return {"FINISHED"}
+
+# Remove IntensityRanges Element
+class DICOM_OT_removeIntensityRangesElement(bpy.types.Operator):
+    bl_idname = "dicom_intensityranges.remove_item"
+    bl_label = "Remove Element"
+    bl_description = "Remove the last Intensity-Ranges added"
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            contLen = len(scene.penred_settings.dicomProperties.intensityRanges)
+            if contLen > 0:
+                scene.penred_settings.dicomProperties.intensityRanges.remove(contLen-1)
+        return {"FINISHED"}
+
+# Add IntensityRanges Element in Contours
+class DICOM_OT_addIntensityRangesContourElement(bpy.types.Operator):
+    bl_idname = "dicom_intensityrangescontour.add_item"
+    bl_label = "Add Element"
+    bl_description = "Add one Intensity-Ranges"
+
+    icontour: bpy.props.IntProperty()  # contour index
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            scene.penred_settings.dicomProperties.contours[self.icontour].intensityRanges.add()
+        return {"FINISHED"}
+
+# Remove IntensityRanges Element in Contours
+class DICOM_OT_removeIntensityRangesContourElement(bpy.types.Operator):
+    bl_idname = "dicom_intensityrangescontour.remove_item"
+    bl_label = "Remove Element"
+    bl_description = "Remove the last Intensity-Ranges added"
+
+    icontour: bpy.props.IntProperty()  # contour index
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            contLen = len(scene.penred_settings.dicomProperties.contours[self.icontour].intensityRanges)
+            if contLen > 0:
+                scene.penred_settings.dicomProperties.contours[self.icontour].intensityRanges.remove(contLen-1)
+        return {"FINISHED"}
+    
+# Add Ranges Element
+class DICOM_OT_addRangesElement(bpy.types.Operator):
+    bl_idname = "dicom_ranges.add_item"
+    bl_label = "Add Element"
+    bl_description = "Add one Ranges"
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            scene.penred_settings.dicomProperties.ranges.add()
+        return {"FINISHED"}
+
+# Remove Ranges Element
+class DICOM_OT_removeRangesElement(bpy.types.Operator):
+    bl_idname = "dicom_ranges.remove_item"
+    bl_label = "Remove Element"
+    bl_description = "Remove the last Ranges added"
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            contLen = len(scene.penred_settings.dicomProperties.ranges)
+            if contLen > 0:
+                scene.penred_settings.dicomProperties.ranges.remove(contLen-1)
+        return {"FINISHED"}
+
+# Add Ranges Element in Contours
+class DICOM_OT_addRangesContourElement(bpy.types.Operator):
+    bl_idname = "dicom_rangescontour.add_item"
+    bl_label = "Add Element"
+    bl_description = "Add one Ranges"
+
+    icontour: bpy.props.IntProperty()  # contour index
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            scene.penred_settings.dicomProperties.contours[self.icontour].ranges.add()
+        return {"FINISHED"}
+
+# Remove Ranges Element in Contours
+class DICOM_OT_removeRangesContourElement(bpy.types.Operator):
+    bl_idname = "dicom_rangescontour.remove_item"
+    bl_label = "Remove Element"
+    bl_description = "Remove the last Ranges added"
+
+    icontour: bpy.props.IntProperty()  # contour index
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            contLen = len(scene.penred_settings.dicomProperties.contours[self.icontour].ranges)
+            if contLen > 0:
+                scene.penred_settings.dicomProperties.contours[self.icontour].ranges.remove(contLen-1)
+        return {"FINISHED"}
+    
+
+# Add Contour Element
+class DICOM_OT_addContourElement(bpy.types.Operator):
+    bl_idname = "dicom_contours.add_item"
+    bl_label = "Add Element"
+    bl_description = "Add one contout constant"
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            scene.penred_settings.dicomProperties.contours.add()
+        return {"FINISHED"}
+
+# Remove Contour Element
+class DICOM_OT_removeContourElement(bpy.types.Operator):
+    bl_idname = "dicom_contours.remove_item"
+    bl_label = "Remove Element"
+    bl_description = "Remove the last contour added"
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            contLen = len(scene.penred_settings.dicomProperties.contours)
+            if contLen > 0:
+                scene.penred_settings.dicomProperties.contours.remove(contLen-1)
+        return {"FINISHED"}
+    
+
+def fill_intensityranges(dict,dicomProperties):
+    dict.update({"intensity-ranges": {}})
+    for index, IntensityRangeVal in enumerate(dicomProperties.intensityRanges):
+        name = f"{IntensityRangeVal.name}"
+
+        # check that the name is unique 
+        if name in dict["intensity-ranges"]:
+            return f"Intensity-range \"{name}\" already created. Names must be unique. Aborting"
+        
+        # check that a name is provided
+        if name == "":
+            return f"Provide a name to the Intensity-range #{index}"                        
+        
+        dict["intensity-ranges"].update({f"{name}":{}})
+        dict["intensity-ranges"][name].update({"material" : IntensityRangeVal.material})
+        dict["intensity-ranges"][name].update({"density"  : IntensityRangeVal.density })
+        dict["intensity-ranges"][name].update({"low"      : IntensityRangeVal.low     })
+        dict["intensity-ranges"][name].update({"top"      : IntensityRangeVal.top     })
+
+    return ""
+
+def fill_ranges(dict,dicomProperties):
+
+    dict.update({"ranges": {}})
+    for index, RangeVal in enumerate(dicomProperties.ranges):
+        name = f"{RangeVal.name}"
+
+        # check that the name is unique 
+        if name in dict["ranges"]:
+            return f"Range \"{name}\" already exists. Names must be unique. Aborting"
+        
+        # check that a name is provided
+        if name == "":
+            return f"Provide a name to the range #{index}"
+
+        dict["ranges"].update({f"{name}":{}})
+        dict["ranges"][name].update({"material"     : RangeVal.material})
+        dict["ranges"][name].update({"density-low"  : RangeVal.low     })
+        dict["ranges"][name].update({"density-top"  : RangeVal.top     })    
+
+    return ""
+
+
+# Create the dictionary of varaibles for DICOM
+def createDICOM_Dict(context):
+
+    dicom_dict = dict()
+
+    scene = context.scene
+    if scene and scene.penred_settings:
+
+        dicomProperties = scene.penred_settings.dicomProperties
+
+        dicom_dict.update({"type": "DICOM"})
+        dicom_dict.update({"directory": f"{dicomProperties.directory}"})
+
+        dicom_dict.update({"default"            : {"material":dicomProperties.material, "density": dicomProperties.density}})
+        dicom_dict.update({"enclosure-margin"   : dicomProperties.enclosureMargin})
+        dicom_dict.update({"enclosure-material" : dicomProperties.enclosureMaterial})
+        dicom_dict.update({"print-ASCII"        : dicomProperties.printASCII })
+
+        # Calibration
+        if dicomProperties.calibration:
+            pattern = [x for x in dicomProperties.calibration]
+            dicom_dict.update({"calibration"   : f"{pattern}"})
+
+        # Intensity-ranges
+        if dicomProperties.intensityRanges:
+
+            code = fill_intensityranges(dicom_dict, dicomProperties)
+            if code:
+                print(f"ERROR: intensityRanges : {code}")
+                return dict(), [{'ERROR'}, code]
+            
+        # ranges
+        if dicomProperties.ranges:
+
+            code = fill_ranges(dicom_dict, dicomProperties)
+            if code:
+                print(f"ERROR: intensityRanges : {code}")
+                return dict(), [{'ERROR'}, code]
+
+        # Contours
+        if dicomProperties.contours:
+
+            contourOW = any(contouritem.overwrite for contouritem in dicomProperties.contours)
+            if contourOW:
+
+                dicom_dict.update({"contours": {}}) 
+
+                for index, contouritem in enumerate(dicomProperties.contours):
+
+                    if not contouritem.overwrite:
+                        # self.report({'INFO'}, f"Contour #{index} with name {contouritem.name} not overwritten")
+                        print(f"INFO: contours: Contour #{index} with name {contouritem.name} not overwritten")
+                        continue
+
+                    name = f"{contouritem.name}"
+
+                    # check that the name is unique 
+                    if name in dicom_dict["contours"]:
+                        return dict(), [{'ERROR'}, f"Contour \"{name}\" already exists. Names must be unique. Aborting"]
+                    
+                    # check that a name is provided
+                    if name == "":
+                        return dict(), [{'ERROR'}, f"Provide a name to the contour #{index}"]
+
+                    dicom_dict["contours"].update({f"{name}": {}})
+                    dicom_contour_dic = dicom_dict["contours"][name]
+                    dicom_contour_dic.update({"material": contouritem.material})
+                    dicom_contour_dic.update({"density" : contouritem.density })
+                    dicom_contour_dic.update({"priority": contouritem.priority})
+
+                    if contouritem.intensityRanges:
+
+                        code = fill_intensityranges(dicom_contour_dic, contouritem)
+                        if code:
+                            print(f"ERROR: contour: intensityRanges : {code}")
+                            return dict(), [{'ERROR'}, f"Contour #{index} named {name}. {code}"]                      
+
+                    if contouritem.ranges:
+
+                        code = fill_ranges(dicom_contour_dic, contouritem)
+                        if code:
+                            print(f"ERROR: contour: intensityRanges : {code}")
+                            return dict(), [{'ERROR'}, f"Contour #{index} named {name}. {code}"]
+                        
+            else:
+                print("No contour is going to be overwritten")
+
+    return dicom_dict, [] # empty array means no errors found
+
+
+# Import dicom operator
+class DICOM_OT_LoadDicom(bpy.types.Operator, ImportHelper):
+    bl_idname = "scene.import_dicom"
+    bl_label = "Open Dicom"
+    bl_description = "Reads the dicom file"
+
+    def execute(self, context):
+        print("Folder: %s" % (self.filepath))
+
+        context.scene.penred_settings.dicomProperties.directory = self.filepath
+
+        dicom_dict, status = createDICOM_Dict (context)
+
+        if status:
+            self.report(status[0], status[1])
+            return {'CANCELLED'}
+
+        import pprint
+        pprint.pprint(dicom_dict)
+
+        from pyPenred import geometry
+        geo = geometry.create()
+        geo.configure(dicom_dict,2)
+
+        vsize = geo.voxelSize()
+
+        import tempfile, os
+        temp_dir = tempfile.mkdtemp()
+
+        file_path = os.path.join(temp_dir,"pyObj")
+        print(file_path)
+        geo.toMesh(geo.dimElements(0)+4,geo.dimElements(1)+4,geo.dimElements(2)+4, vsize[0], vsize[1], vsize[2], -2.0*vsize[0],-2.0*vsize[1],-2.0*vsize[2], 0.0, file_path, 1, 0, verbose=0)
+
+        # Remember existing objects
+        before = set(bpy.context.scene.objects)
+
+        bpy.ops.wm.obj_import(filepath=file_path+".obj", up_axis="Z", forward_axis="Y")
+
+        # Find newly imported objects
+        after = set(bpy.context.scene.objects)
+        new_objects = after - before
+
+        for obj in new_objects:
+            print("variable",obj,obj.penred_settings.isdicom)
+            obj.penred_settings.isdicom = True
+
+        return {"FINISHED"}
+
+
+
+dicomClases = (
+    DICOM_OT_addCalibrationElement,
+    DICOM_OT_removeCalibrationElement,
+    DICOM_OT_addIntensityRangesElement,
+    DICOM_OT_removeIntensityRangesElement,
+    DICOM_OT_addIntensityRangesContourElement,
+    DICOM_OT_removeIntensityRangesContourElement,
+    DICOM_OT_addRangesElement,
+    DICOM_OT_removeRangesElement,
+    DICOM_OT_addRangesContourElement,
+    DICOM_OT_removeRangesContourElement,
+    DICOM_OT_addContourElement,
+    DICOM_OT_removeContourElement,
+    DICOM_OT_LoadDicom,
+)
+
 ### Materials
 ###############
 
@@ -1879,9 +2248,17 @@ class export_penred(Operator, ExportHelper):
 
     
     exportType: bpy.props.EnumProperty(
-        items=[("MESH","Mesh","Mesh based geometry",'',0), ("QUADRICS","Quadrics","Quadric based geometry",'',1)],
+        items=[("MESH","Mesh","Mesh based geometry",'',0), ("QUADRICS","Quadrics","Quadric based geometry",'',1),  ("DICOM","DICOM","DICOM based geometry",'',2),  ("DICOM+GEO","DICOM+GEO","DICOM+GEO based geometry",'',3)],
         name="Geometry type",
         description="PenRed geometry type to export",
+        default=0,
+        )
+    
+    secondaryExportType: bpy.props.EnumProperty(
+        items=[("MESH","Mesh","Mesh based geometry",'',0), ("QUADRICS","Quadrics","Quadric based geometry",'',1)],
+        name="Secondary Geometry type",
+        description="PenRed secondary geometry type to export",
+        options={'HIDDEN'},
         default=0,
         )
 
@@ -1921,12 +2298,12 @@ class export_penred(Operator, ExportHelper):
             else:
                 return None
     
-    def createTriangleMesh(self,fgeo,context,obj,toRound,forceWorld,avoidHide,fconf):
+    def createTriangleMesh(self,fgeo,context,obj,toRound,forceWorld,avoidHide,fconf,prefixConfig):
 
         # Set scene frame to 0
         bpy.context.scene.frame_set(0)
     
-        if obj.type != 'MESH':
+        if obj.type != 'MESH' or obj.penred_settings.isdicom:
             return
         
         #Check if hide objects must be avoided
@@ -1944,9 +2321,9 @@ class export_penred(Operator, ExportHelper):
         # Set object specific parameters
         if fconf:
             if obj.penred_settings.isDetector:
-                fconf.write(f"geometry/kdet/{name} {obj.penred_settings.detector}\n")
+                fconf.write(f"{prefixConfig}/kdet/{name} {obj.penred_settings.detector}\n")
             if obj.penred_settings.dsmaxEnabled:
-                fconf.write(f"geometry/dsmax/{name} {obj.penred_settings.dsmax:.5e}\n")
+                fconf.write(f"{prefixConfig}/dsmax/{name} {obj.penred_settings.dsmax:.5e}\n")
 
             # Create variance reduction
             conf.createVR(obj, name, fconf)
@@ -2076,7 +2453,7 @@ class export_penred(Operator, ExportHelper):
                 
                 if fconf:
                     # Set the animation file in configuration
-                    fconf.write(f"geometry/animation/{name} \"{filenameAnimation}\"\n")
+                    fconf.write(f"{prefixConfig}/animation/{name} \"{filenameAnimation}\"\n")
 
                     # Add binded elements
                     utils.addObjectBindedElementsConf(fconf, obj, name)
@@ -2150,7 +2527,7 @@ class export_penred(Operator, ExportHelper):
         fgeo.write("#\n#\n")
         
     
-    def createObject(self,fgeo,context,obj,nSurf,nObj,toRound,createChilds,avoidHide,fconf):
+    def createObject(self,fgeo,context,obj,nSurf,nObj,toRound,createChilds,avoidHide,fconf,prefixConfig):
         
         #Check the quadric type
         if obj.penred_settings.quadricType == "unknown" and obj.type != "EMPTY": 
@@ -2175,7 +2552,7 @@ class export_penred(Operator, ExportHelper):
         tree = [] # Children tree information
         if len(childrens) > 0:
             for child in childrens:
-                childTree, nSurf, nObj = self.createObject(fgeo,context,child,nSurf,nObj,toRound,True,avoidHide,fconf)
+                childTree, nSurf, nObj = self.createObject(fgeo,context,child,nSurf,nObj,toRound,True,avoidHide,fconf,prefixConfig)
                 if len(childTree) > 0:
                     tree.extend(childTree)
                 
@@ -2269,9 +2646,9 @@ class export_penred(Operator, ExportHelper):
         # Set object specific parameters
         if fconf:
             if obj.penred_settings.isDetector:
-                fconf.write(f"geometry/kdet/{nObj} {obj.penred_settings.detector}\n")
+                fconf.write(f"{prefixConfig}/kdet/{nObj} {obj.penred_settings.detector}\n")
             if obj.penred_settings.dsmaxEnabled:
-                fconf.write(f"geometry/dsmax/{nObj} {obj.penred_settings.dsmax:.5e}\n")
+                fconf.write(f"{prefixConfig}/dsmax/{nObj} {obj.penred_settings.dsmax:.5e}\n")
 
             # Create variance reduction
             conf.createVR(obj, nObj, fconf)
@@ -2340,18 +2717,37 @@ class export_penred(Operator, ExportHelper):
         
         quadrics = False
         meshes   = False
+        dicom    = False
         for obj in context.scene.objects:
             if hasattr(obj, "penred_settings"):
                 if obj.penred_settings.quadricType != 'unknown':
                     quadrics = True
-                    if meshes:
-                        break
+                    # if meshes:
+                    #     break
+                elif obj.penred_settings.isdicom:
+                    dicom = True
+
                 elif obj.type == 'MESH':
                     meshes = True
-                    if quadrics:
-                        break
+                    
+                    # if quadrics:
+                    #     break
 
-        if quadrics and meshes:
+        if dicom:
+            if quadrics and meshes:
+                self.report({'WARNING'}, "Exporting scene mixes quadric and mesh geometries")
+                self.exportType = "DICOM+GEO" # DICOM+GEO
+                self.secondaryExportType = "MESH"
+            elif quadrics:
+                self.exportType = "DICOM+GEO" # DICOM+GEO
+                self.secondaryExportType = "QUADRICS"     
+            elif meshes:
+                self.exportType = "DICOM+GEO" # DICOM+GEO
+                self.secondaryExportType = "MESH" 
+            else:
+                self.exportType = "DICOM" # DICOM                           
+
+        elif quadrics and meshes:
             self.report({'WARNING'}, "Exporting scene mixes quadric and mesh geometries")
             self.exportType = "QUADRICS" # Quadrics
         elif quadrics:
@@ -2379,6 +2775,7 @@ class export_penred(Operator, ExportHelper):
 
         #If required, open output configuration file
         fconf = None
+        prefixConfig = "geometry"
         if not self.onlyGeo:
             filenameConf = os.path.splitext(self.filepath)[0] + ".in"
             fconf = open(filenameConf,'w',encoding='utf-8')
@@ -2402,11 +2799,61 @@ class export_penred(Operator, ExportHelper):
                 fconf.write( "geometry/type \"PEN_QUADRIC\"\n")
                 fconf.write(f"geometry/input-file \"{self.filepath}\"\n")
                 fconf.write("geometry/processed-geo-file \"report.geo\"\n\n")
-            else:
-                fconf.write( "geometry/type \"MESH_BODY\"\n")
-                fconf.write(f"geometry/input-file \"{self.filepath}\"\n")                
 
-        if self.exportType == 'QUADRICS':
+            if self.exportType == 'MESH':
+                fconf.write( "geometry/type \"MESH_BODY\"\n")
+                fconf.write(f"geometry/input-file \"{self.filepath}\"\n")       
+
+            # SERGI - caca
+            if self.exportType == 'DICOM+GEO':
+
+                prefixConfig = "geometry/geometries/GEO/config"
+
+                fconf.write( "geometry/type \"COMBO\"\n")
+                fconf.write(f"geometry/geometries/GEO/priority 0 \n") 
+                fconf.write(f"geometry/geometries/DICOM/priority 1 \n") 
+
+                if self.secondaryExportType == 'QUADRICS':
+                    fconf.write( "geometry/geometries/GEO/config/type \"PEN_QUADRIC\"\n")
+                    fconf.write(f"geometry/geometries/GEO/config/input-file \"{self.filepath}\"\n")
+                    fconf.write("geometry/geometries/GEO/config/processed-geo-file \"report.geo\"\n\n")
+
+                if self.secondaryExportType == 'MESH':
+                    fconf.write( "geometry/geometries/GEO/config/type \"MESH_BODY\"\n")
+                    fconf.write(f"geometry/geometries/GEO/config/input-file \"{self.filepath}\"\n")                  
+
+                dicDICOM, status = createDICOM_Dict(context)
+                if status:
+                    self.report(status[0], status[1])
+                    return {'CANCELLED'}
+
+                dicConfig = {
+                    "geometry": {
+                        "geometries": {
+                            "DICOM": {
+                                "config": dicDICOM
+                            }
+                        }
+                    }
+                }
+
+                from pyPenred.data import dict2SectionString
+                fconf.write(dict2SectionString(dicConfig))
+            
+            if self.exportType == 'DICOM':
+
+                dicDICOM, status = createDICOM_Dict(context)
+                if status:
+                    self.report(status[0], status[1])
+                    return {'CANCELLED'}
+
+                dicConfig = dict()
+                dicConfig["geometry"] = dicDICOM
+
+                from pyPenred.data import dict2SectionString
+                fconf.write(dict2SectionString(dicConfig))          
+
+        if self.exportType == 'QUADRICS' or (self.secondaryExportType == 'QUADRICS' and self.exportType == 'DICOM+GEO'):
             #Create an array for object names
             objNames = []
             
@@ -2414,22 +2861,23 @@ class export_penred(Operator, ExportHelper):
             nObj = 1 #Number of object to be created
 
             if self.onlyActive:
-                self.createObject(fgeo,context,bpy.context.active_object,nSurf,nObj,self.toRound,False,False,fconf)
+                self.createObject(fgeo,context,bpy.context.active_object,nSurf,nObj,self.toRound,False,False,fconf,prefixConfig)
             else:
                 #Find objects with no parents
                 for obj in context.scene.objects:
                     if not obj.parent:
                         #This object has no parent, create it
-                        nSurf,nObj = self.createObject(fgeo,context,obj,nSurf,nObj,self.toRound,True,self.avoidHide,fconf)[1:]
+                        nSurf,nObj = self.createObject(fgeo,context,obj,nSurf,nObj,self.toRound,True,self.avoidHide,fconf,prefixConfig)[1:]
 
             surfaces.endFile(fgeo)
-        elif self.exportType == 'MESH':
+
+        elif self.exportType == 'MESH' or (self.secondaryExportType == 'MESH' and self.exportType == 'DICOM+GEO'):
             
             if self.onlyActive:
                 #Print number of objects
                 fgeo.write("# Number of objects:\n 1\n")
 
-                self.createTriangleMesh(fgeo,context,bpy.context.active_object,self.toRound,True,False,fconf)
+                self.createTriangleMesh(fgeo,context,bpy.context.active_object,self.toRound,True,False,fconf,prefixConfig)
             else:
 
                 #Count number of meshes
@@ -2449,7 +2897,8 @@ class export_penred(Operator, ExportHelper):
                 fgeo.write("# Number of objects:\n %d\n" % (nMeshes))
 
                 for obj in context.scene.objects:
-                    self.createTriangleMesh(fgeo,context,obj,self.toRound,False,self.avoidHide,fconf)
+                    self.createTriangleMesh(fgeo,context,obj,self.toRound,False,self.avoidHide,fconf,prefixConfig)
+        
         else:
             fgeo.write("# Unknown export format. Please, report this issue\n")
                 
@@ -2491,6 +2940,10 @@ def register():
     for cls in materialsOperatorClasses:
         bpy.utils.register_class(cls)
 
+    #Register dicom operators
+    for cls in dicomClases:
+        bpy.utils.register_class(cls)
+
     bpy.utils.register_class(export_penred)
     
     #Register simulation operators
@@ -2525,6 +2978,10 @@ def unregister():
         
     #Unregister material operators
     for cls in materialsOperatorClasses:
+        bpy.utils.unregister_class(cls)
+        
+    #Unregister dicom operators
+    for cls in dicomClases:
         bpy.utils.unregister_class(cls)
 
     bpy.utils.unregister_class(export_penred)
