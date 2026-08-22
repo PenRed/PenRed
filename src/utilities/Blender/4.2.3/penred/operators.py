@@ -2804,7 +2804,6 @@ class export_penred(Operator, ExportHelper):
                 fconf.write( "geometry/type \"MESH_BODY\"\n")
                 fconf.write(f"geometry/input-file \"{self.filepath}\"\n")       
 
-            # SERGI - caca
             if self.exportType == 'DICOM+GEO':
 
                 prefixConfig = "geometry/geometries/GEO/config"
