@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2024-2025 Universitat de València - UV
 //    Copyright (C) 2024-2025 Universitat Politècnica de València - UPV
-//    Copyright (C) 2024-2025 Vicent Giménez Alventosa
+//    Copyright (C) 2024-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -856,10 +856,10 @@ namespace penred{
       static std::string versionMessage(){
 
 	return std::string("***************************************************************\n"
-			   " PenRed version: 1.14.0 (08-Aug-2025) \n"
-			   " Copyright (c) 2019-2025 Universitat Politecnica de Valencia\n"
-			   " Copyright (c) 2019-2025 Universitat de Valencia\n"
-			   " Copyright (c) 2024-2025 Vicent Giménez Alventosa\n"
+			   " PenRed version: 1.15.0 (29-Aug-2026) \n"
+			   " Copyright (c) 2019-2026 Universitat Politecnica de Valencia\n"
+			   " Copyright (c) 2019-2026 Universitat de Valencia\n"
+			   " Copyright (c) 2024-2026 Vicent Giménez Alventosa\n"
 			   " Reference: Computer Physics Communications, 267 (2021) 108065\n"
 			   "            https://doi.org/10.1016/j.cpc.2021.108065\n"
 			   " This is free software; see the source for copying conditions.\n"

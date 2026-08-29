@@ -29,7 +29,7 @@
 import bpy
 from mathutils import Vector
 from mathutils import Color
-from . import addon_properties, materialDB, utils, tracks
+from . import addon_properties, materialDB, utils, tracks, dependency_manager
 from math import pi, cos, sin
 import os
 
@@ -1165,6 +1165,15 @@ class PenredDicomPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
+        pyPenredInstalled = dependency_manager.is_installed()
+
+        if not pyPenredInstalled:
+            box = layout.box()
+            box.alert = True
+            box.label(text="Dependency Missing", icon='ERROR')
+            box.label(text="pyPenred must be installed to use this tool.")
+            box.operator("pypenred.open_preferences", icon='PREFERENCES')
+            return
 
         if scene and hasattr(scene, "penred_settings"):
             dicomproperties = scene.penred_settings.dicomProperties
@@ -1724,7 +1733,7 @@ class PENRED_MATERIAL_UL_DB_List(bpy.types.UIList):
             
 class penred_PT_SimulationPanel(bpy.types.Panel):
     """Creates a panel in the 3D Viewport sidebar to run simulations"""
-    bl_label = "PenRed"
+    bl_label = "Simulation"
     bl_idname = "SCENE_PT_SimulationPanel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -1732,7 +1741,16 @@ class penred_PT_SimulationPanel(bpy.types.Panel):
     
     def draw(self, context):
         layout = self.layout
+        pyPenredInstalled = dependency_manager.is_installed()
 
+        if not pyPenredInstalled:
+            box = layout.box()
+            box.alert = True
+            box.label(text="Dependency Missing", icon='ERROR')
+            box.label(text="pyPenred must be installed to use this tool.")
+            box.operator("pypenred.open_preferences", icon='PREFERENCES')
+            return
+        
         scene = context.scene
         if scene and scene.penred_settings:
             sceneProp = scene.penred_settings

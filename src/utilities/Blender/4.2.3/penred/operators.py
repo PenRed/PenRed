@@ -40,7 +40,7 @@ from mathutils import Color
 from math import cos, acos, sin, asin, tan, atan2, sqrt, pi
 import os
 import time
-from . import surfaces, utils, addon_properties, conf, tracks
+from . import surfaces, utils, addon_properties, conf, tracks, dependency_manager
 
 ### Material view
 class QUADRIC_OT_view_material(Operator, AddObjectHelper):
@@ -742,6 +742,11 @@ class DICOM_OT_LoadDicom(bpy.types.Operator, ImportHelper):
     bl_label = "Open Dicom"
     bl_description = "Reads the dicom file"
 
+    @classmethod
+    def poll(cls, context):
+        # Button is grayed out in UI if package is missing
+        return dependency_manager.is_installed()    
+    
     def execute(self, context):
         print("Folder: %s" % (self.filepath))
 
@@ -1548,12 +1553,18 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     _timer = None
+    _start_time = 0.0
     _simu = None
     _ticks = 0
     _progress = 0
     _fade_alpha = 0.0
     _fade_in = True
     _draw_handler = None
+
+    @classmethod
+    def poll(cls, context):
+        # Button is grayed out in UI if package is missing
+        return dependency_manager.is_installed()    
 
     # Define the progress popup draw as a static method
     @staticmethod
@@ -1768,6 +1779,9 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
                     0.1, # Ensure frequent calls to update the UI
                     window=context.window
                 )
+
+                # Save initial time
+                self._start_time = time.perf_counter()
                 
                 # Start simulation
                 self.setup_simulation(context)
@@ -1834,60 +1848,8 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
             self.report({'ERROR'}, "Missing PenRed settings in World")
             return self.cancel(context)
 
-        # Try importing pyPenred and installing it if its not installed in
-        # the blender environment
         try:
             import pyPenred
-        except:
-            try:
-                import sys
-                import subprocess
-                import site
-
-                site_packages = site.getsitepackages()[0]  # Primary site-packages directory
-                self.report({'WARNING'}, f"pyPenred is not installed, trying to install it to '{site_packages}'...")
-
-                # pyYAML
-                subprocess.call([
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "pyyaml",
-                    "--target",
-                    site_packages,
-                    "--no-cache-dir"
-                ])
-
-                # numpy
-                subprocess.call([
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "numpy",
-                    "--target",
-                    site_packages,
-                    "--no-cache-dir"
-                ])
-                
-                # pyPenred
-                subprocess.call([
-                    sys.executable, 
-                    "-m", 
-                    "pip", 
-                    "install", 
-                    "pyPenred",
-                    "--target", 
-                    site_packages,
-                    "--no-cache-dir"  # Avoids permission issues with temp files
-                ])
-                
-                import pyPenred
-            except Exception as e:            
-                self.report({'ERROR'}, f"Setup failed: {str(e)}. Unable to install pyPenred. Please, install it manually in blender environment")
-                return self.cancel(context)        
-        try:
             
             paths = os.path.split(scene.penred_settings.simulationConfigPath)
 
@@ -1900,15 +1862,10 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
             
             pyPenred.simulation.setConfigurationLog("config.log")
             pyPenred.simulation.setSimulationLog("simulation.log")
+
             self._simu = pyPenred.simulation.create()
-            
-            if self._simu.configFromFile(paths[1]) != 0:
-                self.report({'ERROR'}, "Invalid config file format. Please, report this error")
-                return self.cancel(context)
-                
-            if self._simu.simulate(True) != 0:  # Async mode
-                self.report({'ERROR'}, "Simulation failed to start. See config.log")
-                return self.cancel(context)
+            self._simu.configFromFile(paths[1])
+            self._simu.simulate(True) # Async mode
 
             # Change the state to running
             scene.penred_settings.simulationState = "RUNNING"
@@ -1930,6 +1887,14 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
             simulated = self._simu.simulated()
             self._progress = min((s[0]/s[1]*100.0 for s in simulated if s[1] > 0), default=0)
             totalSimulated = sum(s[0] for s in simulated)
+
+            #Check elapsed time progress
+            simProp = context.scene.world.penred_settings.simulation
+            
+            if simProp.limitSimTime:
+                elapsed_progress = 100.0*(time.perf_counter() - self._start_time) / float(simProp.maxSimTime)
+                if self._progress < elapsed_progress:
+                    self._progress = elapsed_progress
                 
             self.report({'INFO'}, f"Simulation Progress: {self._progress:.2f}% (Simulated: {totalSimulated})")
 
@@ -2836,8 +2801,9 @@ class export_penred(Operator, ExportHelper):
                     }
                 }
 
-                from pyPenred.data import dict2SectionString
-                fconf.write(dict2SectionString(dicConfig))
+                if dependency_manager.is_installed():
+                    from pyPenred.data import dict2SectionString
+                    fconf.write(dict2SectionString(dicConfig))
             
             if self.exportType == 'DICOM':
 
@@ -2849,8 +2815,9 @@ class export_penred(Operator, ExportHelper):
                 dicConfig = dict()
                 dicConfig["geometry"] = dicDICOM
 
-                from pyPenred.data import dict2SectionString
-                fconf.write(dict2SectionString(dicConfig))          
+                if dependency_manager.is_installed():
+                    from pyPenred.data import dict2SectionString
+                    fconf.write(dict2SectionString(dicConfig))          
 
         if self.exportType == 'QUADRICS' or (self.secondaryExportType == 'QUADRICS' and self.exportType == 'DICOM+GEO'):
             #Create an array for object names

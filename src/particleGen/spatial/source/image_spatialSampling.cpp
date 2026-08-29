@@ -183,6 +183,11 @@ int image_spatialSampling::configure(const pen_parserSection& config,
     phi = 0.0;
   }else toRotate = true;
 
+  //Change to rad
+  omega*=M_PI/180.0;
+  theta*=M_PI/180.0;
+  phi*=M_PI/180.0;  
+  
   //Create the rotation
   if(toRotate)
     setRotationZYZ(omega,theta,phi);

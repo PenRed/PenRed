@@ -164,7 +164,7 @@ int distribSE_specificSampler::configure(double& Emax,
 }
 
 void distribSE_specificSampler::sample(pen_particleState& state,
-                                       pen_KPAR& genKpar,
+                                       pen_KPAR& /*genKpar*/,
                                        unsigned long long& dhist,
                                        pen_rand& random){
 
