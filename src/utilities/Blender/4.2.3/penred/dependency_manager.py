@@ -59,10 +59,6 @@ def install_package():
         "-m",
         "pip",
         "install",
-        "-i",
-        "https://test.pypi.org/simple/", # For test version
-        "--extra-index-url",
-        "https://pypi.org/simple",        
         PACKAGE_NAME,
         "--target",
         target_dir,

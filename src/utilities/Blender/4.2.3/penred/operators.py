@@ -737,20 +737,31 @@ def createDICOM_Dict(context):
 
 
 # Import dicom operator
-class DICOM_OT_LoadDicom(bpy.types.Operator, ImportHelper):
+class DICOM_OT_LoadDicom(bpy.types.Operator):
     bl_idname = "scene.import_dicom"
     bl_label = "Open Dicom"
     bl_description = "Reads the dicom file"
+
+    directory: bpy.props.StringProperty(
+        name="Folder Path",
+        description="Directory containing DICOM files",
+        subtype="DIR_PATH",
+    )
 
     @classmethod
     def poll(cls, context):
         # Button is grayed out in UI if package is missing
         return dependency_manager.is_installed()    
+
+    def invoke(self, context, event):
+        # Explicitly open the file browser in directory mode
+        context.window_manager.fileselect_add(self)
+        return {"RUNNING_MODAL"}
     
     def execute(self, context):
-        print("Folder: %s" % (self.filepath))
+        print("Folder: %s" % (self.directory))
 
-        context.scene.penred_settings.dicomProperties.directory = self.filepath
+        context.scene.penred_settings.dicomProperties.directory = self.directory
 
         dicom_dict, status = createDICOM_Dict (context)
 
