@@ -35,12 +35,12 @@ from bpy_extras.io_utils import ExportHelper, ImportHelper
 from bpy.types import Operator
 from bpy.props import FloatVectorProperty
 from bpy_extras.object_utils import AddObjectHelper, object_data_add
-from mathutils import Vector
+from mathutils import Vector, Quaternion
 from mathutils import Color
 from math import cos, acos, sin, asin, tan, atan2, sqrt, pi
 import os
 import time
-from . import surfaces, utils, addon_properties, conf, tracks
+from . import surfaces, utils, addon_properties, conf, tracks, dependency_manager
 
 ### Material view
 class QUADRIC_OT_view_material(Operator, AddObjectHelper):
@@ -292,6 +292,34 @@ class TALLY_OT_removeSpatialDistribTally(bpy.types.Operator):
         if obj and obj.penred_settings:
             obj.penred_settings.talliesSpatialDistrib.remove(self.index)
             utils.redrawView3D(context)
+        return {"FINISHED"}
+
+# Add Detector Energy Deposition Tally
+class TALLY_OT_addDetectorEnergyDepTally(bpy.types.Operator):
+    bl_idname = "tallies_detectorenergydep.add_item"
+    bl_label = "Add Item"
+    bl_description = "Add a detector energy deposition tally"
+
+    def execute(self, context):
+        obj = context.object
+        if obj and obj.penred_settings:
+            obj.penred_settings.talliesDetectorEnergyDep.add()
+            utils.redrawView3D(context)
+        return {"FINISHED"}
+
+# Remove Detector Energy Deposition Tally
+class TALLY_OT_removeDetectorEnergyDepTally(bpy.types.Operator):
+    bl_idname = "tallies_detectorenergydep.remove_item"
+    bl_label = "Remove Item"
+    bl_description = "Remove the detector energy deposition tally"
+
+    index: bpy.props.IntProperty()  # Index of the item to remove
+
+    def execute(self, context):
+        obj = context.object
+        if obj and obj.penred_settings:
+            obj.penred_settings.talliesDetectorEnergyDep.remove(self.index)
+            utils.redrawView3D(context)
         return {"FINISHED"}    
 
 # Add Angular detector
@@ -395,12 +423,391 @@ talliesOperatorClasses = (
     TALLY_OT_removeKermaTally,
     TALLY_OT_addSpatialDistribTally,
     TALLY_OT_removeSpatialDistribTally,
+    TALLY_OT_addDetectorEnergyDepTally,
+    TALLY_OT_removeDetectorEnergyDepTally,
     TALLY_OT_addAngDetTally,
     TALLY_OT_removeAngDetTally,
     TALLY_OT_addCTTally,
     TALLY_OT_removeCTTally,
     TALLY_OT_addEmergingParticleTally,
     TALLY_OT_EmergingParticleTally,
+)
+
+### Dicom
+###############
+
+# Add Calibration Element
+class DICOM_OT_addCalibrationElement(bpy.types.Operator):
+    bl_idname = "dicom_calibration.add_item"
+    bl_label = "Add Element"
+    bl_description = "Add one calibration constant"
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            scene.penred_settings.dicomProperties.calibration.add()
+        return {"FINISHED"}
+
+# Remove Calibration Element
+class DICOM_OT_removeCalibrationElement(bpy.types.Operator):
+    bl_idname = "dicom_calibration.remove_item"
+    bl_label = "Remove Element"
+    bl_description = "Remove the last calibration constant"
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            calibLen = len(scene.penred_settings.dicomProperties.calibration)
+            if calibLen > 0:
+                scene.penred_settings.dicomProperties.calibration.remove(calibLen-1)
+        return {"FINISHED"}
+
+
+# Add IntensityRanges Element
+class DICOM_OT_addIntensityRangesElement(bpy.types.Operator):
+    bl_idname = "dicom_intensityranges.add_item"
+    bl_label = "Add Element"
+    bl_description = "Add one Intensity-Ranges"
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            scene.penred_settings.dicomProperties.intensityRanges.add()
+        return {"FINISHED"}
+
+# Remove IntensityRanges Element
+class DICOM_OT_removeIntensityRangesElement(bpy.types.Operator):
+    bl_idname = "dicom_intensityranges.remove_item"
+    bl_label = "Remove Element"
+    bl_description = "Remove the last Intensity-Ranges added"
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            contLen = len(scene.penred_settings.dicomProperties.intensityRanges)
+            if contLen > 0:
+                scene.penred_settings.dicomProperties.intensityRanges.remove(contLen-1)
+        return {"FINISHED"}
+
+# Add IntensityRanges Element in Contours
+class DICOM_OT_addIntensityRangesContourElement(bpy.types.Operator):
+    bl_idname = "dicom_intensityrangescontour.add_item"
+    bl_label = "Add Element"
+    bl_description = "Add one Intensity-Ranges"
+
+    icontour: bpy.props.IntProperty()  # contour index
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            scene.penred_settings.dicomProperties.contours[self.icontour].intensityRanges.add()
+        return {"FINISHED"}
+
+# Remove IntensityRanges Element in Contours
+class DICOM_OT_removeIntensityRangesContourElement(bpy.types.Operator):
+    bl_idname = "dicom_intensityrangescontour.remove_item"
+    bl_label = "Remove Element"
+    bl_description = "Remove the last Intensity-Ranges added"
+
+    icontour: bpy.props.IntProperty()  # contour index
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            contLen = len(scene.penred_settings.dicomProperties.contours[self.icontour].intensityRanges)
+            if contLen > 0:
+                scene.penred_settings.dicomProperties.contours[self.icontour].intensityRanges.remove(contLen-1)
+        return {"FINISHED"}
+    
+# Add Ranges Element
+class DICOM_OT_addRangesElement(bpy.types.Operator):
+    bl_idname = "dicom_ranges.add_item"
+    bl_label = "Add Element"
+    bl_description = "Add one Ranges"
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            scene.penred_settings.dicomProperties.ranges.add()
+        return {"FINISHED"}
+
+# Remove Ranges Element
+class DICOM_OT_removeRangesElement(bpy.types.Operator):
+    bl_idname = "dicom_ranges.remove_item"
+    bl_label = "Remove Element"
+    bl_description = "Remove the last Ranges added"
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            contLen = len(scene.penred_settings.dicomProperties.ranges)
+            if contLen > 0:
+                scene.penred_settings.dicomProperties.ranges.remove(contLen-1)
+        return {"FINISHED"}
+
+# Add Ranges Element in Contours
+class DICOM_OT_addRangesContourElement(bpy.types.Operator):
+    bl_idname = "dicom_rangescontour.add_item"
+    bl_label = "Add Element"
+    bl_description = "Add one Ranges"
+
+    icontour: bpy.props.IntProperty()  # contour index
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            scene.penred_settings.dicomProperties.contours[self.icontour].ranges.add()
+        return {"FINISHED"}
+
+# Remove Ranges Element in Contours
+class DICOM_OT_removeRangesContourElement(bpy.types.Operator):
+    bl_idname = "dicom_rangescontour.remove_item"
+    bl_label = "Remove Element"
+    bl_description = "Remove the last Ranges added"
+
+    icontour: bpy.props.IntProperty()  # contour index
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            contLen = len(scene.penred_settings.dicomProperties.contours[self.icontour].ranges)
+            if contLen > 0:
+                scene.penred_settings.dicomProperties.contours[self.icontour].ranges.remove(contLen-1)
+        return {"FINISHED"}
+    
+
+# Add Contour Element
+class DICOM_OT_addContourElement(bpy.types.Operator):
+    bl_idname = "dicom_contours.add_item"
+    bl_label = "Add Element"
+    bl_description = "Add one contout constant"
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            scene.penred_settings.dicomProperties.contours.add()
+        return {"FINISHED"}
+
+# Remove Contour Element
+class DICOM_OT_removeContourElement(bpy.types.Operator):
+    bl_idname = "dicom_contours.remove_item"
+    bl_label = "Remove Element"
+    bl_description = "Remove the last contour added"
+
+    def execute(self, context):
+        scene = context.scene
+        if scene and scene.penred_settings:
+            contLen = len(scene.penred_settings.dicomProperties.contours)
+            if contLen > 0:
+                scene.penred_settings.dicomProperties.contours.remove(contLen-1)
+        return {"FINISHED"}
+    
+
+def fill_intensityranges(dict,dicomProperties):
+    dict.update({"intensity-ranges": {}})
+    for index, IntensityRangeVal in enumerate(dicomProperties.intensityRanges):
+        name = f"{IntensityRangeVal.name}"
+
+        # check that the name is unique 
+        if name in dict["intensity-ranges"]:
+            return f"Intensity-range \"{name}\" already created. Names must be unique. Aborting"
+        
+        # check that a name is provided
+        if name == "":
+            return f"Provide a name to the Intensity-range #{index}"                        
+        
+        dict["intensity-ranges"].update({f"{name}":{}})
+        dict["intensity-ranges"][name].update({"material" : IntensityRangeVal.material})
+        dict["intensity-ranges"][name].update({"density"  : IntensityRangeVal.density })
+        dict["intensity-ranges"][name].update({"low"      : IntensityRangeVal.low     })
+        dict["intensity-ranges"][name].update({"top"      : IntensityRangeVal.top     })
+
+    return ""
+
+def fill_ranges(dict,dicomProperties):
+
+    dict.update({"ranges": {}})
+    for index, RangeVal in enumerate(dicomProperties.ranges):
+        name = f"{RangeVal.name}"
+
+        # check that the name is unique 
+        if name in dict["ranges"]:
+            return f"Range \"{name}\" already exists. Names must be unique. Aborting"
+        
+        # check that a name is provided
+        if name == "":
+            return f"Provide a name to the range #{index}"
+
+        dict["ranges"].update({f"{name}":{}})
+        dict["ranges"][name].update({"material"     : RangeVal.material})
+        dict["ranges"][name].update({"density-low"  : RangeVal.low     })
+        dict["ranges"][name].update({"density-top"  : RangeVal.top     })    
+
+    return ""
+
+
+# Create the dictionary of varaibles for DICOM
+def createDICOM_Dict(context):
+
+    dicom_dict = dict()
+
+    scene = context.scene
+    if scene and scene.penred_settings:
+
+        dicomProperties = scene.penred_settings.dicomProperties
+
+        dicom_dict.update({"type": "DICOM"})
+        dicom_dict.update({"directory": f"{dicomProperties.directory}"})
+
+        dicom_dict.update({"default"            : {"material":dicomProperties.material, "density": dicomProperties.density}})
+        dicom_dict.update({"enclosure-margin"   : dicomProperties.enclosureMargin})
+        dicom_dict.update({"enclosure-material" : dicomProperties.enclosureMaterial})
+        dicom_dict.update({"print-ASCII"        : dicomProperties.printASCII })
+
+        # Calibration
+        if dicomProperties.calibration:
+            pattern = [x for x in dicomProperties.calibration]
+            dicom_dict.update({"calibration"   : f"{pattern}"})
+
+        # Intensity-ranges
+        if dicomProperties.intensityRanges:
+
+            code = fill_intensityranges(dicom_dict, dicomProperties)
+            if code:
+                print(f"ERROR: intensityRanges : {code}")
+                return dict(), [{'ERROR'}, code]
+            
+        # ranges
+        if dicomProperties.ranges:
+
+            code = fill_ranges(dicom_dict, dicomProperties)
+            if code:
+                print(f"ERROR: intensityRanges : {code}")
+                return dict(), [{'ERROR'}, code]
+
+        # Contours
+        if dicomProperties.contours:
+
+            dicom_dict.update({"contours": {}}) 
+
+            for index, contouritem in enumerate(dicomProperties.contours):
+
+                name = f"{contouritem.name}"
+
+                # check that the name is unique 
+                if name in dicom_dict["contours"]:
+                    return dict(), [{'ERROR'}, f"Contour \"{name}\" already exists. Names must be unique. Aborting"]
+
+                # check that a name is provided
+                if name == "":
+                    return dict(), [{'ERROR'}, f"Provide a name to the contour #{index}"]
+
+                dicom_dict["contours"].update({f"{name}": {}})
+                dicom_contour_dic = dicom_dict["contours"][name]
+                if contouritem.overwriteMat:
+                    dicom_contour_dic.update({"material": contouritem.material})
+                if contouritem.overwriteDens:
+                    dicom_contour_dic.update({"density" : contouritem.density })
+
+                dicom_contour_dic.update({"priority": contouritem.priority})
+
+                if contouritem.intensityRanges:
+
+                    code = fill_intensityranges(dicom_contour_dic, contouritem)
+                    if code:
+                        print(f"ERROR: contour: intensityRanges : {code}")
+                        return dict(), [{'ERROR'}, f"Contour #{index} named {name}. {code}"]                      
+
+                if contouritem.ranges:
+
+                    code = fill_ranges(dicom_contour_dic, contouritem)
+                    if code:
+                        print(f"ERROR: contour: intensityRanges : {code}")
+                        return dict(), [{'ERROR'}, f"Contour #{index} named {name}. {code}"]
+
+    return dicom_dict, [] # empty array means no errors found
+
+
+# Import dicom operator
+class DICOM_OT_LoadDicom(bpy.types.Operator):
+    bl_idname = "scene.import_dicom"
+    bl_label = "Open Dicom"
+    bl_description = "Reads the dicom file"
+
+    directory: bpy.props.StringProperty(
+        name="Folder Path",
+        description="Directory containing DICOM files",
+        subtype="DIR_PATH",
+    )
+
+    @classmethod
+    def poll(cls, context):
+        # Button is grayed out in UI if package is missing
+        return dependency_manager.is_installed()    
+
+    def invoke(self, context, event):
+        # Explicitly open the file browser in directory mode
+        context.window_manager.fileselect_add(self)
+        return {"RUNNING_MODAL"}
+    
+    def execute(self, context):
+        print("Folder: %s" % (self.directory))
+
+        context.scene.penred_settings.dicomProperties.directory = self.directory
+
+        dicom_dict, status = createDICOM_Dict (context)
+
+        if status:
+            self.report(status[0], status[1])
+            return {'CANCELLED'}
+
+        import pprint
+        pprint.pprint(dicom_dict)
+
+        from pyPenred import geometry
+        geo = geometry.create()
+        geo.configure(dicom_dict,2)
+
+        vsize = geo.voxelSize()
+
+        import tempfile, os
+        temp_dir = tempfile.mkdtemp()
+
+        file_path = os.path.join(temp_dir,"pyObj")
+        print(file_path)
+        geo.toMesh(geo.dimElements(0)+4,geo.dimElements(1)+4,geo.dimElements(2)+4, vsize[0], vsize[1], vsize[2], -2.0*vsize[0],-2.0*vsize[1],-2.0*vsize[2], 0.0, file_path, 1, 0, verbose=0)
+
+        # Remember existing objects
+        before = set(bpy.context.scene.objects)
+
+        bpy.ops.wm.obj_import(filepath=file_path+".obj", up_axis="Z", forward_axis="Y")
+
+        # Find newly imported objects
+        after = set(bpy.context.scene.objects)
+        new_objects = after - before
+
+        for obj in new_objects:
+            print("variable",obj,obj.penred_settings.isdicom)
+            obj.penred_settings.isdicom = True
+
+        return {"FINISHED"}
+
+
+
+dicomClases = (
+    DICOM_OT_addCalibrationElement,
+    DICOM_OT_removeCalibrationElement,
+    DICOM_OT_addIntensityRangesElement,
+    DICOM_OT_removeIntensityRangesElement,
+    DICOM_OT_addIntensityRangesContourElement,
+    DICOM_OT_removeIntensityRangesContourElement,
+    DICOM_OT_addRangesElement,
+    DICOM_OT_removeRangesElement,
+    DICOM_OT_addRangesContourElement,
+    DICOM_OT_removeRangesContourElement,
+    DICOM_OT_addContourElement,
+    DICOM_OT_removeContourElement,
+    DICOM_OT_LoadDicom,
 )
 
 ### Materials
@@ -1149,12 +1556,18 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     _timer = None
+    _start_time = 0.0
     _simu = None
     _ticks = 0
     _progress = 0
     _fade_alpha = 0.0
     _fade_in = True
     _draw_handler = None
+
+    @classmethod
+    def poll(cls, context):
+        # Button is grayed out in UI if package is missing
+        return dependency_manager.is_installed()    
 
     # Define the progress popup draw as a static method
     @staticmethod
@@ -1369,6 +1782,9 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
                     0.1, # Ensure frequent calls to update the UI
                     window=context.window
                 )
+
+                # Save initial time
+                self._start_time = time.perf_counter()
                 
                 # Start simulation
                 self.setup_simulation(context)
@@ -1435,60 +1851,8 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
             self.report({'ERROR'}, "Missing PenRed settings in World")
             return self.cancel(context)
 
-        # Try importing pyPenred and installing it if its not installed in
-        # the blender environment
         try:
             import pyPenred
-        except:
-            try:
-                import sys
-                import subprocess
-                import site
-
-                site_packages = site.getsitepackages()[0]  # Primary site-packages directory
-                self.report({'WARNING'}, f"pyPenred is not installed, trying to install it to '{site_packages}'...")
-
-                # pyYAML
-                subprocess.call([
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "pyyaml",
-                    "--target",
-                    site_packages,
-                    "--no-cache-dir"
-                ])
-
-                # numpy
-                subprocess.call([
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "numpy",
-                    "--target",
-                    site_packages,
-                    "--no-cache-dir"
-                ])
-                
-                # pyPenred
-                subprocess.call([
-                    sys.executable, 
-                    "-m", 
-                    "pip", 
-                    "install", 
-                    "pyPenred",
-                    "--target", 
-                    site_packages,
-                    "--no-cache-dir"  # Avoids permission issues with temp files
-                ])
-                
-                import pyPenred
-            except Exception as e:            
-                self.report({'ERROR'}, f"Setup failed: {str(e)}. Unable to install pyPenred. Please, install it manually in blender environment")
-                return self.cancel(context)        
-        try:
             
             paths = os.path.split(scene.penred_settings.simulationConfigPath)
 
@@ -1501,15 +1865,10 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
             
             pyPenred.simulation.setConfigurationLog("config.log")
             pyPenred.simulation.setSimulationLog("simulation.log")
+
             self._simu = pyPenred.simulation.create()
-            
-            if self._simu.configFromFile(paths[1]) != 0:
-                self.report({'ERROR'}, "Invalid config file format. Please, report this error")
-                return self.cancel(context)
-                
-            if self._simu.simulate(True) != 0:  # Async mode
-                self.report({'ERROR'}, "Simulation failed to start. See config.log")
-                return self.cancel(context)
+            self._simu.configFromFile(paths[1])
+            self._simu.simulate(True) # Async mode
 
             # Change the state to running
             scene.penred_settings.simulationState = "RUNNING"
@@ -1531,6 +1890,14 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
             simulated = self._simu.simulated()
             self._progress = min((s[0]/s[1]*100.0 for s in simulated if s[1] > 0), default=0)
             totalSimulated = sum(s[0] for s in simulated)
+
+            #Check elapsed time progress
+            simProp = context.scene.world.penred_settings.simulation
+            
+            if simProp.limitSimTime:
+                elapsed_progress = 100.0*(time.perf_counter() - self._start_time) / float(simProp.maxSimTime)
+                if self._progress < elapsed_progress:
+                    self._progress = elapsed_progress
                 
             self.report({'INFO'}, f"Simulation Progress: {self._progress:.2f}% (Simulated: {totalSimulated})")
 
@@ -1849,9 +2216,17 @@ class export_penred(Operator, ExportHelper):
 
     
     exportType: bpy.props.EnumProperty(
-        items=[("MESH","Mesh","Mesh based geometry",'',0), ("QUADRICS","Quadrics","Quadric based geometry",'',1)],
+        items=[("MESH","Mesh","Mesh based geometry",'',0), ("QUADRICS","Quadrics","Quadric based geometry",'',1),  ("DICOM","DICOM","DICOM based geometry",'',2),  ("DICOM+GEO","DICOM+GEO","DICOM+GEO based geometry",'',3)],
         name="Geometry type",
         description="PenRed geometry type to export",
+        default=0,
+        )
+    
+    secondaryExportType: bpy.props.EnumProperty(
+        items=[("MESH","Mesh","Mesh based geometry",'',0), ("QUADRICS","Quadrics","Quadric based geometry",'',1)],
+        name="Secondary Geometry type",
+        description="PenRed secondary geometry type to export",
+        options={'HIDDEN'},
         default=0,
         )
 
@@ -1891,9 +2266,12 @@ class export_penred(Operator, ExportHelper):
             else:
                 return None
     
-    def createTriangleMesh(self,f,context,obj,toRound,forceWorld,avoidHide,fconf):
+    def createTriangleMesh(self,fgeo,context,obj,toRound,forceWorld,avoidHide,fconf,prefixConfig):
 
-        if obj.type != 'MESH':
+        # Set scene frame to 0
+        bpy.context.scene.frame_set(0)
+    
+        if obj.type != 'MESH' or obj.penred_settings.isdicom:
             return
         
         #Check if hide objects must be avoided
@@ -1901,22 +2279,153 @@ class export_penred(Operator, ExportHelper):
             if obj.hide_get():
                 #Skip it
                 return
-
-        # Set object specific parameters
-        if fconf:
-            if obj.penred_settings.isDetector:
-                fconf.write(f"geometry/kdet/{obj.name} {obj.penred_settings.detector}\n")
-            if obj.penred_settings.dsmaxEnabled:
-                fconf.write(f"geometry/dsmax/{obj.name} {obj.penred_settings.dsmax:.5e}\n")
-
-            # Create variance reduction
-            conf.createVR(obj, obj.name, fconf)
                 
         #Get name
         name = obj.name
         name.replace(" ","_")
         if len(name) > 100:
             name = name[:100]
+
+        # Set object specific parameters
+        if fconf:
+            if obj.penred_settings.isDetector:
+                fconf.write(f"{prefixConfig}/kdet/{name} {obj.penred_settings.detector}\n")
+            if obj.penred_settings.dsmaxEnabled:
+                fconf.write(f"{prefixConfig}/dsmax/{name} {obj.penred_settings.dsmax:.5e}\n")
+
+            # Create variance reduction
+            conf.createVR(obj, name, fconf)
+            
+        #Check if the object has an animation
+        if obj.animation_data and obj.animation_data.action:
+            action = obj.animation_data.action
+            keyframes = set()
+
+            # Get rotation mode to know which fcurve extract
+            rotMod = obj.rotation_mode
+            if rotMod == "QUATERNION":                
+                rotPath = "rotation_quaternion"
+            elif rotMod == "AXIS_ANGLE":
+                rotPath = "rotation_axis_angle"
+            else:
+                rotPath = "rotation_euler"                
+
+            validCurvePaths = {"location", rotPath}
+
+            # Ensure at least two keyframes
+            if len(action.fcurves) > 1:
+
+                # Collect all keyframe frames from all curves
+                for fcurve in action.fcurves:
+                    if fcurve.data_path in validCurvePaths:
+                        for keyframe_point in fcurve.keyframe_points:
+                            keyframes.add(int(keyframe_point.co.x))
+
+                keyframes = sorted(list(keyframes))
+
+                # Ensure every required F-Curve has keyframes at the same frames
+                for fcurve in action.fcurves:
+                    if fcurve.data_path in validCurvePaths:
+                        existingFrames = {int(k.co.x) for k in fcurve.keyframe_points}
+                        missing = [f for f in keyframes if f not in existingFrames]
+
+                        # Insert missing frames
+                        for f in missing:
+                            val = fcurve.evaluate(f)
+                            kf = fcurve.keyframe_points.insert(frame=f, value=val, options={'FAST'})
+                            kf.handle_left_type = 'AUTO_CLAMPED'
+                            kf.handle_right_type = 'AUTO_CLAMPED'
+
+
+                # Refresh curve handles and UI
+                for fcurve in action.fcurves:
+                    fcurve.update()
+
+                # Get location curves
+                xCurve = utils.getFCurve(action, "location", 0)
+                yCurve = utils.getFCurve(action, "location", 1)
+                zCurve = utils.getFCurve(action, "location", 2)
+
+                # Create the animation file
+                filenameAnimation = f"{os.path.splitext(self.filepath)[0]}_{name}.anim"
+                fanimation = open(filenameAnimation,'w',encoding='utf-8')
+                fanimation.write("0.01\n")
+                
+                # Get the first keyframe as reference
+                loc0, quat0 = utils.getFrame(obj, keyframes[0])
+                # Get translation handlers
+                xhandlers0 = utils.getFrameHandlers(xCurve, 0, loc0.x)
+                yhandlers0 = utils.getFrameHandlers(yCurve, 0, loc0.y)
+                zhandlers0 = utils.getFrameHandlers(zCurve, 0, loc0.z)
+
+                # Write object origin
+                fanimation.write(f"{loc0.x} {loc0.y} {loc0.z}\n")
+                # Write first keyframe (Identity)
+                fanimation.write(f"{keyframes[0]} 0.0 0.0 0.0 1.0 0.0 0.0 0.0 ")
+                if xhandlers0 or yhandlers0 or zhandlers0:
+                    if xhandlers0:
+                        fanimation.write(f"{xhandlers0[0][0]} {xhandlers0[0][1]} {xhandlers0[1][0]} {xhandlers0[1][1]} ")
+                    else:
+                        fanimation.write(f"{frame+1} 0.0 {frame-1} 0.0 ")
+
+                    if yhandlers0:
+                        fanimation.write(f"{yhandlers0[0][0]} {yhandlers0[0][1]} {yhandlers0[1][0]} {yhandlers0[1][1]} ")
+                    else:
+                        fanimation.write(f"{frame+1} 0.0 {frame-1} 0.0 ")
+
+                    if zhandlers0:
+                        fanimation.write(f"{zhandlers0[0][0]} {zhandlers0[0][1]} {zhandlers0[1][0]} {zhandlers0[1][1]} ")
+                    else:
+                        fanimation.write(f"{frame+1} 0.0 {frame-1} 0.0 ")
+                fanimation.write("\n")
+                
+                # Get and process next keyframes
+                iframe = 1
+                for frame in keyframes[1:]:
+                    # Get current frame location and translation
+                    loc, quat = utils.getFrame(obj, frame)
+                    
+                    # Get translation handlers
+                    xhandlers = utils.getFrameHandlers(xCurve, iframe, loc0.x)
+                    yhandlers = utils.getFrameHandlers(yCurve, iframe, loc0.y)
+                    zhandlers = utils.getFrameHandlers(zCurve, iframe, loc0.z)
+                    iframe = iframe+1
+
+                    # Substract first keyframe position
+                    t = loc - loc0
+
+                    # Calculate the relative rotation from the first keyframe
+                    qRel = quat @ quat0.inverted()
+
+                    # Write keyframe
+                    fanimation.write(f"{frame} {t.x} {t.y} {t.z} {qRel.w} {qRel.x} {qRel.y} {qRel.z} ")
+                    if xhandlers or yhandlers or zhandlers:
+                        if xhandlers:
+                            fanimation.write(f"{xhandlers[0][0]} {xhandlers[0][1]} {xhandlers[1][0]} {xhandlers[1][1]} ")
+                        else:
+                            fanimation.write(f"{frame+1} 0.0 {frame-1} 0.0 ")
+                            
+                        if yhandlers:
+                            fanimation.write(f"{yhandlers[0][0]} {yhandlers[0][1]} {yhandlers[1][0]} {yhandlers[1][1]} ")
+                        else:
+                            fanimation.write(f"{frame+1} 0.0 {frame-1} 0.0 ")
+
+                        if zhandlers:
+                            fanimation.write(f"{zhandlers[0][0]} {zhandlers[0][1]} {zhandlers[1][0]} {zhandlers[1][1]} ")
+                        else:
+                            fanimation.write(f"{frame+1} 0.0 {frame-1} 0.0 ")
+                    fanimation.write("\n")
+                            
+                # Close animation file
+                fanimation.close()
+                
+                if fconf:
+                    # Set the animation file in configuration
+                    fconf.write(f"{prefixConfig}/animation/{name} \"{filenameAnimation}\"\n")
+
+                    # Add binded elements
+                    utils.addObjectBindedElementsConf(fconf, obj, name)
+                        
         
         #Get parent name
         if forceWorld:
@@ -1955,38 +2464,38 @@ class export_penred(Operator, ExportHelper):
             if len(vgIndexLists[i]) > 0:
                 nVGEff = nVGEff + 1
         
-        f.write("# Object: %s\n" % name.replace(" ", "_"))
-        f.write("#MAT      #NFACES     #NVERTEX     #NAME        #PARENT NAME    #N VERTEX GROUPS\n")
-        f.write(" %03d      %07d     %08d     %s        %s   %04d\n" % (obj.penred_settings.material, len(mesh.loop_triangles),len(mesh.vertices), name.replace(" ", "_"), parentName.replace(" ", "_"), nVGEff))
+        fgeo.write("# Object: %s\n" % name.replace(" ", "_"))
+        fgeo.write("#MAT      #NFACES     #NVERTEX     #NAME        #PARENT NAME    #N VERTEX GROUPS\n")
+        fgeo.write(" %03d      %07d     %08d     %s        %s   %04d\n" % (obj.penred_settings.material, len(mesh.loop_triangles),len(mesh.vertices), name.replace(" ", "_"), parentName.replace(" ", "_"), nVGEff))
 
         #Print vertex groups
-        f.write("# VERTEX GROUPS\n")
+        fgeo.write("# VERTEX GROUPS\n")
         for i in range(nVG):
 
             #Skip empty groups
             if len(vgIndexLists[i]) == 0:
                 continue
 
-            f.write("#NAME  #NVERTEX\n")
-            f.write(" %s   %04d\n" % (vgNames[i].replace(" ", "_"), len(vgIndexLists[i])))
+            fgeo.write("#NAME  #NVERTEX\n")
+            fgeo.write(" %s   %04d\n" % (vgNames[i].replace(" ", "_"), len(vgIndexLists[i])))
             for index in vgIndexLists[i]:
-                f.write(" %04d\n" % (index))
+                fgeo.write(" %04d\n" % (index))
 
         #Print vertex
-        f.write("# VERTEX LIST\n")
-        f.write("# Index  (X Y Z)\n")
+        fgeo.write("# VERTEX LIST\n")
+        fgeo.write("# Index  (X Y Z)\n")
         
         for vertex in mesh.vertices:
             vertexWorld = obj.matrix_world @ vertex.co
-            f.write("%04d %+.*E %+.*E %+.*E\n" % (vertex.index, toRound+3, round(vertexWorld[0],toRound), toRound+3, round(vertexWorld[1],toRound), toRound+3, round(vertexWorld[2],toRound)))
+            fgeo.write("%04d %+.*E %+.*E %+.*E\n" % (vertex.index, toRound+3, round(vertexWorld[0],toRound), toRound+3, round(vertexWorld[1],toRound), toRound+3, round(vertexWorld[2],toRound)))
         
-        f.write("# FACES(triangles)\n")
+        fgeo.write("# FACES(triangles)\n")
         for tri in mesh.loop_triangles:
-            f.write(" %03d %03d %03d\n" % (tri.vertices[0], tri.vertices[1], tri.vertices[2]))
-        f.write("#\n#\n")
+            fgeo.write(" %03d %03d %03d\n" % (tri.vertices[0], tri.vertices[1], tri.vertices[2]))
+        fgeo.write("#\n#\n")
         
     
-    def createObject(self,f,context,obj,nSurf,nObj,toRound,createChilds,avoidHide,fconf):
+    def createObject(self,fgeo,context,obj,nSurf,nObj,toRound,createChilds,avoidHide,fconf,prefixConfig):
         
         #Check the quadric type
         if obj.penred_settings.quadricType == "unknown" and obj.type != "EMPTY": 
@@ -2011,7 +2520,7 @@ class export_penred(Operator, ExportHelper):
         tree = [] # Children tree information
         if len(childrens) > 0:
             for child in childrens:
-                childTree, nSurf, nObj = self.createObject(f,context,child,nSurf,nObj,toRound,True,avoidHide,fconf)
+                childTree, nSurf, nObj = self.createObject(fgeo,context,child,nSurf,nObj,toRound,True,avoidHide,fconf,prefixConfig)
                 if len(childTree) > 0:
                     tree.extend(childTree)
                 
@@ -2043,40 +2552,40 @@ class export_penred(Operator, ExportHelper):
         
         ### Create object surfaces
         if quadType == "CUBE":
-            nSurf = surfaces.createCubeSurfaces(f,x,y,z,dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
+            nSurf = surfaces.createCubeSurfaces(fgeo,x,y,z,dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
         if quadType == "TRAPEZOID":
             topSize = obj.penred_settings.topSize
             botSize = obj.penred_settings.botSize
             
-            nSurf = surfaces.createTrapezoidSurfaces(f,x,y,z,
+            nSurf = surfaces.createTrapezoidSurfaces(fgeo,x,y,z,
                                                      sx*botSize[0], sy*botSize[1],
                                                      sx*topSize[0], sy*topSize[1],
                                                      dz,omega,theta,phi,
                                                      nSurf,name,toRound)            
         elif quadType == "SPHERE":
-            nSurf = surfaces.createSphereSurfaces(f,x,y,z,dx,dy,dz,nSurf,name,toRound)
+            nSurf = surfaces.createSphereSurfaces(fgeo,x,y,z,dx,dy,dz,nSurf,name,toRound)
         elif quadType == "CYLINDER":
-            nSurf = surfaces.createCylinderSurfaces(f,x,y,z, dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
+            nSurf = surfaces.createCylinderSurfaces(fgeo,x,y,z, dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
         elif quadType == "TUBE":
             r1 = obj.penred_settings.r1
             r2 = obj.penred_settings.r2
-            nSurf = surfaces.createTubeSurfaces(f,x,y,z,r1,r2,sx,sy,dz,omega,theta,phi,nSurf,name,toRound)
+            nSurf = surfaces.createTubeSurfaces(fgeo,x,y,z,r1,r2,sx,sy,dz,omega,theta,phi,nSurf,name,toRound)
         elif quadType == "CONE":
             r1 = obj.penred_settings.r1
             r2 = obj.penred_settings.r2
             if r1 == r2:
-                nSurf = surfaces.createCylinderSurfaces(f,x,y,z, dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
+                nSurf = surfaces.createCylinderSurfaces(fgeo,x,y,z, dx,dy,dz,omega,theta,phi,nSurf,name,toRound)
             else:
-                nSurf = surfaces.createConeSurfaces(f,x,y,z,r1,r2,dz,sx,sy,omega,theta,phi,nSurf,name,toRound)
+                nSurf = surfaces.createConeSurfaces(fgeo,x,y,z,r1,r2,dz,sx,sy,omega,theta,phi,nSurf,name,toRound)
         elif quadType == "PLANE":
-            nSurf = surfaces.createPlaneSurfaces(f,x,y,z,omega,theta,phi,nSurf,name,toRound)
+            nSurf = surfaces.createPlaneSurfaces(fgeo,x,y,z,omega,theta,phi,nSurf,name,toRound)
         elif quadType == "SEMI_SPHERE":
             #Construct sphere. Take into account that the Z dimension
             #must not be multiplied by two to comepnsate the cut, because
             #we added an artificial vertex
-            nSurf = surfaces.createSphereSurfaces(f,x,y,z,dx,dy,dz,nSurf,name,toRound)
+            nSurf = surfaces.createSphereSurfaces(fgeo,x,y,z,dx,dy,dz,nSurf,name,toRound)
             #Create limiting plane
-            nSurf = surfaces.createPlaneSurfaces(f,x,y,z,omega,theta,phi,nSurf,name,toRound)
+            nSurf = surfaces.createPlaneSurfaces(fgeo,x,y,z,omega,theta,phi,nSurf,name,toRound)
 
         # Create cutting plane surfaces, if defined
         nCuttingPlanes = 0
@@ -2092,7 +2601,7 @@ class export_penred(Operator, ExportHelper):
                         # Get its properties
                         xCut,yCut,zCut,_,_,_,_,_,_,omegaCut,thetaCut,phiCut,nameCut,_ = utils.getObjInfo(bolObj)
                         
-                        nSurf = surfaces.createPlaneSurfaces(f,xCut,yCut,zCut,omegaCut,thetaCut,phiCut,nSurf,nameCut,toRound)
+                        nSurf = surfaces.createPlaneSurfaces(fgeo,xCut,yCut,zCut,omegaCut,thetaCut,phiCut,nSurf,nameCut,toRound)
                         nCuttingPlanes = nCuttingPlanes+1
 
         # Force Blender to update the dependency graph
@@ -2100,14 +2609,14 @@ class export_penred(Operator, ExportHelper):
 
             
         ### Init body
-        surfaces.initBody(f,nObj,name,obj.penred_settings.material,obj.penred_settings.module)
+        surfaces.initBody(fgeo,nObj,name,obj.penred_settings.material,obj.penred_settings.module)
 
         # Set object specific parameters
         if fconf:
             if obj.penred_settings.isDetector:
-                fconf.write(f"geometry/kdet/{nObj} {obj.penred_settings.detector}\n")
+                fconf.write(f"{prefixConfig}/kdet/{nObj} {obj.penred_settings.detector}\n")
             if obj.penred_settings.dsmaxEnabled:
-                fconf.write(f"geometry/dsmax/{nObj} {obj.penred_settings.dsmax:.5e}\n")
+                fconf.write(f"{prefixConfig}/dsmax/{nObj} {obj.penred_settings.dsmax:.5e}\n")
 
             # Create variance reduction
             conf.createVR(obj, nObj, fconf)
@@ -2115,32 +2624,32 @@ class export_penred(Operator, ExportHelper):
                 
         ### Set object surfaces
         if quadType == "CUBE":
-            initSurf = surfaces.setCubeSurfaces(f,initSurf, 1)
+            initSurf = surfaces.setCubeSurfaces(fgeo,initSurf, 1)
         elif quadType == "TRAPEZOID":
             topSize = obj.penred_settings.topSize
             botSize = obj.penred_settings.botSize
-            initSurf = surfaces.setTrapezoidSurfaces(f,sx*botSize[0], sy*botSize[1],
+            initSurf = surfaces.setTrapezoidSurfaces(fgeo,sx*botSize[0], sy*botSize[1],
                                                      sx*topSize[0], sy*topSize[1],
                                                      initSurf, 1)
         elif quadType == "SPHERE":
-            initSurf = surfaces.setSphereSurfaces(f,initSurf, 1)
+            initSurf = surfaces.setSphereSurfaces(fgeo,initSurf, 1)
         elif quadType == "CYLINDER" or quadType == "CONE":
-            initSurf = surfaces.setCylinderConeSurfaces(f,initSurf, 1)
+            initSurf = surfaces.setCylinderConeSurfaces(fgeo,initSurf, 1)
         elif quadType == "TUBE":
-            initSurf = surfaces.setTubeSurfaces(f,initSurf, 1)
+            initSurf = surfaces.setTubeSurfaces(fgeo,initSurf, 1)
         elif quadType == "PLANE":
-            initSurf = surfaces.setPlaneSurfaces(f,initSurf, 1)
+            initSurf = surfaces.setPlaneSurfaces(fgeo,initSurf, 1)
         elif quadType == "SEMI_SPHERE":
-            initSurf = surfaces.setSphereSurfaces(f,initSurf, 1)
-            initSurf = surfaces.setPlaneSurfaces(f,initSurf, 1)
+            initSurf = surfaces.setSphereSurfaces(fgeo,initSurf, 1)
+            initSurf = surfaces.setPlaneSurfaces(fgeo,initSurf, 1)
 
         # Set cutting planes surfaces
         for i in range(nCuttingPlanes):
-            initSurf = surfaces.setPlaneSurfaces(f,initSurf, 1)            
+            initSurf = surfaces.setPlaneSurfaces(fgeo,initSurf, 1)            
             
         #Set childrens
         if len(tree) > 0:
-            surfaces.addChilds(f,tree)
+            surfaces.addChilds(fgeo,tree)
         
         #Add current body or module to tree
         if obj.penred_settings.module:
@@ -2173,21 +2682,40 @@ class export_penred(Operator, ExportHelper):
         return nMeshes
 
     def invoke(self, context, event):
-
+        
         quadrics = False
         meshes   = False
+        dicom    = False
         for obj in context.scene.objects:
             if hasattr(obj, "penred_settings"):
                 if obj.penred_settings.quadricType != 'unknown':
                     quadrics = True
-                    if meshes:
-                        break
+                    # if meshes:
+                    #     break
+                elif obj.penred_settings.isdicom:
+                    dicom = True
+
                 elif obj.type == 'MESH':
                     meshes = True
-                    if quadrics:
-                        break
+                    
+                    # if quadrics:
+                    #     break
 
-        if quadrics and meshes:
+        if dicom:
+            if quadrics and meshes:
+                self.report({'WARNING'}, "Exporting scene mixes quadric and mesh geometries")
+                self.exportType = "DICOM+GEO" # DICOM+GEO
+                self.secondaryExportType = "MESH"
+            elif quadrics:
+                self.exportType = "DICOM+GEO" # DICOM+GEO
+                self.secondaryExportType = "QUADRICS"     
+            elif meshes:
+                self.exportType = "DICOM+GEO" # DICOM+GEO
+                self.secondaryExportType = "MESH" 
+            else:
+                self.exportType = "DICOM" # DICOM                           
+
+        elif quadrics and meshes:
             self.report({'WARNING'}, "Exporting scene mixes quadric and mesh geometries")
             self.exportType = "QUADRICS" # Quadrics
         elif quadrics:
@@ -2205,13 +2733,17 @@ class export_penred(Operator, ExportHelper):
         return {'CANCELLED'}    
     
     def execute(self, context):
+
+        # Set scene frame to 0
+        bpy.context.scene.frame_set(0)
         
         #Open output file
-        f = open(self.filepath,'w',encoding='utf-8')
-        f.write("# Geometry file created with PenRed blender plugin v.2.0\n")
+        fgeo = open(self.filepath,'w',encoding='utf-8')
+        fgeo.write("# Geometry file created with PenRed blender plugin v.2.0\n")
 
         #If required, open output configuration file
         fconf = None
+        prefixConfig = "geometry"
         if not self.onlyGeo:
             filenameConf = os.path.splitext(self.filepath)[0] + ".in"
             fconf = open(filenameConf,'w',encoding='utf-8')
@@ -2235,11 +2767,62 @@ class export_penred(Operator, ExportHelper):
                 fconf.write( "geometry/type \"PEN_QUADRIC\"\n")
                 fconf.write(f"geometry/input-file \"{self.filepath}\"\n")
                 fconf.write("geometry/processed-geo-file \"report.geo\"\n\n")
-            else:
-                fconf.write( "geometry/type \"MESH_BODY\"\n")
-                fconf.write(f"geometry/input-file \"{self.filepath}\"\n")                
 
-        if self.exportType == 'QUADRICS':
+            if self.exportType == 'MESH':
+                fconf.write( "geometry/type \"MESH_BODY\"\n")
+                fconf.write(f"geometry/input-file \"{self.filepath}\"\n")       
+
+            if self.exportType == 'DICOM+GEO':
+
+                prefixConfig = "geometry/geometries/GEO/config"
+
+                fconf.write( "geometry/type \"COMBO\"\n")
+                fconf.write(f"geometry/geometries/GEO/priority 0 \n") 
+                fconf.write(f"geometry/geometries/DICOM/priority 1 \n") 
+
+                if self.secondaryExportType == 'QUADRICS':
+                    fconf.write( "geometry/geometries/GEO/config/type \"PEN_QUADRIC\"\n")
+                    fconf.write(f"geometry/geometries/GEO/config/input-file \"{self.filepath}\"\n")
+                    fconf.write("geometry/geometries/GEO/config/processed-geo-file \"report.geo\"\n\n")
+
+                if self.secondaryExportType == 'MESH':
+                    fconf.write( "geometry/geometries/GEO/config/type \"MESH_BODY\"\n")
+                    fconf.write(f"geometry/geometries/GEO/config/input-file \"{self.filepath}\"\n")                  
+
+                dicDICOM, status = createDICOM_Dict(context)
+                if status:
+                    self.report(status[0], status[1])
+                    return {'CANCELLED'}
+
+                dicConfig = {
+                    "geometry": {
+                        "geometries": {
+                            "DICOM": {
+                                "config": dicDICOM
+                            }
+                        }
+                    }
+                }
+
+                if dependency_manager.is_installed():
+                    import pyPenred
+                    fconf.write(pyPenred.data.dict2SectionString(dicConfig))
+            
+            if self.exportType == 'DICOM':
+
+                dicDICOM, status = createDICOM_Dict(context)
+                if status:
+                    self.report(status[0], status[1])
+                    return {'CANCELLED'}
+
+                dicConfig = dict()
+                dicConfig["geometry"] = dicDICOM
+
+                if dependency_manager.is_installed():
+                    import pyPenred
+                    fconf.write(pyPenred.data.dict2SectionString(dicConfig))          
+
+        if self.exportType == 'QUADRICS' or (self.secondaryExportType == 'QUADRICS' and self.exportType == 'DICOM+GEO'):
             #Create an array for object names
             objNames = []
             
@@ -2247,22 +2830,23 @@ class export_penred(Operator, ExportHelper):
             nObj = 1 #Number of object to be created
 
             if self.onlyActive:
-                self.createObject(f,context,bpy.context.active_object,nSurf,nObj,self.toRound,False,False,fconf)
+                self.createObject(fgeo,context,bpy.context.active_object,nSurf,nObj,self.toRound,False,False,fconf,prefixConfig)
             else:
                 #Find objects with no parents
                 for obj in context.scene.objects:
                     if not obj.parent:
                         #This object has no parent, create it
-                        nSurf,nObj = self.createObject(f,context,obj,nSurf,nObj,self.toRound,True,self.avoidHide,fconf)[1:]
+                        nSurf,nObj = self.createObject(fgeo,context,obj,nSurf,nObj,self.toRound,True,self.avoidHide,fconf,prefixConfig)[1:]
 
-            surfaces.endFile(f)
-        elif self.exportType == 'MESH':
+            surfaces.endFile(fgeo)
+
+        elif self.exportType == 'MESH' or (self.secondaryExportType == 'MESH' and self.exportType == 'DICOM+GEO'):
             
             if self.onlyActive:
                 #Print number of objects
-                f.write("# Number of objects:\n 1\n")
+                fgeo.write("# Number of objects:\n 1\n")
 
-                self.createTriangleMesh(f,context,bpy.context.active_object,self.toRound,True,False,fconf)
+                self.createTriangleMesh(fgeo,context,bpy.context.active_object,self.toRound,True,False,fconf,prefixConfig)
             else:
 
                 #Count number of meshes
@@ -2279,14 +2863,15 @@ class export_penred(Operator, ExportHelper):
                             nMeshes = nMeshes + 1
 
                 #Print number of objects
-                f.write("# Number of objects:\n %d\n" % (nMeshes))
+                fgeo.write("# Number of objects:\n %d\n" % (nMeshes))
 
                 for obj in context.scene.objects:
-                    self.createTriangleMesh(f,context,obj,self.toRound,False,self.avoidHide,fconf)
+                    self.createTriangleMesh(fgeo,context,obj,self.toRound,False,self.avoidHide,fconf,prefixConfig)
+        
         else:
-            f.write("# Unknown export format. Please, report this issue\n")
+            fgeo.write("# Unknown export format. Please, report this issue\n")
                 
-        f.close()
+        fgeo.close()
 
         if self.calledToSimulate:
             scene = context.scene
@@ -2324,6 +2909,10 @@ def register():
     for cls in materialsOperatorClasses:
         bpy.utils.register_class(cls)
 
+    #Register dicom operators
+    for cls in dicomClases:
+        bpy.utils.register_class(cls)
+
     bpy.utils.register_class(export_penred)
     
     #Register simulation operators
@@ -2358,6 +2947,10 @@ def unregister():
         
     #Unregister material operators
     for cls in materialsOperatorClasses:
+        bpy.utils.unregister_class(cls)
+        
+    #Unregister dicom operators
+    for cls in dicomClases:
         bpy.utils.unregister_class(cls)
 
     bpy.utils.unregister_class(export_penred)

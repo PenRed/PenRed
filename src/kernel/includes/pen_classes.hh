@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -39,6 +40,7 @@
 #include <algorithm>
 #include <numeric>
 #include <memory>
+#include <fstream>
 
 #include "../states/pen_baseState.hh"
 #include "pen_constants.hh"
@@ -113,30 +115,250 @@ public:
 // Geometry
 //-------------------
 
+namespace penred{
+
+  namespace transforms{
+
+    inline void apply(const Translation<double>& t, pen_particleState& state){
+      vector3D<double> pos(state.X, state.Y, state.Z);
+      t.apply(pos);
+      state.X = pos.x;
+      state.Y = pos.y;
+      state.Z = pos.z;
+    }
+
+    inline void apply(const Rotation<double>& r, pen_particleState& state){
+      vector3D<double> pos(state.X, state.Y, state.Z);
+      r.apply(pos);
+      
+      vector3D<double> dir(state.U, state.V, state.W);
+      r.apply(dir);
+      
+      state.X = pos.x;
+      state.Y = pos.y;
+      state.Z = pos.z;
+      
+      state.U = dir.x;
+      state.V = dir.y;
+      state.W = dir.z;      
+    }
+
+    inline void apply(const Rotation<double>& r, const Translation<double>& t, pen_particleState& state){
+      vector3D<double> pos(state.X, state.Y, state.Z);
+      r.apply(pos);
+      t.apply(pos);
+      
+      vector3D<double> dir(state.U, state.V, state.W);
+      r.apply(dir);
+      
+      state.X = pos.x;
+      state.Y = pos.y;
+      state.Z = pos.z;
+      
+      state.U = dir.x;
+      state.V = dir.y;
+      state.W = dir.z;      
+    }
+    inline void applyPos(const Rotation<double>& r, const Translation<double>& t, pen_particleState& state){
+      vector3D<double> pos(state.X, state.Y, state.Z);
+      r.apply(pos);
+      t.apply(pos);
+      
+      state.X = pos.x;
+      state.Y = pos.y;
+      state.Z = pos.z;
+    }    
+  } // namespace transforms
+  
+  namespace geometry{
+    
+    struct AnimatedBody{
+
+    private:
+      double animationThreshold;
+      transforms::Animation<double, double> animation;
+
+    public:
+
+      enum errors{
+	SUCCESS = 0,
+	ERROR_UNABLE_TO_OPEN_FILE,
+	ERROR_EMPTY_OR_CORRUPTED_FILE,
+      };
+
+      static constexpr const char* errorMessage(const unsigned int code){
+	switch(code){
+	case SUCCESS: return "success";
+	case ERROR_UNABLE_TO_OPEN_FILE: return "unable to open file";
+	case ERROR_EMPTY_OR_CORRUPTED_FILE: return "empty or corrupted file";
+	default: return "unknown error";
+	}
+      }
+
+      AnimatedBody() : animationThreshold(0.01) {}
+
+      const transforms::Animation<double, double>& readAnimation() const{
+	return animation;
+      }
+
+      inline double readAnimationThreshold() const { return animationThreshold; }
+      inline void setAnimationThreshold(const double t) {
+	animationThreshold = t;
+      }
+      inline size_t keyframes() const { return animation.size(); }
+      inline void setAnimation(const transforms::Animation<double, double>& newAnim){
+	animation = newAnim;
+      }
+
+      inline bool animated() const {
+	return !animation.empty(); 
+      }
+
+      inline bool inAnimation(const double t) const {
+	//If an animation is enabled, ensure time is after animation start
+	if(animated() && animation.init() < t){
+	  return true;
+	}
+	return false;
+      }
+  
+      inline int parseAnimation(std::istream& is){
+	if(is){
+	  //Read threshold
+	  double threshold;
+	  is >> threshold;
+	  if(!is){
+	    return ERROR_EMPTY_OR_CORRUPTED_FILE;
+	  }
+	  setAnimationThreshold(threshold);
+	  size_t n = animation.parse(is);
+
+	  if(n == 0)
+	    return ERROR_EMPTY_OR_CORRUPTED_FILE;
+	  return SUCCESS;
+	}
+	else{
+	  return ERROR_UNABLE_TO_OPEN_FILE;
+	}
+      }
+
+      inline int parseAnimation(const char* filename){
+	if(filename == nullptr)
+	  return ERROR_UNABLE_TO_OPEN_FILE;
+    
+	std::ifstream f(filename);
+	return parseAnimation(f);
+      }
+
+      inline transforms::Keyframe<double, double> getKeyframe(const double t) const{
+	return animation.getKeyframe(t);
+      }
+    };
+  } //namespace geometry
+  
+} //namespace penred
+
 class wrapper_geometry : public penred::logs::logger{
 
+private:
+  virtual penred::errors::Error specificConfigure(const pen_parserSection& config, const unsigned verbose) = 0;
+
+  unsigned matShift; //Allows to shift the configured materials for each element
+  
 protected:
-  int configStatus;
+  penred::errors::Error configError;
 
 public:
 
+  enum errors{
+    SUCCESS = 0,
+    ERROR_ON_CONFIGURAITON_PARSING,
+  };
+      
+  static constexpr const char* errorMessage(const int val) noexcept {
+    switch(val){
+    case SUCCESS: return "Success";
+    case ERROR_ON_CONFIGURAITON_PARSING: return "Error parsing configuration";
+    default: return "Unknown error";
+    }
+  }
+
   std::string name;
     
-  wrapper_geometry() : configStatus(0),
-		       name("unnamed") {}
+  wrapper_geometry() :
+    matShift(0),
+    name("unnamed")
+  {}
 
-  inline int configureStatus() const {return configStatus;}
+  inline unsigned readMatShift() const noexcept{ return matShift; }
+
+  inline penred::errors::Error configure(const pen_parserSection& config,
+					 const unsigned verbose){
+
+    int matShiftAux;
+	if(config.read("material-shift",matShiftAux) != INTDATA_SUCCESS){
+      matShiftAux = 0;
+      matShift = 0;
+	}
+    if(matShiftAux > 0){
+      matShift = matShiftAux;
+      if(verbose > 1){
+        printf("Material shift to be applied: %u\n\n", matShift);
+      }
+    }
+    
+    configError = specificConfigure(config, verbose);
+    return configError;
+  }
+
+  inline penred::errors::Error configureStatus() const {return configError;}
   inline virtual const char* getType() const {return "UNKNOWN";}
+  inline virtual const char* readID() const {return "UNKNOWN";}
   
-  virtual void locate(pen_particleState& state) const = 0;
-  virtual void step(pen_particleState& state, double DS, double &DSEF, double &DSTOT, int &NCROSS) const = 0;
-  virtual int configure(const pen_parserSection& config, const unsigned verbose) = 0;
-  virtual void usedMat(bool[constants::MAXMAT+1]) const = 0;
+  virtual void locateLocal(pen_particleState& state) const = 0;
+  inline void locate(pen_particleState& state) const{
+    if(state.MAT > 0)
+      state.MAT -= matShift;
+    locateLocal(state);
+    if(state.MAT > 0)
+      state.MAT += matShift;
+  }
+  
+  virtual void stepLocal(pen_particleState& state, double DS, double &DSEF, double &DSTOT, int &NCROSS) const = 0;
+  inline void step(pen_particleState& state, double DS, double &DSEF, double &DSTOT, int &NCROSS) const{
+    if(state.MAT > 0)
+      state.MAT -= matShift;
+    stepLocal(state, DS, DSEF, DSTOT, NCROSS);
+    if(state.MAT > 0)
+      state.MAT += matShift;    
+  }
+  
+  virtual void usedMatLocal(bool[constants::MAXMAT+1]) const = 0;
+  inline void usedMat(bool mats[constants::MAXMAT+1]) const{
+    usedMatLocal(mats);
+    for(long int i = constants::MAXMAT; i > 0; --i){
+      if(mats[i]){
+        mats[i] = false;
+        if(i + matShift <= constants::MAXMAT){
+          mats[i + matShift] = true;
+        }
+      }
+    }
+  }
+  
   virtual double getEabs(const unsigned ibody, const unsigned kpar) const = 0;
   virtual double getDSMAX(const unsigned ibody) const = 0;
   virtual unsigned getDET(const unsigned ibody) const = 0;
-  virtual unsigned getMat(const unsigned ibody) const = 0;
+
+  virtual unsigned getMatLocal(const unsigned ibody) const = 0;
+  inline unsigned getMat(const unsigned ibody) const{
+    unsigned mat = getMatLocal(ibody);
+    return mat == 0 ? 0 : mat +  matShift;
+  }
+  
   virtual unsigned long getElements() const = 0;
+  virtual unsigned long getDimElements(const unsigned long idim) const = 0;
+  virtual unsigned long getElementsDim() const = 0;
   virtual unsigned getBodies() const = 0;
   virtual unsigned getIBody(const char* elementName) const = 0;
   virtual std::string getBodyName(const unsigned ibody) const = 0;
@@ -150,8 +372,8 @@ public:
 
 
   //Methods for nested geometries
-  virtual size_t nInternalGeometries() const { return 0; }
-  virtual const wrapper_geometry* getInternalGeo(const size_t /*index*/) const { return nullptr; }
+  virtual inline size_t nInternalGeometries() const { return 0; }
+  virtual inline const wrapper_geometry* getInternalGeo(const size_t /*index*/) const { return nullptr; }
   
   template<class geoType>
   const geoType* getInternalGeoType (size_t& geoPos, const size_t firstPos = 0) const {
@@ -171,11 +393,41 @@ public:
     geoPos = nInternal;
     return nullptr;
   }
+
+  //Geometry transforms
+  virtual inline bool isTransformable() const { return false; }
+
+  virtual inline void composeTransform(const unsigned /*ibody*/,
+				       vector3D<double>& /*pos*/,
+				       vector3D<double>& /*dir*/,
+				       const double /*t*/) const {}
+  virtual inline void composeTransform(const unsigned ibody,
+				       vector3D<double>& pos,
+				       const double t) const {
+    vector3D<double> dummy(1.0,0.0,0.0);
+    composeTransform(ibody, pos, dummy, t);
+  }
+  
+  virtual inline void composeInvTransform(const unsigned /*ibody*/,
+					  vector3D<double>& /*pos*/,
+					  vector3D<double>& /*dir*/,
+					  const double /*t*/) const {}
+  virtual inline void composeInvTransform(const unsigned ibody,
+					  vector3D<double>& pos,
+					  const double t) const {
+    vector3D<double> dummy(1.0,0.0,0.0);
+    composeInvTransform(ibody, pos, dummy, t);
+  }
   
   virtual ~wrapper_geometry(){}
-
   
 };
+
+//Define wrapper_geometry error message function
+template<>
+constexpr const char* penred::errors::errorMessage<wrapper_geometry>(const int val) noexcept {
+  return wrapper_geometry::errorMessage(val);
+}
 
 //-------------------
 // Variance reduction

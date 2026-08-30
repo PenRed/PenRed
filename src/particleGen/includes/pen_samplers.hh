@@ -36,6 +36,7 @@
 #include <thread>
 #include <atomic>
 #include <chrono>
+#include <memory>
 #include "pen_classes.hh"
 #include "pen_math.hh"
 #include "instantiator.hh"
@@ -429,9 +430,12 @@ private:
   double Emax; //Maximum possible value for sampled energies
 
   //Post-sampling transformations
-  double rotation[9];
-  bool rotate;
-  double translation[3];  
+  std::string bindingBody; //Body which transforms are applied to the sampled state
+  unsigned bindingIBody;
+  
+  bool rotate; //Flags if a post-processing rotation has been provided
+  penred::transforms::Rotation<double> rotation; //Manual post-processing rotation
+  penred::transforms::Translation<double> translation; //Manual post-processing translation
   
 public:
 
@@ -587,19 +591,131 @@ public:
 				  std::vector<std::string>& direction,
 				  std::vector<std::string>& energy,
 				  std::vector<std::string>& time);
+
+  static inline std::shared_ptr<abc_spatialSampler> instanceSpatial(const char* ID) {
+    return std::shared_ptr<abc_spatialSampler>(spatialSamplers().createInstance(ID));
+  }
+  static inline std::shared_ptr<abc_directionSampler> instanceDirection(const char* ID) {
+    return std::shared_ptr<abc_directionSampler>(directionSamplers().createInstance(ID));
+  }
+  static inline std::shared_ptr<abc_energySampler> instanceEnergy(const char* ID) {
+    return std::shared_ptr<abc_energySampler>(energySamplers().createInstance(ID));
+  }
+  static inline std::shared_ptr<abc_timeSampler> instanceTime(const char* ID) {
+    return std::shared_ptr<abc_timeSampler>(timeSamplers().createInstance(ID));
+  }  
+  
   int setGeometry(const wrapper_geometry* geometryIn);
 
   //Post-sampling transformations
-  inline void setPostRotationZYZ(const double omega, const double theta, const double phi){
-    createRotationZYZ(omega,theta,phi,rotation);
+  inline void setPostRotation(const penred::Quaternion<double>& q){
+    rotation.quaternion = q.normalized();
     rotate = true;
   }
+  inline void setPostRotation(const double w, const double x, const double y, const double z){
+    setPostRotation(penred::Quaternion<double>(w,x,y,z));
+  }  
   inline void clearPostRotation(){rotate = false;}
-  inline void setPostTranslation(const double x, const double y, const double z) noexcept {
-    translation[0] = x;
-    translation[1] = y;
-    translation[2] = z;
+  
+  inline void setPostTranslation(const penred::transforms::Translation<double>& t) noexcept {
+    translation = t;
   }
+  inline void setPostTranslation(const double x, const double y, const double z) noexcept {
+    translation = penred::transforms::Translation<double>(x,y,z);
+  }
+
+  //Sets the object where the source is binded
+  inline void bind2Body(const std::string& bodyName){
+    bindingBody = bodyName;
+    if(geometry != nullptr){
+      bindingIBody = geometry->getIBody(bindingBody.c_str());
+    }
+  }
+
+  inline bool postProcess(pen_particleState& state) const noexcept {
+    if(bindingBody.size() > 0){
+
+      //Check body existence
+      if(bindingIBody >= geometry->getBodies()){
+	return false;
+      }
+      
+      //Get state's position and direction
+      vector3D<double> pos(state.X, state.Y, state.Z);
+      vector3D<double> dir(state.U, state.V, state.W);
+
+      //Apply the corresponding transformations
+      geometry->composeTransform(bindingIBody,pos,dir,state.PAGE);
+
+      //Update state
+      state.X = pos.x;
+      state.Y = pos.y;
+      state.Z = pos.z;
+
+      state.U = dir.x;
+      state.V = dir.y;
+      state.W = dir.z;
+    }
+    else{
+      if(rotate){
+	//Apply post-process to direction and position with rotation
+	penred::transforms::apply(rotation, translation, state);
+      }else{
+	//Apply post-translation
+	penred::transforms::apply(translation, state);    
+      }
+    }
+    
+    return true;
+  }
+
+  inline bool postProcessPos(pen_particleState& state) const noexcept {
+    if(bindingBody.size() > 0){
+
+      //Check body existence
+      if(bindingIBody >= geometry->getBodies()){
+	return false;
+      }
+      
+      //Get state's position and direction
+      vector3D<double> pos(state.X, state.Y, state.Z);
+
+      //Apply the corresponding transformations
+      geometry->composeTransform(bindingIBody,pos,state.PAGE);
+
+      //Update state
+      state.X = pos.x;
+      state.Y = pos.y;
+      state.Z = pos.z;
+    }
+    else{
+      if(rotate){
+	//Apply post-process to direction and position with rotation
+	penred::transforms::applyPos(rotation, translation, state);
+      }else{
+	//Apply post-translation
+	penred::transforms::apply(translation, state);    
+      }
+    }
+
+    return true;
+  }
+
+  inline bool checkBinding(){
+    if(bindingBody.size() > 0 && bindingIBody >= geometry->getBodies()){
+      return false;
+    }
+    return true;
+  }
+
+  void configurePostProcessing(const pen_parserSection& config, const unsigned verbose);
+
+  inline void clearPostProcessing(){
+    setPostTranslation(0.0,0.0,0.0);
+    clearPostRotation();
+    bindingBody.clear();
+  }
+  
   ////////////////////
 
   inline int configureStatus(){return configStatus;}
@@ -937,6 +1053,9 @@ private:
   } else if(verbose > 1){
     printf("No source material selected\n");
   }
+
+  //Post-processing
+  genericGen.configurePostProcessing(config, verbose);
   
   if(verbose > 1){
 
@@ -946,6 +1065,16 @@ private:
     printf("Direction -> %s\n", directionID());
     printf("Energy    -> %s\n", energyID());
     printf("Time      -> %s\n", timeID());
+
+    printf("+ Post-sampling transforms:\n");
+    if(genericGen.bindingBody.size() > 0){
+      printf("  - Binded to object %s\n", genericGen.bindingBody.c_str());      
+    }
+    else{
+      printf("  - Translation : %s\n", genericGen.translation.stringify().c_str());
+      if(genericGen.rotate)
+	printf("  - Rotation    : %s\n", genericGen.rotation.stringify().c_str());      
+    }
   }
 
   return 0;
@@ -1094,21 +1223,37 @@ public:
       throw std::out_of_range("abc_specificSampler: specific: Specified thread out of range");
     return specificSamplerVect[ithread];}
   
-  static std::string samplersList(){
+  static inline std::string samplersList(){
     std::string aux(pen_genericStateGen::samplersList());
     aux += " --- Specific:\n";
     aux += specificSamplers().typesList();
     return aux;
   }
-  static std::string samplersList(std::vector<std::string>& spatial,
-				  std::vector<std::string>& direction,
-				  std::vector<std::string>& energy,
-				  std::vector<std::string>& time,
-				  std::vector<std::string>& specific){
+  static inline std::string samplersList(std::vector<std::string>& spatial,
+                                         std::vector<std::string>& direction,
+                                         std::vector<std::string>& energy,
+                                         std::vector<std::string>& time,
+                                         std::vector<std::string>& specific){
     std::string aux(pen_genericStateGen::samplersList(spatial,direction,energy,time));
     aux += "Specific:\n";
     aux += specificSamplers().typesList(specific);
     return aux;
+  }
+
+  static inline std::shared_ptr<abc_specificSampler<particleState>> instanceSpecific(const char* ID) {
+    return std::shared_ptr<abc_specificSampler<particleState>>(specificSamplers().createInstance(ID));
+  }
+  static inline std::shared_ptr<abc_spatialSampler> instanceSpatial(const char* ID) {
+    return pen_genericStateGen::instanceSpatial(ID);
+  }
+  static inline std::shared_ptr<abc_directionSampler> instanceDirection(const char* ID) {
+    return pen_genericStateGen::instanceDirection(ID);
+  }
+  static inline std::shared_ptr<abc_energySampler> instanceEnergy(const char* ID) {
+    return pen_genericStateGen::instanceEnergy(ID);
+  }
+  static inline std::shared_ptr<abc_timeSampler> instanceTime(const char* ID) {
+    return pen_genericStateGen::instanceTime(ID);
   }
   
   inline int setGeometry(const wrapper_geometry* geometryIn){
@@ -1122,13 +1267,20 @@ public:
   }
 
   //Post-sampling transformations for generic sampling
-  inline void setPostRotationZYZ(const double omega, const double theta, const double phi){
-    genericGen.setPostRotationZYZ(omega,theta,phi);
+  inline void setPostRotation(const penred::Quaternion<double>& q){
+    genericGen.setPostRotation(q);
+  }
+  inline void setPostRotation(const double w, const double x, const double y, const double z){
+    genericGen.setPostRotation(w,x,y,z);
   }
   inline void clearPostRotation(){genericGen.clearPostRotation();}
   inline void setPostTranslation(const double x, const double y, const double z) noexcept {
     genericGen.setPostTranslation(x,y,z);
   }
+  inline void bind2Body(const std::string& bodyName){
+    genericGen.bind2Body(bodyName);
+  }
+  
   ////////////////////  
 
   inline bool usesGeneric() const {return useGeneric;}
@@ -1404,10 +1556,11 @@ public:
     else{ //No generic sampling
       //If specified, perform specific sampling
       if(useSpecific){
-	specificSamplerVect[thread]->sample(state,genKpar,dhist,random);
+        state.reset();
+        specificSamplerVect[thread]->sample(state,genKpar,dhist,random);
 
-	//Locate particle in geometry
-	geometry->locate(state);
+        //Locate particle in geometry
+        geometry->locate(state);
       }
       else{
 	//No sampler specified!

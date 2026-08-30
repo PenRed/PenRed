@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
-//    Copyright (C) 2024-2025 Vicent Giménez Alventosa
+//    Copyright (C) 2024-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -33,19 +33,19 @@
 
 #include "DICOM_geo.hh"
 
-int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verbose){
+penred::errors::Error pen_dicomGeo::specificConfigure(const pen_parserSection& config,
+						      const unsigned verbose){
 
-  int err = 0;
+  penred::errors::SpecificError<pen_dicomGeo> error;
 
   // Read DICOM directory path
   //****************************
   std::string directoryPath;
   if(config.read("directory",directoryPath) != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("pen_dicomGeo:configure:Error: Unable to read field 'directory'. String expected.\n");
-    }
-    configStatus = 1;
-    return 1;
+    error.code = MISSING_CONFIG_PARAMETER;
+    error.description = "pen_dicomGeo:configure:Error: Unable to read "
+      "field 'directory'. String expected.";
+    return error;
   }
 
   // Check for calibration array
@@ -53,7 +53,8 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   pen_parserArray calibration;
   if(config.read("calibration",calibration) != INTDATA_SUCCESS){
     if(verbose > 1){
-      printf("pen_dicomGeo:configure: No calibration specified, raw image data will be used for conversion.\n");
+      printf("pen_dicomGeo:configure: No calibration specified, raw image "
+	     "data will be used for conversion.\n");
     }
   }
 
@@ -62,42 +63,50 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   double defDens;
   int defMat;
   if(config.read("default/material",defMat) != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("pen_dicomGeo:configure: No default material provided ('default/material')\n");
+    if(verbose > 1){
+      printf("pen_dicomGeo:configure: Warning: No default material "
+	     "provided ('default/material'). Material 1 will be used by default\n");
     }
     defMat = 1;
   }
 
-  printf("DICOM default material: %d\n",defMat);
+    if(verbose > 1){
+      printf("DICOM default material: %d\n",defMat);
+    }
   if(defMat < 1){
-    if(verbose > 0)
-      printf("pen_dicomGeo:configure: Error: Default material must be greater than zero\n");
-    configStatus = 2;
-    return 2;
+    error.code = BAD_VALUE;
+    error.description = "pen_dicomGeo:configure: Error: Default material must be greater than zero.";
+    return error;
   }
 
   if(config.read("default/density",defDens) != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("pen_dicomGeo:configure: No default density provided ('default/density')\n");
+    if(verbose > 1){
+      printf("pen_dicomGeo:configure: Warning: No default density "
+	     "provided ('default/density'). Air density will be used by default\n");
     }
     defDens = 0.0012;  //assign air density
   }
-  printf("DICOM default density: %14.5E g/cm^3\n",defDens);
+  
+    if(verbose > 1){
+      printf("DICOM default density: %14.5E g/cm^3\n",defDens);
+    }
   if(defDens <= 0.0){
-    if(verbose > 0)
-      printf("pen_dicomGeo:configure: Error: Invalid default density.\n");
-    configStatus = 3;
-    return 3;
+    error.code = BAD_VALUE;
+    error.description = "pen_dicomGeo:configure: Error: Invalid default density.";
+    return error;
   }
 
   //Check for intensity range material assign
   //****************************************
 
   std::vector<intensityRange> intensityRanges;
-  if(readIntensityRanges(config, intensityRanges, verbose) != 0){
-    if(verbose > 0)
-      printf("pen_dicomGeo:configure: Error reading intensity ranges.\n");
-    return 4;
+  penred::errors::Error errorIR;
+  errorIR = readIntensityRanges(config, intensityRanges, verbose);
+  if(errorIR){
+    error.code = INTENSITY_RANGE_CONFIG_ERROR;
+    error.description = "pen_dicomGeo:configure: Error configuring global intensity ranges.";
+    error.setTrace(errorIR);
+    return error;
   }
 
   
@@ -113,11 +122,9 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   pen_parserSection matSec;
   std::vector<std::string> matNames;
   if(config.readSubsection("materials",matSec) != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("pen_dicomGeo:configure: No material information provided\n");
-    }
-    configStatus = 4;
-    return 4;
+    error.code = MISSING_CONFIG_PARAMETER;
+    error.description = "pen_dicomGeo:configure: No material information provided.";
+    return error;
   }
   
   //Extract material names
@@ -127,7 +134,7 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
     printf(" Material Name |  ID  | Density (g/cm^3)\n");
   }
   
-  //Iterate over all material
+  //Iterate over all materials
   for(unsigned imat = 0; imat < matNames.size(); imat++){
 
     double auxDens;
@@ -141,21 +148,19 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	
     //Read material ID
     if(matSec.read(idField.c_str(),auxID) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("pen_dicomGeo:configure: Error: Unable to read material ID for material '%s'. Integer expected.\n",matNames[imat].c_str());
-      }
-      configStatus = -1;
-      return -1;
+      error.code = MISSING_CONFIG_PARAMETER;
+      error.description = "pen_dicomGeo:configure: Error: Unable to read material ID for material '";
+      error.description += matNames[imat];
+      error.description += "'. Integer expected.";
+      return error;
     }
     //Check material ID
     if(auxID < 1 || auxID > (int)constants::MAXMAT){
-      if(verbose > 0){
-	printf("pen_dicomGeo:configure: Error: Invalid ID specified for material '%s'.\n",matNames[imat].c_str());
-	printf("                         ID: %d\n",auxID);
-	printf("Maximum number of materials: %d\n",constants::MAXMAT);
-      }
-      configStatus = -2;
-      return -2;
+      error.code = BAD_VALUE;
+      error.description = "pen_dicomGeo:configure: Error: Invalid ID specified for material '";
+      error.description += matNames[imat];
+      error.description += "'. Maximum number of materials: " + std::to_string(constants::MAXMAT);
+      return error;
     }
 
     // Density
@@ -163,20 +168,19 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	
     //Read density
     if(matSec.read(densField.c_str(),auxDens) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("pen_dicomGeo:configure: Error: Unable to read density for material '%s'. Double expected.\n",matNames[imat].c_str());
-      }
-      configStatus = -3;
-      return -3;
+      error.code = MISSING_CONFIG_PARAMETER;
+      error.description = "pen_dicomGeo:configure: Error: Unable to read density for material '";
+      error.description += matNames[imat];
+      error.description += "'.";
+      return error;
     }
     //Check density
     if(auxDens <= 0.0){
-      if(verbose > 0){
-	printf("pen_dicomGeo:configure: Error: Invalid density specified for material '%s'. Must be greater than zero.\n",matNames[imat].c_str());
-	printf("                        density: %12.4E g/cm^3\n",auxDens);
-      }
-      configStatus = -4;
-      return -4;
+      error.code = BAD_VALUE;
+      error.description = "pen_dicomGeo:configure: Error: Invalid density specified for material '";
+      error.description += matNames[imat];
+      error.description += "'. Must be greater than zero.";
+      return error;
     }
 
     //Store density values for specified materials
@@ -197,8 +201,8 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   std::vector<contourAssign> contourAssigns;
   
   if(config.readSubsection("contours",contourSec) != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("pen_dicomGeo:configure: No contour information provided\n");
+    if(verbose > 1){
+      printf(" + No contour information provided\n");
     }
   }else{
     //Extract contour names
@@ -227,13 +231,12 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
       }else{
 	//Check material ID
 	if(auxMat < 1 || auxMat > (int)constants::MAXMAT){
-	  if(verbose > 0){
-	    printf("pen_dicomGeo:configure: Error: Invalid material ID assigned to contour '%s'.\n",contourNames[i].c_str());
-	    printf("                         ID: %d\n",auxMat);
-	    printf("Maximum number of materials: %d\n",constants::MAXMAT);
-	  }
-	  configStatus = -2;
-	  return -2;
+	  error.code = BAD_VALUE;
+	  error.description = "pen_dicomGeo:configure: Error: "
+	    "Invalid material ID assigned to contour '" + contourNames[i] + "'.";
+	  error.description += "The maximum number of materials is ";
+	  error.description += std::to_string(constants::MAXMAT);
+	  return error;
 	}
       }
 
@@ -246,12 +249,11 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
       }else{
 	//Check density
 	if(auxDens <= 0.0){
-	  if(verbose > 0){
-	    printf("pen_dicomGeo:configure: Error: Invalid material density specified for contour '%s'. Must be greater than zero.\n",contourNames[i].c_str());
-	    printf("                        density: %12.4E\n",auxDens);
-	  }
-	  configStatus = -4;
-	  return -4;
+	  error.code = BAD_VALUE;
+	  error.description = "pen_dicomGeo:configure: Error: "
+	    "Invalid material density specified for contour '" + contourNames[i] + "'.";
+	  error.description += " Must be greater than zero.";
+	  return error;
 	}
       }
       // Priority
@@ -259,11 +261,11 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	
       //Read priority
       if(contourSec.read(prioField.c_str(),auxPrio) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  printf("pen_dicomGeo:configure: Error: Unable to read priority for contour '%s'. Double expected.\n",contourNames[i].c_str());
-	}
-	configStatus = -5;
-	return -5;
+	error.code = MISSING_CONFIG_PARAMETER;
+	error.description = "pen_dicomGeo:configure: Error: Unable to read priority for contour '";
+	error.description += contourNames[i];
+	error.description += "'.";
+	return error;
       }
       
       if(verbose > 1){
@@ -296,12 +298,11 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
       pen_parserSection contourNameSec;      
       if(contourSec.readSubsection(contourNames[i],contourNameSec) !=
 	 INTDATA_SUCCESS){
-	if(verbose > 0){
-	  printf("pen_dicomGeo:configure: Unable to get contour "
-		 "'%s' section\n", contourNames[i].c_str());
-	}
-	configStatus = -5;
-	return -5;
+	error.code = MISSING_CONFIG_PARAMETER;
+	error.description = "pen_dicomGeo:configure: Error: Unable to read contour '";
+	error.description += contourNames[i];
+	error.description += "' section.";
+	return error;
       }
 
       //Check if intensity ranges have been specified for this contour
@@ -312,14 +313,16 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	}
 	
 	//Load intensity and density ranges
-	if(readIntensityRanges(contourNameSec,
-			       contAssigns.intensityRanges,
-			       verbose) != 0){
-	  if(verbose > 0)
-	    printf("pen_dicomGeo:configure: Error reading intensity"
-		   " ranges in contour %s.\n", contourNames[i].c_str());
-	  configStatus = -5;
-	  return -5;
+	penred::errors::Error errorIRC;
+	errorIRC = readIntensityRanges(contourNameSec,
+                                   contAssigns.intensityRanges,
+                                   verbose);
+	if(errorIRC){
+	  error.code = INTENSITY_RANGE_CONFIG_ERROR;
+	  error.description = "pen_dicomGeo:configure: Error configuring intensity ranges "
+	    "in contour " + contourNames[i];
+	  error.setTrace(errorIRC);
+	  return error;
 	}
       }
 
@@ -330,14 +333,16 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	  printf("  - Density ranges defined in this contour:\n");
 	}
 	
-	if(readDensityRanges(contourNameSec,
-			     contAssigns.densityRanges,
-			     verbose) != 0){
-	  if(verbose > 0)
-	    printf("pen_dicomGeo:configure: Error reading density"
-		   " ranges in contour %s.\n", contourNames[i].c_str());
-	  configStatus = -5;
-	  return -5;
+	penred::errors::Error errorDRC;
+	errorDRC = readDensityRanges(contourNameSec,
+				     contAssigns.densityRanges,
+				     verbose);
+	if(errorDRC){
+	  error.code = DENSITY_RANGE_CONFIG_ERROR;
+	  error.description = "pen_dicomGeo:configure: Error configuring density ranges "
+	    "in contour " + contourNames[i];
+	  error.setTrace(errorDRC);
+	  return error;
 	}
       }
 
@@ -348,9 +353,10 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 
     //Check if we can assign density using calibration
     if(calibration.size() == 0 && intensityRanges.size() == 0){
-      printf("pen_dicomGeo:configure: Error: No contour information nor calibration nor intensity ranges provided to assign density to voxels.\n");
-      configStatus = 4;
-      return 4;
+      error.code = MISSING_CONFIG_PARAMETER;
+      error.description = "pen_dicomGeo:configure: Error: No contour information"
+	" nor calibration nor intensity ranges provided to assign density to voxels.";
+      return error;
     }
   }
   
@@ -358,14 +364,17 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   //Check for density range material assign
   //****************************************
 
+  penred::errors::Error errorDR;
   std::vector<densityRange> densityRanges;
-  if(readDensityRanges(config, densityRanges, verbose) != 0){
-    if(verbose > 0)
-      printf("pen_dicomGeo:configure: Error reading density ranges.\n");
-    return 4;
+  errorDR = readDensityRanges(config, densityRanges, verbose);
+  if(errorDR){
+    error.code = DENSITY_RANGE_CONFIG_ERROR;
+    error.description = "pen_dicomGeo:configure: Error configuring global density ranges.";
+    error.setTrace(errorDR);
+    return error;
   }
 
-  if(densityRanges.size() > 0 && calibration.size() == 0 && verbose > 0){
+  if(densityRanges.size() > 0 && calibration.size() == 0 && verbose > 1){
     printf("\npen_dicomGeo:configure: Warning: Density ranges can't be "
 	   "used to assign materials without calibration. Density ranges "
 	   "will be ignored.\n");
@@ -373,37 +382,33 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   
   //Try to read print-ASCII output dir
   std::string OutputDirPath;
-  if(config.read("outputdir",OutputDirPath) != INTDATA_SUCCESS){
-      if(verbose > 0){
-  printf("pen_dicomGeo: configure: Warning: unable to read field geometry/outputdir. Assumed default output dir path ./\n");
-      }
-  }
-
-  if(verbose > 1){
+  if(config.read("outputdir",OutputDirPath) == INTDATA_SUCCESS){
+    if(verbose > 1){
       printf("geometry print-ASCII outputdir: '%s'\n\n",OutputDirPath.c_str());
-  }    
+    }
+  }
    
   //Check for segmentation constrains
   //****************************************
   std::vector<segmentConstraints> constraints;
-  
-  if(readSegmentConstraints(config, constraints, verbose) != 0){
-    if(verbose > 0)
-      printf("pen_dicomGeo:configure: Error reading segmentation constraints.\n");
-    return 4;    
+  penred::errors::Error errorSC;
+  errorSC = readSegmentConstraints(config, constraints, verbose);
+  if(errorSC){
+    error.code = MISSING_CONFIG_PARAMETER;
+    error.description = "pen_dicomGeo:configure: Error reading segmentation constraints.";
+    error.setTrace(errorSC);
+    return error;
   }
   
   //*******************
   // Try to load DICOM
   //*******************
-  err = dicom.loadDicom(directoryPath.c_str(),verbose);
-  if(err != PEN_DICOM_SUCCESS){
-    if(verbose > 0){
-      printf("pen_dicomGeo:configure: Error loading DICOM '%s'\n",directoryPath.c_str());
-      printf("                 Error code: %d\n",err);
-    }
-    configStatus = 5;
-    return 5;
+  penred::errors::Error errDicom = dicom.loadDicom(directoryPath.c_str(),verbose);
+  if(errDicom){
+    error.code = DICOM_LOAD_ERROR;
+    error.description = "pen_dicomGeo:configure: Error loading DICOM from " + directoryPath;
+    error.setTrace(errDicom);
+    return error;
   }
 
   // Get contour indexes and assign priorities
@@ -427,11 +432,10 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 	      
     index = dicom.getContourIndex(contourNameLowerCase.c_str());
     if(index >= dicom.nContours()){
-      if(verbose > 0){
-	printf("pen_dicomGeo:configure: Error: Contour '%s' doesn't exist in specified DICOM (%s)\n",contourNames[icont].c_str(),directoryPath.c_str());
-      }
-      configStatus = 6;
-      return 6;
+      error.code = DICOM_CONTOUR_ERROR;
+      error.description = "pen_dicomGeo:configure:Error: Contour " + contourNames[icont] +
+	" not found within DICOM stored at " + directoryPath;
+      return error;
     }
     //Store configuration index
     contourIndexes[index] = icont;
@@ -441,26 +445,20 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
 
   // Assign contour to each voxel
   //*******************************  
-  err = dicom.assignContours();
-  if(err != PEN_DICOM_SUCCESS){
-    if(verbose > 0){
-      printf("pen_dicomGeo:configure: Error on DICOM contour assign '%s'\n",directoryPath.c_str());
-      printf("                 Error code: %d\n",err);
-    }
-    configStatus = 7;
-    return 7;
+  errDicom = dicom.assignContours();
+  if(errDicom){
+    error.code = DICOM_CONTOUR_ERROR;
+    error.description = "pen_dicomGeo:configure: Error on DICOM contour assign.";
+    error.setTrace(errDicom);
+    return error;
   }
 
   if(std::numeric_limits<unsigned>::max() < dicom.getNZ()){
-    if(verbose > 0){
-      printf("pen_dicomGeo:configure: Error: DICOM '%s' is too large\n"
-	     ,directoryPath.c_str());
-      printf("                Maximum z planes: %u\n"
-	     "                   Read z planes: %lu\n",
-	     std::numeric_limits<unsigned>::max(),dicom.getNZ());
-    }
-    configStatus = 8;
-    return 8;
+    error.code = LIMIT_EXCEEDED;
+    error.description = "pen_dicomGeo:configure:Error: Number of Z planes (" +
+      std::to_string(dicom.getNZ()) + ") larger than maximum (" +
+      std::to_string(std::numeric_limits<unsigned>::max()) + ")";
+    return error;
   }
 
   unsigned nvox[3] = {static_cast<unsigned>(dicom.getNX()),
@@ -517,13 +515,12 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
     calibrationVect.resize(calibration.size());
     for(unsigned long i = 0; i < calibration.size(); i++){
       double aux;
-      err = calibration.read(aux,i);
+      int err = calibration.read(aux,i);
       if(err != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  printf("pen_dicomGeo:configure: Error on calibration coefficient "
-		 "%lu. Number expected.\n",i);
-	  printf("                        Error code: %d\n",err);
-	}
+	error.code = BAD_VALUE;
+	error.description = "pen_dicomGeo:configure: Error on calibration coefficient " +
+	  std::to_string(i) + ". Number expected.";
+	return error;
       }
       calibrationVect[i] = aux;
     }
@@ -549,7 +546,8 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
     }
   }
   else{
-    printf("No calibration found.\n");
+    if(verbose > 1)
+      printf("No calibration found.\n");
   }
 
   // Segmentation constraints
@@ -817,46 +815,40 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
   //Convert densities to density factor: density(voxel)/density(material)
   for(unsigned long ivox = 0; ivox < tnvox; ivox++){
     if(densities[mats[ivox]-1] < 0.0){
-      if(verbose > 0){
-	printf("pen_dicomGeo:configure: Error: Nominal density not provided for material index %d, which is used in the provided DICOM image.\n",mats[ivox]);
-      }
-      configStatus = 8;
-      return 8;
+      error.code = BAD_VALUE;
+      error.description = "pen_dicomGeo:configure: Error: Nominal density not "
+	"provided for material index " + std::to_string(mats[ivox]) + ", but used in the "
+	"provided DICOM image";
+      return error;
     }
     //Calculate density factor
     dens[ivox] /= densities[mats[ivox]-1];
   }
   
   //Create voxelized geometry
-  err = setVoxels(nvox,dvox,mats.data(),dens.data(),verbose);
-  if(err != 0){
-    if(verbose > 0){
-      printf("pen_dicomGeo:configure: Error: Unable to create voxel geometry from DICOM with provided configuration.\n");
-      printf("                        Error code: %d\n",err);
-    }
-    configStatus = 9;
-    return 9;
+  penred::errors::Error errVox = setVoxels(nvox,dvox,mats.data(),dens.data());
+  if(errVox){
+    error.code = VOXEL_ASSIGN_ERROR;
+    error.description = "pen_dicomGeo:configure:Error: Unable to create voxel "
+      "geometry from DICOM with the provided configuration";
+    error.setTrace(errVox);
+    return error;
   }
 
   // Read enclosure information
   ///////////////////////////////
   double dr;
   if(config.read("enclosure-margin",dr) != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("pen_voxelGeo:configure:Error: Enclosure margin value"
-	     " 'enclosure-margin' not found. "
-	     "Double expected.\n");
-    }
-    configStatus = 10;
-    return 10;
+    error.code = MISSING_CONFIG_PARAMETER;
+    error.description = "pen_voxelGeo:configure:Error: Enclosure margin value"
+      " 'enclosure-margin' not found.";
+    return error;
   }else{
     if(dr < 1.0e-6){
-      if(verbose > 0){
-	printf("pen_voxelGeo:configure:Error: Enclosure "
-	       "margin value must be greater than zero\n");
-      }
-      configStatus = 10;
-      return 10;
+      error.code = BAD_VALUE;
+      error.description = "pen_voxelGeo:configure:Error: Enclosure "
+	"margin value must be greater than zero.";      
+      return error;
     }
       
     enclosureMargin = dr;
@@ -880,24 +872,20 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
     //Read material ID
     int auxMat;
     if(config.read("enclosure-material",auxMat) != INTDATA_SUCCESS){
-      if(verbose > 0){
-        printf("pen_dicomGeo:configure: Error: Unable to read enclosure material ID for material. Integer expecteed");
-      }
-      configStatus = 11;
-      return 11;
+      error.code = MISSING_CONFIG_PARAMETER;
+      error.description = "pen_voxelGeo:configure:Error: Unable to read enclosure "
+	"material ID. Integer expected.";
+      return error;
     }
     //Check material ID
     if(auxMat < 1 || auxMat > (int)constants::MAXMAT){
-      if(verbose > 0){
-        printf("pen_dicomGeo:configure: Error: Invalid ID specified for enclosure material.");
-        printf("                         ID: %d\n",auxMat);
-        printf("Maximum number of materials: %d\n",constants::MAXMAT);
-      }
-      configStatus = 12;
-      return 12;
+      error.code = BAD_VALUE;
+      error.description = "pen_voxelGeo:configure:Error: Enclosure material must be greater than 0 "
+	"and lesser than " + std::to_string(constants::MAXMAT);
+      return error;
     }
     else
-        enclosureMat=auxMat;
+      enclosureMat=auxMat;
     //Create a interface between the enclosure and the mesh
     //assigning a detector to the enclosure
     KDET[0] = 1;  
@@ -979,20 +967,26 @@ int pen_dicomGeo::configure(const pen_parserSection& config, const unsigned verb
     printContourMaskSummary(finalFilename.c_str());
   }
   
-  configStatus = 0;
-  return 0;
+  return error;
 }
 
-int pen_dicomGeo::printImage(const char* filename) const{
-
-  if(filename == nullptr)
-    return -1;
+penred::errors::Error pen_dicomGeo::printImage(const char* filename) const{
+  
+  penred::errors::SpecificError<pen_dicomGeo> error;
+  
+  if(filename == nullptr){
+    error.code = NULL_FILENAME;
+    error.description = "pen_dicomGeo:printImage:Error: No filename provided.";
+    return error;
+  }
   
   //Create a file to store contours data
   FILE* OutVox = nullptr;
   OutVox = fopen(filename,"w");
   if(OutVox == nullptr){
-    return -2;
+    error.code = UNABLE_TO_CREATE_FILE;
+    error.description = "pen_dicomGeo:printImage:Error: Unable to create output file.";
+    return error;
   }
 
   fprintf(OutVox,"# \n");
@@ -1032,13 +1026,18 @@ int pen_dicomGeo::printImage(const char* filename) const{
 
   fclose(OutVox);
   
-  return 0;
+  return error;
 }
 
-int pen_dicomGeo::printContourMasks(const char* filename) const{
+penred::errors::Error pen_dicomGeo::printContourMasks(const char* filename) const{
 
-  if(filename == nullptr)
-    return PEN_DICOM_ERROR_NULL_FILENAME;
+  penred::errors::SpecificError<pen_dicomGeo> error;
+  
+  if(filename == nullptr){
+    error.code = NULL_FILENAME;
+    error.description = "pen_dicomGeo:printContourMasks:Error: No filename provided.";
+    return error;
+  }
 
   double voxVol = dicom.getVoxVol();
 
@@ -1067,7 +1066,9 @@ int pen_dicomGeo::printContourMasks(const char* filename) const{
     FILE* OutMask = nullptr;
     OutMask = fopen(sfilename.c_str(),"w");
     if(OutMask == nullptr){
-      return PEN_DICOM_ERROR_CREATING_FILE;
+      error.code = UNABLE_TO_CREATE_FILE;
+      error.description = "pen_dicomGeo:printContourMasks:Error: Unable to create output file.";
+      return error;
     }
     
     unsigned long nInner=std::accumulate(mask.begin(),mask.end(),static_cast<unsigned long>(0));
@@ -1126,13 +1127,18 @@ int pen_dicomGeo::printContourMasks(const char* filename) const{
 
   }
     
-  return 0;
+  return error;
 }
 
-int pen_dicomGeo::printContourMaskSummary(const char* filename) const{
+penred::errors::Error pen_dicomGeo::printContourMaskSummary(const char* filename) const{
 
-  if(filename == nullptr)
-    return PEN_DICOM_ERROR_NULL_FILENAME;
+  penred::errors::SpecificError<pen_dicomGeo> error;
+  
+  if(filename == nullptr){
+    error.code = NULL_FILENAME;
+    error.description = "pen_dicomGeo:printContourMaskSummary:Error: No filename provided.";
+    return error;
+  }
 
   std::string sfilenameSum(filename);
   sfilenameSum.append("-summary.dat");
@@ -1140,7 +1146,9 @@ int pen_dicomGeo::printContourMaskSummary(const char* filename) const{
   FILE* OutSumMask = nullptr;
   OutSumMask = fopen(sfilenameSum.c_str(),"w");
   if(OutSumMask == nullptr){
-    return PEN_DICOM_ERROR_CREATING_FILE;
+    error.code = UNABLE_TO_CREATE_FILE;
+    error.description = "pen_dicomGeo:printContourMaskSummary:Error: Unable to create output file.";
+    return error;
   }
 
   fprintf(OutSumMask,"# PenRed MASK SUMMARY\n");
@@ -1191,12 +1199,14 @@ int pen_dicomGeo::printContourMaskSummary(const char* filename) const{
   fprintf(OutSumMask,"#\n");
   fclose(OutSumMask);  
   
-  return 0;
+  return error;
 }
 
-int readIntensityRanges(const pen_parserSection& config,
-			std::vector<intensityRange>& data,
-			const unsigned verbose){
+penred::errors::Error pen_dicomGeo::readIntensityRanges(const pen_parserSection& config,
+                                                        std::vector<intensityRange>& data,
+                                                        const unsigned verbose){
+
+  penred::errors::SpecificError<pen_dicomGeo> error;
 
   pen_parserSection intensityRanges;
   std::vector<std::string> intensityRangesNames;
@@ -1207,7 +1217,7 @@ int readIntensityRanges(const pen_parserSection& config,
 				   " No image intensity ranges field ('intensity-ranges') "
 				   "provided to assign materials\n");
     }
-    return 0;
+    return error;
   }else{
     //Extract material names
     intensityRanges.ls(intensityRangesNames);  
@@ -1234,27 +1244,20 @@ int readIntensityRanges(const pen_parserSection& config,
 	
       //Read material ID
       if(intensityRanges.read(matField,auxMat) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "pen_dicomGeo:readIntensityRanges: Error: "
-				       "Unable to read material ID for intensity range '%s'. "
-				       "Integer expected.\n",intensityRangesNames[i].c_str());
-	}
-	return -1;
+	error.code = MISSING_CONFIG_PARAMETER;
+	error.description = "pen_dicomGeo:readIntensityRanges: Error: "
+	  "Unable to read material ID for intensity range '" + intensityRangesNames[i] +
+	  "'. Integer expected.";
+	return error;
       }
       //Check material ID
       if(auxMat < 1 || auxMat > (int)constants::MAXMAT){
-	if(verbose > 0){
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "pen_dicomGeo:readIntensityRanges: Error: "
-				       "Invalid material ID for intensity range '%s'.\n",
-				       intensityRangesNames[i].c_str());
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "                         ID: %d\n",auxMat);
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "Maximum number of materials: %d\n",constants::MAXMAT);
-	}
-	return -2;
+	error.code = BAD_VALUE;
+	error.description = "pen_dicomGeo:readIntensityRanges: Error: "
+	  "Invalid material ID for intensity range '" + intensityRangesNames[i] + "'.";
+	error.description += "The maximum number of materials is ";
+	error.description += std::to_string(constants::MAXMAT);
+	return error;
       }
 
       // Intensity range
@@ -1262,39 +1265,28 @@ int readIntensityRanges(const pen_parserSection& config,
 	
       //Read low intensity limit
       if(intensityRanges.read(intensityLowField,auxIntensityLow) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "pen_dicomGeo:readIntensityRanges: Error: "
-				       "Unable to read low intensity for range '%s'. "
-				       "Double expected.\n",intensityRangesNames[i].c_str());
-	}
-	return -3;
+	error.code = MISSING_CONFIG_PARAMETER;
+	error.description = "pen_dicomGeo:readIntensityRanges: Error: "
+	  "Unable to read low intensity for intensity range '" + intensityRangesNames[i];
+	return error;
       }
 
       //Read top voxel intensity
       if(intensityRanges.read(intensityTopField,auxIntensityTop) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "pen_dicomGeo:readIntensityRanges: Error: "
-				       "Unable to read top intensity for range '%s'. "
-				       "Double expected.\n",intensityRangesNames[i].c_str());
-	}
-	return -4;
+	error.code = MISSING_CONFIG_PARAMETER;
+	error.description = "pen_dicomGeo:readIntensityRanges: Error: "
+	  "Unable to read top intensity for intensity range '" + intensityRangesNames[i];
+	return error;
       }
       
       //Check voxel intensities
       if(auxIntensityLow >= auxIntensityTop){
-	if(verbose > 0){
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "pen_dicomGeo:readIntensityRanges: Error: "
-				       "Invalid intensity range specified for range '%s'.\n",
-				       intensityRangesNames[i].c_str());
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "                    low intensity: %12.4E\n",auxIntensityLow);
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "                    top intensity: %12.4E\n",auxIntensityTop);
-	}
-	return -5;
+	error.code = BAD_VALUE;
+	error.description = "pen_dicomGeo:readIntensityRanges: Error: "
+	  "Invalid intensity range specified for range '" + intensityRangesNames[i] + "': ";
+	error.description += "[" + std::to_string(auxIntensityLow) + ",";
+	error.description += std::to_string(auxIntensityTop) + ").";
+	return error;
       }
 
       // Density (g/cm^3)
@@ -1302,13 +1294,10 @@ int readIntensityRanges(const pen_parserSection& config,
 
       //Read low voxel intensity
       if(intensityRanges.read(intensityDensityField,auxIntensityDensity) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "pen_dicomGeo:readIntensityRanges: Error: "
-				       "Unable to read density for intensity range '%s'. "
-				       "Double expected.\n",intensityRangesNames[i].c_str());
-	}
-	return -3;
+	error.code = MISSING_CONFIG_PARAMETER;
+	error.description = "pen_dicomGeo:readIntensityRanges: Error: "
+	  "Unable to read density for intensity range '" + intensityRangesNames[i];
+	return error;
       }
 
       if(verbose > 1)
@@ -1330,25 +1319,26 @@ int readIntensityRanges(const pen_parserSection& config,
 				 "assign voxel materials and densities.\n");
   }  
 
-  return 0;
+  return error;
 }
 
-int readDensityRanges(const pen_parserSection& config,
-		      std::vector<densityRange>& data,
-		      const unsigned verbose){
+penred::errors::Error pen_dicomGeo::readDensityRanges(const pen_parserSection& config,
+                                                      std::vector<densityRange>& data,
+                                                      const unsigned verbose){
 
-
+  penred::errors::SpecificError<pen_dicomGeo> error;
+  
   pen_parserSection ranges;
   std::vector<std::string> rangesNames;
 
   if(config.readSubsection("ranges",ranges) != INTDATA_SUCCESS){
-    if(verbose > 0){
+    if(verbose > 1){
       penred::logs::logger::printf(penred::logs::CONFIGURATION,
 				   "pen_dicomGeo:readDensityRanges: "
 				   "No density ranges field ('ranges') provided "
 				   "to assign materials\n");
     }
-    return 0;
+    return error;
   }else{
     //Extract material names
     ranges.ls(rangesNames);  
@@ -1374,27 +1364,20 @@ int readDensityRanges(const pen_parserSection& config,
 	
       //Read material ID
       if(ranges.read(matField.c_str(),auxMat) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "pen_dicomGeo:readDensityRanges: Error: "
-				       "Unable to read material ID for density range '%s'. "
-				       "Integer expected.\n",rangesNames[i].c_str());
-	}
-	return -1;
+	error.code = MISSING_CONFIG_PARAMETER;
+	error.description = "pen_dicomGeo:readDensityRanges: Error: "
+	  "Unable to read material ID for density range '" + rangesNames[i] +
+	  "'. Integer expected.";
+	return error;
       }
       //Check material ID
       if(auxMat < 1 || auxMat > (int)constants::MAXMAT){
-	if(verbose > 0){
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "pen_dicomGeo:readDensityRanges: Error: "
-				       "Invalid material ID for density range '%s'.\n",
-				       rangesNames[i].c_str());
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "                         ID: %d\n",auxMat);
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "Maximum number of materials: %d\n",constants::MAXMAT);
-	}
-	return -2;
+	error.code = BAD_VALUE;
+	error.description = "pen_dicomGeo:readDensityRanges: Error: "
+	  "Invalid material ID for density range '" + rangesNames[i] + "'.";
+	error.description += "The maximum number of materials is ";
+	error.description += std::to_string(constants::MAXMAT);
+	return error;
       }
 
       // Density range
@@ -1402,39 +1385,28 @@ int readDensityRanges(const pen_parserSection& config,
 	
       //Read low density
       if(ranges.read(densLowField.c_str(),auxDensLow) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "pen_dicomGeo:readDensityRanges: Error: "
-				       "Unable to read low density for range '%s'. "
-				       "Double expected.\n",rangesNames[i].c_str());
-	}
-	return -3;
+	error.code = MISSING_CONFIG_PARAMETER;
+	error.description = "pen_dicomGeo:readDensityRanges: Error: "
+	  "Unable to read low density for range '" + rangesNames[i];
+	return error;
       }
 
       //Read top density
       if(ranges.read(densTopField.c_str(),auxDensTop) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "pen_dicomGeo:readDensityRanges: Error: "
-				       "Unable to read top density for range '%s'. "
-				       "Double expected.\n",rangesNames[i].c_str());
-	}
-	return -4;
+	error.code = MISSING_CONFIG_PARAMETER;
+	error.description = "pen_dicomGeo:readDensityRanges: Error: "
+	  "Unable to read top density for range '" + rangesNames[i];
+	return error;
       }
       
       //Check densities
       if(auxDensLow <= 0.0 || auxDensLow >= auxDensTop){
-	if(verbose > 0){
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "pen_dicomGeo:readDensityRanges: Error: "
-				       "Invalid density range specified for range '%s'.\n",
-				       rangesNames[i].c_str());
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "                    low density: %12.4E\n",auxDensLow);
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "                    top density: %12.4E\n",auxDensTop);
-	}
-	return -5;
+	error.code = BAD_VALUE;
+	error.description = "pen_dicomGeo:readDensityRanges: Error: "
+	  "Invalid density range specified for range '" + rangesNames[i] + "': ";
+	error.description += "[" + std::to_string(auxDensLow) + ",";
+	error.description += std::to_string(auxDensTop) + "].";
+	return error;
       }
       if(verbose > 1)
 	penred::logs::logger::printf(penred::logs::CONFIGURATION,
@@ -1452,13 +1424,14 @@ int readDensityRanges(const pen_parserSection& config,
 				 "\nNo density ranges specified to assign materials.\n");
   }
 
-  return 0;
+  return error;
 }
 
-int readSegmentConstraints(const pen_parserSection& config,
-			   std::vector<segmentConstraints>& data,
-			   const unsigned verbose){
+penred::errors::Error pen_dicomGeo::readSegmentConstraints(const pen_parserSection& config,
+                                                           std::vector<segmentConstraints>& data,
+                                                           const unsigned verbose){
 
+  penred::errors::SpecificError<pen_dicomGeo> error;
 
   pen_parserSection constraints;
   std::vector<std::string> constraintsNames;
@@ -1469,7 +1442,7 @@ int readSegmentConstraints(const pen_parserSection& config,
 				   "pen_dicomGeo:readSegmentConstraints: No constraints "
 				   "field ('constraints') provided to apply on segmentation\n");
     }
-    return 0;
+    return error;
   }else{
     //Extract constraints names
     constraints.ls(constraintsNames);  
@@ -1498,27 +1471,20 @@ int readSegmentConstraints(const pen_parserSection& config,
 	
       //Read material ID
       if(constraints.read(matField.c_str(),auxMat) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "pen_dicomGeo:readSegmentConstraints: Error: Unable "
-				       "to read material ID for constraint '%s'. Integer expected.\n",
-				       constraintsNames[i].c_str());
-	}
-	return -1;
+	error.code = MISSING_CONFIG_PARAMETER;
+	error.description = "pen_dicomGeo:readSegmentConstraints: Error: "
+	  "Unable to read material ID for constraint '" + constraintsNames[i] +
+	  "'. Integer expected.";
+	return error;
       }
       //Check material ID
       if(auxMat < 1 || auxMat > (int)constants::MAXMAT){
-	if(verbose > 0){
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "pen_dicomGeo:readSegmentConstraints: Error: "
-				       "Invalid material ID for density range '%s'.\n",
-				       constraintsNames[i].c_str());
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "                         ID: %d\n",auxMat);
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "Maximum number of materials: %d\n",constants::MAXMAT);
-	}
-	return -2;
+	error.code = BAD_VALUE;
+	error.description = "pen_dicomGeo:readSegmentConstraints: Error: "
+	  "Invalid material ID for constraint '" + constraintsNames[i] + "'.";
+	error.description += "The maximum number of materials is ";
+	error.description += std::to_string(constants::MAXMAT);
+	return error;
       }
 
       // Volume constraints
@@ -1535,14 +1501,12 @@ int readSegmentConstraints(const pen_parserSection& config,
       if(auxMinVol > 0.0 &&
 	 auxMaxVol > 0.0 &&
 	 auxMinVol >= auxMaxVol){
-	if(verbose > 0){
-	  penred::logs::logger::printf(penred::logs::CONFIGURATION,
-				       "pen_dicomGeo:readSegmentConstraints: Error "
-				       "in constraint '%s': Minimum volume (%E) greater"
-				       " or equal to maximum volume (%E).\n",
-				       constraintsNames[i].c_str(), auxMinVol, auxMaxVol);
-	}
-	return -2;
+	error.code = BAD_VALUE;
+	error.description = "pen_dicomGeo:readSegmentConstraints: Error in "
+	  "constraint '" + constraintsNames[i] + "': Minimum volume greater or equal to maximum ";
+	error.description += "[" + std::to_string(auxMinVol) + ",";
+	error.description += std::to_string(auxMaxVol) + ").";
+	return error;
       }
 
       // Cluster constraints
@@ -1573,7 +1537,7 @@ int readSegmentConstraints(const pen_parserSection& config,
 				 "\nNo constraints specified for segmentation.\n");
   }
 
-  return 0;
+  return error;
 }
 
 REGISTER_GEOMETRY(pen_dicomGeo,DICOM)

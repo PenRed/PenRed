@@ -38,7 +38,7 @@ private:
 
   std::vector<double> energies;
   std::vector<double> dE;
-  std::vector<double> cummulative;
+  std::vector<double> cumulative;
   unsigned nEBins;
   
   
@@ -48,7 +48,7 @@ public:
   inline double minE(){return energies.front();}
   inline const std::vector<double>& readEnergy() const {return energies;}
   inline const std::vector<double>& readDE() const {return dE;}
-  inline const std::vector<double>& readCummulative() const {return cummulative;}
+  inline const std::vector<double>& readCumulative() const {return cumulative;}
   inline unsigned nBins() const {return nEBins;}
 };
 

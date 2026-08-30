@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2022-2024 Universitat de València - UV
 //    Copyright (C) 2022-2024 Universitat Politècnica de València - UPV
-//    Copyright (C) 2025 Vicent Giménez Alventosa
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -31,6 +31,10 @@
 #include "meshBody_geo.hh"
 
 bool pen_meshBody::inside(const v3D pos) const{
+
+  //Checks if the position falls within the object. The object's vertex
+  //are not transformed by the animation. Therefore, the position
+  //should be transformed previously if needed
 
   if(!boundary.in(pos, crossThreshold))
     return false;
@@ -113,7 +117,6 @@ bool pen_meshBody::cross(const v3D pos,
     }
 
   }
-  
     
   if(lowestDS < maxDsThres){
     ds = lowestDS + eps;
@@ -130,12 +133,15 @@ bool meshBodyTriangle::intersect(const v3D pos,
                                  double& t,
 				 const bool back) const{
     
-  const double eps = crossThreshold;
+  constexpr const double eps = crossThreshold;
+  
+  // Define a smaller epsilon for barycentric coordinates
+  constexpr const double baryEps = 1.0e-10; 
 
   //Vectorial product and determinant
   v3D pvec         = dir^edge2;
   const double det = edge1*pvec;
-
+  
   if(back){ //Testing only backface triangles
     if(det > -eps)
       return false;
@@ -144,31 +150,34 @@ bool meshBodyTriangle::intersect(const v3D pos,
       return false;
   }
 
+  //Calculate the determinant inverse
+  const double invDet = 1.0/det;
+
   //Calculate distance between v1 and ray orig
   //v3D aux = pos-v1;
   v3D tvec = pos - v1;
     
   //Calculate barycentric coordinates and check it
   //const double u = (aux*pvec)/det;
-  const double u = (tvec*pvec)/det;
+  const double u = (tvec*pvec)*invDet;
         
-  if(u < 0.0 || u > 1.0)
+  if(u < -baryEps || u > 1.0+baryEps)
     return false;
   
   //aux.crossProd(edge1);
   v3D qvec = tvec^edge1;
   //const double v = (dir*aux)/det;
-  const double v = (dir*qvec)/det;
+  const double v = (dir*qvec)*invDet;
 
-  if(v < 0.0 || u + v > 1.0)
+  if(v < -baryEps || u + v > 1.0+baryEps)
     return false;
         
   //Ray intersects the triangle
   //Calculate t
   //t = (edge2*aux)/det;
-  t = (edge2*qvec)/det;
+  t = (edge2*qvec)*invDet;
 
-  if(std::signbit(t))
+  if(t < 0.0)
     return false;  
   else
     return true;
@@ -212,11 +221,17 @@ void meshBodyTriangle::refresh(){
 // 
 
 
-void pen_meshBodyGeo::locate(pen_particleState& state) const{
+void pen_meshBodyGeo::locateLocal(pen_particleState& state) const{
     
   v3D pos(state.X, state.Y, state.Z);
+
+  //Check if the world is animated
+  if(bodies[iworld].inAnimation(state.PAGE)){
+    //transform the position
+    bodies[iworld].readAnimation().applyInv(state.PAGE, pos);
+  }
     
-  //Check if is inside the world
+  //Check if it is inside the world
   if(!bodies[iworld].inside(pos)){
     //The particle is outside the world
     state.IBODY = getBodies();
@@ -230,10 +245,21 @@ void pen_meshBodyGeo::locate(pen_particleState& state) const{
   do{
     currentBody = nextBody;
     //Check if it is inside of some daughter
-    for(unsigned i = 0; i < bodies[nextBody].nDaughters; ++i){
+    for(unsigned i = 0; i < bodies[nextBody].daughters.size(); ++i){
       unsigned daugIndex = bodies[nextBody].daughters[i];
-      if(bodies[daugIndex].inside(pos)){
+
+      //Check if the dauther is animated and transform
+      //the position accordingly
+      v3D localPos(pos);
+      if(bodies[daugIndex].inAnimation(state.PAGE)){
+	bodies[daugIndex].readAnimation().applyInv(state.PAGE, localPos);
+      }
+      
+      if(bodies[daugIndex].inside(localPos)){
+	//Update next body
 	nextBody = daugIndex;
+	//Update position with last transform
+	pos = localPos;
 	break;
       }
     }
@@ -242,16 +268,16 @@ void pen_meshBodyGeo::locate(pen_particleState& state) const{
     
   state.MAT = bodies[currentBody].MATER;
   state.IBODY = currentBody;
-
+  
 }
 
-void pen_meshBodyGeo::step(pen_particleState& state, 
-                           double DS, 
-                           double &DSEF, double &DSTOT, 
-                           int &NCROSS) const{
+void pen_meshBodyGeo::stepLocal(pen_particleState& state, 
+                                double DS, 
+                                double &DSEF, double &DSTOT, 
+                                int &NCROSS) const{
 
   const double inf = 1.0e36;
-    
+  
   v3D pos(state.X, state.Y, state.Z);
   v3D dir(state.U, state.V, state.W);
 
@@ -262,23 +288,35 @@ void pen_meshBodyGeo::step(pen_particleState& state,
                                
   //Check if it is outside the geometry system
   if(state.IBODY >= getBodies()){
-    //Is outside. Check if aims to the world
+    //Particle is outside.
+    //Check if the world is animated
+    if(bodies[iworld].inAnimation(state.PAGE)){
+      //Transform position and direction
+      bodies[iworld].readAnimation().applyInv(state.PAGE, pos, dir);
+    }
+    
+
+    //Check if aims to the world
     double dsIn;
     if(bodies[iworld].cross(pos,dir,dsIn,false)){
       //The particle enters the world
       state.IBODY = iworld;
       state.MAT = bodies[iworld].MATER;
-      dstot = dsIn;
       ncross = 1;
-
-      move(dsIn,state);
 
       //If the world is not void, stop the particle
       if(state.MAT != 0){
+	move(dsIn,state);
 	DSEF = dsIn;
 	DSTOT = dsIn;
 	NCROSS = 1;
 	return;
+      }
+      else{
+        //The world is a void region. Move the position and
+        //continue to find a material
+        move(dsIn,dir,pos);
+        dsef = dsIn; //Score in dsef because void is the original material
       }
     }else{
       //The particle escapes
@@ -292,10 +330,13 @@ void pen_meshBodyGeo::step(pen_particleState& state,
       return;            
     }
   }
+  else{
+    // Compose all keyframes until this body, if needed
+    composeInvTransform(state.IBODY, pos, dir, state.PAGE);    
+  }
   
 
   //The particle is inside the geometry system. It could be in a void region
-    
   const unsigned MAT0 = state.MAT;
   bool inVoid = state.MAT == 0 ? true : false;
     
@@ -305,7 +346,6 @@ void pen_meshBodyGeo::step(pen_particleState& state,
   unsigned nextBody = state.IBODY;
   double toTravel = DS;
   for(;;){
-        
     currentBody = nextBody;
     //Check if the current body or some daughters can be crossed
     const pen_meshBody& body = bodies[currentBody];
@@ -313,7 +353,7 @@ void pen_meshBodyGeo::step(pen_particleState& state,
     double travel = MATNext == 0 ? inf : toTravel;
     int travelType = 0; // 0 -> Self body, 1 -> To Parent, 2 -> To Daughter
 
-    //Check if the parent can be crossed within the maximum distance
+    //Check if the current body can be crossed before reaching the maximum distance
     double ds2Up;
     if(body.cross(pos, dir, ds2Up, true, travel)){
       travelType = 1; //Flag travel as go to parent
@@ -322,14 +362,26 @@ void pen_meshBodyGeo::step(pen_particleState& state,
     }
 
     //Check if any daughter is closer
-    for(unsigned i = 0; i< body.nDaughters; ++i){
+    v3D closestDaughPos(pos);
+    v3D closestDaughDir(dir);
+    for(unsigned i = 0; i< body.daughters.size(); ++i){
       const unsigned iDaugh = body.daughters[i];
+      const pen_meshBody& daughter = bodies[iDaugh];
+
+      //Apply the daughter animation if needed
+      v3D posDaugh(pos);
+      v3D dirDaugh(dir);
+      if(daughter.inAnimation(state.PAGE)){
+	daughter.readAnimation().applyInv(state.PAGE, posDaugh, dirDaugh);
+      }
 
       double dsDaugh;
-      if(bodies[iDaugh].cross(pos,dir,dsDaugh,false,travel)){
+      if(daughter.cross(posDaugh,dirDaugh,dsDaugh,false,travel)){
 	travelType = 2; //Flag travel as go to daugther
 	travel = dsDaugh;
 	nextBody = iDaugh;
+	closestDaughPos = posDaugh;
+	closestDaughDir = dirDaugh;
       }
     }
 
@@ -337,7 +389,6 @@ void pen_meshBodyGeo::step(pen_particleState& state,
     if(travelType == 0){ //Remains in the same body.
       //Move the particle and stop tracking      
       dsef += travel;
-      move(travel,dir,pos);
       break;
     }
     else if(travelType == 1){ //Cross the actual body boundary
@@ -358,11 +409,20 @@ void pen_meshBodyGeo::step(pen_particleState& state,
 	return;
       }
 
-      //Remains in the geometry system. Check overlaps
-      solveOverlapsUp(travel,pos,dir,currentBody,nextBody);      
-	
+      //Remains in the geometry system. Apply the current body keyframe transform to
+      //convert position and direction to parent non-transformed coordinate system
+      if(bodies[currentBody].inAnimation(state.PAGE)){
+	bodies[currentBody].readAnimation().apply(state.PAGE, pos, dir);
+      }
+
+      //Check overlaps
+      solveOverlapsUp(travel,pos,dir,state.PAGE,currentBody,nextBody);      
+      
     }else{ //Cross some daughter body. Check overlaps
-      solveOverlapsDown(travel,pos,dir,nextBody,nextBody);
+      //Get position and direction into daughter non-transformed coordinates
+      pos = closestDaughPos;
+      dir = closestDaughDir;
+      solveOverlapsDown(travel,pos,dir,state.PAGE,nextBody,nextBody);
     }
 
     //Update maximum remaining distance to travel
@@ -382,7 +442,7 @@ void pen_meshBodyGeo::step(pen_particleState& state,
 
     //Get material of the next body
     MATNext = bodies[nextBody].MATER;
-            
+
     if(MATNext == 0){ //Entering in a void region
       if(!inVoid){
 	++ncross;
@@ -415,10 +475,8 @@ void pen_meshBodyGeo::step(pen_particleState& state,
   else
     DSEF = dsef;
   NCROSS = ncross;
-                
-  state.X = pos.x;
-  state.Y = pos.y;
-  state.Z = pos.z;
+
+  move(DSTOT,state);
     
   state.MAT = MATNext;
   state.IBODY = nextBody;
@@ -426,9 +484,10 @@ void pen_meshBodyGeo::step(pen_particleState& state,
 }
 
 
-int pen_meshBodyGeo::configure(const pen_parserSection& config,
-			       const unsigned verbose){
-  
+penred::errors::Error pen_meshBodyGeo::specificConfigure(const pen_parserSection& config,
+							 const unsigned verbose){
+
+  penred::errors::SpecificError<pen_meshBodyGeo> error;
   int err;
 
   //Load vertex transformations 
@@ -446,11 +505,9 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
     std::string transBodyKey = std::string("transforms/") + transBodyNames[itransbody];
     pen_parserSection transBodySec;
     if(config.readSubsection(transBodyKey,transBodySec) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("pen_meshBodyGeo:configure: Error reading '%s',"
-	       " section expected.\n", transBodyKey.c_str()); 
-      }
-      return PEN_MESHBODY_GEO_INPUT_SECTION;
+      error.code = SECTION_READ_FAIL;
+      error.description = "pen_meshBodyGeo:configure: Error reading " + transBodyKey + ". section expected.";
+      return error;
     }
 
     //Create an entry in the map for this body and save the reference 
@@ -474,58 +531,55 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
       pen_parserSection transGroupSec;
       if(transBodySec.readSubsection(transGroupNames[iTransGroup],
 				     transGroupSec) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error reading '%s/%s',"
-		 " section expected.\n",
-		 transBodyKey.c_str(),transGroupNames[iTransGroup].c_str()); 
-	}
-	return PEN_MESHBODY_GEO_INPUT_SECTION;
+	error.code = SECTION_READ_FAIL;
+	error.description = "pen_meshBodyGeo:configure: Error reading " +
+	  transBodyKey + "/" + transGroupNames[iTransGroup] + ". section expected.";
+	
+	return error;
       }
 
       //Read the group index
       int transGroupPos;
       if(transGroupSec.read("index", transGroupPos) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error reading '%s/%s/index'."
-		 " Integer expected.\n", transBodyKey.c_str(),
-		 transGroupNames[iTransGroup].c_str());
-	}
-	return PEN_MESHBODY_GEO_INVALID_VERTEX_GROUP_INDEX;
+	error.code = MISSING_PARAMETER;
+	error.description = "pen_meshBodyGeo:configure: Error reading " +
+	  transBodyKey + "/" + transGroupNames[iTransGroup] + "/index."
+	  " Integer expected.";
+	
+	return error;
       }
 
       //Check it
       if(transGroupPos < 0 ||
 	 transGroupPos > static_cast<int>(bodyTransformGroups.size())){
-	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error: Invalid transformation index"
-		 " for group '%s' in body '%s'.\n"
-		 "   Expected in range [0,%u), provided %d\n",
-		 transGroupNames[iTransGroup].c_str(), transBodyNames[itransbody].c_str(),
-		 static_cast<unsigned>(bodyTransformGroups.size()), transGroupPos);
-	}
-	return PEN_MESHBODY_GEO_INVALID_VERTEX_GROUP_INDEX;
+	error.code = BAD_VALUE;
+	error.description = "pen_meshBodyGeo:configure:Error: Invalid transformation index"
+	  " for group '" + transGroupNames[iTransGroup] + "' in body '" + transBodyNames[itransbody] +
+	  "'.  Expected in range [0," + std::to_string(bodyTransformGroups.size()) +
+	  "), provided " + std::to_string(transGroupPos);
+
+	return error;
       }
 
       //Ensure this position is unused
       if(usedTransGroup[transGroupPos]){
-	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error: Assigned vertex group index"
-		 " %d for group '%s' in body '%s' already used.\n",
-		 transGroupPos, transGroupNames[iTransGroup].c_str(),
-		 transBodyNames[itransbody].c_str());
-	}
-	return PEN_MESHBODY_GEO_INVALID_VERTEX_GROUP_INDEX;	  
+	error.code = BAD_VALUE;
+	error.description = "pen_meshBodyGeo:configure:Error: "
+	  "Assigned vertex group index " + std::to_string(transGroupPos) + 
+	  " for group '" + transGroupNames[iTransGroup] + "' in body '" +
+	  transBodyNames[itransbody] + "' already used.";
+	
+	return error;	  
       }
 
       //Read the vertex group where the transforms are applied
       std::string vertexGroup;
       if(transGroupSec.read("vertex-group", vertexGroup) != INTDATA_SUCCESS){
-	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error reading '%s/%s/vertex-group'."
-		 " String expected.\n", transBodyKey.c_str(),
-		 transGroupNames[iTransGroup].c_str());
-	}
-	return PEN_MESHBODY_GEO_INVALID_VERTEX_GROUP_INDEX;
+	error.code = MISSING_PARAMETER;
+	error.description = "pen_meshBodyGeo:configure: Error reading '" + transBodyKey +
+	  "/" + transGroupNames[iTransGroup] + "/vertex-group'. String expected.";
+	
+	return error;
       }
 
       //Set this position as used and save the group name
@@ -551,49 +605,44 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	std::string transKey = std::string("transforms/") + transformNames[it];
 	pen_parserSection transSec;
 	if(transGroupSec.readSubsection(transKey, transSec) != INTDATA_SUCCESS){
-	  if(verbose > 0){
-	    printf("pen_meshBodyGeo:configure: Error reading transform section '%s/%s/%s',"
-		   " section expected.\n", transBodyKey.c_str(),
-		   transGroupNames[iTransGroup].c_str(),
-		   transKey.c_str()); 
-	  }
-	  return PEN_MESHBODY_GEO_INPUT_SECTION;	  
+	  error.code = SECTION_READ_FAIL;
+	  error.description = "pen_meshBodyGeo:configure: Error reading transform section '" +
+	    transBodyKey + "/" + transGroupNames[iTransGroup] + "/" + transKey + "'. Section expected.";
+	  
+	  return error;	  
 	}
 
 	//Read transformation index
 	int transIndex;
 	if(transSec.read("index", transIndex) != INTDATA_SUCCESS){
-	  if(verbose > 0){
-	    printf("pen_meshBodyGeo:configure: Error reading transformation %s 'index'."
-		   " Integer expected.\n", transformNames[it].c_str());
-	  }
-	  return PEN_MESHBODY_GEO_INVALID_TRANSFORMATION_INDEX;
+	  error.code = MISSING_PARAMETER;
+	  error.description = "pen_meshBodyGeo:configure: Error reading transformation " +
+	    transformNames[it] + " 'index'. Integer expected.";
+	  
+	  return error;
 	}
 
 	//Check it
 	if(transIndex < 0 ||
 	   transIndex >= static_cast<int>(transformNames.size())){
-	  if(verbose > 0){
-	    printf("pen_meshBodyGeo:configure: Error: Invalid transformation '%s' index"
-		   " for vertex group '%s' in body '%s'.\n"
-		   "   Expected in range [0,%u), provided %d\n",
-		   transformNames[it].c_str(), transGroupNames[iTransGroup].c_str(),
-		   transBodyNames[itransbody].c_str(),
-		   static_cast<unsigned>(transformNames.size()),transIndex);
-	  }
-	  return PEN_MESHBODY_GEO_INVALID_TRANSFORMATION_INDEX;
+	  error.code = BAD_VALUE;
+	  error.description = "pen_meshBodyGeo:configure:Error: Invalid transformation '" +
+	    transformNames[it] + "' index for vertex group '" + transGroupNames[iTransGroup] +
+	    "' in body '" + transBodyNames[itransbody] + "'. Expected in range [0," +
+	    std::to_string(transformNames.size()) + "), provided " + std::to_string(transIndex);
+	  
+	  return error;
 	}
 
 	//Ensure this position is unused
 	if(usedTrans[transIndex]){
-	  if(verbose > 0){
-	    printf("pen_meshBodyGeo:configure: Error: Assigned index %d"
-		   " for transformation %s, in vertex group '%s', in body '%s' already used.\n",
-		   transIndex, transformNames[it].c_str(),
-		   transGroupNames[iTransGroup].c_str(),
-		   transBodyNames[itransbody].c_str());
-	  }
-	  return PEN_MESHBODY_GEO_INVALID_TRANSFORMATION_INDEX;	  
+	  error.code = BAD_VALUE;
+	  error.description = "pen_meshBodyGeo:configure:Error: Assigned index " +
+	    std::to_string(transIndex) + " for transformation " + transformNames[it] +
+	    ", in vertex group '" + transGroupNames[iTransGroup] + "', in body '" +
+	    transBodyNames[itransbody] + "' already used.";
+	  
+	  return error;	  
 	}
 
 	//Set this position as used
@@ -602,13 +651,13 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	//Read the transformation type
 	std::string transType;
 	if(transSec.read("type", transType) != INTDATA_SUCCESS){
-	  if(verbose > 0){
-	    printf("pen_meshBodyGeo:configure: Error: Unable to read type for "
-		   "transformation %s, in vertex group '%s', in body '%s'. String expected.\n",
-		   transformNames[it].c_str(), transGroupNames[iTransGroup].c_str(),
-		   transBodyNames[itransbody].c_str());
-	  }
-	  return PEN_MESHBODY_GEO_INVALID_TRANSFORMATION_TYPE;	  
+	  error.code = MISSING_PARAMETER;
+	  error.description = "pen_meshBodyGeo:configure:Error: Unable to read type for "
+	    "transformation " + transformNames[it] + ", in vertex group '" +
+	    transGroupNames[iTransGroup] + "', in body '" + transBodyNames[itransbody] +
+	    "'. String expected.";
+	  
+	  return error;	  
 	}
 
 	if(transType.compare("TRANSLATION")   == 0 ||
@@ -620,36 +669,41 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 
 	  double ds;
 	  if(transSec.read("ds", ds) != INTDATA_SUCCESS){
-	    if(verbose > 0){
-	      printf("pen_meshBodyGeo:configure: Error: Unable to read translation "
-		     "distance 'ds' for translation %s, in vertex group '%s', in body '%s'."
-		     " Double expected.\n", transformNames[it].c_str(),
-		     transGroupNames[iTransGroup].c_str(),
-		     transBodyNames[itransbody].c_str());	      
-	    }
-	    return PEN_MESHBODY_GEO_INVALID_DS;
+	    error.code = MISSING_PARAMETER;
+	    error.description = "pen_meshBodyGeo:configure:Error: Unable to read translation "
+	      "distance 'ds' for translation " + transformNames[it] + ", in vertex group '" +
+	      transGroupNames[iTransGroup] + "', in body '" + transBodyNames[itransbody] +
+	      "'. Number expected.";
+	  
+	    return error;
 	  }
 
 	  //Check which translation is
 	  if(transType.compare("TRANSLATION_X") == 0){
 	    if(transG.setTranslationX(transIndex, ds) != 0){
-	      printf("UNEXPECTED ERROR: Unable to create translation on X axis."
-		     " Please, report this.");
-	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	      error.code = UNEXPECTED_ERROR;
+	      error.description = "pen_meshBodyGeo:configure:Error: Unable to create "
+		"translation on X axis. Please, report this.";
+	      
+	      return error;
 	    }
 	  }
 	  else if(transType.compare("TRANSLATION_Y") == 0){
 	    if(transG.setTranslationY(transIndex, ds) != 0){
-	      printf("UNEXPECTED ERROR: Unable to create translation on Y axis."
-		     " Please, report this.");
-	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	      error.code = UNEXPECTED_ERROR;
+	      error.description = "pen_meshBodyGeo:configure:Error: Unable to create "
+		"translation on Y axis. Please, report this.";
+	      
+	      return error;
 	    }
 	  }
 	  else if(transType.compare("TRANSLATION_Z") == 0){
 	    if(transG.setTranslationZ(transIndex, ds) != 0){
-	      printf("UNEXPECTED ERROR: Unable to create translation on Z axis."
-		     " Please, report this.");
-	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	      error.code = UNEXPECTED_ERROR;
+	      error.description = "pen_meshBodyGeo:configure:Error: Unable to create "
+		"translation on Z axis. Please, report this.";
+	      
+	      return error;
 	    }
 	  }
 	  else{
@@ -658,42 +712,40 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 
 	    // dir.x
 	    if(transSec.read("u", dir.x) != INTDATA_SUCCESS){
-	      if(verbose > 0){
-		printf("pen_meshBodyGeo:configure: Error: Unable to read 'u' direction for "
-		       "translation %s, in vertex group '%s', in body '%s'. Double expected.\n",
-		       transformNames[it].c_str(), transGroupNames[iTransGroup].c_str(),
-		       transBodyNames[itransbody].c_str());	      
-	      }
-	      return PEN_MESHBODY_GEO_INVALID_DIR;
+	      error.code = MISSING_PARAMETER;
+	      error.description = "pen_meshBodyGeo:configure:Error: Unable to read 'u' direction for "
+		"translation " + transformNames[it] + ", in vertex group '" + transGroupNames[iTransGroup] +
+		"', in body '" + transBodyNames[itransbody] + "'. Number expected.";
+	      
+	      return error;
 	    }
 
 	    // dir.y
 	    if(transSec.read("v", dir.y) != INTDATA_SUCCESS){
-	      if(verbose > 0){
-		printf("pen_meshBodyGeo:configure: Error: Unable to read 'v' direction for "
-		       "translation %s, in vertex group '%s', in body '%s'. Double expected.\n",
-		       transformNames[it].c_str(), transGroupNames[iTransGroup].c_str(),
-		       transBodyNames[itransbody].c_str());	      
-	      }
-	      return PEN_MESHBODY_GEO_INVALID_DIR;
+	      error.code = MISSING_PARAMETER;
+	      error.description = "pen_meshBodyGeo:configure:Error: Unable to read 'v' direction for "
+		"translation " + transformNames[it] + ", in vertex group '" + transGroupNames[iTransGroup] +
+		"', in body '" + transBodyNames[itransbody] + "'. Number expected.";
+	      
+	      return error;
 	    }
 
 	    // dir.z
 	    if(transSec.read("w", dir.z) != INTDATA_SUCCESS){
-	      if(verbose > 0){
-		printf("pen_meshBodyGeo:configure: Error: Unable to read 'w' direction for "
-		       "translation %s, in vertex group '%s', in body '%s'. Double expected.\n",
-		       transformNames[it].c_str(), transGroupNames[iTransGroup].c_str(),
-		       transBodyNames[itransbody].c_str());	      
-	      }
-	      return PEN_MESHBODY_GEO_INVALID_DIR;
+	      error.code = MISSING_PARAMETER;
+	      error.description = "pen_meshBodyGeo:configure:Error: Unable to read 'w' direction for "
+		"translation " + transformNames[it] + ", in vertex group '" + transGroupNames[iTransGroup] +
+		"', in body '" + transBodyNames[itransbody] + "'. Number expected.";
+	      
+	      return error;
 	    }
 
 	    //Create the translation
 	    if(transG.setTranslation(transIndex, dir, ds) != 0){
-	      printf("UNEXPECTED ERROR: Unable to create generic translation."
-		     " Please, report this.");
-	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	      error.code = UNEXPECTED_ERROR;
+	      error.description = "pen_meshBodyGeo:configure:Error: Unable to create generic translation."
+		     " Please, report this.";
+	      return error;
 	    }
 	  }
 	}
@@ -709,77 +761,88 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 
 	  double f;
 	  if(transSec.read("factor", f) != INTDATA_SUCCESS){
-	    if(verbose > 0){
-	      printf("pen_meshBodyGeo:configure: Error: Unable to read scale "
-		     "factor 'factor' for transform %s, in vertex group '%s', in body '%s'."
-		     " Double expected.\n", transformNames[it].c_str(),
-		     transGroupNames[iTransGroup].c_str(),
-		     transBodyNames[itransbody].c_str());
-	    }
-	    return PEN_MESHBODY_GEO_INVALID_SCALE;
+	    error.code = MISSING_PARAMETER;
+	    error.description = "pen_meshBodyGeo:configure:Error: Unable to read scale "
+	      "factor ('factor') for transform " + transformNames[it] +
+	      ", in vertex group '" + transGroupNames[iTransGroup] + "', in body '" +
+	      transBodyNames[itransbody] + "'. Number expected.";
+	    
+	    return error;
 	  }
 
 	  //Check which scale transform is
 	  if(transType.compare("SCALE_X") == 0){
 	    if(transG.setScaleX(transIndex, f) != 0){
-	      printf("UNEXPECTED ERROR: Unable to create scale transform on X axis."
-		     " Please, report this.");
-	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	      error.code = UNEXPECTED_ERROR;
+	      error.description = "pen_meshBodyGeo:configure:Error: Unable to create scale "
+		"transform on X axis. Please, report this.";
+	      
+	      return error;
 	    }
 	  }
 	  else if(transType.compare("SCALE_Y") == 0){
 	    if(transG.setScaleY(transIndex, f) != 0){
-	      printf("UNEXPECTED ERROR: Unable to create scale transform on Y axis."
-		     " Please, report this.");
-	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	      error.code = UNEXPECTED_ERROR;
+	      error.description = "pen_meshBodyGeo:configure:Error: Unable to create scale "
+		"transform on Y axis. Please, report this.";
+	      
+	      return error;
 	    }
 	  }
 	  else if(transType.compare("SCALE_Z") == 0){
 	    if(transG.setScaleZ(transIndex, f) != 0){
-	      printf("UNEXPECTED ERROR: Unable to create scale transform on Z axis."
-		     " Please, report this.");
-	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	      error.code = UNEXPECTED_ERROR;
+	      error.description = "pen_meshBodyGeo:configure:Error: Unable to create scale "
+		"transform on Z axis. Please, report this.";
+
+	      return error;
 	    }
 	  }
 	  else if(transType.compare("SCALE_XY") == 0){
 	    if(transG.setScaleXY(transIndex, f) != 0){
-	      printf("UNEXPECTED ERROR: Unable to create scale transform on XY plane."
-		     " Please, report this.");
-	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	      error.code = UNEXPECTED_ERROR;
+	      error.description = "pen_meshBodyGeo:configure:Error: Unable to create scale "
+		"transform on XY plane. Please, report this.";
+	      
+	      return error;
 	    }
 	  }
 	  else if(transType.compare("SCALE_XZ") == 0){
 	    if(transG.setScaleXZ(transIndex, f) != 0){
-	      printf("UNEXPECTED ERROR: Unable to create scale transform on XZ plane."
-		     " Please, report this.");
-	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	      error.code = UNEXPECTED_ERROR;
+	      error.description = "pen_meshBodyGeo:configure:Error: Unable to create scale "
+		"transform on XZ plane. Please, report this.";
+	      
+	      return error;
 	    }
 	  }
 	  else if(transType.compare("SCALE_YZ") == 0){
 	    if(transG.setScaleYZ(transIndex, f) != 0){
-	      printf("UNEXPECTED ERROR: Unable to create scale transform on YZ plane."
-		     " Please, report this.");
-	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	      error.code = UNEXPECTED_ERROR;
+	      error.description = "pen_meshBodyGeo:configure:Error: Unable to create scale "
+		"transform on YZ plane. Please, report this.";
+	      
+	      return error;
 	    }
 	  }
 	  else{
 	    //Generic scale transform
 	    if(transG.setScale(transIndex, f) != 0){
-	      printf("UNEXPECTED ERROR: Unable to create scale transform."
-		     " Please, report this.");
-	      return PEN_MESHBODY_GEO_UNEXPECTED_ERROR;
+	      error.code = UNEXPECTED_ERROR;
+	      error.description = "pen_meshBodyGeo:configure:Error: Unable to create scale "
+		"transform. Please, report this.";
+	      
+	      return error;
 	    }
 	  }
 	}
 	else{
-	  if(verbose > 0){
-	    printf("pen_meshBodyGeo:configure: Error: Unknown type for "
-		   "transformation %s, in vertex group '%s', in body '%s'."
-		   " Provided type: %s\n",
-		   transformNames[it].c_str(), transGroupNames[iTransGroup].c_str(),
-		   transBodyNames[itransbody].c_str(), transType.c_str());
-	  }
-	  return PEN_MESHBODY_GEO_INVALID_TRANSFORMATION_TYPE;
+	  error.code = UNEXPECTED_ERROR;
+	  error.description = "pen_meshBodyGeo:configure:Error: Unknown type for "
+	    "transformation " + transformNames[it] + ", in vertex group '" +
+	    transGroupNames[iTransGroup] + "', in body '" + transBodyNames[itransbody] +
+	    "'. Provided type: " + transType;
+	  return error;
 	}
 	
       }
@@ -809,22 +872,20 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
     if(in.good()){
       //Load geometry
       //*****************
-      err = GEOMESH(in,transMap,verbose);
-      if(err != PEN_MESHBODY_GEO_SUCCESS){
-	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error loading geometry.\n");
-	  printf("                          Error code: %d\n",err);
-	}
-	configStatus = err;
-	return configStatus;
+      penred::errors::Error geomeshErr;
+      geomeshErr = GEOMESH(in,transMap,verbose);
+      if(geomeshErr){
+	error.code = UNEXPECTED_ERROR;
+	error.description = "pen_meshBodyGeo:configure: Error loading geometry";
+	error.setTrace(geomeshErr);
+	return error;
       }
     }else{
-      if(verbose > 0){
-	printf("pen_meshBodyGeo:configure:Error: unable to read "
-	       "memory stream as input file.\n");
-      }
-      configStatus = PEN_MESHBODY_GEO_INPUT_SECTION;
-      return configStatus;
+      error.code = INVALID_FILE;
+      error.description = "pen_meshBodyGeo:configure:Error: Unable to read "
+	"memory stream as input file.";
+      
+      return error;
     }
   }else{
     //Geometry read from external file
@@ -832,24 +893,22 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
     //Read input file from configuration
     std::string infilename;
     if(config.read("input-file",infilename) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("meshBodyGeo:configure:Error: 'input-file' field missing at "
-	       "configuration section.\n");
-      }
-      configStatus = PEN_MESHBODY_GEO_INPUT_SECTION;
-      return configStatus;
+      error.code = MISSING_PARAMETER;
+      error.description = "pen_meshBodyGeo:configure:Error: 'input-file' field "
+	"missing at configuration section.";
+      
+      return error;
     }
     
     //Open input file
     //*****************
     std::ifstream in(infilename, std::ifstream::in);
     if(!in.good()){
-      if(verbose > 0){
-	printf("pen_meshBodyGeo:configure:Error: unable to open "
-	       "input file '%s'.\n", infilename.c_str());
-      }
-      configStatus = PEN_MESHBODY_GEO_INPUT_SECTION;
-      return configStatus;
+      error.code = INVALID_FILE;
+      error.description = "pen_meshBodyGeo:configure:Error: Unable to open "
+	"input file '" + infilename + "'.";
+      
+      return error;
     }
 
   
@@ -859,15 +918,16 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
   
     //Load geometry
     //*****************
-    err = GEOMESH(in,transMap,verbose);
-    if(err != PEN_MESHBODY_GEO_SUCCESS){
-      if(verbose > 0){
-	printf("pen_meshBodyGeo:configure: Error loading geometry.\n");
-	printf("                          Error code: %d\n",err);
-      }
+    penred::errors::Error geomeshErr;
+    geomeshErr = GEOMESH(in,transMap,verbose);
+    if(geomeshErr){
+      error.code = UNEXPECTED_ERROR;
+      error.description = "pen_meshBodyGeo:configure: Error loading geometry";
+      error.setTrace(geomeshErr);
+      return error;
+      
       in.close();
-      configStatus = err;
-      return configStatus;
+      return error;
     }
     in.close();    
   }
@@ -896,22 +956,21 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	  double auxDSmax;
 	  err = config.read(key,auxDSmax);
 	  if(err != INTDATA_SUCCESS){
-	    if(verbose > 0){
-	      printf("pen_meshBodyGeo:configure: Error reading 'dsmax' of body %s\n",bodies[j].BALIAS);
-	      printf("                     key: %s\n",key.c_str());
-	    }
-	    configStatus = PEN_MESHBODY_GEO_BAD_READ_DSMAX;
-	    return configStatus;
+	    error.code = MISSING_PARAMETER;
+	    error.description = "pen_meshBodyGeo:configure: Error reading 'dsmax' "
+	      "for body " + std::string(bodies[j].BALIAS) + ". Complete key: " + key;
+	    
+	    return error;
 	  }
 	  
 	  //Check dsmax value
 	  if(auxDSmax <= 0.0){
-	    if(verbose > 0){
-	      printf("pen_meshBodyGeo:configure: Error: 'DSMAX' must be greater than zero.\n");
-	      printf("            Specified for body %s: %12.4E\n",bodies[j].BALIAS,auxDSmax);
-	    }
-	    configStatus = PEN_QUAD_GEO_INVALID_DSMAX;
-	    return PEN_QUAD_GEO_INVALID_DSMAX;
+	    error.code = BAD_VALUE;
+	    error.description = "pen_meshBodyGeo:configure:Error: 'DSMAX' must be greater than zero."
+	      " Bad value specified for body " + std::string(bodies[j].BALIAS) +
+	      ": " + std::to_string(auxDSmax);
+	    
+	    return error;
 	  }
 	  //Assign dsmax
 	  bodies[j].DSMAX = auxDSmax;
@@ -956,22 +1015,21 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	int auxKDET;
 	err = config.read(key,auxKDET);
 	if(err != INTDATA_SUCCESS){
-	  if(verbose > 0){
-	    printf("pen_meshBodyGeo:configure: Error reading 'kdet' for body %s\n",bodies[bIndex].BALIAS);
-	    printf("                     key: %s\n",key.c_str());
-	  }
-	  configStatus = PEN_MESHBODY_GEO_BAD_READ_KDET;
-	  return configStatus;
+	  error.code = MISSING_PARAMETER;
+	  error.description = "pen_meshBodyGeo:configure: Error reading 'kdet' for body " +
+	    std::string(bodies[bIndex].BALIAS) + ". Configuration key: " + key;
+	  
+	  return error;
 	}
 
 	//Check kdet value
 	if(auxKDET <= 0){
-	  if(verbose > 0){
-	    printf("pen_meshBodyGeo:configure: Error: 'KDET' must be greater than zero.\n");
-	    printf("            Specified for body %s: %d\n",bodies[bIndex].BALIAS,auxKDET);
-	  }
-	  configStatus = PEN_QUAD_GEO_INVALID_KDET;
-	  return PEN_QUAD_GEO_INVALID_KDET;
+	  error.code = BAD_VALUE;
+	  error.description = "pen_meshBodyGeo:configure:Error: 'KDET' must be greater than zero, "
+	    "but the value specified for body " + std::string(bodies[bIndex].BALIAS) +
+	    " is " + std::to_string(auxKDET);
+	  
+	  return error;
 	}
 	//Assign dsmax
 	bodies[bIndex].KDET = (unsigned)auxKDET;
@@ -999,12 +1057,11 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
     defaultRegionElements = 40;
   }else{
     if(defaultRegionElements < 1){
-      if(verbose > 0){
-	printf("pen_meshBodyGeo:configure: Error: 'DefaultRegionElements' must "
-	       "be greater than zero.\n");
-      }
-      configStatus = PEN_MESHBODY_GEO_INVALID_REGIONSIZE;
-      return PEN_MESHBODY_GEO_INVALID_REGIONSIZE;
+      error.code = BAD_VALUE;
+      error.description = "pen_meshBodyGeo:configure:Error: 'DefaultRegionElements' must "
+	"be greater than zero.";
+      
+      return error;
     }
   }
 
@@ -1031,25 +1088,21 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	int regionElements = 0;
 	err = config.read(key,regionElements);
 	if(err != INTDATA_SUCCESS){
-	  if(verbose > 0){
-	    printf("pen_meshBodyGeo:configure: Error reading 'RegionElements' for body %s\n",
-		   bodies[bIndex].BALIAS);
-	    printf("                     key: %s\n",key.c_str());
-	  }
-	  configStatus = PEN_MESHBODY_GEO_BAD_READ_REGIONSIZE;
-	  return configStatus;
+	  error.code = MISSING_PARAMETER;
+	  error.description = "pen_meshBodyGeo:configure: Error reading 'RegionElements' for body " +
+	    std::string(bodies[bIndex].BALIAS) + ". Configuration key: " + key;
+	  
+	  return error;
 	}
 
 	//Check region size value
 	if(regionElements < 0){
-	  if(verbose > 0){
-	    printf("pen_meshBodyGeo:configure: Error: 'regionElements' must "
-		   "be greater than zero.\n");
-	    printf("            Specified for body %s: %d\n",
-		   bodies[bIndex].BALIAS,regionElements);
-	  }
-	  configStatus = PEN_MESHBODY_GEO_INVALID_REGIONSIZE;
-	  return PEN_MESHBODY_GEO_INVALID_REGIONSIZE;
+	  error.code = BAD_VALUE;
+	  error.description = "pen_meshBodyGeo:configure:Error: 'regionElements' must "
+	    "be greater than zero, but the value specified for body " + std::string(bodies[bIndex].BALIAS) +
+	    " is " + std::to_string(regionElements);
+	  
+	  return error;
 	}
 	//Assign region size
 	bodies[bIndex].meanTrianglesRegion =
@@ -1079,12 +1132,11 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
     defaultSuperRegionElements = 20;
   }else{
     if(defaultSuperRegionElements < 1){
-      if(verbose > 0){
-	printf("pen_meshBodyGeo:configure: Error: 'DefaultSuperRegionElements' "
-	       "must be greater than zero.\n");
-      }
-      configStatus = PEN_MESHBODY_GEO_INVALID_REGIONSIZE;
-      return PEN_MESHBODY_GEO_INVALID_REGIONSIZE;
+      error.code = BAD_VALUE;
+      error.description = "pen_meshBodyGeo:configure:Error: 'DefaultSuperRegionElements' must "
+	"be greater than zero, but the specified value is " + std::to_string(defaultSuperRegionElements);
+      
+      return error;
     }
   }
 
@@ -1112,26 +1164,21 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	int superRegionElements = 0;
 	err = config.read(key,superRegionElements);
 	if(err != INTDATA_SUCCESS){
-	  if(verbose > 0){
-	    printf("pen_meshBodyGeo:configure: Error reading 'SuperRegions' "
-		   "for body %s\n",
-		   bodies[bIndex].BALIAS);
-	    printf("                     key: %s\n",key.c_str());
-	  }
-	  configStatus = PEN_MESHBODY_GEO_BAD_READ_REGIONSIZE;
-	  return configStatus;
+	  error.code = MISSING_PARAMETER;
+	  error.description = "pen_meshBodyGeo:configure: Error reading 'SuperRegions' "
+	    "for body " + std::string(bodies[bIndex].BALIAS) + ". Configuration key: " + key;
+	  
+	  return error;
 	}
 
 	//Check region size value
 	if(superRegionElements < 0){
-	  if(verbose > 0){
-	    printf("pen_meshBodyGeo:configure: Error: 'SuperRegions' must "
-		   "be greater than zero.\n");
-	    printf("            Specified for body %s: %d\n",
-		   bodies[bIndex].BALIAS,superRegionElements);
-	  }
-	  configStatus = PEN_MESHBODY_GEO_INVALID_REGIONSIZE;
-	  return PEN_MESHBODY_GEO_INVALID_REGIONSIZE;
+	  error.code = BAD_VALUE;
+	  error.description = "pen_meshBodyGeo:configure:Error: 'SuperRegions' must "
+	    "be greater than zero, but the value specified for body " + std::string(bodies[bIndex].BALIAS) +
+	    " is " + std::to_string(superRegionElements);
+
+	  return error;
 	}
 	//Assign region size
 	bodies[bIndex].meanRegionsSuperRegion =
@@ -1297,32 +1344,31 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 
 	  unsigned kpar = particleID(particleNames[j].c_str());
 	  if(kpar >= ALWAYS_AT_END){
-	    if(verbose > 0){
-	      printf("pen_meshBodyGeo:configure: Error on 'eabs' field, unknown particle '%s' on body '%s'.\n",particleNames[j].c_str(),bodiesAlias[i].c_str());
-	    }
-	    return PEN_MESHBODY_GEO_UNKNOWN_PARTICLE;
+	    error.code = BAD_VALUE;
+	    error.description = "pen_meshBodyGeo:configure: Error on 'eabs' field, "
+	      "unknown particle '" + particleNames[j] + "' on body '" + bodiesAlias[i] + "'.";
+	    
+	    return error;
 	  }
 	  
 	  std::string key2 = key + std::string("/") + particleNames[j];
 	  double eabs;
 	  err = config.read(key2,eabs);
 	  if(err != INTDATA_SUCCESS){
-	    if(verbose > 0){
-	      printf("pen_meshBodyGeo:configure: Error reading"
-		     " energy absorption at field '%s'. "
-		     "Double expected.\n",key2.c_str());
-	    }
-	    return PEN_MESHBODY_GEO_BAD_READ_EABS;
+	    error.code = MISSING_PARAMETER;
+	    error.description = "pen_meshBodyGeo:configure: Error reading"
+	      " energy absorption at field '" + key2 + "'. Number expected.";
+	    
+	    return error;
 	  }
 
 	  if(eabs <= 0.0){
-	    if(verbose > 0){
-	      printf("pen_meshBodyGeo:configure: Error: Invalid energy "
-		     "absorption %12.4E for body '%s' particle '%s'. "
-		     "Must be greater than zero.\n",
-		     eabs,bodiesAlias[i].c_str(),particleNames[j].c_str());
-	    }
-	    return PEN_MESHBODY_GEO_INVALID_EABS;
+	    error.code = BAD_VALUE;
+	    error.description = "pen_meshBodyGeo:configure:Error: Invalid energy "
+	      "absorption (" + std::to_string(eabs) + " eV) for body '" + bodiesAlias[i] +
+	      "', particle '" + particleNames[j] + "'. Must be greater than zero.";
+	    
+	    return error;
 	  }
 	  
 	  bodyEABS[kpar] = eabs;
@@ -1330,10 +1376,11 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 
 	//Set body eabs for each specified particle
 	if(setBodyEabs(bIndex,bodyEABS) != 0){
-	  if(verbose > 0){
-	    printf("pen_meshBodyGeo:configure: Error on 'eabs' field, unknown body '%s'\n",bodiesAlias[i].c_str());
-	  }
-	  return PEN_MESHBODY_GEO_UNDEF_BODY_LABEL;	  
+	  error.code = BAD_VALUE;
+	  error.description = "pen_meshBodyGeo:configure: Error on 'eabs' field, unknown body '" +
+	    bodiesAlias[i] + "'";
+	  
+	  return error;	  
 	}
 	
 	if(verbose > 1){
@@ -1349,6 +1396,52 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
       }
     }
   }
+
+  // Load Animations
+  //*****************
+  bodiesAlias.clear();
+  err = config.ls("animation",bodiesAlias);
+  if(err != INTDATA_SUCCESS){
+    if(verbose > 1){
+      printf("No animation specified for any body\n");
+    }
+  }
+  else{
+    if(verbose > 1)
+      printf("Animation specified for %lu bodies:\n\n",bodiesAlias.size());    
+    for(unsigned i = 0; i < bodiesAlias.size(); i++){
+      std::string key("animation/");      
+      key += bodiesAlias[i];
+
+      //Get bodi index
+      unsigned bIndex = getIBody(bodiesAlias[i].c_str());
+      if(bIndex < getElements()){
+	
+	//Get animation filename
+	std::string animationFilename;
+	err = config.read(key, animationFilename);
+	if(err != INTDATA_SUCCESS){
+	  error.code = BAD_VALUE;
+	  error.description = "pen_meshBodyGeo:configure: Error reading 'animation' "
+	    "for body " + std::string(bodies[bIndex].BALIAS) +
+	    ", string expected. Configuration key: " + key;
+
+	  return error;
+	}
+
+	//Parse animation file for this body
+	int errAnim = bodies[bIndex].parseAnimation(animationFilename.c_str());
+	if(errAnim != penred::geometry::AnimatedBody::SUCCESS){
+	  error.code = BAD_VALUE;
+	  error.description = "pen_meshBodyGeo:configure: Error parsing animation file '" + 
+	    animationFilename + "' for body " + bodiesAlias[i] + ": " +
+	    std::string(penred::geometry::AnimatedBody::errorMessage(errAnim));
+	  
+	  return error;
+	}
+      }
+    }
+  }
   
   if(verbose > 1){
     printf("\nBodies information:\n\n");
@@ -1361,6 +1454,12 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
       printf("    EABS    :\n");
       for(unsigned k = 0; k < constants::nParTypes; k++)
 	printf("  %20.20s: %14.5E\n",particleName(k),bodies[j].localEABS[k]);
+      printf("    Animated: %s\n", bodies[j].animated() ? "Yes" : "No");
+      if(bodies[j].animated()){
+	const penred::transforms::Animation<double, double>& animation =
+	  bodies[j].readAnimation();
+	printf("%s\n\n", animation.stringify(10).c_str());
+      }
     }
     printf("\n");
   }
@@ -1399,8 +1498,8 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 		body.PALIAS,
 		body.canOverlapParent ? "(Overlaps)" : "(No overlaps)");
 	fprintf(freport,"    Body daughters: %u\n",
-		body.nDaughters);
-	for(unsigned id = 0; id < body.nDaughters; ++id){
+            static_cast<unsigned>(body.daughters.size()));
+	for(unsigned id = 0; id < body.daughters.size(); ++id){
 	  const pen_meshBody& daughter = bodies[body.daughters[id]];
 	  fprintf(freport,"     - %s: %s\n",
 		  daughter.BALIAS,
@@ -1408,8 +1507,9 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	}
 	
 	//Print sister overlaps
-	fprintf(freport,"\n    Body sister overlaps: %u\n",body.nOverlap);
-	for(unsigned is = 0; is < body.nOverlap; ++is){
+	fprintf(freport,"\n    Body sister overlaps: %lu\n",
+            static_cast<unsigned long>(body.overlapedBodies.size()));
+	for(unsigned is = 0; is < body.overlapedBodies.size(); ++is){
 	  fprintf(freport,"     - %s\n",bodies[body.overlapedBodies[is]].BALIAS);
 	}
 
@@ -1533,7 +1633,7 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
 	  overlapThreads.push_back(std::thread([&](){
 
 	    unsigned int iover = atomicCount++;
-	    while(iover < body.nOverlap){
+	    while(iover < body.overlapedBodies.size()){
 	      const unsigned overlapBodyIndex = body.overlapedBodies[iover];
 	      const pen_meshBody& overlapBody = bodies[overlapBodyIndex];
 
@@ -1594,21 +1694,23 @@ int pen_meshBodyGeo::configure(const pen_parserSection& config,
       }
 
       if(intersectionFound){
-	configStatus = PEN_MESHBODY_GEO_BODY_INTERSECTIONS_FOUND;
-	return configStatus;
+	error.code = BODY_INTERSECTIONS_FOUND;
+	error.description = "pen_meshBodyGeo:configure:Error: Intersecting bodies found. Check geometry.";
+	return error;
       }
 
     }
   }
   
-  configStatus = PEN_MESHBODY_GEO_SUCCESS;
-  return configStatus;
+  return error;
 }
 
-int pen_meshBodyGeo::GEOMESH(std::istream& in,
-			     std::map<std::string, std::vector<pen_meshTransform::group>>& transMap,
-			     const unsigned verbose){
+penred::errors::Error pen_meshBodyGeo::GEOMESH(std::istream& in,
+					       std::map<std::string, std::vector<pen_meshTransform::group>>& transMap,
+					       const unsigned verbose){
 
+  penred::errors::SpecificError<pen_meshBodyGeo> error;
+  
   //Create a vector for inlcuded files
   std::vector<std::ifstream> includes;
   
@@ -1622,31 +1724,28 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
     nRead += nlines;
     //Read number of bodies in the geometry file
     if(sscanf(line.c_str()," %d",&nBodies) != 1){
-      if(verbose > 0){
-	printf("pen_meshBodyGeo:configure: Error reading number of objects."
-	       "Unexpected format in line %lu: \n %s\n", nRead, line.c_str());
-      }
-      return PEN_MESHBODY_GEO_UNEXPECTED_LINE_FORMAT;
+      error.code = UNEXPECTED_LINE_FORMAT;
+      error.description = "pen_meshBodyGeo:GEOMESH: Error reading number of objects."
+	" Unexpected format in line " + std::to_string(nRead) + ": " + line;
+      return error;
     }
 
     if(nBodies <= 0){
-      if(verbose > 0){
-	printf("pen_meshBodyGeo:configure: Error: number of bodies must "
-	       "be greater than zero.\n");
-	printf("        Number of bodies read is %d. \n",nBodies);
-      }
-      return PEN_MESHBODY_GEO_INVALID_NBODIES;
+      error.code = BAD_VALUE;
+      error.description = "pen_meshBodyGeo:GEOMESH:Error: Number of bodies ( Read: " +
+	std::to_string(nBodies) + ") must be greater than zero.";
+      return error;
     }
         
     NBODYS = static_cast<unsigned int>(nBodies);
         
     if(NBODYS > NB){
-      if(verbose > 0){
-	printf("pen_meshBodyGeo:configure: Error: number of bodies read "
-	       "from the geometry file: %u, is greater than the maximum "
-	       "number of bodies allowed: %u\n.",NBODYS, NB);
-      }
-      return PEN_MESHBODY_GEO_INVALID_NBODIES;
+      error.code = BAD_VALUE;
+      error.description = "pen_meshBodyGeo:GEOMESH:Error: The number of bodies read "
+	"from the geometry file (" + std::to_string(NBODYS) + "), is greater than the maximum "
+	"allowed (" + std::to_string(NB) + ")";
+      
+      return error;
     }
 
             
@@ -1657,11 +1756,11 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
       }
   }
   else{
-    if(verbose > 0){
-      printf("pen_meshBodyGeo:configure: Error: Invalid geometry file.\n"
-	     "Unable to read a single data line. Possible end of file reached.");
-    }
-    return PEN_MESHBODY_GEO_INVALID_FILE;
+    error.code = INVALID_FILE;
+    error.description = "pen_meshBodyGeo:GEOMESH:Error: Invalid geometry file. "
+	     "Unable to read a single data line. Possible end of file reached.";
+      
+    return error;
   }
     
     
@@ -1690,13 +1789,13 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
 			      &mat, &nTrianglesAux, &nVertexAux,
 			      bodies[i].BALIAS, bodies[i].PALIAS, &nVertexGroups);
       if(nParamRead != 5 && nParamRead != 6){
-	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error reading object header information.\n"
-		 "Unexpected format in line %lu: \n %s\n", nRead, line.c_str());
-	  printf("Expected format is #MAT      #NFACES     #NVERTEX     "
-		 "#NAME        #PARENT NAME    (#NVGROUPS)\n");
-	}
-	return PEN_MESHBODY_GEO_UNEXPECTED_LINE_FORMAT;
+	error.code = UNEXPECTED_LINE_FORMAT;
+	error.description = "pen_meshBodyGeo:GEOMESH:Error reading object header information."
+	  " Unexpected format in line " + std::to_string(nRead) + ": " + line +
+	  "\n Expected format is: #MAT      #NFACES     #NVERTEX     "
+	  "#NAME        #PARENT NAME    (#NVGROUPS)";
+	
+	return error;
       }
 
       if(nParamRead == 5){
@@ -1706,12 +1805,12 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
 
       //Check material
       if(mat < 0){
-	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error: 'material' must be greater "
-		 "or equal to zero.\n");
-	  printf("            Specified for body %ld: %d\n",i,mat);
-	}
-	return PEN_MESHBODY_GEO_INVALID_MAT;
+	error.code = BAD_VALUE;
+	error.description = "pen_meshBodyGeo:GEOMESH:Error: 'material' index must be greater "
+	  "or equal to zero. A value of " + std::to_string(mat) + " has been set for body " +
+	  bodies[i].BALIAS;
+	
+	return error;
       }
       else{
 	bodies[i].MATER = static_cast<unsigned>(mat);
@@ -1719,42 +1818,43 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
 
       //Check vertex groups
       if(nVertexGroups < 0){
-	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error: number of vertex groups must "
-		 "be greater or equal to zero.\n");
-	  printf("            Specified for body %ld: %d\n",i,nVertexGroups);
-	}
-	return PEN_MESHBODY_GEO_INVALID_N_VERTEX_GROUP;
+	error.code = BAD_VALUE;
+	error.description = "pen_meshBodyGeo:GEOMESH:Error: number of vertex groups must "
+	  "be greater or equal to zero. A value of " + std::to_string(nVertexGroups) +
+	  " has been set for body " + bodies[i].BALIAS;
+	
+	return error;
       }
                 
       if(bodies[i].MATER > constants::MAXMAT){
-	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error: material number read from the "
-		 "geometry file: %u, is greater than the maximum number of "
-		 "materials allowed: %u\n", bodies[i].MATER, constants::MAXMAT);
-	}
-	return PEN_MESHBODY_GEO_INVALID_MAT;
+	error.code = BAD_VALUE;
+	error.description = "pen_meshBodyGeo:GEOMESH:Error: Material number assigned to body " + 
+	  std::string(bodies[i].BALIAS) + " (" + std::to_string(bodies[i].MATER) +
+	  "), is greater than the maximum number of allowed materials (" +
+	  std::to_string(constants::MAXMAT) + ")";
+	
+	return error;
       }
 
       if(nTrianglesAux < 0){
-	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error: Invalid number of triangles. "
-		 "Must be greater than zero.\n");
-	  printf("            Specified for body %ld: %ld\n",i,nTrianglesAux);
-	}
-	return PEN_MESHBODY_GEO_INVALID_TRIANGLES_NUMBER;	
+	error.code = BAD_VALUE;
+	error.description = "pen_meshBodyGeo:GEOMESH:Error: Invalid number of triangles. "
+	  "Must be greater than zero. Specified for body " + std::string(bodies[i].BALIAS) +
+	  ": " + std::to_string(nTrianglesAux);
+	
+	return error;	
       }
 
       bodies[i].nTriangles = static_cast<unsigned long>(nTrianglesAux);
       
       //Check number of vertex
       if(nVertexAux < 0){
-	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error: Invalid number of vertex. "
-		 "Must be greater than zero.\n");
-	  printf("            Specified for body %ld: %ld\n",i,nVertexAux);
-	}
-	return PEN_MESHBODY_GEO_INVALID_VERTEX_NUMBER;	
+	error.code = BAD_VALUE;
+	error.description = "pen_meshBodyGeo:GEOMESH:Error: Invalid number of vertex. "
+	  "Must be greater than zero. Specified for body " + std::string(bodies[i].BALIAS) +
+	  ": " + std::to_string(nVertexAux);
+	
+	return error;	
       }else{
 	nvertex = static_cast<unsigned long>(nVertexAux);
       }
@@ -1764,11 +1864,11 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
       vertex.resize(nvertex);
             
       if(vertex.size() != nvertex){
-	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error allocating memory for vertex"
-		 " reading. Can't allocate memory for %lu vertex.\n", nvertex);
-	}
-	return PEN_MESHBODY_BAD_MEMORY_ALLOCATION;
+	error.code = LOW_ON_MEMORY;
+	error.description = "pen_meshBodyGeo:GEOMESH:Error allocating memory for vertex"
+	  " reading. Can't allocate memory for " + std::to_string(nvertex) + " vertex.";
+	
+	return error;
       }
       
       //Read vertex groups data from geometry file
@@ -1779,21 +1879,21 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
 	  char groupName[100];
 	  long int nGroupVertex;
 	  if(sscanf(line.c_str(), " %s %ld ", groupName, &nGroupVertex) != 2){
-	    if(verbose > 0){
-	      printf("pen_meshBodyGeo:configure: Error reading vertex group information."
-		     "Unexpected format in line %lu: \n %s\n", nRead, line.c_str());
-	    }
-	    return PEN_MESHBODY_GEO_UNEXPECTED_LINE_FORMAT;
+	    error.code = UNEXPECTED_LINE_FORMAT;
+	    error.description = "pen_meshBodyGeo:GEOMESH: Error reading vertex group information."
+	      "Unexpected format in line " + std::to_string(nRead) + ": " + line;
+	    
+	    return error;
 	  }
 
 	  //Check vertex number
 	  if(nGroupVertex <= 0){
-	    if(verbose > 0){
-	      printf("pen_meshBodyGeo:configure: Error: The number of vertex in a group"
-		     " must be greater than 0.\n"
-		     " Vertex in group '%s': %ld\n", groupName, nGroupVertex);
-	    }
-	    return PEN_MESHBODY_GEO_INVALID_N_VERTEX_GROUP;	    
+	    error.code = BAD_VALUE;
+	    error.description = "pen_meshBodyGeo:GEOMESH: The number of vertex in a group"
+	      " must be greater than 0. Vertex in group '" + std::string(groupName) +
+	      "': " + std::to_string(nGroupVertex);
+	    
+	    return error;	    
 	  }
 
 	  //Create a entry for this vertex group and resize it
@@ -1806,48 +1906,46 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
 	      nRead += nlines;
 	      long int vIndex;
 	      if(sscanf(line.c_str(), " %ld ", &vIndex) != 1){
-		if(verbose > 0){
-		  printf("pen_meshBodyGeo:configure: Error reading vertex group "
-			 "information. Unexpected format in line %lu: \n %s\n",
-			 nRead, line.c_str());
-		}
-		return PEN_MESHBODY_GEO_UNEXPECTED_LINE_FORMAT;
+		error.code = UNEXPECTED_LINE_FORMAT;
+		error.description = "pen_meshBodyGeo:GEOMESH: Error reading vertex group information."
+		  "Unexpected format in line " + std::to_string(nRead) + ": " + line;
+		
+		return error;
 	      }
 
 	      //Check vertex index
 	      if(vIndex < 0 ||
 		 vIndex >= static_cast<long int>(nvertex)){
-		if(verbose > 0){
-		  printf("pen_meshBodyGeo:configure: Invalid vertex index in group '%s'."
-			 "Index %ld is not in the interval [0,%lu).\n",
-			 groupName, vIndex, nvertex);
-		}
-		return PEN_MESHBODY_GEO_INVALID_VERTEX_INDEX;		
+		error.code = UNEXPECTED_LINE_FORMAT;
+		error.description = "pen_meshBodyGeo:GEOMESH:Error: Invalid vertex index in group '" +
+		  std::string(groupName) + "'. Index " + std::to_string(vIndex) +
+		  " is not in the interval [0," + std::to_string(nvertex) + ").";
+		
+		return error;		
 	      }
 
 	      //Save index
 	      vgIndex[iv] = static_cast<unsigned>(vIndex);
 	    }
 	    else{
-	      if(verbose > 0){
-		printf("pen_meshBodyGeo:configure: Error: Invalid geometry file.\n"
-		       "Unable to read vertex number %ld for vertex group %d "
-		       "in body %lu. Possible end of file reached.",
-		       iv,j,static_cast<unsigned long>(i));
-	      }
-	      return PEN_MESHBODY_GEO_INVALID_FILE;
+		error.code = INVALID_FILE;
+		error.description = "pen_meshBodyGeo:GEOMESH:Error: Invalid geometry file."
+		  "Unable to read vertex number " + std::to_string(iv) + " for vertex group " + 
+		  std::to_string(j) + " in body " + std::string(bodies[i].BALIAS) +
+		  ". Possible end of file reached.";
+	      
+	      return error;
 	    }
 	  }
 	  
 	}
 	else{
-	  if(verbose > 0){
-	    printf("pen_meshBodyGeo:configure: Error: Invalid geometry file.\n"
-		   "Unable to read vertex group %d data for body %lu. "
-		   "Possible end of file reached.",
-		   j, static_cast<unsigned long>(i));
-	  }
-	  return PEN_MESHBODY_GEO_INVALID_FILE;
+	  error.code = INVALID_FILE;
+	  error.description = "pen_meshBodyGeo:GEOMESH:Error: Invalid geometry file. "
+	    "Unable to read vertex group " + std::to_string(j) + " data for body " +
+	    std::string(bodies[i].BALIAS) + ". Possible end of file reached.";
+	  
+	  return error;
 	}	
       }
 
@@ -1862,12 +1960,11 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
 	//Ensure vertex groups are defined in the geometry file
 	for(const pen_meshTransform::group& g : search->second){
 	  if(vgMap.count(g.name) == 0){
-	    if(verbose > 0){
-	      printf("pen_meshBodyGeo:configure: Error: Vertex group '%s'"
-		     " not found in body '%s'.\n",
-		     g.name.c_str(), bodies[i].BALIAS);
-	    }
-	    return PEN_MESHBODY_GEO_VG_NOT_FOUND;
+	    error.code = BAD_VALUE;
+	    error.description = "pen_meshBodyGeo:GEOMESH:Error: Vertex group '" + g.name +
+	      "' not found in body '" + std::string(bodies[i].BALIAS) + "'.";
+	    
+	    return error;
 	  }
 	}
       }
@@ -1879,21 +1976,21 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
 	  double x,y,z;
 	  nRead += nlines;
 	  if(sscanf(line.c_str()," %ld  %le  %le  %le", &index, &x, &y, &z) != 4){
-	    if(verbose > 0){
-	      printf("pen_meshBodyGeo:configure: Error reading vertex information."
-		     "Unexpected format in line %lu: \n %s\n", nRead, line.c_str());
-	    }
-	    return PEN_MESHBODY_GEO_UNEXPECTED_LINE_FORMAT;
+	    error.code = UNEXPECTED_LINE_FORMAT;
+	    error.description = "pen_meshBodyGeo:GEOMESH: Error reading vertex information."
+	      "Unexpected format in line " + std::to_string(nRead) + ": " + line;
+	    
+	    return error;
 	  }
 	  
 	  if(index < 0 ||
 	     index > static_cast<long int>(nvertex)){
-	    if(verbose > 0){
-	      printf("pen_meshBodyGeo:configure: Invalid vertex index in body '%s'."
-		     "Index %ld is not in the interval [0,%lu).\n",
-		     bodies[i].BALIAS, index, nvertex);
-	    }
-	    return PEN_MESHBODY_GEO_INVALID_VERTEX_INDEX;
+	    error.code = BAD_VALUE;
+	    error.description = "pen_meshBodyGeo:GEOMESH:Error: Invalid vertex index in body '" +
+	      std::string(bodies[i].BALIAS) + "'. Index " + std::to_string(index) +
+	      " is not in the interval [0," + std::to_string(nvertex) + ").";
+	    
+	    return error;
 	  }
 
 	  //Save vertex data
@@ -1903,13 +2000,12 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
 
 	}
 	else{
-	  if(verbose > 0){
-	    printf("pen_meshBodyGeo:configure: Error: Invalid geometry file.\n"
-		   "Unable to read vertex %lu data for body %lu. "
-		   "Possible end of file reached.",
-		   static_cast<unsigned long>(j), static_cast<unsigned long>(i));	
-	  }
-	  return PEN_MESHBODY_GEO_INVALID_FILE;
+	  error.code = INVALID_FILE;
+	  error.description = "pen_meshBodyGeo:GEOMESH:Error: Invalid geometry file. "
+	    "Unable to read vertex " + std::to_string(j) + " data for body " +
+	    std::string(bodies[i].BALIAS) + ". Possible end of file reached.";
+	  
+	  return error;
 	}
       }
 
@@ -1945,26 +2041,25 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
 	if(meshGetLine(includes,in,line,nlines) == 0){
 	  nRead += nlines;
 	  //Read each triangle or face of each body 
-	      if(sscanf(line.c_str()," %u  %u  %u",
-			&index[0], &index[1], &index[2]) != 3){
-		if(verbose > 0){
-		  printf("pen_meshBodyGeo:configure: Error reading triangle faces."
-			 "Unexpected format in line %lu: \n %s\n", nRead, line.c_str());
-		}
-		return PEN_MESHBODY_GEO_UNEXPECTED_LINE_FORMAT;
-	      }
+	  if(sscanf(line.c_str()," %u  %u  %u",
+		    &index[0], &index[1], &index[2]) != 3){
+	    error.code = UNEXPECTED_LINE_FORMAT;
+	    error.description = "pen_meshBodyGeo:GEOMESH:Error: Error reading triangle faces."
+	      "Unexpected format in line " + std::to_string(nRead) + ": " + line;
+		
+	    return error;
+	  }
                     
 	  //Fill triangle
 	  triangles[k].fill(vertex[index[0]],vertex[index[1]],vertex[index[2]]);
 	}
 	else{
-	  if(verbose > 0){
-	    printf("pen_meshBodyGeo:configure: Error: Invalid geometry file.\n"
-		   "Unable to read triangle %lu data for body %lu. "
-		   "Possible end of file reached.",
-		   static_cast<unsigned long>(k), static_cast<unsigned long>(i));
-	  }
-	  return PEN_MESHBODY_GEO_INVALID_FILE;
+	  error.code = INVALID_FILE;
+	  error.description = "pen_meshBodyGeo:GEOMESH:Error: Invalid geometry file. "
+	    "Unable to read triangle " + std::to_string(k) + " data for body " +
+	    std::string(bodies[i].BALIAS) + ". Possible end of file reached.";
+	  
+	  return error;
 	}
       }
 
@@ -1973,12 +2068,12 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
       bodies[i].regions[0].elements.push_back(region);
     }
     else{
-      if(verbose > 0){
-	printf("pen_meshBodyGeo:configure: Error: Invalid geometry file.\n"
-	       "Unable to read data for body %lu. Possible end of file reached.",
-	       static_cast<unsigned long>(i));	
-      }
-      return PEN_MESHBODY_GEO_INVALID_FILE;
+      error.code = INVALID_FILE;
+      error.description = "pen_meshBodyGeo:GEOMESH:Error: Invalid geometry file. "
+	"Unable to read data for body " + std::string(bodies[i].BALIAS) +
+	". Possible end of file reached.";
+      
+      return error;
     }
     
     if(verbose > 1){
@@ -2064,12 +2159,12 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
       }
     }
     if(!found){
-      if(verbose > 0){
-	printf("pen_meshBodyGeo:configure: Error: Transformations for body '%s' "
-	       "have been defined in the configuration file, but it is not found"
-	       " in the geometry file.\n",pair.first.c_str());
-      }
-      return PEN_MESHBODY_GEO_BODY_NOT_FOUND;
+      error.code = MISSING_PARAMETER;
+      error.description = "pen_meshBodyGeo:GEOMESH:Error: Transformations for body '" +
+	pair.first + "' have been defined in the configuration file, but it is not defined"
+	" in the geometry file.";
+      
+      return error;
     }
   }
 
@@ -2078,11 +2173,12 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
     if(strcmp(bodies[i].PALIAS,"VOID") == 0 ||
        strcmp(bodies[i].PALIAS,"void") == 0){
       if(worldFound){
-	if(verbose > 0){
-	  printf("pen_meshBodyGeo:configure: Error: only a single world is allowed.\n"
-		 "Defined worlds are '%s' and '%s'\n",bodies[iworld].BALIAS,bodies[i].BALIAS);
-	}
-	return PEN_MESHBODY_MULTIPLE_WORLDS;
+	error.code = MULTIPLE_WORLDS;
+	error.description = "pen_meshBodyGeo:GEOMESH:Error: Only a single world is allowed,"
+	  " but two worlds have been defined: '" + std::string(bodies[iworld].BALIAS) + "' and '" +
+	  std::string(bodies[i].BALIAS) + "'.";
+	
+	return error;
       }
       else{
 	bodies[i].parent = i;
@@ -2097,10 +2193,11 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
     
   //Check if world is found
   if(!worldFound){
-    if(verbose > 0){
-      printf("pen_meshBodyGeo:configure: Error: world not found.\n Expected one object with 'VOID' or 'void' parent name.\n");
-    }
-    return PEN_MESHBODY_WORLD_NOT_FOUND;
+    error.code = WORLD_NOT_FOUND;
+    error.description = "pen_meshBodyGeo:GEOMESH:Error: World not found. One world object "
+      "must be defined setting 'VOID' or 'void' as parent name.";
+    
+    return error;
   }
     
   //Assign daughter information to each parent body
@@ -2123,8 +2220,8 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
 	printf("no overlaps with her parent %u (%s).\n", bodies[i].parent, bodies[i].PALIAS);
       }
             
-      if(bodies[i].nOverlap > 0){
-	for(size_t j=0; j<bodies[i].nOverlap; ++j){
+      if(bodies[i].overlapedBodies.size() > 0){
+	for(size_t j=0; j<bodies[i].overlapedBodies.size(); ++j){
 	  long unsigned int iOverlap = bodies[i].overlapedBodies[j];
 	  printf("overlaps with her sister: %lu (%s).\n",
 		 iOverlap, bodies[iOverlap].BALIAS);
@@ -2144,7 +2241,7 @@ int pen_meshBodyGeo::GEOMESH(std::istream& in,
     bodies[iworld].printDaughters(1,bodies);
   }
     
-  return PEN_MESHBODY_GEO_SUCCESS;
+  return error;
 }
 
 int pen_meshBodyGeo::meshGetLine(std::vector<std::ifstream>& included,
@@ -2264,7 +2361,7 @@ void pen_meshBodyGeo::checkCross(const unsigned iparent){
   //Get parent reference
   const pen_meshBody& parent = bodies[iparent];
     
-  for(unsigned i = 0; i < parent.nDaughters; ++i){
+  for(unsigned i = 0; i < parent.daughters.size(); ++i){
         
     //Save daughter index
     const unsigned idaugh1 = parent.daughters[i];
@@ -2279,7 +2376,7 @@ void pen_meshBodyGeo::checkCross(const unsigned iparent){
     }
         
     //Check crosses with other daughters (sisters)
-    for(unsigned j = i+1; j < parent.nDaughters; ++j){
+    for(unsigned j = i+1; j < parent.daughters.size(); ++j){
             
       //Save second daughter index
       const unsigned idaugh2 = parent.daughters[j];
@@ -2287,8 +2384,8 @@ void pen_meshBodyGeo::checkCross(const unsigned iparent){
       pen_meshBody& body2 = bodies[idaugh2];
             
       if(canOverlap(idaugh1,idaugh2)){
-	body1.overlapedBodies[body1.nOverlap++] = idaugh2;
-	body2.overlapedBodies[body2.nOverlap++] = idaugh1;
+        body1.overlapedBodies.push_back(idaugh2);
+        body2.overlapedBodies.push_back(idaugh1);
       }
     }
         

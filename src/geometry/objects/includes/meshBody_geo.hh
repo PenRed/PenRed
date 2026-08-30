@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2022-2023 Universitat de València - UV
 //    Copyright (C) 2022-2023 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -41,60 +42,11 @@
 #include <memory>
 #include <fstream>
 
-enum pen_meshBodyErr{
-    PEN_MESHBODY_GEO_SUCCESS = 0,
-    PEN_MESHBODY_GEO_INPUT_SECTION,
-    PEN_MESHBODY_GEO_BAD_READ_DSMAX,
-    PEN_MESHBODY_GEO_INVALID_DSMAX,
-    PEN_MESHBODY_GEO_BAD_READ_KDET,
-    PEN_MESHBODY_GEO_INVALID_KDET,
-    PEN_MESHBODY_GEO_BAD_READ_REGIONSIZE,
-    PEN_MESHBODY_GEO_INVALID_REGIONSIZE,
-    PEN_MESHBODY_GEO_UNKNOWN_PARTICLE,
-    PEN_MESHBODY_GEO_BAD_READ_EABS,
-    PEN_MESHBODY_GEO_INVALID_EABS,
-    PEN_MESHBODY_GEO_UNDEF_BODY_LABEL,
-    PEN_MESHBODY_GEO_BODY_NOT_FOUND,
-    PEN_MESHBODY_GEO_UNEXPECTED_LINE_FORMAT,
-    PEN_MESHBODY_GEO_INVALID_FILE,
-    PEN_MESHBODY_GEO_INVALID_NBODIES,
-    PEN_MESHBODY_GEO_INVALID_MAT,
-    PEN_MESHBODY_GEO_INVALID_N_VERTEX_GROUP,
-    PEN_MESHBODY_GEO_INVALID_VERTEX_NUMBER,
-    PEN_MESHBODY_GEO_INVALID_TRIANGLES_NUMBER,
-    PEN_MESHBODY_BAD_MEMORY_ALLOCATION,
-    PEN_MESHBODY_MULTIPLE_WORLDS,
-    PEN_MESHBODY_WORLD_NOT_FOUND,
-    PEN_MESHBODY_GEO_INVALID_VERTEX_INDEX,
-    PEN_MESHBODY_GEO_INVALID_VERTEX_GROUP_INDEX,
-    PEN_MESHBODY_GEO_INVALID_TRANSFORMATION_INDEX,
-    PEN_MESHBODY_GEO_INVALID_TRANSFORMATION_TYPE,
-    PEN_MESHBODY_GEO_VG_NOT_FOUND,
-    PEN_MESHBODY_GEO_INVALID_DIR,
-    PEN_MESHBODY_GEO_INVALID_DS,
-    PEN_MESHBODY_GEO_INVALID_SCALE,
-    PEN_MESHBODY_GEO_TRIANGLES_OUT_OF_REGIONS,
-    PEN_MESHBODY_GEO_LOST_TRIANGLES,
-    PEN_MESHBODY_GEO_BODY_INTERSECTIONS_FOUND,
-    PEN_MESHBODY_GEO_CL_VECTOR_SIZES_MISMATCH,
-    PEN_MESHBODY_GEO_CL_DEVICE_NOT_FOUND,
-    PEN_MESHBODY_GEO_CL_MALLOC_FAIL,
-    PEN_MESHBODY_GEO_CL_BUFFER_CREATION_FAIL,
-    PEN_MESHBODY_GEO_CL_BUFFER_WRITE_FAIL,
-    PEN_MESHBODY_GEO_CL_BUFFER_PACK_FAIL,
-    PEN_MESHBODY_GEO_CL_PROGRAM_CREATION_FAIL,
-    PEN_MESHBODY_GEO_CL_PROGRAM_BUILD_FAIL,
-    PEN_MESHBODY_GEO_CL_KERNEL_CREATION_FAIL,
-    PEN_MESHBODY_GEO_CL_KERNEL_PACK_FAIL,
-    PEN_MESHBODY_GEO_CL_NO_CONFIGURED_DEVICES,    
-    PEN_MESHBODY_GEO_UNEXPECTED_ERROR,
-};
-
 class pen_meshBodyGeo;
 
 struct meshBodyTriangle : public triangle<double>{
 
-  static constexpr double crossThreshold = 1.0e-8;
+  static constexpr const double crossThreshold = 1.0e-8;
   
   typedef vector3D<double> v3D;
 
@@ -584,26 +536,20 @@ struct pen_meshBody : public pen_baseBody{
   std::vector<superRegion> regions;
 
   //Sister bodies with overlap
-  static const unsigned maxDaughters = 300;
-  std::array<unsigned,maxDaughters> overlapedBodies;
-  //Number of syster overlaps
-  unsigned nOverlap;
-
+  std::vector<unsigned> overlapedBodies;
   
   //Flags if the body can overlap its parent
   bool canOverlapParent;
 
-  //Daughters bodies array
-  std::array<unsigned,maxDaughters> daughters;
-  //Number of daughter bodies
-  unsigned nDaughters;
+  //Daughters bodies vector
+  std::vector<unsigned> daughters;
 
   //Parent body index
   unsigned parent;
   
   pen_meshBody() : nTriangles(0), meanTrianglesRegion(0),
-		   meanRegionsSuperRegion(0), nOverlap(0),
-		   canOverlapParent(false), nDaughters(0) {}
+		   meanRegionsSuperRegion(0),
+		   canOverlapParent(false) {}
     
   bool inside(const v3D pos) const;
     
@@ -616,18 +562,13 @@ struct pen_meshBody : public pen_baseBody{
   inline size_t nSupRegions() const {return regions.size();}
   
   inline void addDaughter(const unsigned i){
-    if(nDaughters < maxDaughters){
-      daughters[nDaughters++] = i;
-    }else{
-      printf("meshBody_geo: Error: maximum number of daughters is %u\n",
-	     maxDaughters);
-    }
+    daughters.push_back(i);
   }
-    
+  
   inline void printDaughters(const int indent, const pen_meshBody* bodies) const{
         
     printf("%*s|-%s\n",indent,"",BALIAS);
-    for(size_t i = 0; i < nDaughters; ++i){
+    for(size_t i = 0; i < daughters.size(); ++i){
       bodies[daughters[i]].printDaughters(indent+2,bodies);
     }
   }
@@ -652,6 +593,71 @@ private:
   
 public:
 
+  enum errors{
+    SUCCESS = 0,
+    SECTION_READ_FAIL,
+    LIMIT_REACHED,
+    MISSING_PARAMETER,
+    BAD_VALUE,
+    LOW_ON_MEMORY,
+    UNKNOWN_PARTICLE,
+    UNKNOWN_BODY_LABEL,
+    UNEXPECTED_LINE_FORMAT,
+    INVALID_FILE,
+    MULTIPLE_WORLDS,
+    WORLD_NOT_FOUND,
+    INVALID_TYPE,
+    VG_NOT_FOUND,
+    LOST_TRIANGLES,
+    BODY_INTERSECTIONS_FOUND,
+    VECTOR_SIZES_MISMATCH,
+    CL_DEVICE_NOT_FOUND,
+    CL_MALLOC_FAIL,
+    CL_BUFFER_CREATION_FAIL,
+    CL_BUFFER_WRITE_FAIL,
+    CL_BUFFER_PACK_FAIL,
+    CL_PROGRAM_CREATION_FAIL,
+    CL_PROGRAM_BUILD_FAIL,
+    CL_KERNEL_CREATION_FAIL,
+    CL_KERNEL_PACK_FAIL,
+    CL_NO_CONFIGURED_DEVICES,    
+    UNEXPECTED_ERROR,
+  };
+  
+  static constexpr const char* errorMessage(const int val) noexcept {
+    switch(val){
+    case SUCCESS: return "Success";
+    case SECTION_READ_FAIL: return "Unable to read section";
+    case LIMIT_REACHED: return "Limit reached";
+    case MISSING_PARAMETER: return "Missing parameter";
+    case BAD_VALUE: return "Invalid value";
+    case LOW_ON_MEMORY: return "Low on memory";
+    case UNKNOWN_PARTICLE: return "Unknown particle";
+    case UNKNOWN_BODY_LABEL: return "Unknown body label";
+    case UNEXPECTED_LINE_FORMAT: return "Unexpected line format";
+    case INVALID_FILE: return "Invalid file";
+    case MULTIPLE_WORLDS: return "Multiple worlds defined";
+    case WORLD_NOT_FOUND: return "No world found";
+    case INVALID_TYPE: return "Invalid type";
+    case VG_NOT_FOUND: return "Vertex group not found";
+    case LOST_TRIANGLES: return "Lost triangles";
+    case BODY_INTERSECTIONS_FOUND: return "Intersecting bodies found";
+    case VECTOR_SIZES_MISMATCH: return "Vector sizes mismatch";
+    case CL_DEVICE_NOT_FOUND: return "Opencl device not found";
+    case CL_MALLOC_FAIL: return "Opencl malloc failed";
+    case CL_BUFFER_CREATION_FAIL: return "Opencl buffer creation failed";
+    case CL_BUFFER_WRITE_FAIL: return "Opencl buffer write failed";
+    case CL_BUFFER_PACK_FAIL: return "Opencl buffer pack failed";
+    case CL_PROGRAM_CREATION_FAIL: return "Opencl program creation failed";
+    case CL_PROGRAM_BUILD_FAIL: return "Opencl program build failed";
+    case CL_KERNEL_CREATION_FAIL: return "Opencl kernel creation failed";
+    case CL_KERNEL_PACK_FAIL: return "Opencl kernel pack failed";
+    case CL_NO_CONFIGURED_DEVICES: return "No opencl devices configured";
+    case UNEXPECTED_ERROR: return "Unexpected error";
+    default: return "Unknown error";
+    }
+  }  
+
   //A preload geometry file to use instead of filename during configuration
   std::string preloadGeo;
       
@@ -659,22 +665,20 @@ public:
       
   typedef vector3D<double> v3D;    
       
-  pen_meshBodyGeo() : iworld(0), worldFound(false) {
-    configStatus = 0;
-  }  
+  pen_meshBodyGeo() : iworld(0), worldFound(false) {}  
   
-  int configure(const pen_parserSection& config, const unsigned verbose) override;
-  int GEOMESH(std::istream& in,
-	      std::map<std::string, std::vector<pen_meshTransform::group>>& transMap,
-	      const unsigned verbose);
+  penred::errors::Error specificConfigure(const pen_parserSection& config, const unsigned verbose) override;
+  penred::errors::Error GEOMESH(std::istream& in,
+				std::map<std::string, std::vector<pen_meshTransform::group>>& transMap,
+				const unsigned verbose);
   static int meshGetLine(std::vector<std::ifstream>& included,
 			 std::istream& root,
 			 std::string&line,
 			 unsigned long& nRead);
   
   
-  void locate(pen_particleState&) const final override;
-  void step(pen_particleState&,
+  void locateLocal(pen_particleState&) const final override;
+  void stepLocal(pen_particleState&,
 	    double,
 	    double &,
 	    double &,
@@ -721,8 +725,9 @@ public:
   
   
   inline bool solveOverlapsFlat(const double travel,
-				const v3D& pos,
-				const v3D& dir,
+				v3D& pos,
+				v3D& dir,
+				const double t,
 				const unsigned ibody, 
 				unsigned& nextBody) const {
 
@@ -736,18 +741,30 @@ public:
 
     //Get body reference
     const pen_meshBody& body = bodies[ibody];
+
+    if(body.overlapedBodies.size() == 0)
+      return false;
     
     //Check all overlaps at the same level
-    for(unsigned iover = 0; iover < body.nOverlap; ++iover){
+    for(unsigned iover = 0; iover < body.overlapedBodies.size(); ++iover){
         
       //Get body index
       const unsigned overIndex = body.overlapedBodies[iover];
       //Get the reference of the possible overlaping body
       const pen_meshBody& overBody = bodies[overIndex];
-        
+
+      //Apply the overBody inverse transform if needed.
+      //This will convert the position and direction from parent local
+      //coordinates to overBody local coordinates
+      v3D oPos = pos;
+      v3D oDir = dir;
+      if(overBody.inAnimation(t)){
+	overBody.readAnimation().applyInv(t, oPos, oDir);
+      }
+      
       //Check if this body is crossed in this direction
       double dsOverlap;
-      if(overBody.cross(pos, dir, dsOverlap, false)){
+      if(overBody.cross(oPos, oDir, dsOverlap, false)){
             
 	//Is crossed, check if is crossed before the travel finish
 	if(dsOverlap - travel < threshold){
@@ -755,7 +772,11 @@ public:
 	  //next body is the crossed one. However, the cross with its
 	  //daughters must be checked
 	  nextBody = overIndex;
-	  solveOverlapsDown(travel,pos,dir,overIndex,nextBody);
+	  solveOverlapsDown(travel,oPos,oDir,t,overIndex,nextBody);
+
+	  //Save position and direction in final body's local coordinates
+	  pos = oPos;
+	  dir = oDir;
 	  return true;
 	}
       }
@@ -766,11 +787,16 @@ public:
   }
   
   inline bool solveOverlapsUp(const double travel,
-			      const v3D& pos,
-			      const v3D& dir,
+			      v3D& pos,
+			      v3D& dir,
+			      const double t,
 			      const unsigned ibody, 
 			      unsigned& nextBody) const {
-    
+
+    // Solves the overlaps through the "ibody" boundaries, checking parent and sisters.
+    // The position and direction vector are suposed to be in the "ibody" parent's non
+    // transformed coordinates
+    //
     // travel   -> Traveled distance in cm
     // pos      -> Position vector (x,y,z)
     // dir      -> Normalized direction (u,v,w)
@@ -787,35 +813,41 @@ public:
     if(body.canOverlapParent){
       //Can overlap with the parent, get parent reference
       const pen_meshBody& parent = bodies[body.parent];
-        
-      //Check if the parent is crossed in this direction
+	
+      //Check if the parent is crossed in this direction.
       double dsOverlap;
       if(parent.cross(pos, dir, dsOverlap, true)){
-            
+      
 	//The parent is crossed, check if the parent
 	//cross is located before the travel finish
 	if(dsOverlap - travel < threshold){
                 
 	  //ibody is overlaping with its parent within the travel 
-	    //distance. Therefore, the parent is crossed and the
-	    //particle escapes to the parent of the ibody parent. 
-	    //So, update next body to grandparent
-	    nextBody = bodies[body.parent].parent;
+	  //distance. Therefore, the parent is crossed and the
+	  //particle escapes to the ibody parent's parent. 
+	  //So, update next body to grandparent
+	  nextBody = parent.parent;
                 
-	  //However, overlaps of the parent must be also checked
-	  solveOverlapsUp(travel,pos,dir,body.parent,nextBody);
+	  //However, overlaps of the parent must be also checked.
+	  //Convert position and direction to grandparent non transformed
+	  //coordinates
+	  if(parent.inAnimation(t)){
+	    parent.readAnimation().apply(t, pos, dir);
+	  }
+	  solveOverlapsUp(travel,pos,dir,t,body.parent,nextBody);
 	  return true;
 	}
       }
     }
     
     //The parent is not overlpaed, check their sisters
-    return solveOverlapsFlat(travel,pos,dir,ibody,nextBody);
+    return solveOverlapsFlat(travel,pos,dir,t,ibody,nextBody);
   }
 
   inline bool solveOverlapsDown(const double travel,
-				const v3D& pos,
-				const v3D& dir,
+				v3D& pos,
+				v3D& dir,
+				const double t,
 				const unsigned ibody, 
 				unsigned& nextBody) const {
     
@@ -830,27 +862,39 @@ public:
     const pen_meshBody& body = bodies[ibody];
     
     //Iterate over all daughters to check possible overlaps
-    for(unsigned idaught = 0; idaught < body.nDaughters; ++idaught){
+    for(unsigned idaught = 0; idaught < body.daughters.size(); ++idaught){
         
-      //Get daugther index and reference
-      const unsigned daugthIndex = body.daughters[idaught];
-      const pen_meshBody& daugth = bodies[daugthIndex];
-        
-      //Check if this daugther can overlap with ibody
-      if(daugth.canOverlapParent){
-	
-	//Can overlap, check if is crossed in this direction
+      //Get daught index and reference
+      const unsigned daughtIndex = body.daughters[idaught];
+      const pen_meshBody& daught = bodies[daughtIndex];
+
+      //Check if this daught can overlap with ibody
+      if(daught.canOverlapParent){
+
+	//Apply the daughter inverse transform if needed.
+	//This will convert the position and direction to daughter local coordinates
+	v3D dPos = pos;
+	v3D dDir = dir;
+	if(daught.inAnimation(t)){
+	  daught.readAnimation().applyInv(t, dPos, dDir);
+	}
+      
+	//Check if is crossed in this direction
 	double dsOverlap;
-	if(daugth.cross(pos, dir, dsOverlap, false)){
+	if(daught.cross(dPos, dDir, dsOverlap, false)){
 	  
 	  //Is crossed, check if the cross is before the travel end
 	  if(dsOverlap - travel < threshold){
-	    //Daugther is crossed, thus, the next body must be
+	    //Daughter is crossed, thus, the next body must be
 	    //updated to this daugher. However, Their daughters
 	    //must be checked also
 	    
-	    nextBody = daugthIndex;
-	    solveOverlapsDown(travel,pos,dir,daugthIndex,nextBody);
+	    nextBody = daughtIndex;
+	    solveOverlapsDown(travel,dPos,dDir,t,daughtIndex,nextBody);
+	    
+	    //Save position and direction in final body's local coordinates
+	    pos = dPos;
+	    dir = dDir;
 	    return true;
 	  }
 	}
@@ -860,7 +904,80 @@ public:
     //No overlapes
     return false;
   }
+
+  inline void composeTransform(const unsigned ibody,
+			       v3D& pos,
+			       v3D& dir,
+			       const double t) const {
+
+    const pen_meshBody& body = bodies[ibody];
+
+    //Apply local transformation if required
+    if(body.inAnimation(t)){
+      body.readAnimation().apply(t, pos, dir);
+    }
+    
+    if(ibody != iworld){
+      //Apply parent transform
+      composeTransform(body.parent, pos, dir, t);
+    }
+  }
+
+  inline void composeTransform(const unsigned ibody,
+			       v3D& pos,
+			       const double t) const {
+
+    const pen_meshBody& body = bodies[ibody];
+
+    //Apply local transformation if required
+    if(body.inAnimation(t)){
+      body.readAnimation().apply(t, pos);
+    }
+    
+    if(ibody != iworld){
+      //Apply parent transform
+      composeTransform(body.parent, pos, t);
+    }
+  }  
+  
+  inline void composeInvTransform(const unsigned ibody,
+				  v3D& pos,
+				  v3D& dir,
+				  const double t) const {
+
+    const pen_meshBody& body = bodies[ibody];
+    if(ibody != iworld){
+      //Apply parent inverse transform
+      composeInvTransform(body.parent, pos, dir, t);
+    }
+    //Compose current body transformation, if needed
+    if(body.inAnimation(t)){
+      body.readAnimation().applyInv(t, pos, dir);
+    }
+  }
+
+  inline void composeInvTransform(const unsigned ibody,
+				  v3D& pos,
+				  const double t) const {
+
+    const pen_meshBody& body = bodies[ibody];
+    if(ibody != iworld){
+      //Apply parent inverse transform
+      composeInvTransform(body.parent, pos, t);
+    }
+    //Compose current body transformation, if needed
+    if(body.inAnimation(t)){
+      body.readAnimation().applyInv(t, pos);
+    }
+  }
+
+  inline bool isTransformable() const override { return true; }
   
 };
+
+template<>
+constexpr const char* penred::errors::errorMessage<pen_meshBodyGeo>(const int val) noexcept {
+  return pen_meshBodyGeo::errorMessage(val);
+}
 
 #endif

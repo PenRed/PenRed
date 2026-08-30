@@ -264,7 +264,50 @@ class tallySpatialDistrib(bpy.types.PropertyGroup):
         default = "PART_GAMMA"
     )
 
-# Spatial distribution
+# Detector energy deposition
+class tallyDetectorEnergyDep(bpy.types.PropertyGroup):
+    name : bpy.props.StringProperty(name = "Tally Name", default = "Detector-EDep")
+    show : bpy.props.BoolProperty(name = "Show Tally Properties", default = True)
+
+    twindow : bpy.props.FloatVectorProperty(
+        name = "Time window",
+        size = 2,
+        default = (0.0, 30.0),
+        description="Time interval, in seconds, to be detected",
+        update=lambda self, context: self.__setitem__(
+            "twindow",
+            (self.twindow[0],
+             max(self.twindow[0], self.twindow[1]))
+        ))
+    tbins : bpy.props.IntProperty(name = "Time Bins", min = 1, default = 1,
+                                  description="Number of temporal bins")
+    
+    nx : bpy.props.IntProperty(name = "X Bins", min = 1, default = 1,
+                               description="Number of X axis bins")
+    ny : bpy.props.IntProperty(name = "Y Bins", min = 1, default = 1,
+                               description="Number of Y axis bins")
+    nz : bpy.props.IntProperty(name = "Z Bins", min = 1, default = 1,
+                               description="Number of Z axis bins")
+
+    printCoordinates : bpy.props.BoolProperty(name = "Print Coordinates", default = True,
+                                              description="Enable/disable coordinates print in results")
+
+    printBins : bpy.props.BoolProperty(name = "Print Bins", default = True,
+                                       description="Enable/disable bin numbers print in results")
+    
+    particleType : bpy.props.EnumProperty(
+        name = "Detected Particle",
+        description = "Choose the particle to be detected",
+        items = [
+            ("PART_GAMMA" , "Gamma", "Gamma"),
+            ("PART_ELECTRON", "Electron", "Electron"),
+            ("PART_POSITRON", "Positron", "Positron"),
+            ("PART_ALL", "All", "All"),
+        ],
+        default = "PART_ALL"
+    )
+
+# CT sinogram
 class tallyCT(bpy.types.PropertyGroup):
     name : bpy.props.StringProperty(name = "Tally Name", default = "CT Sinogram")
     show : bpy.props.BoolProperty(name = "Show Tally Properties", default = True)
@@ -402,6 +445,7 @@ talliesPropsClasses = (
     tallyPSF,
     tallyKerma,
     tallySpatialDistrib,
+    tallyDetectorEnergyDep,
     tallyCT,
     tallyAngularDetector,
     tallyEmergingParticle,
@@ -590,6 +634,7 @@ class sourceProperties(bpy.types.PropertyGroup):
         items = [
             ("TIME_NOINIT" , "No initialization", "No initialization"),
             ("TIME_DECAY", "Decay", "Exponential decay"),
+            ("TIME_LINEAR" , "Linear", "Linear sampling"),
         ],
         default = "TIME_NOINIT"
     )
@@ -711,6 +756,11 @@ class objectProperties(bpy.types.PropertyGroup):
         name = "Flags if the object is a material object",
         description = "Sets this object as a detector",
         default = True)
+
+    isdicom : bpy.props.BoolProperty(
+        name = "Internal variable to know if the loaded .obj comes from a DICOM",
+        description = "Set to true if loaded from DICOM_OT_LoadDicom",
+        default = False)
     
     material : bpy.props.IntProperty(name = "Material Index",
                                      min = 0,
@@ -822,6 +872,9 @@ class objectProperties(bpy.types.PropertyGroup):
     
     showTalliesSpatialDistrib : bpy.props.BoolProperty(name="Show Spatial Distrib Tallies", default = True)
     talliesSpatialDistrib : bpy.props.CollectionProperty(type=tallySpatialDistrib)
+
+    showTalliesDetectorEnergyDep : bpy.props.BoolProperty(name="Show Detector Energy Deposition Tallies", default = True)    
+    talliesDetectorEnergyDep : bpy.props.CollectionProperty(type=tallyDetectorEnergyDep)
     
     showTalliesAngularDet : bpy.props.BoolProperty(name = "Show Angular Detector Tallies", default = True)
     talliesAngularDetector : bpy.props.CollectionProperty(type=tallyAngularDetector)
@@ -997,7 +1050,7 @@ class materialProperties(bpy.types.PropertyGroup):
         "Cutoff energy loss, in eV, for hard inelastic collisions.",
         update=lambda self, context: setattr(self, "WCCEdit", False)
     )
-    WCCEdit: bpy.props.BoolProperty(
+    WCCEdit : bpy.props.BoolProperty(
         name = "Inelastic Cutoff Energy Loss Edit",
         description=
         "Cutoff energy loss, in eV, for hard inelastic collisions.",        
@@ -1012,11 +1065,246 @@ class materialProperties(bpy.types.PropertyGroup):
         "Cutoff energy loss, in eV, for hard Bremsstrahlung collisions.",
         update=lambda self, context: setattr(self, "WCREdit", False)
     )
-    WCREdit: bpy.props.BoolProperty(
+    WCREdit : bpy.props.BoolProperty(
         name = "Bremsstrahlung Cutoff Energy Loss Edit",
         description=
         "Cutoff energy loss, in eV, for hard Bremsstrahlung collisions",
         default = False)
+
+# DICOM properties group
+#############################
+class calibrationProperties(bpy.types.PropertyGroup):
+    value : bpy.props.FloatProperty(
+        name = "",
+        description = "HU to g/cm\u00B3",
+        default = 0.0,
+        min = 0.0
+    )
+
+class intensityProperties(bpy.types.PropertyGroup):
+
+    show_settings_intensityParams : bpy.props.BoolProperty(
+        name = "show_settings_intensityParams",
+        description = "Show/Hide settings for intensity-ranges parameters",
+        default = False
+    )
+
+    name : bpy.props.StringProperty(
+        name = "", 
+        description="Name of the intensity range. To diﬀerentiate between ranges each range requires a unique name",
+        default = ""
+    )    
+
+    material : bpy.props.IntProperty(
+        name = "",
+        description = "Material index for all voxels with intensity values in the range [low,top)",
+        default = 0,
+        min = 0
+    )
+    
+    density : bpy.props.FloatProperty(
+        name = "",
+        description = "Density value (g/cm\u00B3) to assign for all voxels with intensity values in the range [low,top)",
+        default = 0.0,
+        min = 0.0
+    )
+    low : bpy.props.IntProperty(
+        name = "",
+        description = "Minumum range pixel value, [low,top), to assign the material and density specified",
+        default = 0,
+    )
+    top : bpy.props.IntProperty(
+        name = "",
+        description = "Maximum range pixel value, [low,top), to assign the material and density specified",
+        default = 0,
+    )
+
+class rangesProperties(bpy.types.PropertyGroup):
+
+    show_settings_rangeParams : bpy.props.BoolProperty(
+        name = "show_settings_rangeParams",
+        description = "Show/Hide settings for ranges parameters",
+        default = False
+    )
+
+    name : bpy.props.StringProperty(
+        name = "", 
+        description="Name of the intensity range. To diﬀerentiate between ranges each range requires a unique name",
+        default = ""
+    )   
+
+    material : bpy.props.IntProperty(
+        name = "",
+        description = "Material index for all voxels with a density value between [low,top) and this index",
+        default = 0,
+        min = 0
+    )
+
+    low : bpy.props.FloatProperty(
+        name = "",
+        description = "Minimum density value (g/cm\u00B3) in range [density−low,density−top)",
+        default = 0,
+        min = 0.0
+    )
+
+    top : bpy.props.FloatProperty(
+        name = "",
+        description = "Maximum density value (g/cm\u00B3) in range [density−low,density−top)",
+        default = 0,
+        min = 0.0
+    )    
+
+class contoursProperties(bpy.types.PropertyGroup):
+
+    name : bpy.props.StringProperty(
+        name = "", 
+        description="The contour name must coincide with the contour name stored in the DICOM file",
+        default = ""
+    )
+    
+    show_settings_contourParams : bpy.props.BoolProperty(
+        name = "show_settings_contourParams",
+        description="Show/Hide settings for contour parameters",
+        default=False
+    )    
+
+    show_settings_contour_intensity : bpy.props.BoolProperty(
+        name = "show_settings_contour_intensity",
+        description="Show/Hide settings for intensity-ranges parameters in contours",
+        default=False
+    )
+
+    show_settings_contour_ranges : bpy.props.BoolProperty(
+        name = "show_settings_contour_ranges",
+        description="Show/Hide settings for density-ranges parameters in contours",
+        default=False
+    )
+   
+    overwriteMat : bpy.props.BoolProperty(
+        name = "",
+        description = "Overwrites contour's voxels with default material.",
+        default = True
+    )
+
+    material : bpy.props.IntProperty(
+        name = "",
+        description = "Default material index to assign to this contour. Optional (default -1)",
+        default = 1,
+        min = 1
+    )
+    
+    overwriteDens : bpy.props.BoolProperty(
+        name = "",
+        description = "Overwrites contour's voxels with default density.",
+        default = True
+    )
+    
+    density : bpy.props.FloatProperty(
+        name = "",
+        description = "Density value (g/cm\u00B3) to assign for all voxels with intensity values in the range [low,top)",
+        default = 1.0,
+        min = 1.0e-12
+    )
+    priority : bpy.props.FloatProperty(
+        name = "",
+        description = "Minumum range pixel value, [low,top), to assign the material and density specified",
+        default = 0,
+        min = 0
+    )
+
+    intensityRanges : bpy.props.CollectionProperty(type=intensityProperties)
+
+    ranges : bpy.props.CollectionProperty(type=rangesProperties)
+
+
+dicomClasses = (
+    calibrationProperties,
+    intensityProperties,
+    rangesProperties,
+    contoursProperties,
+)
+
+
+class dicomProperties(bpy.types.PropertyGroup):
+
+    show_settings_dicom_calibration : bpy.props.BoolProperty(
+        name = "show_settings_dicom_calibration",
+        description = "Show/Hide settings for calibration parameters",
+        default = False
+    )
+
+    show_settings_dicom_intensities : bpy.props.BoolProperty(
+        name = "show_settings_dicom_intensities",
+        description = "Show/Hide settings for intensity-ranges parameters",
+        default = False
+    )
+
+    show_settings_dicom_ranges : bpy.props.BoolProperty(
+        name = "show_settings_dicom_ranges",
+        description = "Show/Hide settings for ranges parameters",
+        default = False
+    )
+
+    show_settings_dicom_density : bpy.props.BoolProperty(
+        name = "show_settings_dicom_density",
+        description = "Show/Hide settings for density-ranges parameters",
+        default = False
+    )
+
+    show_settings_dicom_contours : bpy.props.BoolProperty(
+        name = "show_settings_dicom_contours",
+        description = "Show/Hide settings for contours parameters",
+        default = False
+    )
+
+    material : bpy.props.IntProperty(
+        name = "",
+        description = "Material index for all voxels that has not been assigned by other methods.",
+        default = 0,
+        min = 0,
+        max = 1000
+    )
+
+    density : bpy.props.FloatProperty(
+        name = "",
+        description = "Default density for all voxels that has not been assigned by other methods.",
+        default = 0.0,
+        min = 0.0
+    )
+
+    enclosureMargin : bpy.props.FloatProperty(
+        name = "",
+        description = "Distance between the DICOM mesh corner and the limit of an external enclosure, in cm.",
+        default = 0.0,
+        min = 0.0
+    )    
+
+    enclosureMaterial : bpy.props.IntProperty(
+        name = "",
+        description = "Specify the enclosure material index.",
+        default = 0,
+        min = 0
+    )   
+
+    printASCII : bpy.props.BoolProperty(
+        name = "",
+        description = "Exports the processed DICOM data in ASCII format.",
+        default = False
+    )
+
+    calibration : bpy.props.CollectionProperty(type=calibrationProperties)
+
+    intensityRanges : bpy.props.CollectionProperty(type=intensityProperties)
+
+    ranges : bpy.props.CollectionProperty(type=rangesProperties)
+
+    contours : bpy.props.CollectionProperty(type=contoursProperties)
+
+    directory : bpy.props.StringProperty(
+        name = "", 
+        description="Directory where the DICOM has been loaded",
+        default = ""
+    )
 
 
 # Simulation properties groups
@@ -1027,13 +1315,14 @@ class simulationProperties(bpy.types.PropertyGroup):
         name = "Enable Dumps",
         description = "Enable/Disable write partial results dumps",
         default = False)
+    
     dumpInterval : bpy.props.FloatProperty(
         name = "Dump Interval",
         default = 3600,
         min = 0.0,
         description=
-        "Interval, in seconds, between results dump."
-    )
+        "Interval, in seconds, between results dump.")
+
     dumpWriteFile : bpy.props.StringProperty(
         name = "Write Dump Files",
         description = "Filename to write dumps. For each thread, a 'thN' prefix will be added, where N is the thread number",
@@ -1063,11 +1352,9 @@ class simulationProperties(bpy.types.PropertyGroup):
         description = "Enable/Disable creating partial results in ASCII format",
         default = False)
     
-    
     outputPrefix : bpy.props.StringProperty(name = "Output Prefix",
                                          description = "Prefix for results files",
                                          default = "")
-    
 
     # Threads
     threadSelType : bpy.props.EnumProperty(
@@ -1079,12 +1366,14 @@ class simulationProperties(bpy.types.PropertyGroup):
         ],
         default = "AUTO"
     )
+
     nThreads : bpy.props.IntProperty(
         name = "Threads Number",
         min = 1,
         max = 1000,
         description = "Number of threads to be used during simulation",
         default = 4)
+    
     seedPair : bpy.props.IntProperty(name = "Seed Pair",
                                      min = 0,
                                      max = 1000,
@@ -1095,6 +1384,7 @@ class simulationProperties(bpy.types.PropertyGroup):
         name = "Toggle Maximum Simulation Time",
         description = "Enable/Disable the simulation time limit",
         default = False)
+    
     maxSimTime : bpy.props.FloatProperty(
         name = "Maximum Simulation Time",
         default = 3600,
@@ -1347,8 +1637,14 @@ class penredSceneProperties(bpy.types.PropertyGroup):
         description = "Time range for track drawing, in seconds",
         update=updateTrackTRange
     )
+
     trackTRangeEdit : bpy.props.BoolProperty(name = "Track Time Range Edit",
                                              default = False)
+    
+    #Dicom 
+    dicomProperties : bpy.props.PointerProperty(type=dicomProperties)
+
+
 
 @bpy.app.handlers.persistent
 def ensureCleanState(dummy):
@@ -1376,6 +1672,10 @@ def register():
     #Register tracks property groups
     for cls in tracksClasses:
         bpy.utils.register_class(cls)        
+
+    #Register dicom property groups
+    for cls in dicomClasses:
+        bpy.utils.register_class(cls)        
         
     # Register globa properties
     bpy.utils.register_class(objectProperties)
@@ -1391,6 +1691,9 @@ def register():
     
     # Register world properties
     bpy.utils.register_class(worldProperties)
+
+    # Register DICOM properties
+    bpy.utils.register_class(dicomProperties)
 
     # Register scene properties
     bpy.utils.register_class(penredSceneProperties)
@@ -1429,6 +1732,10 @@ def unregister():
     #Unregister tracks property groups
     for cls in tracksClasses:
         bpy.utils.unregister_class(cls)
+
+    #Unregister dicom property groups
+    for cls in dicomClasses:
+        bpy.utils.unregister_class(cls) 
         
     # Unregister element properties
     bpy.utils.unregister_class(elementProperties)
@@ -1453,6 +1760,9 @@ def unregister():
 
     # Unregister frame update for tracks
     bpy.app.handlers.frame_change_pre.remove(updateTracksFrame)    
+    
+    # Unregister DICOM properties
+    bpy.utils.unregister_class(dicomProperties)    
     
     # Unregister scene properties
     bpy.utils.unregister_class(penredSceneProperties)    

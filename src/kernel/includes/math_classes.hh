@@ -3,6 +3,7 @@
 //
 //    Copyright (C) 2023-2024 Universitat de València - UV
 //    Copyright (C) 2023-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -37,8 +38,10 @@
 #include <limits>
 #include <vector>
 #include <array>
+#include <set>
 #include <sstream>
 #include <type_traits>
+#include <algorithm>
 
 //--------------------------------
 // Auxiliar structs and classes
@@ -50,10 +53,21 @@ template<class T>
 struct vector2D{
   T x,y;
     
-  constexpr vector2D() {}
+  constexpr vector2D() : x(static_cast<T>(0)), y(static_cast<T>(0)) {}
   constexpr vector2D(T xin, T yin) : x(xin), y(yin){}
-    
-  inline constexpr vector2D operator+(const vector2D& a) const{
+  constexpr vector2D(const vector2D<T>& v) : x(v.x), y(v.y) {}
+  vector2D(vector2D<T>&&) = default;
+
+  static inline const vector2D<T>& zero(){
+    static constexpr const vector2D<T> v = vector2D<T>(static_cast<T>(0),
+						       static_cast<T>(0));
+    return v;
+  }
+  
+  vector2D<T>& operator=(const vector2D<T>&) = default;
+  vector2D<T>& operator=(vector2D<T>&&) = default;
+  
+  constexpr vector2D operator+(const vector2D& a) const{
     return vector2D(x + a.x, y + a.y);
   }
   inline vector2D& operator+=(const vector2D& a){
@@ -62,7 +76,7 @@ struct vector2D{
     return *this;
   }
 
-  inline constexpr vector2D operator+(const T& a) const{
+  constexpr vector2D operator+(const T& a) const{
     return vector2D(x + a, y + a);
   }
   inline vector2D& operator+=(const T& a){
@@ -71,7 +85,7 @@ struct vector2D{
     return *this;
   }
   
-  inline constexpr vector2D operator-(const vector2D& a) const{
+  constexpr vector2D operator-(const vector2D& a) const{
     return vector2D(x - a.x, y - a.y);
   }
   inline vector2D& operator-=(const vector2D& a){
@@ -80,7 +94,7 @@ struct vector2D{
     return *this;
   }
 
-  inline constexpr vector2D operator-(const T& a) const{
+  constexpr vector2D operator-(const T& a) const{
     return vector2D(x - a, y - a);
   }
   inline vector2D& operator-=(const T& a){
@@ -89,15 +103,15 @@ struct vector2D{
     return *this;
   }
   
-  inline constexpr T operator*(const vector2D& a) const{
+  constexpr T operator*(const vector2D& a) const{
     return x*a.x + y*a.y;
   }
 
-  inline constexpr vector2D operator*(const T& a) const{
+  constexpr vector2D operator*(const T& a) const{
     return vector2D(a*x, a*y);
   }
 
-  inline constexpr vector2D operator/(const T& a) const{
+  constexpr vector2D operator/(const T& a) const{
     return vector2D(x/a, y/a);
   }
   inline vector2D& operator/=(const T& a){
@@ -131,19 +145,19 @@ struct vector2D{
     y = pow(y,a);
   }  
     
-  inline constexpr T mod2() const{
+  constexpr T mod2() const{
     return x*x + y*y;
   }
     
-  inline constexpr T mod() const{
+  constexpr T mod() const{
     return sqrt(mod2());
   }
 
-  inline constexpr T dist(const vector2D& a) const{
+  constexpr T dist(const vector2D& a) const{
     return (a - *this).mod();
   }
 
-  inline constexpr vector2D dir(const vector2D& a) const{
+  constexpr vector2D dir(const vector2D& a) const{
     vector2D normDir = (a - *this);
     normDir.normalize();
     return normDir;
@@ -153,6 +167,11 @@ struct vector2D{
     T norm = mod();
     x /= norm;
     y /= norm;
+  }
+
+  // Linear interpolation with another vector
+  constexpr vector2D<T> lerp(const vector2D<T>& v, double t) const {
+    return (*this) * (1.0 - t) + v * t;
   }
 
   inline std::string stringify() const{
@@ -169,10 +188,22 @@ template<class T>
 struct vector3D{
   T x,y,z;
     
-  constexpr vector3D() {}
+  constexpr vector3D() : x(static_cast<T>(0)), y(static_cast<T>(0)), z(static_cast<T>(0)) {}
   constexpr vector3D(T xin, T yin, T zin) : x(xin), y(yin), z(zin){}
-    
-  inline constexpr vector3D operator+(const vector3D& a) const{
+  constexpr vector3D(const vector3D<T>& v) : x(v.x), y(v.y), z(v.z) {}
+  vector3D(vector3D<T>&&) = default;
+
+  static inline const vector3D<T>& zero(){
+    static constexpr const vector3D<T> v = vector3D<T>(static_cast<T>(0),
+						       static_cast<T>(0),
+						       static_cast<T>(0));
+    return v;
+  }
+
+  vector3D<T>& operator=(const vector3D<T>&) = default;
+  vector3D<T>& operator=(vector3D<T>&&) = default;
+  
+  constexpr vector3D operator+(const vector3D& a) const{
     return vector3D(x + a.x, y + a.y, z + a.z);
   }
   inline vector3D& operator+=(const vector3D& a){
@@ -182,7 +213,7 @@ struct vector3D{
     return *this;
   }
 
-  inline constexpr vector3D operator+(const T& a) const{
+  constexpr vector3D operator+(const T& a) const{
     return vector3D(x + a, y + a, z + a);
   }
   inline vector3D& operator+=(const T& a){
@@ -192,7 +223,7 @@ struct vector3D{
     return *this;
   }  
   
-  inline constexpr vector3D operator-(const vector3D& a) const{
+  constexpr vector3D operator-(const vector3D& a) const{
     return vector3D(x - a.x, y - a.y, z - a.z);
   }
   inline vector3D& operator-=(const vector3D& a){
@@ -202,7 +233,7 @@ struct vector3D{
     return *this;
   }  
 
-  inline constexpr vector3D operator-(const T& a) const{
+  constexpr vector3D operator-(const T& a) const{
     return vector3D(x - a, y - a, z - a);
   }
   inline vector3D& operator-=(const T& a){
@@ -212,15 +243,15 @@ struct vector3D{
     return *this;
   }
   
-  inline constexpr T operator*(const vector3D& a) const{
+  constexpr T operator*(const vector3D& a) const{
     return x*a.x + y*a.y + z*a.z;
   }
 
-  inline constexpr vector3D operator*(const T& a) const{
+  constexpr vector3D operator*(const T& a) const{
     return vector3D(a*x, a*y, a*z);
   }
 
-  inline constexpr vector3D operator/(const T& a) const{
+  constexpr vector3D operator/(const T& a) const{
     return vector3D(x/a, y/a, z/a);
   }
   inline vector3D& operator/=(const T& a){
@@ -230,7 +261,7 @@ struct vector3D{
     return *this;
   }
     
-  inline constexpr vector3D operator^(const vector3D& a) const{
+  constexpr vector3D operator^(const vector3D& a) const{
     return vector3D(y*a.z - z*a.y, z*a.x - x*a.z, x*a.y - y*a.x);
   }
     
@@ -272,19 +303,19 @@ struct vector3D{
     y = auxY;
   }
     
-  inline constexpr T mod2() const{
+  constexpr T mod2() const{
     return x*x + y*y + z*z;
   }
     
-  inline constexpr T mod() const{
+  constexpr T mod() const{
     return sqrt(mod2());
   }
 
-  inline constexpr T dist(const vector3D& a) const{
+  constexpr T dist(const vector3D& a) const{
     return (a - *this).mod();
   }
 
-  inline constexpr vector3D dir(const vector3D& a) const{
+  constexpr vector3D dir(const vector3D& a) const{
     vector3D normDir = (a - *this);
     normDir.normalize();
     return normDir;
@@ -295,6 +326,13 @@ struct vector3D{
     x /= norm;
     y /= norm;
     z /= norm;
+  }
+
+  // Linear interpolation with another vector
+  constexpr vector3D<T> lerp(const vector3D<T>& v, double t) const {
+    // Clamp interpolation value
+    t = std::max(static_cast<T>(0.0), std::min(static_cast<T>(1.0), t));    
+    return (*this) * (1.0 - t) + v * t;
   }
 
   inline std::string stringify() const{
@@ -610,10 +648,13 @@ public:
   inline T areaz() const{ return d.x*d.y; }
   inline T area() const{ return std::max(areax(),std::max(areay(),areaz())); }
 
+  
+  inline vector3D<T> minv() const {return min;}
   inline T minx() const {return min.x;}
   inline T miny() const {return min.y;}
   inline T minz() const {return min.z;}
 
+  inline vector3D<T> maxv() const {return max;}
   inline T maxx() const {return max.x;}
   inline T maxy() const {return max.y;}
   inline T maxz() const {return max.z;}
@@ -629,6 +670,20 @@ public:
     d = max-min;
   }
 
+  inline void set(const vector3D<T>& v){
+    min.x = v.x;
+    min.y = v.y;
+    min.z = v.z;
+    
+    max.x = v.x;
+    max.y = v.y;
+    max.z = v.z;
+    
+    d.x = static_cast<T>(0.0);
+    d.y = static_cast<T>(0.0);
+    d.z = static_cast<T>(0.0);
+  }
+  
   inline void set(const triangle<T>& t){
     min.x = t.minx();
     min.y = t.miny();
@@ -643,7 +698,7 @@ public:
     d.z = max.z - min.z;
   }
   
-  inline void set(const box newBox){
+  inline void set(const box& newBox){
     min = newBox.min;
     max = newBox.max;
     d = max-min;
@@ -870,6 +925,15 @@ struct container : public box<T>{
   {}
 
   inline size_t nElements() const {return elements.size();}
+
+  inline void fit(const T threshold){
+    if(elements.size() > 0){
+      this->set(elements[0]);
+      for(size_t i = 1; i < nElements(); ++i)
+	this->enlarge(elements[i]);
+      this->enlarge(threshold);
+    }
+  }
 
   static size_t split(const unsigned n,
 		      const unsigned index2Split,
@@ -1165,6 +1229,459 @@ struct container : public box<T>{
 
 //Define a structures to save measures
 namespace penred{
+
+  inline std::string triml(const std::string& strin){
+    const std::string delimiters = " \n\r\t\f\v";
+    size_t first = strin.find_first_not_of(delimiters);
+    return (first == std::string::npos) ? "" : strin.substr(first);
+  }
+
+  inline std::string trimr(const std::string& strin){
+    const std::string delimiters = " \n\r\t\f\v";
+    size_t last = strin.find_last_not_of(delimiters);
+    return (last == std::string::npos) ? "" : strin.substr(0,last+1);
+  }
+
+  inline std::string trim(const std::string& strin){
+    return trimr(triml(strin));
+  }  
+
+  template<class T>
+  struct Quaternion {
+    T w, x, y, z;
+
+    // Default constructor (identity quaternion)
+    constexpr Quaternion() : w(1), x(0), y(0), z(0) {}
+
+    // Component-wise constructor
+    constexpr Quaternion(const T wIn, const T xIn, const T yIn, const T zIn) :
+      w(wIn), x(xIn), y(yIn), z(zIn) {}
+
+    // Axis-angle constructor (angle in radians, axis can be non-normalized)
+    Quaternion(const std::array<T, 3>& axis, const T angle) {
+      T norm = std::sqrt(axis[0]*axis[0] + axis[1]*axis[1] + axis[2]*axis[2]);
+      if (norm < 1e-8) {
+        // Create identity if axis is zero vector
+        w = 1.0;
+	x = y = z = 0;
+      }
+      else{
+	T halfAngle = angle * 0.5;
+	T s = std::sin(halfAngle) / norm;
+
+	w = std::cos(halfAngle);
+	x = axis[0] * s;
+	y = axis[1] * s;
+	z = axis[2] * s;
+      }
+    }
+    Quaternion(const vector3D<T>& axis, const T angle) {
+      T norm = axis.mod();
+      if (norm < 1e-8) {
+        // Create identity if axis is zero vector
+        w = 1.0;
+	x = y = z = 0;
+      }
+      T halfAngle = angle * 0.5;
+      T s = std::sin(halfAngle) / norm;
+
+      w = std::cos(halfAngle);
+      x = axis.x * s;
+      y = axis.y * s;
+      z = axis.z * s;
+    }
+
+    static inline const Quaternion<T>& identity(){
+      static constexpr const Quaternion<T> i;
+      return i;
+    }
+    
+    // Quaternion multiplication (composition)
+    inline Quaternion<T> operator*(const Quaternion<T>& q) const {
+      return Quaternion(w*q.w - x*q.x - y*q.y - z*q.z,
+			w*q.x + x*q.w + y*q.z - z*q.y,
+			w*q.y - x*q.z + y*q.w + z*q.x,
+			w*q.z + x*q.y - y*q.x + z*q.w);
+    }
+
+    inline bool operator==(const Quaternion<T>& q) const {
+      return w == q.w && x == q.x && y == q.y && z == q.z;
+    }
+
+    // Conjugate
+    inline Quaternion<T> conjugate() const {
+      return Quaternion<T>(w, -x, -y, -z);
+    }
+
+    // Normalize
+    inline Quaternion<T> normalized() const {
+      T norm = std::sqrt(w*w + x*x + y*y + z*z);
+      return Quaternion<T>(w/norm, x/norm, y/norm, z/norm);
+    }
+    inline void normalize() {
+      T norm = std::sqrt(w*w + x*x + y*y + z*z);
+      w /= norm;
+      x /= norm;
+      y /= norm;
+      z /= norm;
+    }
+
+    // Rotate a vector (3D)
+    inline void rotate(std::array<T, 3>& v) const {
+      Quaternion<T> qv(0, v[0], v[1], v[2]);
+      Quaternion<T> result = (*this) * qv * this->conjugate();
+      v[0] = result.x;
+      v[1] = result.y;
+      v[2] = result.z;
+    }
+    inline void rotate(T(&v)[3]) const {
+      Quaternion<T> qv(0, v[0], v[1], v[2]);
+      Quaternion<T> result = (*this) * qv * this->conjugate();
+      v[0] = result.x;
+      v[1] = result.y;
+      v[2] = result.z;
+    }
+    inline void rotate(vector3D<T>& v) const {
+      Quaternion<T> qv(0, v.x, v.y, v.z);
+      Quaternion<T> result = (*this) * qv * this->conjugate();
+      v.x = result.x;
+      v.y = result.y;
+      v.z = result.z;
+    }
+
+    // Extract angle (in radians) and axis
+    inline void toAxisAngle(vector3D<T>& axis, T& angle) const {
+      Quaternion<T> q = this->normalized();
+      angle = 2.0 * std::acos(q.w);
+      T s = std::sqrt(1 - q.w*q.w);
+      if (s < 1.0e-8) {
+	axis = vector3D<T>(0, 0, 1); //Set Z as default direction
+      } else {
+	axis = vector3D<T>(q.x/s, q.y/s, q.z/s);
+      }
+    }
+
+    // Spherical linear interpolation (SLERP)
+    Quaternion<T> slerp(const Quaternion<T>& to, double t) const {
+
+      // Clamp interpolation value
+      t = std::max(static_cast<T>(0.0), std::min(static_cast<T>(1.0), t));
+      
+      T dot = w*to.w + x*to.x + y*to.y + z*to.z;
+
+      Quaternion<T> to1 = to;
+      if (dot < 0.0) {
+	dot = -dot;
+	to1.w = -to1.w; to1.x = -to1.x; to1.y = -to1.y; to1.z = -to1.z;
+      }
+
+      constexpr const T DOT_THRESHOLD = 0.9995;
+      if (dot > DOT_THRESHOLD) {
+	// If the quaternions are very close, use linear interpolation and normalize the result.
+	Quaternion<T> result(w + t * (to1.w - w),
+			     x + t * (to1.x - x),
+			     y + t * (to1.y - y),
+			     z + t * (to1.z - z));
+	return result.normalized();
+      }
+
+      double theta0 = std::acos(dot);        // angle between input quaternions
+      double theta = theta0 * t;             // angle between this and result
+      double sinTheta = std::sin(theta);
+      double sinTheta0 = std::sin(theta0);
+
+      double s0 = std::cos(theta) - dot * sinTheta / sinTheta0;
+      double s1 = sinTheta / sinTheta0;
+
+      return Quaternion<T>((w * s0) + (to1.w * s1),
+			   (x * s0) + (to1.x * s1),
+			   (y * s0) + (to1.y * s1),
+			   (z * s0) + (to1.z * s1));
+    }
+
+    inline std::string stringify() const{
+      char str[100];
+      sprintf(str,"(%.5E,%.5E,%.5E,%.5E)",
+	      static_cast<double>(w),
+	      static_cast<double>(x),
+	      static_cast<double>(y),
+	      static_cast<double>(z));
+      return std::string(str);
+    }
+  };
+
+  namespace interpolation{
+
+    enum errors{
+      SUCCESS = 0,
+      DIMENSION_MISMATCH = 1,
+      NOT_ENOUGH_DATA_POINTS = 2,
+      UNORDERED_DATA = 3,
+    };
+
+    constexpr const char* errorToString( const unsigned i ){
+      switch(i){
+      case SUCCESS: return "Success";
+      case DIMENSION_MISMATCH: return "Dimensions mismatch";
+      case NOT_ENOUGH_DATA_POINTS: return "Not enough data points";
+      case UNORDERED_DATA: return "Unordered data";
+      default: return "Unknown error";
+      };
+    }    
+
+    template<class T>
+    struct CubicSpline {
+      
+      struct Coefficients{
+        double A,B,C,D; // P(dx) = A + B*dx + C*dx^2 + D*dx^3
+      };
+
+    private:
+      std::vector<double> x;
+      std::vector<Coefficients> coef;
+      
+    public:
+      
+      CubicSpline() = default;
+
+      inline const std::vector<double>& readX() const { return x; }
+      inline bool initialized() const noexcept { return !coef.empty(); }
+      inline void clear() noexcept {
+        x.clear();
+        coef.clear();
+      }      
+
+      /**
+       * @brief Constructs a cubic spline with specified boundary second derivatives.
+       * 
+       * @tparam CType Data type of X coordinates.
+       * @param X Vector of strictly increasing grid coordinates (N >= 4).
+       * @param Y Vector of corresponding function values.
+       * @param S1 Second derivative at lower boundary X[0] (default = 0 for Natural Spline).
+       * @param SN Second derivative at upper boundary X[N-1] (default = 0 for Natural Spline).
+       * @return SUCCESS (0), or error code (DIMENSION_MISMATCH, NOT_ENOUGH_DATA_POINTS, UNORDERED_DATA).
+       */      
+      template<class CType>
+      int init(const std::vector<CType>& X, const std::vector<T>& Y,
+               const double S1 = 0.0, const double SN = 0.0) {
+
+        
+        if (X.size() != Y.size()) return DIMENSION_MISMATCH;
+        if (X.size() < 4) return NOT_ENOUGH_DATA_POINTS;
+
+        const size_t N = X.size();
+        const size_t N1 = N - 1;
+        const size_t N2 = N - 2;
+
+        std::vector<double> A(N1); // Interval widths h_i
+        std::vector<double> B(N2); // Matrix main diagonal
+        std::vector<double> D(N);  // RHS / Second derivatives sigma_i
+
+        for (size_t i = 0; i < N1; ++i) {
+          A[i] = static_cast<double>(X[i + 1] - X[i]);
+          if (A[i] <= 0.0) {
+            clear();
+            return UNORDERED_DATA;
+          }
+          D[i] = static_cast<double>(Y[i + 1] - Y[i]) / A[i];
+        }
+
+        for (size_t i = 0; i < N2; ++i) {
+          B[i] = 2.0 * (A[i] + A[i + 1]);
+          size_t K = N1 - i;
+          D[K - 1] = 6.0 * (D[K - 1] - D[K - 2]);
+        }
+
+        D[1] -= A[0] * S1;
+        D[N1 - 1] -= A[N1 - 1] * SN;
+
+        // Tridiagonal solve
+        for (size_t i = 1; i < N2; ++i) {
+          double R = A[i] / B[i - 1];
+          B[i] -= R * A[i];
+          D[i + 1] -= R * D[i];
+        }
+
+        D[N1 - 1] /= B[N2 - 1];
+        for (size_t i = 1; i < N2; ++i) {
+          size_t K = N1 - i;
+          D[K - 1] = (D[K - 1] - A[K - 1] * D[K]) / B[K - 2];
+        }
+
+        D[0] = S1;
+        D[N - 1] = SN;
+
+        // Store local relative coefficients
+        x.assign(X.begin(), X.end());
+        coef.resize(N1);
+
+        for (size_t i = 0; i < N1; ++i) {
+          const double h = A[i];
+          const double sigi = D[i];
+          const double sigi1 = D[i + 1];
+
+          coef[i].A = static_cast<double>(Y[i]);
+          coef[i].B = (static_cast<double>(Y[i + 1] - Y[i])) / h - (h / 6.0) * (sigi1 + 2.0 * sigi);
+          coef[i].C = sigi / 2.0;
+          coef[i].D = (sigi1 - sigi) / (6.0 * h);
+        }
+
+        return SUCCESS;
+      }
+
+      inline size_t findInterval(const double xVal) const noexcept {
+        if (xVal <= x[0]) return 0;
+        if (xVal >= x.back()) return x.size() - 2;
+
+        auto it = std::upper_bound(x.begin(), x.end(), xVal);
+        return static_cast<size_t>(std::distance(x.begin(), it) - 1);
+      }
+
+      inline T evaluate(const double xVal) const {
+        if (x.empty()) return static_cast<T>(0);
+
+        const size_t i = findInterval(xVal);
+        const double dx = xVal - x[i];
+        const Coefficients& c = coef[i];
+
+        const double val = c.A + dx * (c.B + dx * (c.C + dx * c.D));
+        return static_cast<T>(val);
+      }
+
+      // Evaluate multiple points
+      std::vector<T> evaluate(const std::vector<double>& xVals) const {
+        std::vector<T> result(xVals.size());
+        for (size_t i = 0; i < xVals.size(); ++i) {
+          result[i] = evaluate(xVals[i]);
+        }
+        return result;
+      }
+
+      //Evaluate first derivative
+      inline T derivative(const double xVal) const {
+        if(coef.empty()) return static_cast<T>(0);
+
+        const size_t i = findInterval(xVal);
+        const double dx = xVal - x[i];
+        const Coefficients& c = coef[i];
+
+        const double deriv = c.B + dx * (2.0 * c.C  + dx * 3.0 * c.D );
+        
+        return static_cast<T>(deriv);
+      }
+
+      //Evaluate second derivative
+      inline T derivative2(const double xVal) const {
+        if(coef.empty()) return static_cast<T>(0);
+
+        const size_t i = findInterval(xVal);
+        const double dx = xVal - x[i];
+        const Coefficients& c = coef[i];
+
+        const double deriv2 = 2.0 * c.C + dx * 6.0 * c.D;
+        
+        return static_cast<T>(deriv2);
+      }
+    };
+
+    template<class T>
+    struct BicubicSpline {
+
+    private:
+      std::vector<double> x;
+      std::vector<double> y;
+
+      std::vector<CubicSpline<T>> rowSplines;
+
+    public:
+
+      BicubicSpline() = default;
+
+      template<class CType>
+      int init(const std::vector<CType>& xIn,
+               const std::vector<CType>& yIn,
+               const std::vector<T>& values){
+
+        if(xIn.size() < 4 || yIn.size() < 4)
+          return NOT_ENOUGH_DATA_POINTS;
+        if(xIn.size() * yIn.size() != values.size())
+          return DIMENSION_MISMATCH;
+
+        //Copy data
+        x = xIn;
+        y = yIn;
+
+        //Create splines for each row
+        rowSplines.resize(y.size());
+        const size_t nx = x.size();
+        for(size_t j = 0; j < y.size(); ++j){
+          std::vector<T> rowValues(values.begin() + j*nx, values.begin() + (j+1)*nx);
+          int err = rowSplines[j].init(x, rowValues);
+          if(err != SUCCESS){
+            clear();
+            return err;
+          }
+        }
+        return SUCCESS;
+      }
+
+      /**
+       * @brief Evaluates the 2D tensor-product cubic spline at (xVal, yVal).
+       * 
+       * @param xVal Target X coordinate.
+       * @param yVal Target Y coordinate.
+       * @return Interpolated value T at (xVal, yVal).
+       */
+      inline T evaluate(const double xVal, const double yVal) const {
+        if(x.size() == 0) return static_cast<T>(0);
+
+        //Get interpolated values in Y axis
+        std::vector<T> yProfile(y.size());
+        for(size_t j = 0; j < y.size(); ++j){
+          yProfile[j] = rowSplines[j].evaluate(xVal);
+        }
+
+        //Build a spline for Y profile and evaluate it
+        CubicSpline<T> ySpline;
+        ySpline.init(y,yProfile);
+        return ySpline.evaluate(yVal);
+      }
+
+      std::vector<T> evaluateGrid(const std::vector<double>& xVals, const std::vector<double>& yVals) const {
+
+        if(xVals.size() == 0 || yVals.size() == 0)
+          return std::vector<T>();
+
+        std::vector<T> results(xVals.size()*yVals.size());
+        for(size_t i = 0; i < xVals.size(); ++i){
+          const double xVal = xVals[i];
+
+          //Build the Y profile for each X value
+          std::vector<T> yProfile(y.size());
+          for(size_t j = 0; j < y.size(); ++j){
+            yProfile[j] = rowSplines[j].evaluate(xVal);
+          }
+
+          //Build cubic splines from the profile
+          CubicSpline<T> ySpline;
+          ySpline.init(y, yProfile);
+          
+          for(size_t j = 0; j < yVals.size(); ++j){
+            results[j*xVals.size() + i] = ySpline.evaluate(yVals[j]);
+          }
+        }
+        return results;
+      }
+
+      inline void clear() {
+        x.clear();
+        y.clear();
+        rowSplines.clear();
+      }
+    };
+    
+  } //namespace interpolation
+  
   namespace measurements{
 
       enum errors{
@@ -1211,22 +1728,6 @@ namespace penred{
 
     typedef std::pair<double, double> limitsType;
 
-    inline std::string triml(const std::string& strin){
-      const std::string delimiters = " \n\r\t\f\v";
-      size_t first = strin.find_first_not_of(delimiters);
-      return (first == std::string::npos) ? "" : strin.substr(first);
-    }
-
-    inline std::string trimr(const std::string& strin){
-      const std::string delimiters = " \n\r\t\f\v";
-      size_t last = strin.find_last_not_of(delimiters);
-      return (last == std::string::npos) ? "" : strin.substr(0,last+1);
-    }
-
-    inline std::string trim(const std::string& strin){
-      return trimr(triml(strin));
-    }
-
     template<size_t dim = 1>
     class multiDimension{
 
@@ -1250,6 +1751,29 @@ namespace penred{
       std::array<std::string, nHeaders> headers; 
 
       //Initialization functions
+
+      inline int initDims(const std::vector<unsigned long>& nBinsIn,
+			  const std::vector<std::pair<double, double>>& limitsIn){
+	if(nBinsIn.size() != limitsIn.size())
+	  return errors::DIMENSION_MISMATCH;
+
+	//Init auxiliary arrays
+	std::array<unsigned long, dim> nBinsAux;
+	std::fill(nBinsAux.begin(), nBinsAux.end(), 1ul);
+
+	std::array<std::pair<double, double>, dim> limitsAux;
+	const std::pair<double, double> defaultLimit(-1.0e35, 1.0e35);
+	std::fill(limitsAux.begin(), limitsAux.end(), defaultLimit);
+
+	for(size_t i = 0; i < nBinsIn.size(); ++i){
+	  nBinsAux[i] = nBinsIn[i];
+	}
+	for(size_t i = 0; i < limitsIn.size(); ++i){
+	  limitsAux[i] = limitsIn[i];
+	}
+
+	return initDims(nBinsAux, limitsAux);	
+      }
       
       template<size_t dimInit>
       inline std::enable_if_t< (dimInit < dim), int>
@@ -1286,9 +1810,9 @@ namespace penred{
 
 	//Calculate total number of bins
 	totalBins = std::accumulate(nBinsIn.begin(),
-				    nBinsIn.end(), 1,
+				    nBinsIn.end(), 1ul,
 				    std::multiplies<unsigned long>());
-	if(totalBins == 0)
+	if(totalBins == 0ul)
 	  return errors::INVALID_NUMBER_OF_BINS;
     
 	//Check limits
@@ -1506,7 +2030,7 @@ namespace penred{
       //Headers functions
       inline const std::string& readDimHeader(const unsigned idim) const {
 	static const std::string emptyString("");
-	if(idim > dim){
+	if(idim >= dim){
 	  return emptyString;
 	}
 	return headers[idim];
@@ -1580,6 +2104,12 @@ namespace penred{
       }
 
       //Index functions
+      /**
+       * @brief Converts D-dimensional bin coordinates to a 1D flat vector offset.
+       * 
+       * @param index Array of bin indices [i_0, i_1, ..., i_{D-1}].
+       * @return 1D index offset into flat data arrays.
+       */
       inline unsigned long getGlobalIndex(const std::array<unsigned long, dim>& dimIndexes)const{
 	// Calculate the global index from local indexes in each dimension
 	unsigned long globIndex = dimIndexes[0];
@@ -1814,6 +2344,7 @@ namespace penred{
 	  }
 	  FILE* ferr = fopen((baseFilename + "_err.dat").c_str(), "w");
 	  if(ferr == nullptr){
+        fclose(fval);
 	    return 1;
 	  }
 	  
@@ -2025,10 +2556,10 @@ namespace penred{
 
 	//Calculate total number of bins
 	totalBins = std::accumulate(nBins.begin(),
-				    nBins.end(), 1,
+				    nBins.end(), 1ul,
 				    std::multiplies<unsigned long>());
 
-	if(totalBins == 0)
+	if(totalBins == 0ul)
 	  return errors::INVALID_NUMBER_OF_BINS;    
 
 	//Calculate bins per increment in each dimension
@@ -2240,6 +2771,8 @@ namespace penred{
     class results : public multiDimension<dim>{
       
     public:
+
+      template<class T, size_t D> friend class results;
       
       std::vector<type> data;
       std::vector<double> sigma;
@@ -2253,12 +2786,53 @@ namespace penred{
       const std::vector<type>& readData() const { return data; }
       const std::vector<double>& readSigma() const { return sigma; }
 
+      inline int init(const std::vector<unsigned long>& nBinsIn,
+		      const std::vector<std::pair<double, double>>& limitsIn){
+
+	//Init dimensions
+	int err = this->initDims(nBinsIn, limitsIn);
+	if(err != errors::SUCCESS)
+	  return err;
+    
+	//Resize vectors
+	data.resize(this->totalBins);
+	std::fill(data.begin(), data.end(), static_cast<type>(0));
+
+	sigma.resize(this->totalBins);
+	std::fill(sigma.begin(), sigma.end(), 0.0);
+
+	return errors::SUCCESS;
+      }
+
+      inline int init(const std::vector<unsigned long>& nBinsIn,
+		      const std::vector<std::pair<double, double>>& limitsIn,
+		      const std::vector<type>& dataIn,
+		      const std::vector<double>& sigmaIn){
+
+	//Init dimensions
+	int err = this->initDims(nBinsIn, limitsIn);
+	if(err != errors::SUCCESS)
+	  return err;
+
+	//Check dimensions
+	if(dataIn.size() != this->totalBins || sigmaIn.size() != this->totalBins){
+	  return errors::DIMENSION_MISMATCH; 
+	}
+	
+	data = dataIn;
+	sigma = sigmaIn;
+
+	return errors::SUCCESS;
+      }      
+
       template<size_t dimInit>
       int init(const std::array<unsigned long, dimInit>& nBinsIn,
 	       const std::array<std::pair<double, double>, dimInit>& limitsIn){
 	
 	//Init dimensions
-	this->initDims(nBinsIn, limitsIn);
+	int err = this->initDims(nBinsIn, limitsIn);
+	if(err != errors::SUCCESS)
+	  return err;
     
 	//Resize vectors
 	data.resize(this->totalBins);
@@ -2313,6 +2887,284 @@ namespace penred{
 	this->initHeaders();
       }
 
+      /**
+       * Extract a single linearly interpolated value at an arbitrary point
+       * within the grid. Returns both the value and its uncertainty.
+       * 
+       * @param position Array of coordinates in each dimension
+       * @param value Output interpolated value
+       * @param uncertainty Output interpolated uncertainty
+       * @return Error code (SUCCESS or error)
+       */
+      int extractValue(const std::array<double, dim>& position,
+                       type& value,
+                       double& uncertainty) const {
+        if(dim == 0){
+          return errors::DIMENSION_OUT_OF_RANGE;
+        }
+    
+        // Find bracketing indices and fractions for each dimension
+        std::array<unsigned long, dim> lowerIdx;
+        std::array<unsigned long, dim> upperIdx;
+        std::array<double, dim> fractions;
+    
+        for(size_t d = 0; d < dim; ++d) {
+          // Handle out-of-bounds with clamping
+          if(position[d] < this->limits[d].first) {
+            // Below lower limit, use first bin
+            lowerIdx[d] = 0;
+            upperIdx[d] = 0;
+            fractions[d] = 0.0;
+          } else if(position[d] >= this->limits[d].second) {
+            // Above upper limit, use last bin
+            lowerIdx[d] = this->nBins[d] - 1;
+            upperIdx[d] = this->nBins[d] - 1;
+            fractions[d] = 0.0;
+          } else {
+            // Inside range, find bracketing bins
+            double fracIdx = (position[d] - this->limits[d].first) / this->binWidths[d];
+            lowerIdx[d] = static_cast<unsigned long>(fracIdx);
+            upperIdx[d] = std::min(lowerIdx[d] + 1, this->nBins[d] - 1);
+            fractions[d] = fracIdx - lowerIdx[d];
+          }
+        }
+    
+        // Perform multi-linear interpolation
+        // Number of corners in the hypercube: 2^dim
+        const unsigned long nCorners = 1ul << dim;
+    
+        double dvalue = 0.0;
+        double sigma2 = 0.0;
+    
+        for(unsigned long corner = 0; corner < nCorners; ++corner) {
+          // Build index for this corner and calculate weight
+          std::array<unsigned long, dim> idx;
+          double weight = 1.0;
+        
+          for(size_t d = 0; d < dim; ++d) {
+            bool useUpper = (corner >> d) & 1;
+            idx[d] = useUpper ? upperIdx[d] : lowerIdx[d];
+            weight *= useUpper ? fractions[d] : (1.0 - fractions[d]);
+          }
+        
+          unsigned long globIdx = this->getGlobalIndex(idx);
+          dvalue += weight * static_cast<double>(data[globIdx]);
+          sigma2 += weight * weight * sigma[globIdx] * sigma[globIdx];
+        }
+
+        value = static_cast<type>(dvalue);
+        uncertainty = std::sqrt(sigma2);
+    
+        return errors::SUCCESS;
+      }
+
+      inline int extractValue(const std::vector<double>& position,
+                              type& value,
+                              double& uncertainty) const{
+        if(position.size() != dim){
+          return errors::DIMENSION_MISMATCH;
+        }
+        std::array<double, dim> positionA;
+        std::copy(position.cbegin(), position.cend(), positionA.begin());
+        return extractValue(positionA, value, uncertainty);
+      }
+
+      //Auxiliary overloads for 3D, 2D and 1D
+      template<size_t auxDim = dim>
+      typename std::enable_if_t<auxDim == 3 && dim == 3, int>
+      extractValue(const double x, const double y, const double z,
+                   type& value,
+                   double& uncertainty) const {
+        const std::array<double, 3> position = {x,y,z};
+        return extractValue(position,value,uncertainty);
+      }
+
+      template<size_t auxDim = dim>
+      typename std::enable_if_t<auxDim == 2 && dim == 2, int>
+      extractValue(const double x, const double y,
+                   type& value,
+                   double& uncertainty) const {
+        const std::array<double, 2> position = {x,y};
+        return extractValue(position,value,uncertainty);
+      }
+
+      template<size_t auxDim = dim>
+      typename std::enable_if_t<auxDim == 1 && dim == 1, int>
+      extractValue(const double x,
+                   type& value,
+                   double& uncertainty) const {
+        const std::array<double, 1> position = {x};
+        return extractValue(position,value,uncertainty);
+      }
+      
+      /**
+       * Extract a 1D spectrum along a specified dimension at a fixed position
+       * in all other dimensions, using multi-linear interpolation.
+       * 
+       * @param spectrumDim The dimension along which to extract the spectrum
+       * @param position Fixed coordinates for all other dimensions (size = dim-1)
+       * @param spectrum Output 1D spectrum
+       * @return Error code (SUCCESS or error)
+       */
+      template<size_t auxDim = dim>
+      typename std::enable_if_t<auxDim == 0 && dim == 0, int>      
+      extractSpectrum1D(const unsigned,
+                        const std::array<double, 0>&,
+                        results<type, 1>& spectrum) const {
+        // Handle no dimension case specially
+        return errors::DIMENSION_OUT_OF_RANGE;
+      }
+      
+      template<size_t auxDim = dim>
+      typename std::enable_if_t<auxDim == 1 && dim == 1, int>      
+      extractSpectrum1D(const unsigned,
+                        const std::array<double, dim-1>&,
+                        results<type, 1>& spectrum) const {
+        // Handle 1D case specially (just copy)
+        spectrum = *this;
+        return errors::SUCCESS;
+      }
+      
+      template<size_t auxDim = dim>
+      typename std::enable_if_t<(auxDim > 1 && dim > 1), int>
+      extractSpectrum1D(const unsigned spectrumDim,
+                        const std::array<double, dim-1>& position,
+                        results<type, 1>& spectrum) const {
+    
+        // Validate spectrum dimension
+        if(spectrumDim >= dim) {
+          return errors::DIMENSION_OUT_OF_RANGE;
+        }
+    
+        // Find bracketing indices and fractions for fixed dimensions
+        std::array<unsigned long, dim> lowerIdx;
+        std::array<unsigned long, dim> upperIdx;
+        std::array<double, dim> fractions;
+    
+        // For the spectrum dimension, we'll iterate over all bins
+        lowerIdx[spectrumDim] = 0;
+        upperIdx[spectrumDim] = 0;
+        fractions[spectrumDim] = 0.0;
+    
+        // For all other dimensions, find bracketing bins
+        size_t posIdx = 0;
+        for(size_t d = 0; d < dim; ++d) {
+          if(d == spectrumDim) continue;
+        
+          double coord = position[posIdx];
+        
+          // Handle out-of-bounds gracefully with clamping
+          if(coord < this->limits[d].first) {
+            lowerIdx[d] = 0;
+            upperIdx[d] = 0;
+            fractions[d] = 0.0;
+          } else if(coord >= this->limits[d].second) {
+            lowerIdx[d] = this->nBins[d] - 1;
+            upperIdx[d] = this->nBins[d] - 1;
+            fractions[d] = 0.0;
+          } else {
+            double fracIdx = (coord - this->limits[d].first) / this->binWidths[d];
+            lowerIdx[d] = static_cast<unsigned long>(fracIdx);
+            upperIdx[d] = std::min(lowerIdx[d] + 1, this->nBins[d] - 1);
+            fractions[d] = fracIdx - lowerIdx[d];
+          }
+        
+          posIdx++;
+        }
+    
+        // Initialize 1D spectrum
+        std::array<unsigned long, 1> spectrumBins = {this->nBins[spectrumDim]};
+        std::array<std::pair<double,double>, 1> spectrumLimits = {this->limits[spectrumDim]};
+        int err = spectrum.init(spectrumBins, spectrumLimits);
+        if(err != errors::SUCCESS) {
+          return err;
+        }
+    
+        // Copy headers
+        spectrum.setDimHeader(0, this->headers[spectrumDim]);
+        spectrum.setValueHeader(this->headers[dim]);
+        spectrum.setSigmaHeader(this->headers[dim+1]);
+    
+        // Number of corners in the interpolation hypercube
+        const unsigned long nCorners = 1ul << (dim - 1ul);
+    
+        // Iterate over all bins in the spectrum dimension
+        for(unsigned long ibin = 0; ibin < this->nBins[spectrumDim]; ++ibin) {
+          double value = 0.0;
+          double sigma2 = 0.0;
+        
+          // Multi-linear interpolation
+          for(unsigned long corner = 0; corner < nCorners; ++corner) {
+            std::array<unsigned long, dim> idx;
+            double weight = 1.0;
+            
+            // Build index for this corner
+            size_t bitPos = 0;
+            for(size_t d = 0; d < dim; ++d) {
+              if(d == spectrumDim) {
+                idx[d] = ibin;
+              }
+              else {
+                bool useUpper = (corner >> bitPos) & 1;
+                idx[d] = useUpper ? upperIdx[d] : lowerIdx[d];
+                weight *= useUpper ? fractions[d] : (1.0 - fractions[d]);
+                bitPos++;
+              }
+            }
+            
+            unsigned long globIdx = this->getGlobalIndex(idx);
+            value += weight * static_cast<double>(data[globIdx]);
+            sigma2 += weight * weight * sigma[globIdx] * sigma[globIdx];
+          }
+        
+          spectrum.data[ibin] = static_cast<type>(value);
+          spectrum.sigma[ibin] = std::sqrt(sigma2);
+        }
+    
+        // Copy description
+        spectrum.description = this->description;
+    
+        return errors::SUCCESS;
+      }
+
+      inline int extractSpectrum1D(const unsigned spectrumDim,
+                                   const std::vector<double>& position,
+                                   results<type, 1>& spectrum) const{
+        if(position.size() != dim-1){
+          return errors::DIMENSION_MISMATCH;
+        }
+        std::array<double, dim-1> positionA;
+        std::copy(position.cbegin(), position.cend(), positionA.begin());
+        return extractSpectrum1D(spectrumDim, positionA, spectrum);
+      }
+      
+      //Auxiliary overloads for 4D, 3D and 2D
+      template<size_t auxDim = dim>
+      typename std::enable_if_t<auxDim == 4 && dim == 4, int>
+      extractSpectrum1D(const unsigned spectrumDim,
+                        const double coord1, const double coord2, const double coord3,
+                        results<type, 1>& spectrum) const{
+        const std::array<double, 3> position = {coord1, coord2, coord3};
+        return extractSpectrum1D(spectrumDim,position,spectrum);
+      }
+      
+      template<size_t auxDim = dim>
+      typename std::enable_if_t<auxDim == 3 && dim == 3, int>
+      extractSpectrum1D(const unsigned spectrumDim,
+                        const double coord1, const double coord2,
+                        results<type, 1>& spectrum) const{
+        const std::array<double, 2> position = {coord1, coord2};
+        return extractSpectrum1D(spectrumDim,position,spectrum);
+      }
+
+      template<size_t auxDim = dim>
+      typename std::enable_if_t<auxDim == 2 && dim == 2, int>
+      extractSpectrum1D(const unsigned spectrumDim,
+                        const double coord,
+                        results<type, 1>& spectrum) const{
+        const std::array<double, 1> position = {coord};
+        return extractSpectrum1D(spectrumDim,position,spectrum);
+      }
 
       //Profile functions
       template<size_t profDim>
@@ -2324,7 +3176,7 @@ namespace penred{
 	//the bin range [minBin, maxBin) in that dimension
 
 	//Check profile dimension
-	if(profDim >= dim){
+	if(profDim > dim){
 	  return errors::DIMENSION_OUT_OF_RANGE;
 	}
 	for(size_t i = 0; i < profDim; ++i){
@@ -2448,6 +3300,233 @@ namespace penred{
 	
 	return profileByBins(aux, binLimits, profile);
       }
+
+      // Profile to 2D with full array bin limits
+      int profile2D(const unsigned long profDim1,
+                    const unsigned long profDim2,
+                    const std::array<std::pair<unsigned long, unsigned long>, dim>& binLimits,
+                    results<type, 2>& profile) const {
+    
+        // Check that the two profile dimensions are different
+        if(profDim1 == profDim2) {
+          return errors::DIMENSION_REPEATED;
+        }
+    
+        // Check that dimensions are within range
+        if(profDim1 >= dim || profDim2 >= dim) {
+          return errors::DIMENSION_OUT_OF_RANGE;
+        }
+    
+        // Create the 2D profile dimensions array
+        std::array<size_t, 2> profDimsIndex;
+        profDimsIndex[0] = profDim1;
+        profDimsIndex[1] = profDim2;
+    
+        // Call the existing profileByBins function
+        return profileByBins(profDimsIndex, binLimits, profile);
+      }
+
+      // Profile to 2D with vector-based bin limits
+      inline int profile2D(const unsigned long profDim1,
+                           const unsigned long profDim2,
+                           const std::vector<std::array<unsigned long, 3>>& binLimits,
+                           results<type, 2>& profile) const {
+    
+        // Check that the two profile dimensions are different
+        if(profDim1 == profDim2) {
+          return errors::DIMENSION_REPEATED;
+        }
+    
+        // Check that dimensions are within range
+        if(profDim1 >= dim || profDim2 >= dim) {
+          return errors::DIMENSION_OUT_OF_RANGE;
+        }
+    
+        // Create the 2D profile dimensions array
+        std::array<size_t, 2> profDimsIndex;
+        profDimsIndex[0] = profDim1;
+        profDimsIndex[1] = profDim2;
+    
+        // Call the existing profileByBins function with vector limits
+        return profileByBins(profDimsIndex, binLimits, profile);
+      }
+
+      // Profile to 2D with no bin limits (full range)
+      int profile2D(const unsigned long profDim1,
+                    const unsigned long profDim2,
+                    results<type, 2>& profile) const {
+    
+        // Check that the two profile dimensions are different
+        if(profDim1 == profDim2) {
+          return errors::DIMENSION_REPEATED;
+        }
+    
+        // Check that dimensions are within range
+        if(profDim1 >= dim || profDim2 >= dim) {
+          return errors::DIMENSION_OUT_OF_RANGE;
+        }
+    
+        // Create the 2D profile dimensions array
+        std::array<size_t, 2> profDimsIndex;
+        profDimsIndex[0] = profDim1;
+        profDimsIndex[1] = profDim2;
+    
+        // Create full range bin limits
+        std::array<std::pair<unsigned long, unsigned long>, dim> binLimits;
+        for(size_t i = 0; i < dim; ++i) {
+          binLimits[i].first = 0;
+          binLimits[i].second = this->getNBins(i);
+        }
+    
+        // Call the existing profileByBins function
+        return profileByBins(profDimsIndex, binLimits, profile);
+      }
+
+      // Create 1D cubic spline interpolation from a profile
+      int interpolate1D(const unsigned long profDim,
+                        const std::array<std::pair<unsigned long, unsigned long>, dim>& binLimits,
+                        interpolation::CubicSpline<type>& spline) const {
+    
+        // Create 1D profile first
+        results<type, 1> profile;
+        int err = profile1D(profDim, binLimits, profile);
+        if(err != errors::SUCCESS) {
+          return err;
+        }
+    
+        // Extract X values and Y values
+        std::vector<double> xVals(profile.getNBins());
+        std::vector<type> yVals(profile.getNBins());
+    
+        const double xLow = profile.readLimits()[0].first;
+        const double binWidth = profile.readBinWidth(0);
+    
+        for(unsigned long i = 0; i < profile.getNBins(); ++i) {
+          xVals[i] = xLow + static_cast<double>(i) * binWidth;
+          yVals[i] = profile.data[i];
+        }
+    
+        // Initialize spline
+        return spline.init(xVals, yVals);
+      }
+
+      // Overload with vector bin limits
+      inline int interpolate1D(const unsigned long profDim,
+                               const std::vector<std::array<unsigned long, 3>>& binLimits,
+                               interpolation::CubicSpline<type>& spline) const {
+    
+        // Convert vector limits to array limits
+        std::array<std::pair<unsigned long, unsigned long>, dim> auxBinLimits;
+        for(size_t i = 0; i < dim; ++i) {
+          auxBinLimits[i] = std::pair<unsigned long, unsigned long>(0lu, this->nBins[i]);
+        }
+    
+        for(size_t i = 0; i < binLimits.size(); ++i) {
+          unsigned long idim = binLimits[i][0];
+          if(idim >= dim) {
+            return errors::DIMENSION_OUT_OF_RANGE;
+          }
+          auxBinLimits[idim] = std::pair<unsigned long, unsigned long>(binLimits[i][1], binLimits[i][2]);
+        }
+    
+        return interpolate1D(profDim, auxBinLimits, spline);
+      }
+
+      // Overload with full range
+      inline int interpolate1D(const unsigned long profDim,
+                               interpolation::CubicSpline<type>& spline) const {
+    
+        // Create full range bin limits
+        std::array<std::pair<unsigned long, unsigned long>, dim> binLimits;
+        for(size_t i = 0; i < dim; ++i) {
+          binLimits[i].first = 0;
+          binLimits[i].second = this->getNBins(i);
+        }
+    
+        return interpolate1D(profDim, binLimits, spline);
+      }
+
+      // Create 2D bicubic spline interpolation from a profile
+      int interpolate2D(const unsigned long profDim1,
+                        const unsigned long profDim2,
+                        const std::array<std::pair<unsigned long, unsigned long>, dim>& binLimits,
+                        interpolation::BicubicSpline<type>& spline) const {
+    
+        // Create 2D profile first
+        results<type, 2> profile;
+        int err = profile2D(profDim1, profDim2, binLimits, profile);
+        if(err != errors::SUCCESS) {
+          return err;
+        }
+    
+        // Extract X and Y values
+        const unsigned long nx = profile.readDimBins()[0];
+        const unsigned long ny = profile.readDimBins()[1];
+    
+        std::vector<double> xVals(nx);
+        std::vector<double> yVals(ny);
+        std::vector<type> values(nx * ny);
+    
+        const double xLow = profile.readLimits()[0].first;
+        const double xWidth = profile.readBinWidth(0);
+        const double yLow = profile.readLimits()[1].first;
+        const double yWidth = profile.readBinWidth(1);
+    
+        // Fill x values
+        for(unsigned long i = 0; i < nx; ++i) {
+          xVals[i] = xLow + static_cast<double>(i) * xWidth;
+        }
+    
+        // Fill y values
+        for(unsigned long j = 0; j < ny; ++j) {
+          yVals[j] = yLow + static_cast<double>(j) * yWidth;
+        }
+
+    
+        // Fill z values (2D matrix)
+        values = profile.data;
+    
+        // Initialize bicubic spline
+        return spline.init(xVals, yVals, values);
+      }
+
+      // Overload with vector bin limits
+      inline int interpolate2D(const unsigned long profDim1,
+                               const unsigned long profDim2,
+                               const std::vector<std::array<unsigned long, 3>>& binLimits,
+                               interpolation::BicubicSpline<type>& spline) const {
+    
+        // Convert vector limits to array limits
+        std::array<std::pair<unsigned long, unsigned long>, dim> auxBinLimits;
+        for(size_t i = 0; i < dim; ++i) {
+          auxBinLimits[i] = std::pair<unsigned long, unsigned long>(0lu, this->nBins[i]);
+        }
+    
+        for(size_t i = 0; i < binLimits.size(); ++i) {
+          unsigned long idim = binLimits[i][0];
+          if(idim >= dim) {
+            return errors::DIMENSION_OUT_OF_RANGE;
+          }
+          auxBinLimits[idim] = std::pair<unsigned long, unsigned long>(binLimits[i][1], binLimits[i][2]);
+        }
+    
+        return interpolate2D(profDim1, profDim2, auxBinLimits, spline);
+      }
+
+      // Overload with full range
+      inline int interpolate2D(const unsigned long profDim1,
+                               const unsigned long profDim2,
+                               interpolation::BicubicSpline<type>& spline) const {
+    
+        // Create full range bin limits
+        std::array<std::pair<unsigned long, unsigned long>, dim> binLimits;
+        for(size_t i = 0; i < dim; ++i) {
+          binLimits[i].first = 0;
+          binLimits[i].second = this->getNBins(i);
+        }
+    
+        return interpolate2D(profDim1, profDim2, binLimits, spline);
+      }
       
       //Print functions
       inline void print(FILE* fout,
@@ -2510,6 +3589,8 @@ namespace penred{
       std::vector<unsigned long long> lastHist;
       
     public:
+
+      template<class T, size_t D> friend class measurement;
       
       static constexpr size_t dimensions = dim;
 
@@ -2526,12 +3607,39 @@ namespace penred{
       inline std::vector<type>& getData2() { return data2; }
 
       //Init functions
+      inline int init(const std::vector<unsigned long>& nBinsIn,
+		      const std::vector<std::pair<double, double>>& limitsIn){
+	
+	//Init dimensions
+	int err = this->initDims(nBinsIn, limitsIn);
+    	if(err != errors::SUCCESS)
+	  return err;
+
+	//Resize vectors
+	data.resize(this->totalBins);
+	std::fill(data.begin(), data.end(), static_cast<type>(0));
+
+	data2.resize(this->totalBins);
+	std::fill(data2.begin(), data2.end(), static_cast<type>(0));
+
+	tmp.resize(this->totalBins);
+	std::fill(tmp.begin(), tmp.end(), static_cast<type>(0));
+
+	lastHist.resize(this->totalBins);
+	std::fill(lastHist.begin(), lastHist.end(), 0ull);
+
+
+	return errors::SUCCESS;    
+      }
+      
       template<size_t dimInit>
       int init(const std::array<unsigned long, dimInit>& nBinsIn,
 	       const std::array<std::pair<double, double>, dimInit>& limitsIn){
 	
 	//Init dimensions
-	this->initDims(nBinsIn, limitsIn);
+	int err = this->initDims(nBinsIn, limitsIn);
+    	if(err != errors::SUCCESS)
+	  return err;
     
 	//Resize vectors
 	data.resize(this->totalBins);
@@ -2594,6 +3702,14 @@ namespace penred{
       }
 
       //Measurement functions
+
+      /**
+       * @brief Tally a Monte Carlo score event into the corresponding grid bin.
+       * 
+       * @param pos D-dimensional coordinate vector.
+       * @param value Score/weight to deposit.
+       * @param hist Unique primary Monte Carlo history sequence ID.
+       */      
       void add(const std::array<double, dim>& pos,
 	       const type& value,
 	       const unsigned long long hist){
@@ -2609,6 +3725,9 @@ namespace penred{
 	std::array<unsigned long, dim> index;
 	for(size_t i = 0; i < dim; ++i){
 	  index[i] = (pos[i] - this->limits[i].first)/this->binWidths[i];
+      if(index[i] >= this->nBins[i]){ //Avoid index overflow due rounding
+        index[i] = this->nBins[i]-1;
+      }
 	}
 
 
@@ -2631,7 +3750,7 @@ namespace penred{
 	}
       }
 
-      int add(measurement<type,dim> toAdd){
+      int add(const measurement<type,dim>& toAdd){
 
 	//Check number of bins
 	for(size_t i = 0; i < dim; ++i){
@@ -2645,7 +3764,11 @@ namespace penred{
 
 	return 0;
       }
-  
+
+      /**
+       * @brief Forces uncommitted temporary history scores into primary accumulators.
+       *        Must be called at the end of simulation processing and before extracting results.
+       */      
       void flush(){
 	for(unsigned long i = 0; i < this->totalBins; ++i){
 	  //Skip empty bins
@@ -2726,6 +3849,40 @@ namespace penred{
 	  meanErel = 1.0e35;
 	
 	return meanErel;
+      }
+
+      //Cumulative function
+      measurement<type,dim> cumulative() const {
+
+	//Generates a cumulative measurement with the last dimension
+
+	//Get and check the number of bins for the last dimension
+	unsigned long nBinsLastDim = this->getNBins(dim-1);
+	if(nBinsLastDim < 2)
+	  return *this;
+
+	//Calculate the number of bins in previous dimensions
+	size_t nBinsPrevDim = this->binsPerIncrement[dim-1];
+
+	//Copy the original measurement
+	measurement<type,dim> out = *this;
+	//Flush data to ensure consistency
+	out.flush();
+
+	//Iterate over all bins in last dimension
+	for(unsigned long i = 1; i < nBinsLastDim; ++i){
+	  const size_t iFirst = i * nBinsPrevDim;
+	  const size_t iFirstPrev = (i-1) * nBinsPrevDim;
+	  //Iterate over bins within the same last dimension bin
+	  for(size_t j = 0; j < nBinsPrevDim; ++j){
+	    //Add the value from the previous last dimension bin
+	    out.data[iFirst + j] += out.data[iFirstPrev + j];
+	    out.data2[iFirst + j] += out.data2[iFirstPrev + j];
+	  }
+	}
+
+	//Return the cumulative measurement
+	return out;
       }
       
 
@@ -2841,6 +3998,655 @@ namespace penred{
     using vector_value_type_t = typename vector_value_type<T>::type;
     
   } //namespace measurements
+
+  namespace transforms{
+
+    template<class T>
+    struct Translation{
+      vector3D<T> vector;
+
+      constexpr Translation() :
+	vector(static_cast<T>(0),static_cast<T>(0),static_cast<T>(0))
+      {}
+
+      constexpr Translation(const T(&v)[3]) :
+	vector(v[0],v[1],v[2]) {}
+
+      constexpr Translation(const vector3D<T>& v) :
+	vector(v) {}
+
+      constexpr Translation(const T x, const T y, const T z) :
+	vector(x,y,z) {}
+      
+      static inline const Translation<T>& identity(){
+	static constexpr const Translation<T> i;
+	return i;
+      }
+
+      inline void apply(T(&v)[3]) const {
+	v[0] += vector.x;
+	v[1] += vector.y;
+	v[2] += vector.z;
+      }
+      inline void apply(vector3D<T>& v) const {
+	v += vector;
+      }
+      inline void apply(triangle<T>& t) const {
+	t.v1 += vector;
+	t.v2 += vector;
+	t.v3 += vector;
+      }
+      inline void applyInv(T(&v)[3]) const {
+	v[0] -= vector.x;
+	v[1] -= vector.y;
+	v[2] -= vector.z;
+      }
+      inline void applyInv(vector3D<T>& v) const {
+	v -= vector;
+      }
+      inline void applyInv(triangle<T>& t) const {
+	t.v1 -= vector;
+	t.v2 -= vector;
+	t.v3 -= vector;
+      }
+      
+      inline Translation<T> lerp(const Translation<T>& next,
+				 double factor) const {
+	return Translation<T>(vector.lerp(next.vector, factor));
+      }
+
+      inline std::string stringify() const{
+	return vector.stringify();
+      }
+    };
+
+    template<class T>
+    struct Rotation{
+      
+      Quaternion<T> quaternion;
+
+      constexpr Rotation(){}
+      
+      constexpr Rotation(const Quaternion<T>& q) :
+	quaternion(q) {}
+
+      static inline const Rotation<T>& identity(){
+	static constexpr const Rotation<T> i;
+	return i;
+      }
+
+      inline void apply(T(&v)[3]) const {
+	quaternion.rotate(v);
+      }
+      inline void apply(vector3D<T>& v) const {
+	quaternion.rotate(v);
+      }
+      inline void apply(triangle<T>& t) const {
+	apply(t.v1);
+	apply(t.v2);
+	apply(t.v3);
+      }
+      inline void applyInv(T(&v)[3]) const {
+	quaternion.conjugate().rotate(v);
+      }
+      inline void applyInv(vector3D<T>& v) const {
+	quaternion.conjugate().rotate(v);
+      }
+      inline void applyInv(triangle<T>& t) const {
+	applyInv(t.v1);
+	applyInv(t.v2);
+	applyInv(t.v3);
+      }
+      
+      inline Rotation<T> slerp(const Rotation<T>& next, double factor) const {
+	Rotation<T> mid;
+	mid.quaternion = this->quaternion.slerp(next.quaternion, factor);
+	return mid;
+      }
+
+      inline std::string stringify() const{
+	return quaternion.stringify();
+      }
+    };
+    
+    template<class I, class T>
+    struct Keyframe{
+      I frame;
+      Rotation<T> rotation;
+      Translation<T> translation;
+
+      static constexpr const I MinFrame = std::numeric_limits<I>::min();
+      static constexpr const I MaxFrame = std::numeric_limits<I>::max();
+
+      enum interpolation{
+	LINEAR = 0,
+	BEZIER,
+      };
+      
+      //Bezier curves
+      
+      //Left handlers
+      std::array<std::pair<I,T>, 3> lTransHandlers;
+
+      //Right handlers
+      std::array<std::pair<I,T>, 3> rTransHandlers;
+
+      unsigned interpolationMode;
+      
+      constexpr Keyframe() : frame(static_cast<I>(0)),
+			     lTransHandlers{{{MinFrame, static_cast<T>(0)},
+					     {MinFrame, static_cast<T>(0)},
+					     {MinFrame, static_cast<T>(0)}}},
+			     rTransHandlers{{{MaxFrame, static_cast<T>(0)},
+					     {MaxFrame, static_cast<T>(0)},
+					     {MaxFrame, static_cast<T>(0)}}},
+			     interpolationMode(LINEAR)
+      {}
+      constexpr Keyframe(const I vIn) : frame(vIn),
+					lTransHandlers{{{MinFrame, static_cast<T>(0)},
+							{MinFrame, static_cast<T>(0)},
+							{MinFrame, static_cast<T>(0)}}},
+					rTransHandlers{{{MaxFrame, static_cast<T>(0)},
+							{MaxFrame, static_cast<T>(0)},
+							{MaxFrame, static_cast<T>(0)}}},
+					interpolationMode(LINEAR)
+      {}
+
+      static inline const Keyframe<I,T>& identity(){
+	static constexpr const Keyframe<I,T> i;
+	return i;
+      }
+      
+      static inline const Keyframe<I,T> identity(const I frameIn){
+	Keyframe<I,T> i = identity();
+	i.frame = frameIn;
+	return i;
+      }
+      
+      inline friend bool operator< (const Keyframe<I, T>& l, const Keyframe<I, T>& r){
+	return l.frame < r.frame;
+      }      
+      inline friend bool operator> (const Keyframe<I, T>& l, const Keyframe<I, T>& r){
+	return l.frame > r.frame;
+      }
+      inline friend bool operator<=(const Keyframe<I, T>& l, const Keyframe<I, T>& r){
+	return l.frame <= r.frame;
+      }
+      inline friend bool operator>=(const Keyframe<I, T>& l, const Keyframe<I, T>& r){
+	return l.frame >= r.frame;
+      }
+
+      inline friend bool operator< (const Keyframe<I, T>& l, const T& r){
+	return l.frame < r;
+      }      
+      inline friend bool operator> (const Keyframe<I, T>& l, const T& r){
+	return l.frame > r;
+      }
+      inline friend bool operator<=(const Keyframe<I, T>& l, const T& r){
+	return l.frame <= r;
+      }
+      inline friend bool operator>=(const Keyframe<I, T>& l, const T& r){
+	return l.frame >= r;
+      }      
+
+      inline void apply(T(&v)[3]) const {
+	rotation.apply(v);
+	translation.apply(v);
+      }
+      inline void apply(vector3D<T>& v) const {
+	rotation.apply(v);
+	translation.apply(v);
+      }
+      inline void apply(triangle<T>& t) const {
+	rotation.apply(t);
+	translation.apply(t);
+      }
+      template<class ElementClass>
+      inline void applyContainer(container<ElementClass, T>& c, const T threshold) const {
+	//Transform each element
+	for(ElementClass& e : c.elements){
+	  apply(e);
+	}
+	//Resize bounding box
+	c.fit(threshold);
+      }
+      
+      inline void applyInv(T(&v)[3]) const {
+	translation.applyInv(v);
+	rotation.applyInv(v);
+      }
+      inline void applyInv(vector3D<T>& v) const {
+	translation.applyInv(v);
+	rotation.applyInv(v);
+      }
+      inline void applyInv(triangle<T>& t) const {
+	translation.applyInv(t);
+	rotation.applyInv(t);
+      }
+      template<class ElementClass>
+      inline void applyContainerInv(container<ElementClass, T>& c, const T threshold) const {
+	//Transform each element
+	for(ElementClass& e : c.elements){
+	  applyInv(e);
+	}
+	//Resize bounding box
+	c.fit(threshold);
+      }
+      
+      inline Keyframe<I, T> linearInterpolate(const Keyframe<I, T>& next, I midFrame) const {
+	
+	const double df = static_cast<double>(next.frame) - static_cast<double>(this->frame);
+	const double t = (static_cast<double>(midFrame) - static_cast<double>(this->frame))/df;
+	
+	Keyframe<I, T> mid;
+	mid.frame = midFrame;
+	mid.rotation    = this->rotation.slerp(next.rotation, t);
+	mid.translation = this->translation.lerp(next.translation, t);
+	return mid;
+      }
+
+      static inline I bezierFrame(const double t,
+				  const I f0,
+				  const I f0r,
+				  const I f1l,
+				  const I f1) {
+
+	const double tm1 = 1.0-t;
+	const double tm1_2 = tm1*tm1;
+	const double tm1_3 = tm1*tm1_2;
+	
+	const double t2 = t*t;
+	const double t3 = t2*t;
+
+	return tm1_3*f0 + 3.0*tm1_2*t*f0r + 3.0*tm1*t2*f1l + t3*f1;
+      }
+
+      static inline T bezierValue(const double t,
+				  const T v0,
+				  const T v0r,
+				  const T v1l,
+				  const T v1) {
+
+	const double tm1 = 1.0-t;
+	const double tm1_2 = tm1*tm1;
+	const double tm1_3 = tm1*tm1_2;
+	
+	const double t2 = t*t;
+	const double t3 = t2*t;
+
+	return tm1_3*v0 + 3.0*tm1_2*t*v0r + 3.0*tm1*t2*v1l + t3*v1;
+      }      
+
+      static inline T bezierFrameValue(const I frame,
+				       const std::pair<I,T> kf0,
+				       const std::pair<I,T> kf0r,
+				       const std::pair<I,T> kf1l,
+				       const std::pair<I,T> kf1){
+
+	if(frame <= kf0.first + 0.001)
+	  return kf0.second;
+	if(frame + 0.001 >= kf1.first)
+	  return kf1.second;
+
+	//Ensure handlers are within range
+	if(kf0r.first < kf0.first || kf1l.first > kf1.first){
+	  //Non valid handlers, perform a linear interpolation
+	  const double df = static_cast<double>(kf1.first) - static_cast<double>(kf0.first);
+	  const double t = (static_cast<double>(frame) - static_cast<double>(kf0.first))/df;
+	  
+	  return kf0.second * (1.0-t) + kf1.second * t;
+	}
+
+	double t0 = 0.0;
+	double t1 = 1.0;
+	double t;
+
+	for(size_t i = 0; i < 10; ++i){
+	  t = (t0 + t1)*0.5;
+	  const I f = bezierFrame(t, kf0.first, kf0r.first, kf1l.first, kf1.first);
+	  if(f < frame)
+	    t0 = t;
+	  else
+	    t1 = t;
+	}
+	t = (t0 + t1)*0.5;
+	return bezierValue(t, kf0.second, kf0r.second, kf1l.second, kf1.second);
+      }
+
+      Keyframe<I, T> interpolate(const Keyframe<I, T>& next,
+				 I midFrame) const {
+
+	//Interpolate between this and the "next" keyframe depending on the selected
+	//interpolation mode (Linear or Bezier). Notice that rotation is always interpolated
+	//using slerp
+
+	//Check interpolation mode
+	if(interpolationMode == LINEAR || next.interpolationMode == LINEAR){
+	  return linearInterpolate(next, midFrame);
+	}else{
+
+	  //Create the result keyframe
+	  Keyframe<I, T> result;
+	  result.frame = midFrame;	  
+
+	  //Apply bezier interpolation component by component
+
+	  // + Translation
+	  result.translation.vector.x =
+	    bezierFrameValue(midFrame,
+			     {this->frame, this->translation.vector.x},
+			     rTransHandlers[0],
+			     next.lTransHandlers[0],
+			     {next.frame, next.translation.vector.x});
+	  result.translation.vector.y =
+	    bezierFrameValue(midFrame,
+			     {this->frame, this->translation.vector.y},
+			     rTransHandlers[1],
+			     next.lTransHandlers[1],
+			     {next.frame, next.translation.vector.y});
+	  result.translation.vector.z =
+	    bezierFrameValue(midFrame,
+			     {this->frame, this->translation.vector.z},
+			     rTransHandlers[2],
+			     next.lTransHandlers[2],
+			     {next.frame, next.translation.vector.z});
+
+	  // + Rotation
+	  const double df = static_cast<double>(next.frame) - static_cast<double>(this->frame);
+	  const double t = (static_cast<double>(midFrame) - static_cast<double>(this->frame))/df;
+	  result.rotation = this->rotation.slerp(next.rotation, t);
+
+	  return result;
+	}
+      }
+
+      bool parse(std::istream& is){
+
+	//Check the input stream
+	if(!is)
+	  return false;
+
+	//Read the next non empty line
+	std::string line;
+	while(std::getline(is, line)) {
+	  line = trim(line);
+	  if(line.size() > 0){
+
+	    //Read data
+	    std::istringstream iss(line);
+
+	    // Mandatory data (frame, translation, rotation quaternion)
+	    double v, tx, ty, tz, qw, qx, qy, qz;
+	    iss >> v >> tx >> ty >> tz >> qw >> qx >> qy >> qz;
+
+	    if(!iss){
+	      //Unable to read mandatory data
+	      return false;
+	    }
+
+	    //Check if bezier curves are provided
+
+	    // Translation X
+	    double ltx_f, ltx_v, rtx_f, rtx_v;
+	    iss >> ltx_f >> ltx_v >> rtx_f >> rtx_v;
+
+	    // Translation Y
+	    double lty_f, lty_v, rty_f, rty_v;
+	    iss >> lty_f >> lty_v >> rty_f >> rty_v;
+
+	    // Translation Z
+	    double ltz_f, ltz_v, rtz_f, rtz_v;
+	    iss >> ltz_f >> ltz_v >> rtz_f >> rtz_v;
+	    
+	    //Save data
+	    frame = static_cast<I>(v);
+	    translation = Translation<T>({
+		static_cast<T>(tx),
+		static_cast<T>(ty),
+		static_cast<T>(tz)});
+	    rotation.quaternion = Quaternion<T>({
+		static_cast<T>(qw),
+		static_cast<T>(qx),
+		static_cast<T>(qy),
+		static_cast<T>(qz)});
+	    rotation.quaternion.normalize();
+
+	    if(iss){
+	      //Bezier curve values read
+	      interpolationMode = BEZIER;
+	      lTransHandlers = {{
+		  {ltx_f, ltx_v},
+		  {lty_f, lty_v},
+		  {ltz_f, ltz_v}
+		}};
+	      rTransHandlers = {{
+		  {rtx_f, rtx_v},
+		  {rty_f, rty_v},
+		  {rtz_f, rtz_v}
+		}};
+	    }
+	    else{
+	      interpolationMode = LINEAR;
+	    }
+	    
+
+	    //Return success
+	    return true;
+	  }
+	}
+	// No data found
+	return false;	
+      }
+
+      inline std::string stringify() const{
+	std::string result =
+	  "Frame: " + std::to_string(frame) +
+	  (interpolationMode == LINEAR ? ", T(L): " : ", T(B): ") +
+	  translation.stringify() +
+	  ", R: " + rotation.stringify();
+	return result;
+      }
+    };
+
+    template<class I, class T>
+    struct KeyframeComparator {
+      using is_transparent = void;  // Enables heterogeneous lookup
+    
+      bool operator()(const Keyframe<I,T>& lhs, const Keyframe<I,T>& rhs) const {
+	return lhs.frame < rhs.frame;
+      }
+    
+      bool operator()(const Keyframe<I,T>& lhs, T rhs) const {
+	return lhs.frame < rhs;
+      }
+    
+      bool operator()(T lhs, const Keyframe<I,T>& rhs) const {
+	return lhs < rhs.frame;
+      }
+    };
+    
+    template<class I, class T>
+    class Animation{
+    private:
+      vector3D<T> origin;
+      std::set<Keyframe<I, T>, KeyframeComparator<I,T>> keyframes;
+      
+    public:
+
+      inline void clear(){ keyframes.clear(); }
+      inline bool empty() const { return keyframes.empty(); }
+      inline size_t size() const { return keyframes.size(); }
+      inline T init() const {
+	if(empty())
+	  return std::numeric_limits<T>::min();
+	return keyframes.cbegin()->frame;
+      }
+      inline T end() const {
+	if(empty())
+	  return std::numeric_limits<T>::max();
+	return std::prev(keyframes.cend())->frame;
+      }
+
+      inline size_t parse(std::istream& is){
+
+	//Clear previous animation
+	keyframes.clear();
+	
+	if(!is)
+	  return 0;
+
+	//Read the next non empty line to extract object origin
+	std::string line;
+	while(std::getline(is, line)) {
+	  line = trim(line);
+	  if(line.size() > 0){
+	    
+	    //Read data
+	    std::istringstream iss(line);
+
+	    iss >> origin.x >> origin.y >> origin.z;
+
+	    if(!iss){
+	      //Unable to read origin
+	      return 0;
+	    }
+	    break;
+	  }
+	}
+      
+	//Read keyframes
+	Keyframe<I, T> keyframe;
+	while(keyframe.parse(is)){
+	  //Save keyframe
+	  keyframes.insert(keyframe);
+	}
+
+	//Return the number of read keyframes
+	return keyframes.size();    
+      }
+      
+      Keyframe<I, T> getKeyframe(const I frame) const {
+
+	if(keyframes.size() == 0)
+	  return Keyframe<I, T>::identity(frame);
+
+	//Ensure the frame is not before the first keyframe
+	if(frame < keyframes.cbegin()->frame)
+	  return Keyframe<I, T>::identity(frame);
+
+	//Check if a single frame is provided
+	if(keyframes.size() == 1){
+	  Keyframe<I, T> kf = *keyframes.cbegin();
+	  kf.frame = frame;
+	  return kf;
+	}
+
+	//Find the bound element for this frame
+	const auto top = keyframes.lower_bound(frame);
+	//Check if a bound keyframe is found for this frame
+	if(top == keyframes.cend()){
+	  //frame is out of range, return the last keyframe
+	  Keyframe<I, T> kf = *std::prev(keyframes.cend());
+	  kf.frame = frame;
+	  return kf;
+	}
+
+	//Check if a previous keyframe is stored
+	if(top == keyframes.cbegin()){
+	  //No previous keyframe exists, return the first keyframe
+	  Keyframe<I, T> kf = *keyframes.cbegin();
+	  kf.frame = frame;
+	  return kf;
+	}
+
+	//Get the previous keyframe
+	const auto low = std::prev(top);
+
+	//Interpolate the keyframe
+	return low->interpolate(*top, frame);
+      }
+      
+      inline Rotation<T> getRotation(const I frame) const {
+	return getKeyframe(frame).rotation;
+      }
+
+      inline Translation<T> getTranslation(const I frame) const {
+	return getKeyframe(frame).translation;
+      }
+
+      inline void apply(const I frame, vector3D<T>& v) const {
+	v -= origin;
+	getKeyframe(frame).apply(v);
+	v += origin;
+      }
+      inline void apply(const I frame, T(&v)[3]) const {
+	v[0] -= origin.x;
+	v[1] -= origin.y;
+	v[2] -= origin.z;
+	getKeyframe(frame).apply(v);
+	v[0] += origin.x;
+	v[1] += origin.y;
+	v[2] += origin.z;
+      }
+      inline void apply(const I frame, vector3D<T>& pos, vector3D<T>& dir) const {
+	//Get keyframe
+	const Keyframe<I, T> kf = getKeyframe(frame);
+
+	//Transform position
+	pos -= origin;
+	kf.apply(pos);
+	pos += origin;
+
+	//Transform direction
+	kf.rotation.apply(dir);
+      }
+      
+      inline void applyInv(const I frame, vector3D<T>& v) const {
+	v -= origin;
+	getKeyframe(frame).applyInv(v);
+	v += origin;
+      }
+      inline void applyInv(const I frame, T(&v)[3]) const {	
+	v[0] -= origin.x;
+	v[1] -= origin.y;
+	v[2] -= origin.z;
+	getKeyframe(frame).applyInv(v);
+	v[0] += origin.x;
+	v[1] += origin.y;
+	v[2] += origin.z;
+      }
+
+      inline void applyInv(const I frame, vector3D<T>& pos, vector3D<T>& dir) const {
+	//Get keyframe
+	const Keyframe<I, T> kf = getKeyframe(frame);
+
+	//Transform position
+	pos -= origin;
+	kf.applyInv(pos);
+	pos += origin;
+
+	//Transform direction
+	kf.rotation.applyInv(dir);
+      }
+
+      inline std::string stringify(const size_t spaces = 0) const{
+	std::string result;
+	if(spaces > 0){
+	  for(auto it = keyframes.cbegin(); it != keyframes.cend(); ++it){
+	    result += std::string(spaces, ' ') + it->stringify() + "\n";
+	  }
+	}
+	else{
+	  for(auto it = keyframes.cbegin(); it != keyframes.cend(); ++it){
+	    result += it->stringify() + "\n";
+	  }
+	}
+	return result;
+      }      
+    };
+    
+  } //namespace transforms
+  
 } //namespace penred
 
 #endif

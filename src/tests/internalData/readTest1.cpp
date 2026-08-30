@@ -105,7 +105,7 @@ sources/electron/positions/2e/direction [   -1.30000E+00,   -0.60000E+00,   -0.0
 sources/electron/positions/2e/origin [   -0.40000E+00,   -0.20000E+00,   -0.10000E+00]
 
 geometry/body/detector 1
-geometry/body/anode -2
+geometry/body/anode 2
 geometry/body/filter 3
 )===";
 

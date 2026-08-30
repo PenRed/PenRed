@@ -2,7 +2,7 @@
 //
 //    Copyright (C) 2024 Universitat de València - UV
 //    Copyright (C) 2024 Universitat Politècnica de València - UPV
-//    Copyright (C) 2025 Vicent Giménez Alventosa
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -26,10 +26,7 @@
 //    
 //
 
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#include <pybind11/numpy.h>
-#include <algorithm>
+#include "functions.hh"
 #include "pen_simulation.hh"
 
 #ifdef _PEN_XRAY_LIBS_
@@ -45,174 +42,25 @@ using MaterialList = std::vector<MaterialData>;
 using FilterData = std::tuple<double, double, MaterialComposition>;
 using FilterList = std::vector<FilterData>;
 
-std::string dict2SectionStringWithPrefix(const py::dict& dict, const std::string& prefixIn){
-
-  //Convert a python dictionary to a string compatible with pen_parserSection
-    
-  std::string result;
-  std::string prefix = prefixIn;
-  if(!prefix.empty()){
-    if(prefix.back() != '/'){
-      //Append a slash
-      prefix.append(1,'/');
-    }
-  }
-    
-  for(auto it : dict){
-    //Check data type
-
-    const std::string key = py::str(it.first).cast<std::string>();
-
-    if(py::isinstance<py::bool_>(it.second)){
-      //Boolean case
-      if(it.second.cast<bool>())
-	result += prefix + key + " true\n";
-      else
-	result += prefix + key + " false\n";
-    }    
-    else if(py::isinstance<py::int_>(it.second)){
-      //Number case
-      result += prefix + key + " " + std::to_string(it.second.cast<int>()) + "\n";
-    }
-    else if(py::isinstance<py::float_>(it.second)){
-      //Float  case
-      char aux[20];
-      snprintf(aux, 20, " %15.5E\n", it.second.cast<double>());
-      result += prefix + key + aux;
-    }
-    else if(py::isinstance<py::tuple>(it.second) ||
-	    py::isinstance<py::list>(it.second)){
-      //Array case
-      result += prefix + key + " [";
-      //Print each array element
-      bool first = true;
-      for(auto e : it.second){
-	//Ensure the element is a number
-	if(!py::isinstance<py::int_>(e) &&
-	   !py::isinstance<py::float_>(e)){
-	  printf("dict2SectionString: Error: The array at '%s' contains "
-		 "a non numeric element. Will be skipped.\n",
-		 (prefix + key).c_str());
-	  continue;
-	}
-	if(py::isinstance<py::bool_>(e)){
-	  if(it.second.cast<bool>())
-	    result += (first ? " true" : ", true");
-	  else
-	    result += (first ? " false" : ", false");
-	}
-	else if(py::isinstance<py::int_>(e))
-	  result += (first ? " " : ", ") + std::to_string(e.cast<int>());
-	else{
-	  char aux[25];
-	  snprintf(aux, 25, "%s%15.5E", (first ? " " : ", "), e.cast<double>());	  
-	  result += aux;
-	}
-	first = false;
-      }
-      result += " ]\n";
-    }
-    else if(py::isinstance<py::str>(it.second)){      
-      //String case
-      result += prefix + key + " \"" + it.second.cast<std::string>() + "\"\n";
-    }
-    else if(py::isinstance<py::dict>(it.second)){
-      //Dictionary case. Add the prefix and parse it
-      result += dict2SectionStringWithPrefix(it.second.cast<py::dict>(), prefix + key);
-    }
-    else{
-      printf("dict2SectionString: Error: incompatible element at '%s'. "
-	     "Only numbers, boolean, string, list, tuples and "
-	     "dictionaries are allowed. Will be skipped.\n",
-	     (prefix + key).c_str());
-    }
-  }
-  return result;
-}
-
-std::string dict2SectionString(const py::dict& dict){
-  return dict2SectionStringWithPrefix(dict, "");
-}
-
-inline int dict2section(const py::dict& dict,
-			pen_parserSection& result,
-			std::string& errorString){
-  
-  std::string text = dict2SectionStringWithPrefix(dict, "");
-
-  unsigned long errorLine;
-  return parseString(text, result, errorString, errorLine);
-}
-
-// + Results value extraction
-
-template<typename T, size_t dim>
-py::tuple result2numpy(const penred::measurements::results<T, dim>& results, const bool extractInfo){
-
-  size_t resTupleSize = 2;
-  if(extractInfo){
-    resTupleSize += dim + 2;
-  }
-  
-  py::tuple pyRes(resTupleSize);
-
-  //Get bins in each dimension
-  std::array<unsigned long, dim> nBins = results.readDimBins();
-  //Reverse bins to fit the numpy ordering for dimensions
-  std::reverse(nBins.begin(), nBins.end());
-  
-  pyRes[0] = py::array_t<T>(nBins, results.data.data());
-  pyRes[1] = py::array_t<T>(nBins, results.sigma.data());
-  
-  if(extractInfo){
-    //Get interval and description information for each dimension
-    const std::array<std::pair<double, double>, dim> limits = results.readLimits();
-
-    for(int i = static_cast<int>(dim)-1; i >= 0; --i){
-      py::tuple dimInfo(3);
-      dimInfo[0] = limits[i].first;
-      dimInfo[1] = limits[i].second;
-      const std::string header = results.readDimHeader(i);
-      dimInfo[2] = header;
-
-      //Append this dimension to returned results
-      pyRes[2+dim-(i+1)] = dimInfo;
-    }
-
-    //Append value and description info
-    pyRes[2+dim] = results.readValueHeader();
-    pyRes[2+dim+1] = results.description;
-  }
-
-  return pyRes;
-}
-
-template<typename T>
-py::array_t<T> result2numpy(const std::vector<T>& results, const bool){
-
-  py::tuple pyRes(1);  
-  pyRes[0] = py::array_t<T>(results.size(), results.data());
-
-  return pyRes;
-}
+// + Tally results extraction
 
 template<class TallyType, size_t I>
 typename std::enable_if<I >= std::tuple_size<typename TallyType::ResultsTypes>::value, void>::type
-tallyResults2numpy(const typename TallyType::ResultsTypes&, py::tuple&, const bool){}
+tallyResults2numpy(const typename TallyType::ResultsTypes&, py::tuple&, const bool, const bool){}
 
 template<class TallyType, size_t I>
 typename std::enable_if<I < std::tuple_size<typename TallyType::ResultsTypes>::value, void>::type
-tallyResults2numpy(const typename TallyType::ResultsTypes& r, py::tuple& pyRes, const bool extractInfo){
-  pyRes[I] = result2numpy(std::get<I>(r), extractInfo);
-  tallyResults2numpy<TallyType, I+1>(r, pyRes, extractInfo);
+tallyResults2numpy(const typename TallyType::ResultsTypes& r, py::tuple& pyRes, const bool extractInfo, const bool onlyEffective){
+  pyRes[I] = result2numpy(std::get<I>(r), extractInfo, onlyEffective);
+  tallyResults2numpy<TallyType, I+1>(r, pyRes, extractInfo, onlyEffective);
 }
 
 template<class TallyType>
-py::tuple tallyExtractResults(const typename TallyType::ResultsTypes& r, const bool extractInfo){
+py::tuple tallyExtractResults(const typename TallyType::ResultsTypes& r, const bool extractInfo, const bool onlyEffective){
 
   py::tuple pyRes(std::tuple_size<typename TallyType::ResultsTypes>::value);
 
-  tallyResults2numpy<TallyType, 0>(r, pyRes, extractInfo);
+  tallyResults2numpy<TallyType, 0>(r, pyRes, extractInfo, onlyEffective);
 
   return pyRes;
 }
@@ -221,13 +69,13 @@ py::tuple tallyExtractResults(const typename TallyType::ResultsTypes& r, const b
 
 template<size_t I = 0>
 typename std::enable_if<I >= std::tuple_size<penred::tally::typesGenericTallies>::value, py::tuple>::type
-getResults(const penred::tally::Results&, const std::string&, const unsigned){
+getResults(const penred::tally::Results&, const std::string&, const bool, const bool){
   return py::tuple();
 }  
 
 template<size_t I = 0>
 typename std::enable_if<I < std::tuple_size<penred::tally::typesGenericTallies>::value, py::tuple>::type
-getResults(const penred::tally::Results& results, const std::string& tallyName, const bool extractInfo){
+getResults(const penred::tally::Results& results, const std::string& tallyName, const bool extractInfo, const bool onlyEffective){
 
   using TallyType = typename std::tuple_element<I, penred::tally::typesGenericTallies>::type;
 
@@ -235,10 +83,10 @@ getResults(const penred::tally::Results& results, const std::string& tallyName, 
   for(const auto& element : tallyMap){
     if(element.first.compare(tallyName) == 0){
       const typename TallyType::ResultsTypes& tallyResults = element.second;
-      return tallyExtractResults<TallyType>(tallyResults, extractInfo);
+      return tallyExtractResults<TallyType>(tallyResults, extractInfo, onlyEffective);
     }
   }
-  return getResults<I+1>(results, tallyName, extractInfo);
+  return getResults<I+1>(results, tallyName, extractInfo, onlyEffective);
 }
 
 PYBIND11_MODULE(simulation,m){
@@ -248,9 +96,9 @@ PYBIND11_MODULE(simulation,m){
   m.def("setConfigurationLog",
 	[](const std::string& filename) -> void{
 	  if(filename.empty())
-	    penred::logs::logger::setConfigurationLogFile(nullptr);
+	    penred::logs::logger::closeLogFile(penred::logs::CONFIGURATION);
 	  else
-	    penred::logs::logger::setConfigurationLogFile(filename.c_str());
+	    penred::logs::logger::closeAndSetLogFile(penred::logs::CONFIGURATION, filename.c_str());
 	},
 	py::arg("filename"),
 	R"(
@@ -268,9 +116,9 @@ Returns:
   m.def("setSimulationLog",
 	[](const std::string& filename) -> void{
 	  if(filename.empty())
-	    penred::logs::logger::setSimulationLogFile(nullptr);
+	    penred::logs::logger::closeLogFile(penred::logs::SIMULATION);
 	  else
-	    penred::logs::logger::setSimulationLogFile(filename.c_str());
+	    penred::logs::logger::closeAndSetLogFile(penred::logs::SIMULATION, filename.c_str());
 	},
 	py::arg("filename"),
 	R"(
@@ -587,6 +435,44 @@ Raises:
     ValueError: If configuraiton set fails.
 
     )")
+
+    .def("addDumps",
+         [](penred::simulation::simulator<pen_context>& obj, const std::vector<std::string>& filenames) -> void{
+
+           int err;
+           {
+             //Release GIL for (probably) long simulation
+             py::gil_scoped_release gil_release;
+             err = obj.addDumps(filenames);
+           }
+           if(err != penred::simulation::errors::SUCCESS){
+             throw py::value_error(penred::simulation::errors::errorMessage(err));
+           }
+         },
+         R"(
+
+Add dump files to generate either a unified results dump or ASCII files, depending on the configuration. The simulation object must already be configured with the same settings used to run the dumped simulations.
+
+Args:
+    filenames (list of str): List of dump filenames to add
+
+Returns:
+    None
+
+Raises:
+    ValueError: If invalid configurations are detected.
+
+Example:
+    .. code-block:: python
+
+        #!/usr/bin/env python3
+        import pyPenred
+
+        sim = pyPenred.simulation.create()
+        sim.configFromFile("config.in")
+
+        sim.addDumps(["th0test.dump", "th1test.dump", "th3test.dump"])
+    )")
     
     .def("simulate",
 	 [](penred::simulation::simulator<pen_context>& obj, const bool async, const bool interactive) -> void {
@@ -771,12 +657,23 @@ Returns:
 	    const std::string& sourceName, const double hists,
 	    const std::vector<double>& translation,
 	    const std::vector<double>& rotation) -> unsigned long long{
-	   return obj.instructionSimulate(sourceName, hists, translation, rotation);
+
+	   vector3D<double> t;
+	   if(translation.size() >= 3){
+	     t = vector3D<double>(translation[0], translation[1], translation[2]);
+	   }
+
+	   penred::Quaternion<double> r;
+	   if(rotation.size() >= 4){
+	     r = penred::Quaternion<double>(rotation[0],rotation[1],rotation[2],rotation[3]);
+	   }
+	   
+	   return obj.instructionSimulate(sourceName, hists, t, r);
 	 },
 	 py::arg("source_name"),
 	 py::arg("hists"),
 	 py::arg("translation") = std::vector<double>(),
-	 py::arg("rotZYZ") = std::vector<double>(),
+	 py::arg("quaternion") = std::vector<double>(),
 	 R"(
 
 Appends a simulate instruction to the instructions queue. Once executed, the specified source is simulated. If both, a rotation and a translation are provided, the former is applied first and the latter seconth. If provided, the three components must be specified.
@@ -785,12 +682,7 @@ Args:
     source_name (str): Name of the source to be simulated
     hists (float): Number of histories to simulate
     translation (list[float,float,float]): Specify the translation, in cm, to be applied to the original source position before the simulation starts. If no specified, no translation will be applied
-    rotZYZ (list[float,float,float]): Specify the rotation angles, in rad, to be applied to the original source before the simulation starts. The resulting rotation is the product of three rotations around the Z,Y and Z axis. The angles are, in order:
-                                          - omega -> rotation angle around the z axis (rad)
-                                          - theta -> rotation angle around the y axis (rad)
-                                          - phi   -> rotation angle around the z axis (rad)
-
-                                      If not provided, no extra rotation is applied to the original source.
+    quaternion (list[float,float,float,float]): Specify the rotation quaternion to be applied to the original source before the simulation starts. If not provided, no extra rotation is applied to the original source.
 
 Returns:
     The numerical ID of the enqueued instruction.
@@ -798,23 +690,25 @@ Returns:
 )")
     .def("getResults",
 	 [](penred::simulation::simulator<pen_context>& obj,
-	    const std::string& tallyName, const bool extractInfo) -> py::tuple{
+	    const std::string& tallyName, const bool extractInfo, const bool onlyEffective) -> py::tuple{
 
 	   py::tuple toRet = obj.processResults<py::tuple>
-	     ([tallyName, extractInfo](const penred::tally::Results& results){
-	       return getResults<0>(results, tallyName, extractInfo);
+	     ([tallyName, extractInfo, onlyEffective](const penred::tally::Results& results){
+	       return getResults<0>(results, tallyName, extractInfo, onlyEffective);
 	     });
 	   return toRet;
 	 },
 	 py::arg("tally_name"),
 	 py::arg("extract_info") = false,
+	 py::arg("only_effective") = false,
 	 R"(
 
 Gets the simulation results from the specified tally.
 
 Args:
     tally_name (str): Name of the tally to get the results from.
-    extract_info (bool): If enabled, the limits and dimensions information will be returned along with results values. 
+    extract_info (bool): If enabled, the limits and dimensions information will be returned along with results values.
+    only_effective (bool): If enabled, dimensions with a single bin are ignored, reducing the result's dimension.
 Returns:
     On success, a tuple of numpy vectors storing the tally's specific results is returned. If the requested tally does not support retrieving results in that format, returned vectors will be empty.
 
@@ -1576,23 +1470,35 @@ Example:
 )doc");
   
   xray.def("deviceSim",
-	   [](const std::array<double, 3>& sourcePos,
+	   [](const std::array<double, 3>& detectorPos,
 	      const double focalSpot, const double inherentFilterWidth,
 	      const double minkeV, const double kvp,
 	      const unsigned anodeZ, const double anodeAngle,
-	      const std::string& spectrumFile, const std::string& spatialDistribFile,
-	      const double distrib2source,
+          const std::string& psfPath,
+          const std::array<double, 3>& PSFTrans,
+          const std::array<double, 3>& PSFRot,
+          const std::string& spatialDistribPath,
+          const std::string& energyDistribPath,
+          const double distrib2detector,
 	      const double source2filter,
 	      const double source2detector,
 	      const FilterList& filters,
 	      const double nHists, const double maxTime,
-	      const double dxDetector, double dyDetector,
+	      const double dxDetector, double dyDetector, double dzDetector,
+          const bool idealDetector, const MaterialData& detectorMat, 
 	      const unsigned xbins, const unsigned ybins, const unsigned ebins,
-	      const unsigned threads, const bool printGeometry,
-	      const unsigned seedPair, const double tolerance,
+	      const unsigned threads, const unsigned seedPair,
+	      const py::dict& userTallies,
 	      const py::dict& userGeometry,
 	      const MaterialList& geoMats,
-	      const bool onlyCheck, const bool printConfig, const unsigned verbose) -> py::tuple {
+          const bool generateDetectorPSF,
+          const bool generateFilteredPSF,
+          const bool generateFilteredDistrib,
+          const bool printConfig,
+          const std::string& dump2read,
+          const std::string& dump2write,
+          const double dumpInterval,
+	      const unsigned verbose) -> std::unique_ptr<penred::simulation::simulator<pen_context>> {
 	     
 	     // Check parameters
 	     if(focalSpot < 0.0)
@@ -1619,27 +1525,24 @@ Example:
 	     if(anodeAngle <= 0.0 || anodeAngle >= 90.0)
 	       throw py::value_error("Error: Anode angle value must be within (0,90) deg");
 
-	     if(spectrumFile.empty() != spatialDistribFile.empty())
-	       throw py::value_error("Error: Both, spectrum ('spectrum-file') and spatial distribution ('spatial-file') file must be provided");
-
-	     if(distrib2source <= 0.0)
-	       throw py::value_error("Error: Distance between source and spatial distribution must be grater than zero");
-
 	     if(source2filter <= 0.0)
 	       throw py::value_error("Error: Distance between source and first filter must be grater than zero");
 
 	     if(source2detector <= 0.0)
 	       throw py::value_error("Error: Distance between source and detector must be grater than zero");
-
+         
+	     if(!energyDistribPath.empty() && distrib2detector <= 0.0)
+	       throw py::value_error("Error: Distance between distribution and detector must be grater than zero");
+         
 	     if(nHists <= 0.0)
 	       throw py::value_error("Error: Number of histories must be grater than zero");
 
 	     if(maxTime <= 0.0)
 	       throw py::value_error("Error: Maximum simulation time must be greater than zero");
 
-	     if(dxDetector <= 0.0 || dyDetector <= 0.0)
+	     if(dxDetector <= 0.0 || dyDetector <= 0.0 || dzDetector <= 0.0)
 	       throw py::value_error("Error: Detector size must be greater than zero");
-	     
+         
 	     if(xbins == 0 || ybins == 0 || ebins == 0){
 	       throw py::value_error("Error: Number of bins must be greater than zero");
 	     }
@@ -1647,9 +1550,10 @@ Example:
 	     if(seedPair >= 1001)
 	       throw py::value_error("Error: Seed pair index must be lesser or equal to 1000");
 
-	     if(tolerance < 0.0)
-	       throw py::value_error("Error: Tolerance must be greater than zero");
-
+         if(generateDetectorPSF && generateFilteredPSF){
+	       throw py::value_error("Error: Only one type of PSF can be generated per execution.");
+         }
+         
 	     //Create config
 	     pen_parserSection config;
 	     config.set("simulation/detBins/nx", static_cast<int>(xbins));
@@ -1659,40 +1563,63 @@ Example:
 	     config.set("simulation/max-time", maxTime);
 	     config.set("simulation/min-energy", minEnergy);
 	     config.set("simulation/nthreads", static_cast<int>(threads));
-	     config.set("simulation/print-geometry", printGeometry);
 	     config.set("simulation/seedPair", static_cast<int>(seedPair));
 
-	     if(spectrumFile.empty())
+         //Dump config
+         if(!dump2read.empty())
+           config.set("simulation/dump/read", dump2read);
+         if(!dump2write.empty())
+           config.set("simulation/dump/write", dump2write);
+         if(dumpInterval > 0.0)
+           config.set("simulation/dump/time", dumpInterval);
+         
+	     if(psfPath.empty() && energyDistribPath.empty()){
 	       config.set("simulation/sim-anode", true);
-	     else
+         }
+         else if(!energyDistribPath.empty()){
 	       config.set("simulation/sim-anode", false);
-	     
-	     config.set("simulation/tolerance", tolerance);
+	       config.set("x-ray/source/distribution/spatial", spatialDistribPath);
+	       config.set("x-ray/source/distribution/energy", energyDistribPath);
+	       config.set("x-ray/source/distribution/distance", distrib2detector);
+         }
+	     else{
+	       config.set("simulation/sim-anode", false);
+	       config.set("x-ray/source/psf/path", psfPath);
+           
+           pen_parserArray PSFTransArray;
+           PSFTransArray.append(PSFTrans[0]);
+           PSFTransArray.append(PSFTrans[1]);
+           PSFTransArray.append(PSFTrans[2]);
+	       config.set("x-ray/source/psf/translation", PSFTransArray);
 
+           pen_parserArray PSFRotArray;
+           PSFRotArray.append(PSFRot[0]);
+           PSFRotArray.append(PSFRot[1]);
+           PSFRotArray.append(PSFRot[2]);
+	       config.set("x-ray/source/psf/rotation", PSFRotArray);           
+         }
+	     
 	     config.set("x-ray/anode/angle", anodeAngle);
 	     config.set("x-ray/anode/z", static_cast<int>(anodeZ));
 	     
 	     config.set("x-ray/detector/dx", dxDetector);
 	     config.set("x-ray/detector/dy", dyDetector);
+	     config.set("x-ray/detector/dz", dzDetector);
+	     config.set("x-ray/detector/ideal", idealDetector);
+	     config.set("x-ray/detector/material", "detector.mat");
 	     config.set("x-ray/distance/detector", source2detector);
-	     config.set("x-ray/distance/distribution", distrib2source);
 	     config.set("x-ray/distance/filter", source2filter);
 	     
 	     config.set("x-ray/focal-spot", focalSpot);
 	     config.set("x-ray/inherent-filter/width", inherentFilterWidth);
 	     config.set("x-ray/kvp", kvp);
 
-	     if(!spectrumFile.empty()){
-	       config.set("x-ray/source/distribution/energy", spectrumFile);
-	       config.set("x-ray/source/distribution/spatial", spatialDistribFile);
-	     }
-
-	     pen_parserArray sourcePosArray;
-	     sourcePosArray.append(sourcePos[0]);
-	     sourcePosArray.append(sourcePos[1]);
-	     sourcePosArray.append(sourcePos[2]);
+	     pen_parserArray detectorPosArray;
+	     detectorPosArray.append(detectorPos[0]);
+	     detectorPosArray.append(detectorPos[1]);
+	     detectorPosArray.append(detectorPos[2]);
 	     
-	     config.set("x-ray/source/position", sourcePosArray);
+	     config.set("x-ray/detector/position", detectorPosArray);
 
 	     //Append filters
 	     unsigned nextFilter = 1;
@@ -1721,12 +1648,44 @@ Example:
 	       ++nextFilter;
 	     }
 
-	     //Get the number of reserved materials
-	     unsigned reservedMats;
-	     int err = penred::xray::checkSimDevice(config, reservedMats, verbose);
-	     if(err != penred::xray::errors::SUCCESS){
-	       throw py::value_error(penred::xray::errors::message(err));	       
-	     }	     
+         //Create detector material, if needed
+         if(idealDetector){
+	       std::string errorString;
+	       int errMat;
+	       std::vector<penred::massFraction> composition;
+	       for(const CompositionPair& e : detectorMat.second){
+             composition.emplace_back(e.first, e.second);
+	       }
+           if(composition.empty()){
+             //Release GIL during material creation
+             py::gil_scoped_release gil_release;
+             //Create Si by default
+             errMat = penred::penMaterialCreator::createMat(14, "detector.mat", errorString);
+           }
+           else{
+             //Release GIL during material creation
+             py::gil_scoped_release gil_release;
+             errMat = penred::penMaterialCreator::createMat("detector", detectorMat.first,
+                                                            composition,
+                                                            errorString,
+                                                            "detector.mat");
+	       }
+	       if(errMat != 0)		  
+             throw py::value_error(errorString);	       
+         }
+
+         //Append tally config
+         if(!userTallies.empty()){
+	       //Convert the dictionary to a configuration section
+	       pen_parserSection tallyConfSec;
+	       std::string errorString;
+	       if(dict2section(userTallies, tallyConfSec, errorString) != 0)
+             throw py::value_error(errorString);
+
+	       if(config.addSubsection("tallies", tallyConfSec) != INTDATA_SUCCESS)
+             throw py::value_error("Unable to set user tally configuration. "
+                                   "Please, report this error");
+         }
 
 	     //Append geometry config
 	     if(!userGeometry.empty()){
@@ -1741,7 +1700,7 @@ Example:
 				       "Please, report this error");
 
 	       //Append geometry materials
-	       unsigned nextMat = reservedMats+1;
+	       unsigned nextMat = 1;
 	       for(const MaterialData& geoMat : geoMats){
 		 std::string prefix = "geometry/materials/" + std::to_string(nextMat);
 		 config.set((prefix + "/density").c_str(), geoMat.first);
@@ -1754,152 +1713,103 @@ Example:
 	       }	       
 	     }
 
+         //Check PSF creation
+         if(generateFilteredPSF){
+           config.set("psf/filtered", true);
+         }
+         else if(generateDetectorPSF){
+           config.set("psf/detected", true);
+         }
+         if(generateFilteredDistrib){
+           config.set("distributions/filtered", true);
+         }
+
 	     if(printConfig){
 	       FILE* fconf = fopen("simDevice.conf", "w");
 	       fprintf(fconf, "%s\n", config.stringify().c_str());
 	       fclose(fconf);
 	     }
 
-	     //If only a check is requested, finish the execution
-	     if(onlyCheck){
-	       return py::make_tuple(reservedMats);
-	     }
-	     
-	     //Create results containers
-	     penred::measurements::measurement<double, 2> detFluence;
-	     penred::measurements::measurement<double, 2> detEdep;
-	     penred::measurements::measurement<double, 1> detSpec;
-	     
-	     //Simulate the device
-	     unsigned long long simulatedHists;
-	     {
-	       //Release GIL during device simulation
-	       py::gil_scoped_release gil_release;
-	       err = penred::xray::simDevice(config,
-					     detFluence,
-					     detEdep,
-					     detSpec,
-					     simulatedHists,
-					     verbose);
-	     }
+         //Set log files
+         penred::logs::logger log;
+         log.setConfigurationLogFile("config.log");
+         log.setSimulationLogFile("simulation.log");
+
+         //Create the simulation
+         auto sim = std::make_unique<penred::simulation::simulator<pen_context>>();
+         int err = penred::xray::constructSimDevice(config,*sim,verbose);  
 	     if(err != penred::xray::errors::SUCCESS){
 	       throw py::value_error(penred::xray::errors::message(err));	       
 	     }
+         
+	     //Simulate the device
+	     {
+	       //Release GIL during device simulation
+	       py::gil_scoped_release gil_release;
+           err = sim->simulate();
+	     }
+	     if(err != penred::simulation::errors::SUCCESS){
+	       throw py::value_error(penred::simulation::errors::errorMessage(err));
+	     }
 
-	     //get results
-	     penred::measurements::results<double,2> fluenceRes;
-	     penred::measurements::results<double,2> edepRes;
-	     penred::measurements::results<double,1> specRes;
-	     detFluence.results(simulatedHists, fluenceRes);
-	     detEdep.results(simulatedHists, edepRes);
-	     detSpec.results(simulatedHists, specRes);
-	     
-
-	     py::array_t<double> npSpectrum =
-	       py::array_t<double>(specRes.readData().size(),
-				   specRes.readData().data());
-	     py::array_t<double> npSpectrumE =
-	       py::array_t<double>(specRes.readSigma().size(),
-				   specRes.readSigma().data());
-	       
-	     py::array_t<double> npEdep =
-	       py::array_t<double>({
-		   edepRes.readDimBins()[1],
-		   edepRes.readDimBins()[0]
-		 },
-		 edepRes.readData().data());
-	     py::array_t<double> npEdepE =
-	       py::array_t<double>({
-		   edepRes.readDimBins()[1],
-		   edepRes.readDimBins()[0]
-		 },
-		 edepRes.readSigma().data());
-
-	     py::array_t<double> npFluence =
-	       py::array_t<double>({
-		   fluenceRes.readDimBins()[1],
-		   fluenceRes.readDimBins()[0]
-		 },
-		 fluenceRes.readData().data());
-	     
-	     py::array_t<double> npFluenceE =
-	       py::array_t<double>({
-		   fluenceRes.readDimBins()[1],
-		   fluenceRes.readDimBins()[0]
-		 },
-		 fluenceRes.readSigma().data());
-
-	     //Get spectrum bin energy values
-	     std::array<double, 2> eLimits =
-	       {detSpec.readLimits()[0].first/1.0e3,
-		detSpec.readLimits()[0].second/1.0e3};
-
-	     py::array_t<double> npELimits =
-	       py::array_t<double>(2, eLimits.data());
-	     
-	     //Get x,y bin values
-	     std::vector<double> xLimits =
-	       {edepRes.readLimits()[0].first,
-		edepRes.readLimits()[0].second};
-	     
-	     std::vector<double> yLimits =
-	       {edepRes.readLimits()[1].first,
-		edepRes.readLimits()[1].second};
-
-	     py::array_t<double> npXLimits =
-	       py::array_t<double>(2, xLimits.data());
-	     py::array_t<double> npYLimits =
-	       py::array_t<double>(2, yLimits.data());
-	     
-	     return py::make_tuple(eLimits, npSpectrum, npSpectrumE,
-				   xLimits, yLimits,
-				   npEdep, npEdepE,
-				   npFluence, npFluenceE);
-	     
+         return sim;	     
 	   },
-	   py::arg("source_position")       = std::array<double, 3>{0.0, 0.0, 0.0},
-	   py::arg("focal_spot")            = 0.0,
-	   py::arg("inherent_filter_width") = -1.0,
-	   py::arg("min_energy")            = 10.0,
-	   py::arg("kvp")                   = 100.0,
-	   py::arg("anode_z")               = 74,
-	   py::arg("anode_angle")           = 13.0,
-	   py::arg("spectrum_file")         = "",
-	   py::arg("spatial_file")          = "",
-	   py::arg("source_to_distribution")= 0.68,
-	   py::arg("source_to_filter")      = 7.0,
-	   py::arg("source_to_detector")    = 14.0,
-	   py::arg("filters")               = FilterList{},
-	   py::arg("histories")             = 1.0e5,
-	   py::arg("max_time")              = 600.0,
-	   py::arg("detector_dx")           = 50.0,
-	   py::arg("detector_dy")           = 50.0,
-	   py::arg("xbins")                 = 100,
-	   py::arg("ybins")                 = 100,
-	   py::arg("ebins")                 = 200,
-	   py::arg("threads")               = 0,
-	   py::arg("print_geometry")        = false,
-	   py::arg("seed_pair")             = 0,
-	   py::arg("tolerance")             = 0.01,
-	   py::arg("user_geometry")         = py::dict(),
-	   py::arg("geometry_materials")    = MaterialList{},
-	   py::arg("only_check")            = false,
-	   py::arg("print_configuration")   = false,
-	   py::arg("verbose")               = 1,
+           py::arg("detector_position")       = std::array<double, 3>{0.0, 0.0, 0.0},
+           py::arg("focal_spot")              = 0.0,
+           py::arg("inherent_filter_width")   = -1.0,
+           py::arg("min_energy")              = 10.0,
+           py::arg("kvp")                     = 100.0,
+           py::arg("anode_z")                 = 74,
+           py::arg("anode_angle")             = 13.0,
+           py::arg("psf_file")                = std::string(""),
+           py::arg("psf_translation")         = std::array<double, 3>{0.0, 0.0, 0.0},
+           py::arg("psf_rotation")            = std::array<double, 3>{0.0, 0.0, 0.0},
+           py::arg("spatial_distribution")    = "",
+           py::arg("energy_distribution")     = "",
+           py::arg("distribution_to_detector")= -1.0,
+           py::arg("source_to_filter")        = 7.0,
+           py::arg("source_to_detector")      = 14.0,
+           py::arg("filters")                 = FilterList{},
+           py::arg("histories")               = 1.0e5,
+           py::arg("max_time")                = 600.0,
+           py::arg("detector_dx")             = 50.0,
+           py::arg("detector_dy")             = 50.0,
+           py::arg("detector_dz")             = 1.0,
+           py::arg("detector_ideal")          = true,
+           py::arg("detector_material")       = MaterialData{},
+           py::arg("xbins")                   = 100,
+           py::arg("ybins")                   = 100,
+           py::arg("ebins")                   = 200,
+           py::arg("threads")                 = 0,
+           py::arg("seed_pair")               = 0,
+           py::arg("user_tallies")            = py::dict(),
+           py::arg("user_geometry")           = py::dict(),
+           py::arg("geometry_materials")      = MaterialList{},
+           py::arg("create_detected_psf")     = false,           
+           py::arg("create_filtered_psf")     = false,           
+           py::arg("create_filtered_distrib") = false,           
+           py::arg("print_config")            = false,
+           py::arg("dump_read")               = std::string(),
+           py::arg("dump_write")              = std::string(),
+           py::arg("dump_interval")           = -1.0,
+           py::arg("verbose")                 = 1,
 	   R"doc(
-Simulates an electron beam impinging on an anode and records the resulting photon spectrum and spatial distribution.
+Simulates an electron beam impinging on an anode and records the resulting photon spectrum and spatial distribution. Alternatively, the simulation can be carried out from a Phase Space File (PSF) or sampling the initial photons from 2D (x,y) and 4D (E,x,y,z) spatial and energetic distributions respectively. Both, PSF and distributions can be obtained using this tool, enabling the 'create_filtered_psf' or 'create_filtered_distrib' options. 
 
 Args:
-    source_position (tuple[float, float, float]): Position of the source in cm. This point is interpreted as the location at the anode where the beam impacts.
+    detector_position (tuple[float, float, float]): Detector position in cm. This point is interpreted as the center of the detector's top face in Z axis.
     focal_spot (float): Focal spot size of the beam in cm.
     inherent_filter_width (float): Width in cm for the inherent filter. Set to zero or a negative value to disable it.
     min_energy (float): Minimum photon energy to be recorded, in keV.
     kvp (float): Peak kilovoltage (kVp) of the beam.
     anode_z (int): Atomic number (Z) of the anode material.
     anode_angle (float): Angle of the anode in degrees.
-    spectrum_file (str): Input file path to read the generated energy spectrum.
-    spatial_file (str): Input file path to read the photon spatial distribution.
-    source_to_distribution (float): Distance from source to the spatial distribution plane in cm.
+    psf_file (str): Filename of the phase space file to be used as source.
+    psf_translation (list): Translation to be applied to particles stored in the PSF (dx,dy,dz).
+    psf_rotation (list): Euler angles to rotate the PSF's particles. Rotation is performed around the Z,Y,Z axis, in that order. Notice the detector position is below the source position (-Z direction).
+    spatial_distribution (str): Path to the 2D spatial distribution (x,y) to be used as a source.
+    energy_distribution (str): Path to the 4D energy distribution (e,x,y,z) to be used as a source.
+    distribution_to_detector (float): Distance between the detector and the spatial source distribution
     source_to_filter (float): Distance from source to the first filter in cm.
     source_to_detector (float): Distance from source to the detector in cm.
     filters (list): List of additional filters beyond the inherent one. Each filter should be defined as:
@@ -1908,33 +1818,30 @@ Args:
     max_time (float): Maximum simulation run time in seconds.
     detector_dx (float): Detector size in the X direction in cm.
     detector_dy (float): Detector size in the Y direction in cm.
+    detector_dz (float): Detector depth in the Z direction in cm.
+    detector_ideal (bool): Enables/disables ideal detection, i.e. perfect absorber.
+    detector_material (list): Detector material for non-ideal detectors. The material must be defined as:
+        (density, [(Z1, fraction1), (Z2, fraction2), ...])
     xbins (int): Number of bins (pixels) along the X axis.
     ybins (int): Number of bins (pixels) along the Y axis.
     ebins (int): Number of energy bins for the spectrum.
     threads (int): Number of threads to use. If 0, use all available CPU cores.
-    print_geometry (bool): If True, saves the generated simulation geometry to a file.
     seed_pair (int): Seed pair index for RNG initialization. Must be less than 1001.
-    tolerance (float): Desired relative error (error/value) for the simulation.
+    user_tallies (dict): Configuration of additional tallies provided by the user.
     user_geometry (dict): Configuration of additional geometry provided by the user.
     geometry_materials (list): List of extra materials used in the user-defined geometry. Each material should be defined as:
         (density, [(Z1, fraction1), (Z2, fraction2), ...])
-    only_check (bool): If True, validates the configuration and returns material count without running the simulation.
-    print_configuration (bool): If True, saves the simulation configuration to a file named 'simDevice.conf'.
+    create_detected_psf (bool): If enabled, saves a PSF with the gammas reaching the detector. Only one PSF type can be created.
+    create_filtered_psf (bool): If enabled, saves a PSF with the gammas just crossing the last filter. Only one PSF type can be created.
+    create_filtered_distrib (bool): If enabled, saves the distribution of gammas just crossing the last filter. If no filter is configured (including inherent filtering), the scoring volume is set before the inherent filter position.
+    print_config (bool): Prints the configuration using the penRed internal format. Only for debug purposes.
+    dump_read (str): Specify the dumps' base-filename to be used to resume the simulation
+    dump_write (str): Specify the dumps' base-filename to save the simulation status
+    dump_interval (float): Specify the time interval, in seconds, to store simulation state dumps 
     verbose (int): Verbosity level (higher values provide more output).
 
 Returns:
-    tuple: if 'only_check' value is false, a tuple with the following information, in order:
-           - Energy limits for the generated spectrum (emin, emax) in keV
-           - A 1D numpy array with the detected gamma spectrum (prob/hist)
-           - A 1D numpy array with the uncertainty for each gamma spectrum bin
-           - X limits for spatial distribution (xmin, xmax) in cm
-           - Y limits for spatial distribution (ymin, ymax) in cm
-           - A 2D numpy array with the absorbed energy distribution, in eV, normalized per history. Notice that a perfect detector absorber is considered. The particle track is finished when the detector is reached.
-           - A 2D numpy array with the uncertainty for each energy deposition distribution bin
-           - A 2D numpy array with the detected gamma fluence distribution normalized per history
-           - A 2D numpy array with the uncertainty for each fluence distribution bin
-
-           if 'only_check' is true, the number of materials used to construct the device geometry is returned as a tuple with only one element. This can be used to know the first avaible material index, for user defined geometries construction.
+    Configured and executed 'simulator' object
 
 Raises:
     ValueError: Incompatible value has been provided.
@@ -1946,54 +1853,56 @@ Example:
         import numpy as np
         import pyPenred
 
-        results = pyPenred.simulation.xray.deviceSim(ebins=100, inherent_filter_width=0.15, anode_angle=16, source_to_detector=100.0, max_time=600, histories=1.0e8)
+        sim = pyPenred.simulation.xray.deviceSim(ebins=100, inherent_filter_width=0.15, anode_angle=16, source_to_detector=100.0, max_time=600, histories=1.0e8)
 
-        # Extract energy and spatial ranges
-        eLimits = results[0]
-        xLimits = results[3]
-        yLimits = results[4]
+        # Extract spatial distribution
+        results = sim.getResults("SpatialDetector", extract_info=True, only_effective=True)
 
-        # Create X values for energy spectrum
-        e_plot = np.linspace(eLimits[0], eLimits[1], len(results[1]))
+        # Extract spatial ranges
+        xLimits = results[0][3]
+        yLimits = results[0][2]
 
-        # Plot spectrum
-        plt.plot(e_plot, results[1])
-        plt.title("Device spectrum")
-        plt.xlabel("keV")
-        plt.ylabel("Prob/hist")
-        plt.savefig('device-spectrum.png')
-
-        plt.close()
-
-        # Plot energy deposition
-        plt.imshow(results[5],
-                   extent=[xLimits[0], xLimits[1], yLimits[0], yLimits[1]],
-                   aspect='auto',
+        # Plot it
+        plt.figure(figsize=(6,5))
+        plt.imshow(data,
                    origin='lower',
-                   interpolation='none',
-                   cmap='viridis')
-
-        plt.title("Detector energy deposition")
-        plt.colorbar()
-        plt.xlabel("X cm")
-        plt.ylabel("Y cm")
-        plt.savefig('detector-energy-deposition.png')
-
+                   extent=[xLimits[0], xLimits[1], yLimits[0], yLimits[1]],
+                   cmap='viridis',
+                   aspect='equal')
+        plt.xlabel('x (cm)')
+        plt.ylabel('y (cm)')
+        plt.colorbar(label='Total counts')
+        plt.title('Energy-integrated detector image')
+        plt.savefig("spatial-distrib.png", dpi=300)
         plt.close()
 
-        # Plot fluence
-        plt.imshow(results[7],
-                   extent=[xLimits[0], xLimits[1], yLimits[0], yLimits[1]],
-                   aspect='auto',  
-                   origin='lower', 
-                   interpolation='none',
-                   cmap='viridis')
+        # Extract mean detected spectrum
+        resultsSpec = sim.getResults("SpectrumDetector", extract_info=True, only_effective=True)
 
-        plt.title("Detected fluence")
-        plt.colorbar()
-        plt.xlabel("X cm")
-        plt.ylabel("Y cm")
-        plt.savefig('detector-fluence.png')
+        # Extract energy limits (in eV)
+        eLimits = resultsSpec[0][2]
+        e_plot = np.linspace(eLimits[0]/1000.0, eLimits[1]/1000.0, resultsSpec[0][0].shape[0])
+
+        spectrum = resultsSpec[0][0]
+        spectrumError = resultsSpec[0][1]
+
+        plt.figure(figsize=(6,5))
+        plt.errorbar(
+            e_plot,
+            spectrum,
+            yerr=spectrumError,
+            fmt='-',
+            linewidth=1.2,
+            ecolor='gray',
+            elinewidth=0.8,
+            capsize=2,
+        )
+
+        plt.xlabel("Energy (KeV)")
+        plt.ylabel("Counts")
+        plt.grid(True)
+        plt.savefig("spectrum", dpi=300)
+        plt.close()
 
 )doc");
   

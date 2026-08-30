@@ -158,17 +158,34 @@ public:
       pos += sizeof(unsigned long long);
     }
 
-    inline void toBufferFinalB(unsigned char* b, size_t& pos){
-      float auxf[] = {(float)E, float(x/E), float(y/E), float(z/E), float(weight/E)};
-      memcpy(&b[pos], auxf, 5*sizeof(float));
-      pos += sizeof(float)*5;
+    inline void toBufferFinalB(unsigned char* b,
+			       size_t& pos,
+			       const bool saveWeight,
+			       const bool saveMetadata,
+			       const bool saveHist){
+      if(saveWeight){
+	float auxf[] = {(float)E, float(x/E), float(y/E), float(z/E), float(weight/E)};
+	memcpy(&b[pos], auxf, 5*sizeof(float));
+	pos += sizeof(float)*5;
+      }
+      else{
+	float auxf[] = {(float)E, float(x/E), float(y/E), float(z/E)};
+	memcpy(&b[pos], auxf, 4*sizeof(float));
+	pos += sizeof(float)*4;
+      }
 
       memcpy(&b[pos], &t, sizeof(double));
       pos += sizeof(double);
-      memcpy(&b[pos], info.data(), 3*sizeof(uint8_t));
-      pos += 3*sizeof(uint8_t);
-      memcpy(&b[pos], &hist, sizeof(unsigned long long));
-      pos += sizeof(unsigned long long);
+
+      if(saveMetadata){
+	memcpy(&b[pos], info.data(), 3*sizeof(uint8_t));
+	pos += 3*sizeof(uint8_t);
+      }
+
+      if(saveHist){
+	memcpy(&b[pos], &hist, sizeof(unsigned long long));
+	pos += sizeof(unsigned long long);
+      }
     }
     
     inline bool read(FILE* f, unsigned long& offset){
@@ -209,9 +226,8 @@ public:
   private:
     std::vector<single> buffer;
     size_t n;
-    size_t nflushes;
   public:
-    singlesBuffer() noexcept : buffer(baseSize), n(0), nflushes(0) {}
+    singlesBuffer() noexcept : buffer(baseSize), n(0){}
     inline void store(const double de,
 		      const double x, const double y, const double z,
 		      const double t, const double w, const uint8_t boolMask,
@@ -247,21 +263,28 @@ public:
 
       //Reset buffer
       n = 0;
-
-      //Increase number of flushes
-      ++nflushes;
       
       //Return data
       return result;
     }
-    inline size_t flushes() const { return nflushes; }
+
+    inline void discard(const size_t end){
+      if(n > end)
+	n = end;
+    }
+    
     inline size_t size() const { return n; }
+    inline void sort(size_t start = 0) {
+      if(start < n)
+	std::sort(buffer.begin() + start, buffer.begin()+n);
+    }
   };
 
 private:
   
   double singleEmin, singleEmax;
   double tmin, tmax;
+  unsigned minDetections, maxDetections;
   double dt;
 
   double joinTime;
@@ -291,7 +314,9 @@ private:
   bool toDetect;
   bool simFinished;
   bool removeOnEnd;
-  bool binary;
+  bool saveWeight;
+  bool saveHistory;
+  bool saveMetadata;  
   bool skipBeginPart;
   unsigned long long lastHist;
 
@@ -416,10 +441,15 @@ public:
   bool scatter;
   
   bool removeOnEnd;
-  bool binary;
+
+  bool saveWeight;
+  bool saveHistory;
+  bool saveMetadata;
   
   double singleEmin, singleEmax;
   double tmin, tmax, tjoin;
+
+  unsigned minDetections, maxDetections;
 
   std::vector<unsigned> kdets;
 
@@ -454,39 +484,39 @@ detectors/reader-description "Sensible detectors"
 detectors/reader-value [1]
 detectors/reader-required/type "required"
 
-# Thresholds
+# Event filters
 
 ## Energy
-energy/single/min/reader-description "Minimum single energy to be stored, in eV"
-energy/single/min/reader-value 0.0
-energy/single/min/reader-required/type "required_if_exist"
-energy/single/min/reader-required/value "energy/single/max"
-energy/single/min/reader-conditions/lt/type "lesser"
-energy/single/min/reader-conditions/lt/value "energy/single/max"
-energy/single/min/reader-conditions/positive/type "positive"
+filters/energy/min/reader-description "Minimum single energy to be stored, in eV"
+filters/energy/min/reader-value 0.0
+filters/energy/min/reader-required/type "required_if_exist"
+filters/energy/min/reader-required/value "filters/energy/max"
+filters/energy/min/reader-conditions/lt/type "lesser"
+filters/energy/min/reader-conditions/lt/value "filters/energy/max"
+filters/energy/min/reader-conditions/positive/type "positive"
 
-energy/single/max/reader-description "Maximum single energy to be stored, in eV"
-energy/single/max/reader-value 1.0e30
-energy/single/max/reader-required/type "required_if_exist"
-energy/single/max/reader-required/value "energy/single/min"
-energy/single/max/reader-conditions/gt/type "greater"
-energy/single/max/reader-conditions/gt/value "energy/single/min"
+filters/energy/max/reader-description "Maximum single energy to be stored, in eV"
+filters/energy/max/reader-value 1.0e30
+filters/energy/max/reader-required/type "required_if_exist"
+filters/energy/max/reader-required/value "filters/energy/min"
+filters/energy/max/reader-conditions/gt/type "greater"
+filters/energy/max/reader-conditions/gt/value "filters/energy/min"
 
 ## Time
-time/min/reader-description "Minimum time to be tallied in seconds"
-time/min/reader-value 0.0
-time/min/reader-required/type "required_if_exist"
-time/min/reader-required/value "time/max"
-time/min/reader-conditions/lt/type "lesser"
-time/min/reader-conditions/lt/value "time/max"
-time/min/reader-conditions/positive/type "positive"
+filters/time/min/reader-description "Minimum time to be tallied in seconds"
+filters/time/min/reader-value 0.0
+filters/time/min/reader-required/type "required_if_exist"
+filters/time/min/reader-required/value "filters/time/max"
+filters/time/min/reader-conditions/lt/type "lesser"
+filters/time/min/reader-conditions/lt/value "filters/time/max"
+filters/time/min/reader-conditions/positive/type "positive"
 
-time/max/reader-description "Maximum time to be tallied in seconds"
-time/max/reader-value 1.0e30
-time/max/reader-required/type "required_if_exist"
-time/max/reader-required/value "time/min"
-time/max/reader-conditions/gt/type "greater"
-time/max/reader-conditions/gt/value "time/min"
+filters/time/max/reader-description "Maximum time to be tallied in seconds"
+filters/time/max/reader-value 1.0e30
+filters/time/max/reader-required/type "required_if_exist"
+filters/time/max/reader-required/value "filters/time/min"
+filters/time/max/reader-conditions/gt/type "greater"
+filters/time/max/reader-conditions/gt/value "filters/time/min"
 
 time/join/reader-description "Minimum required time between singles signals, in seconds. Singals in the same time window will be added."
 time/join/reader-value 1.0e-9
@@ -494,22 +524,48 @@ time/join/reader-required/type "optional"
 time/join/reader-conditions/positive/type "positive"
 
 ## Events control
-pileup/reader-description "Enable/disable pileup when joining events. If disabled, only hits proceding from the same history can be joined in a single."
-pileup/reader-value true
-pileup/reader-required/type "optional"
+filters/pileup/reader-description "Enable/disable pileup when joining events. If disabled, only hits proceding from the same history can be joined in a single."
+filters/pileup/reader-value true
+filters/pileup/reader-required/type "optional"
 
-scatter/reader-description "Enable/disable saving scattered events."
-scatter/reader-value true
-scatter/reader-required/type "optional"
+filters/scatter/reader-description "Enable/disable saving scattered events."
+filters/scatter/reader-value true
+filters/scatter/reader-required/type "optional"
+
+filters/detections/min/reader-description "Minimum number of detectors triggered. If a history is detected by fewer detectors, it will not be registered"
+filters/detections/min/reader-value 1
+filters/detections/min/reader-required/type "required_if_exist"
+filters/detections/min/reader-required/value "filters/detections/max"
+filters/detections/min/reader-conditions/positive/type "positive"
+filters/detections/min/reader-conditions/le/type "lesser_equal"
+filters/detections/min/reader-conditions/le/value "filters/detections/max"
+
+filters/detections/max/reader-description "Maximum number of detectors triggered. If a history is detected by more detectors, it will not be registered"
+filters/detections/max/reader-value 100000000
+filters/detections/max/reader-required/type "required_if_exist"
+filters/detections/max/reader-required/value "filters/detections/min"
+filters/detections/max/reader-conditions/positive/type "positive"
+filters/detections/max/reader-conditions/ge/type "greater_equal"
+filters/detections/max/reader-conditions/ge/value "filters/detections/min"
 
 ## File control
 clear/reader-description "Enable/disable removing auxiliary data files after final data processing. Notice that those files are required to resume a simulation from a dump file."
 clear/reader-value true
 clear/reader-required/type "optional"
 
-binary/reader-description "Enable/disable binary output."
-binary/reader-value true
-binary/reader-required/type "optional"
+## Data saved
+save/weight/reader-description "Enable/disable saving weight in results file."
+save/weight/reader-value true
+save/weight/reader-required/type "optional"
+
+save/history/reader-description "Enable/disable saving history number in results file."
+save/history/reader-value true
+save/history/reader-required/type "optional"
+
+save/metadata/reader-description "Enable/disable saving metadata mask in results file."
+save/metadata/reader-value true
+save/metadata/reader-required/type "optional"
+
 )===";
 };
 

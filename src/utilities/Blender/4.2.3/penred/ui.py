@@ -29,7 +29,7 @@
 import bpy
 from mathutils import Vector
 from mathutils import Color
-from . import addon_properties, materialDB, utils, tracks
+from . import addon_properties, materialDB, utils, tracks, dependency_manager
 from math import pi, cos, sin
 import os
 
@@ -95,6 +95,8 @@ class PenredBodyPropertiesPanel(bpy.types.Panel):
         obj = context.object
 
         if obj and obj.penred_settings and obj.type == "MESH" and obj.penred_settings.isMaterialObject:
+
+            layout.enabled = not obj.penred_settings.isdicom
 
             # Material
             row = layout.row()
@@ -429,6 +431,7 @@ class PenredSourcePropertiesPanel(bpy.types.Panel):
                 if source.timeType == "TIME_DECAY":
                     row = timeBox.row()
                     row.prop(source, "decayHalf", text="Half life")
+                if source.timeType == "TIME_DECAY" or source.timeType == "TIME_LINEAR":
                     row = timeBox.row()
                     row.label(text="Time Window")
                     row.prop(source, "timeWindow", text="")
@@ -832,6 +835,61 @@ class PenredTallyPropertiesPanel(bpy.types.Panel):
 
                         row = box.row()
 
+                # Detector energy deposition tally
+                ###################################
+                boxTallies = layout.box()
+                row = boxTallies.row()
+                row.prop(obj.penred_settings, "showTalliesDetectorEnergyDep",
+                         text="Detector Energy Deposition Tallies", emboss=True,
+                         icon="TRIA_DOWN" if obj.penred_settings.showTalliesDetectorEnergyDep else "TRIA_RIGHT")
+
+                row.operator("tallies_detectorenergydep.add_item", text="", icon="ADD")
+
+                if obj.penred_settings.showTalliesDetectorEnergyDep:            
+                    for i, item in enumerate(obj.penred_settings.talliesDetectorEnergyDep):
+
+                        box = boxTallies.box()
+                        row = box.row()
+                        row.prop(item, "show", text=item.name, emboss=True,
+                                 icon="TRIA_DOWN" if item.show else "TRIA_RIGHT")
+                        row.operator("tallies_detectorenergydep.remove_item", text="", icon="TRASH").index = i
+                        if not item.show:
+                            continue
+
+                        # Name
+                        row = box.row()
+                        row.prop(item, "name", text="Name")
+
+                        # Time box
+                        tbox = box.box()
+                        tbox.label(text="Time")
+                        row = tbox.row()
+                        row.prop(item, "twindow", text="Interval")
+
+                        row = tbox.row()
+                        row.prop(item, "tbins", text="Bins")
+
+                        # Spatial box
+                        sbox = box.box()
+                        sbox.label(text="Spatial")
+                        row = sbox.row()
+                        row.prop(item, "nx", text="X Bins")
+                        row = sbox.row()
+                        row.prop(item, "ny", text="Y Bins")
+                        row = sbox.row()
+                        row.prop(item, "nz", text="Z Bins")
+
+                        row = box.row()
+                        row.prop(item, "particleType", text="Particle")
+
+                        row = box.row()
+                        row.prop(item, "printCoordinates", text="Coordinates")
+
+                        row = box.row()
+                        row.prop(item, "printBins", text="Print Bins")
+
+                        row = box.row()                        
+
                 # PSF
                 ############################
                 boxTallies = layout.box()
@@ -1028,7 +1086,283 @@ class PenredTallyPropertiesPanel(bpy.types.Panel):
 
                         row = box.row()
                         row.prop(item, "particleType", text="Particle")
+
+
+############################################################
+#                 Scene DICOM properties
+############################################################
+
+def DisplayIntensityRanges(property, elementsBox):
+
+    for index, IntensityRangeVal in enumerate(property.intensityRanges):
+        subbox = elementsBox.box()
+        row = subbox.row()
+        row.alignment = 'LEFT'
+        row.prop(
+            IntensityRangeVal,
+            "show_settings_intensityParams",
+            icon="TRIA_DOWN" if IntensityRangeVal.show_settings_intensityParams else "TRIA_RIGHT",
+            text= IntensityRangeVal.name if IntensityRangeVal.name else f"Intensity-range {index}",
+            emboss=False
+        )
+
+        if IntensityRangeVal.show_settings_intensityParams:
+
+            row = subbox.row()
+            row.label(text="Range Name")
+            row.prop(IntensityRangeVal, "name", text="")
+            row = subbox.row()
+            row.label(text="Material Index")
+            row.prop(IntensityRangeVal, "material", text="")
+            row = subbox.row()
+            row.label(text="Density")
+            row.prop(IntensityRangeVal, "density", text="")
+            row = subbox.row()
+            row.label(text="Low range")
+            row.prop(IntensityRangeVal, "low", text="")
+            row = subbox.row()
+            row.label(text="Top range")
+            row.prop(IntensityRangeVal, "top", text="")
+
+
+def DisplayRanges(property, elementsBox):
+
+    for index, RangeVal in enumerate(property.ranges):
+        subbox = elementsBox.box()
+        row = subbox.row()
+        row.alignment = 'LEFT'
+        row.prop(
+            RangeVal,
+            "show_settings_rangeParams",
+            icon="TRIA_DOWN" if RangeVal.show_settings_rangeParams else "TRIA_RIGHT",
+            text= RangeVal.name if RangeVal.name else f"Density-range {index}",
+            emboss=False
+        )
+
+        if RangeVal.show_settings_rangeParams:
+
+            row = subbox.row()
+            row.label(text="Range Name")
+            row.prop(RangeVal, "name", text="")
+            row = subbox.row()
+            row.label(text="Material Index")
+            row.prop(RangeVal, "material", text="")
+            row = subbox.row()
+            row.label(text="Low Density")
+            row.prop(RangeVal, "low", text="")
+            row = subbox.row()
+            row.label(text="Top Density")
+            row.prop(RangeVal, "top", text="") 
+
+class PenredDicomPanel(bpy.types.Panel):
+    """Creates a panel in the 3D Viewport sidebar to set dicom variables"""
+    bl_label = "DICOM Variables"
+    bl_idname = "SCENE_PT_DicomPanel"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "PenRed"
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        pyPenredInstalled = dependency_manager.is_installed()
+
+        if not pyPenredInstalled:
+            box = layout.box()
+            box.alert = True
+            box.label(text="Dependency Missing", icon='ERROR')
+            box.label(text="pyPenred must be installed to use this tool.")
+            box.operator("pypenred.open_preferences", icon='PREFERENCES')
+            return
+
+        if scene and hasattr(scene, "penred_settings"):
+            dicomproperties = scene.penred_settings.dicomProperties
+
+            box = layout.box()
+            row = box.row()
+            row.operator("scene.import_dicom", text="Load DICOM")
+
+            # Dumps
+            box = layout.box()
+
+            row = box.row()
+            row.label(text="Default Material")
+            row.prop(dicomproperties, "material", text="")
+
+            row = box.row()
+            row.label(text="Default Density")
+            row.prop(dicomproperties, "density", text="")
+
+            row = box.row()
+            row.label(text="Enclosure Margin")
+            row.prop(dicomproperties, "enclosureMargin", text="")
+
+            row = box.row()
+            row.label(text="Enclosure Material")
+            row.prop(dicomproperties, "enclosureMaterial", text="")
+
+            row = box.row()
+            row.prop(dicomproperties, "printASCII", text="Print ASCII files")            
+
+            # Dicom calibration parameters
+            elementsBox = box.box()
+            row = elementsBox.row()
+            row.alignment = 'LEFT'
+            row.prop(
+                dicomproperties,
+                "show_settings_dicom_calibration",
+                icon="TRIA_DOWN" if dicomproperties.show_settings_dicom_calibration else "TRIA_RIGHT",
+                text="Calibration parameters (\u03C1=\u2211 a\u1D62 x\u1D62)",
+                emboss=False
+            )
+
+            if dicomproperties.show_settings_dicom_calibration:
+                
+                row = elementsBox.row()
+                # Operators to add and remove composition elements
+                row.operator("dicom_calibration.add_item", text="Add Element")
+                row.operator("dicom_calibration.remove_item", text="Remove Element")
+
+                for index, calibVal in enumerate(dicomproperties.calibration):
+                    row = elementsBox.row()
+                    row.label(text=f"a{index}")
+                    row.prop(calibVal, "value", text="")
+            
+
+            # Dicom intensity-ranges parameters
+            elementsBox = box.box()
+            row = elementsBox.row()
+            row.alignment = 'LEFT'
+            row.prop(
+                dicomproperties,
+                "show_settings_dicom_intensities",
+                icon="TRIA_DOWN" if dicomproperties.show_settings_dicom_intensities else "TRIA_RIGHT",
+                text="Intensity-ranges",
+                emboss=False
+            )
+
+            if dicomproperties.show_settings_dicom_intensities:
+                row = elementsBox.row()
+                # Operators to add and remove composition elements
+                row.operator("dicom_intensityranges.add_item", text="Add Element")
+                row.operator("dicom_intensityranges.remove_item", text="Remove Element")
+            
+                DisplayIntensityRanges(dicomproperties,elementsBox)
+
+            # Dicom ranges parameters
+            elementsBox = box.box()
+            row = elementsBox.row()
+            row.alignment = 'LEFT'
+            row.prop(
+                dicomproperties,
+                "show_settings_dicom_ranges",
+                icon="TRIA_DOWN" if dicomproperties.show_settings_dicom_ranges else "TRIA_RIGHT",
+                text="Density-ranges",
+                emboss=False
+            )
+
+            if dicomproperties.show_settings_dicom_ranges:
+
+                row = elementsBox.row()
+                # Operators to add and remove composition elements
+                row.operator("dicom_ranges.add_item", text="Add Element")
+                row.operator("dicom_ranges.remove_item", text="Remove Element")
+                            
+                DisplayRanges(dicomproperties, elementsBox)
+            
+
+            # Dicom contours parameters
+            elementsBox = box.box()
+            row = elementsBox.row()
+            row.alignment = 'LEFT'
+            row.prop(
+                dicomproperties,
+                "show_settings_dicom_contours",
+                icon="TRIA_DOWN" if dicomproperties.show_settings_dicom_contours else "TRIA_RIGHT",
+                text="Contours",
+                emboss=False
+            )
+
+            if dicomproperties.show_settings_dicom_contours:
+
+                row = elementsBox.row()
+                row.operator("dicom_contours.add_item", text="Add Element")
+                row.operator("dicom_contours.remove_item", text="Remove Element")
+
+                for index, contouritem in enumerate(dicomproperties.contours):
+                    contourbox = elementsBox.box()
+                    row = contourbox.row()
+                    row.alignment = 'LEFT'
+                    row.prop(
+                        contouritem,
+                        "show_settings_contourParams",
+                        icon="TRIA_DOWN" if contouritem.show_settings_contourParams else "TRIA_RIGHT",
+                        text = contouritem.name if contouritem.name else f"Contour {index}" ,
+                        emboss=False
+                    )
+
+                    if contouritem.show_settings_contourParams:
+
+                        row = contourbox.row()
+                        row.label(text="Contour Name")
+                        row.prop(contouritem, "name", text="")
+
+                        row = contourbox.row()
+                        row.prop(contouritem, "overwriteMat", text="Default Material")
+                        row = contourbox.row()
+                        row.prop(contouritem, "material", text="")
+                        row.enabled = contouritem.overwriteMat
+
+                        row = contourbox.row()
+                        row.prop(contouritem, "overwriteDens", text="Default Density")
+                        row = contourbox.row()
+                        row.prop(contouritem, "density", text="")
+                        row.enabled = contouritem.overwriteDens
+
+                        row = contourbox.row()
+                        row.label(text="Priority")
+                        row.prop(contouritem, "priority", text="")
+
+                        # Contours.intensityRanges ui
+                        subcontourbox  = contourbox.box()
+                        row = subcontourbox.row()
+                        row.alignment = 'LEFT'
+                        row.prop(
+                            contouritem,
+                            "show_settings_contour_intensity",
+                            icon="TRIA_DOWN" if contouritem.show_settings_contour_intensity else "TRIA_RIGHT",
+                            text="Intensity-ranges",
+                            emboss=False
+                        )
                         
+                        if contouritem.show_settings_contour_intensity:
+                            row = subcontourbox.row()
+                            row.operator("dicom_intensityrangescontour.add_item", text="Add Element").icontour = index
+                            row.operator("dicom_intensityrangescontour.remove_item", text="Remove Element").icontour = index 
+                            
+                            DisplayIntensityRanges(contouritem,subcontourbox)
+
+                        # Contours.Ranges ui
+                        subcontourbox  = contourbox.box()
+                        row = subcontourbox.row()
+                        row.alignment = 'LEFT'
+                        row.prop(
+                            contouritem,
+                            "show_settings_contour_ranges",
+                            icon="TRIA_DOWN" if contouritem.show_settings_contour_ranges else "TRIA_RIGHT",
+                            text="Density-ranges",
+                            emboss=False
+                        )
+                        
+                        if contouritem.show_settings_contour_ranges:
+                            row = subcontourbox.row()
+                            row.operator("dicom_rangescontour.add_item", text="Add Element").icontour = index
+                            row.operator("dicom_rangescontour.remove_item", text="Remove Element").icontour = index 
+                            
+                            DisplayRanges(contouritem,subcontourbox)
+                        
+
+
 ## World simulation properties
 class PenredWorldSimulationPanel(bpy.types.Panel):
     bl_label = "Simulation properties"
@@ -1400,7 +1734,7 @@ class PENRED_MATERIAL_UL_DB_List(bpy.types.UIList):
             
 class penred_PT_SimulationPanel(bpy.types.Panel):
     """Creates a panel in the 3D Viewport sidebar to run simulations"""
-    bl_label = "PenRed"
+    bl_label = "Simulation"
     bl_idname = "SCENE_PT_SimulationPanel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -1408,7 +1742,16 @@ class penred_PT_SimulationPanel(bpy.types.Panel):
     
     def draw(self, context):
         layout = self.layout
+        pyPenredInstalled = dependency_manager.is_installed()
 
+        if not pyPenredInstalled:
+            box = layout.box()
+            box.alert = True
+            box.label(text="Dependency Missing", icon='ERROR')
+            box.label(text="pyPenred must be installed to use this tool.")
+            box.operator("pypenred.open_preferences", icon='PREFERENCES')
+            return
+        
         scene = context.scene
         if scene and scene.penred_settings:
             sceneProp = scene.penred_settings
@@ -1716,6 +2059,9 @@ def register():
     #Register simulation parameters Panel
     bpy.utils.register_class(PenredWorldSimulationPanel)
 
+    #Register dicom parameters Panel
+    bpy.utils.register_class(PenredDicomPanel)
+
     #Register world based tallies Panel
     bpy.utils.register_class(PenredWorldTalliesPanel)
 
@@ -1760,6 +2106,9 @@ def unregister():
 
     #Unregister simulation parameters Panel
     bpy.utils.unregister_class(PenredWorldSimulationPanel)    
+
+    #Unregister dicom parameters Panel
+    bpy.utils.unregister_class(PenredDicomPanel)    
 
     #Unregister world based tallies Panel
     bpy.utils.unregister_class(PenredWorldTalliesPanel)    

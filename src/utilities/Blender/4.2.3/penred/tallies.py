@@ -26,7 +26,7 @@
 #        vicente.gimenez@uv.es              (Vicent Giménez Gómez)
 #
 
-def createTallyCylDoseDistrib(f, name, output, rmax, nr, zmin, zmax, nz, nphi, toRound):
+def createTallyCylDoseDistrib(f, name, output, rmax, nr, zmin, zmax, nz, nphi, x, y, toRound):
     f.write(f"# Cylindrical dose tally configuration for '{name}'\n")
     f.write(f"tallies/{name}/type \"CYLINDRICAL_DOSE_DISTRIB\"\n")
     f.write(f"tallies/{name}/print-xyz true\n")
@@ -37,6 +37,8 @@ def createTallyCylDoseDistrib(f, name, output, rmax, nr, zmin, zmax, nz, nphi, t
     f.write(f"tallies/{name}/zmax {round(zmax,toRound)}\n")
     f.write(f"tallies/{name}/nbinsz {nz}\n")
     f.write(f"tallies/{name}/nbinsPhi {nphi}\n")
+    f.write(f"tallies/{name}/origin/x {round(x,toRound)}\n")
+    f.write(f"tallies/{name}/origin/y {round(y,toRound)}\n")
     if output:
         f.write(f"tallies/{name}/outputdir \"{output}\"\n")
     f.write("\n")
@@ -113,7 +115,7 @@ def createTallySpatialDoseDistrib(f, name, output,
         f.write(f"tallies/{name}/outputdir \"{output}\"\n")
     f.write("\n")
 
-def createTallySphericalDoseDistrib(f, name, output, rmax, nr, ntheta, nphi, toRound):
+def createTallySphericalDoseDistrib(f, name, output, rmax, nr, ntheta, nphi, x, y, z, toRound):
     f.write(f"# Spherical dose distribution tally configuration for '{name}'\n")
     f.write(f"tallies/{name}/type \"SPHERICAL_DOSE_DISTRIB\"\n")
     f.write(f"tallies/{name}/print-xyz true\n")
@@ -122,6 +124,9 @@ def createTallySphericalDoseDistrib(f, name, output, rmax, nr, ntheta, nphi, toR
     f.write(f"tallies/{name}/nr {nr}\n")
     f.write(f"tallies/{name}/ntheta {ntheta}\n")
     f.write(f"tallies/{name}/nphi {nphi}\n")
+    f.write(f"tallies/{name}/origin/x {round(x,toRound)}\n")
+    f.write(f"tallies/{name}/origin/y {round(y,toRound)}\n")    
+    f.write(f"tallies/{name}/origin/z {round(z,toRound)}\n")    
     if output:
         f.write(f"tallies/{name}/outputdir \"{output}\"\n")
     f.write("\n")
@@ -230,6 +235,51 @@ def createTallySpatialDistrib(f, name, output, det,
     f.write(f"tallies/{name}/energy/emax {emax:.3e}\n")
     
     f.write(f"tallies/{name}/particle \"{particle}\"\n")
+
+    if coordinates:
+        f.write(f"tallies/{name}/printCord true\n")
+    else:
+        f.write(f"tallies/{name}/printCord false\n")
+
+    if bins:
+        f.write(f"tallies/{name}/printBins true\n")
+    else:
+        f.write(f"tallies/{name}/printBins false\n")
+
+    if output:
+        f.write(f"tallies/{name}/outputdir \"{output}\"\n")
+    f.write("\n")
+
+def createTallyDetectorEnergyDep(f, name, output, det,
+                                 nx, ny, nz,
+                                 xmin, ymin, zmin,
+                                 xmax, ymax, zmax,
+                                 tbins, tmin, tmax,
+                                 particle,
+                                 coordinates,
+                                 bins, toRound):
+    f.write(f"# Detector energy deposition tally configuration for '{name}'\n")
+    f.write(f"tallies/{name}/type \"DETECTION_EDEP\"\n")
+    f.write(f"tallies/{name}/detector {det}\n")
+    
+    f.write(f"tallies/{name}/spatial/nx {nx}\n")
+    f.write(f"tallies/{name}/spatial/xmin {round(xmin, toRound)}\n")
+    f.write(f"tallies/{name}/spatial/xmax {round(xmax, toRound)}\n")
+    f.write(f"tallies/{name}/spatial/ny {ny}\n")
+    f.write(f"tallies/{name}/spatial/ymin {round(ymin, toRound)}\n")
+    f.write(f"tallies/{name}/spatial/ymax {round(ymax, toRound)}\n")
+    f.write(f"tallies/{name}/spatial/nz {nz}\n")
+    f.write(f"tallies/{name}/spatial/zmin {round(zmin, toRound)}\n")
+    f.write(f"tallies/{name}/spatial/zmax {round(zmax, toRound)}\n")
+
+    f.write(f"tallies/{name}/time/nbins {tbins}\n")
+    f.write(f"tallies/{name}/time/min {tmin:.3e}\n")
+    f.write(f"tallies/{name}/time/max {tmax:.3e}\n")
+
+    if particle:
+        f.write(f"tallies/{name}/particle \"{particle}\"\n")
+    else:
+        f.write(f"tallies/{name}/particle \"all\"\n")
 
     if coordinates:
         f.write(f"tallies/{name}/printCord true\n")

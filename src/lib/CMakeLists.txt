@@ -73,6 +73,9 @@ add_subdirectory(parameters)
 # simulation folder
 add_subdirectory(simulation)
 
+# geometry folder
+add_subdirectory(geometry)
+
 # x-ray folder
 if(XRAY)
     add_subdirectory(x-ray)

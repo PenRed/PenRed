@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.0] - 2026-08-30
+
+### Added
+- DICOM load support within the Blender plugin
+- Distribution-based energy and specific samplers
+- Interpolation tools for math utilities
+- Exposed sampler instantiation functions
+- Dump appending and resume support for Python-based simulations
+- Unit tests for pyPenred dumps, distributions, and interpolation
+- Optional printing of voxel coordinates in kerma tallies for Cartesian meshes
+- Exposed geometry ID from geometry wrapper
+- Provisional animation system
+- Animation support for triangular mesh-based geometries
+- A dedicated geometry module within pyPenred
+- Circle spatial sampler
+
+### Changed
+- pyPenred is now installed in Blender directly through add-on preferences
+- Final dumps are now flagged with the prefix `final-` to avoid overwriting dumps generated due to timeouts
+- Removed restrictions on the maximum number of daughter and overlapping bodies in triangular surface-based geometries.
+- The Blender plugin `.zip` file is now provided directly in the GitHub Releases section instead of being tracked in the repository
+- Updated geometry view library to support the new animation system
+
+### Fixed
+- An issue affecting simulations with triangular surface-based geometries where the world body has a void material (index 0) and the source is outside the world body
+- An issue where the `savedata` file was not properly closed in the `tallyDetectionSpatialDistrib` tally
+- Internal errors in the `isSection` function within the internal data library
+
 ## [1.14.0] - 2025-09-04
 
 ### Added
@@ -17,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PSF utilities for the pyPenred module
 - Added Blender files for some quadrics-based examples, including execution notebooks
 
-### Chaned
+### Changed
 - Multithreading is now permanently enabled in all builds and can no longer be disabled via CMake options
 - Both the user guide and implementation documentation have been updated and reviewed
 

@@ -28,7 +28,7 @@
 #include <array>
 #include "pen_geoView.hh"
 
-void printRender(std::string filename, unsigned char* render, unsigned nx, unsigned ny);
+void printRender(std::string filename, unsigned int* render, unsigned nx, unsigned ny);
 
 int main(int argc, char** argv){
 
@@ -62,7 +62,7 @@ int main(int argc, char** argv){
     return -2;
   }
 
-  pen_geoView viewer;
+  penred::geometry::Viewer viewer;
   err = viewer.init(geometrySection,3);
   if(err != 0){
     printf("Error: Unable to initialize viewer");
@@ -72,7 +72,7 @@ int main(int argc, char** argv){
   const unsigned nxmax = 512;
   const unsigned nymax = 512;
   const unsigned nxymax = nxmax*nymax;
-  std::array<unsigned char, nxymax> renderMat;
+  std::array<unsigned int, nxymax> renderMat;
   std::array<unsigned int, nxymax> renderBody;
   std::array<float, nxymax> distances;
 
@@ -103,6 +103,11 @@ int main(int argc, char** argv){
 	pen_parserSection planeSec;
 	if(section2Dz.read(names[i],planeSec) != INTDATA_SUCCESS)
 	  continue;
+
+	double t;
+	if(planeSec.read("time", t) != INTDATA_SUCCESS){
+	  t = 0.0;
+	}
 	
 	pen_parserArray pos;
 	if(planeSec.read("pos",pos) != INTDATA_SUCCESS){
@@ -134,7 +139,7 @@ int main(int argc, char** argv){
 	    }
 	    else{
 	      viewer.renderZ(renderMat.data(),renderBody.data(),
-			     x,y,z,
+			     x,y,z,t,
 			     dsPixel,dsPixel,
 			     static_cast<unsigned>(nx),static_cast<unsigned>(ny));
 
@@ -168,6 +173,11 @@ int main(int argc, char** argv){
 	pen_parserSection planeSec;
 	if(section2Dy.read(names[i],planeSec) != INTDATA_SUCCESS)
 	  continue;
+
+	double t;
+	if(planeSec.read("time", t) != INTDATA_SUCCESS){
+	  t = 0.0;
+	}
 	
 	pen_parserArray pos;
 	if(planeSec.read("pos",pos) != INTDATA_SUCCESS){
@@ -199,7 +209,7 @@ int main(int argc, char** argv){
 	    }
 	    else{
 	      viewer.renderY(renderMat.data(),renderBody.data(),
-			     x,y,z,
+			     x,y,z,t,
 			     dsPixel,dsPixel,
 			     static_cast<unsigned>(nx),static_cast<unsigned>(nz));
 
@@ -233,6 +243,11 @@ int main(int argc, char** argv){
 	pen_parserSection planeSec;
 	if(section2Dx.read(names[i],planeSec) != INTDATA_SUCCESS)
 	  continue;
+
+	double t;
+	if(planeSec.read("time", t) != INTDATA_SUCCESS){
+	  t = 0.0;
+	}
 	
 	pen_parserArray pos;
 	if(planeSec.read("pos",pos) != INTDATA_SUCCESS){
@@ -264,7 +279,7 @@ int main(int argc, char** argv){
 	    }
 	    else{
 	      viewer.renderX(renderMat.data(),renderBody.data(),
-			     x,y,z,
+			     x,y,z,t,
 			     dsPixel,dsPixel,
 			     static_cast<unsigned>(ny),static_cast<unsigned>(nz));
 
@@ -300,6 +315,11 @@ int main(int argc, char** argv){
 	pen_parserSection planeSec;
 	if(section3D.read(names[i],planeSec) != INTDATA_SUCCESS)
 	  continue;
+
+	double t;
+	if(planeSec.read("time", t) != INTDATA_SUCCESS){
+	  t = 0.0;
+	}
 	
 	pen_parserArray pos;
 	if(planeSec.read("pos",pos) != INTDATA_SUCCESS){
@@ -351,7 +371,7 @@ int main(int argc, char** argv){
 		float minD,maxD;
 		viewer.render3D(renderMat.data(),renderBody.data(),
 				x,y,z,
-				u,v,w,
+				u,v,w,t,
 				roll, phi, // auxiliar phi
 				distances.data(),minD,maxD);
 		//dsPixel,dsPixel,
@@ -374,7 +394,7 @@ int main(int argc, char** argv){
   
 }
 
-void printRender(std::string filename, unsigned char* render, unsigned nx, unsigned ny){
+void printRender(std::string filename, unsigned int* render, unsigned nx, unsigned ny){
 
   FILE* fout = nullptr;
   fout = fopen(filename.c_str(),"w");
@@ -383,7 +403,7 @@ void printRender(std::string filename, unsigned char* render, unsigned nx, unsig
   
   for(unsigned j = 0; j < ny; ++j){
     for(unsigned i = 0; i < nx; ++i){
-      fprintf(fout,"%u ", static_cast<unsigned>(render[j*nx+i]));
+      fprintf(fout,"%u ", render[j*nx+i]);
     }
     fprintf(fout,"\n");
   }

@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
-//    Copyright (C) 2024 Vicent Giménez Alventosa
+//    Copyright (C) 2024-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -71,28 +71,28 @@ std::string pen_quadricGeo::getBodyName(const unsigned ibody) const{
 }
 
 
-int pen_quadricGeo::configure(const pen_parserSection& config, const unsigned verbose){
+penred::errors::Error pen_quadricGeo::specificConfigure(const pen_parserSection& config,
+							const unsigned verbose){
 
+  penred::errors::SpecificError<pen_quadricGeo> error;
   int err;
+  
   //Read input and output file from configuration
   std::string IRDfilename;
   std::string IWRfilename("null");
   if(config.read("input-file",IRDfilename) != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("quadricGeo:configure:Error: 'input-file' field missing at configuration section.\n");
-    }
-    configStatus = PEN_QUAD_GEO_INPUT_SECTION;
-    return configStatus;
+    error.code = MISSING_PARAMETER;
+    error.description = "quadricGeo:configure:Error: 'input-file' field missing at configuration section.";
+    return error;
   }
   
   //Generate output processed file if verbose is greather than zero
   if(verbose > 0){
     if(config.read("processed-geo-file",IWRfilename) != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("quadricGeo:configure:Error: 'processed-geo-file' field missing at configuration section\n");
-      }
-      configStatus = PEN_QUAD_GEO_OUTPUT_SECTION;
-      return configStatus;
+      error.code = MISSING_PARAMETER;
+      error.description = "quadricGeo:configure:Error: 'processed-geo-file' field missing "
+	"at configuration section.";
+      return error;
     }
   }
 
@@ -101,11 +101,9 @@ int pen_quadricGeo::configure(const pen_parserSection& config, const unsigned ve
   FILE* IRD = nullptr;
   IRD = fopen(IRDfilename.c_str(),"r");
   if(IRD == nullptr){
-    if(verbose > 0){
-      printf("pen_quadricGeo:configure:Error: unable to open input file '%s'.\n", IRDfilename.c_str());
-    }
-    configStatus = PEN_QUAD_GEO_INPUT_FILE;
-    return configStatus;
+    error.code = UNABLE_TO_OPEN_FILE;
+    error.description = "pen_quadricGeo:configure:Error: Unable to open input file " + IRDfilename;
+    return error;
   }
   
   //Open output file
@@ -114,10 +112,10 @@ int pen_quadricGeo::configure(const pen_parserSection& config, const unsigned ve
   if(verbose > 0){
     IWR = fopen(IWRfilename.c_str(),"w");
     if(IWR == nullptr){
-      printf("pen_quadricGeo:configure:Error: unable to open output file '%s'.\n", IWRfilename.c_str());
-      configStatus = PEN_QUAD_GEO_OUTPUT_FILE;
+      error.code = UNABLE_TO_OPEN_FILE;
+      error.description = "pen_quadricGeo:configure:Error: Unable to open output file " + IWRfilename;
       fclose(IRD);
-      return configStatus;
+      return error;
     }
   }
 
@@ -129,15 +127,15 @@ int pen_quadricGeo::configure(const pen_parserSection& config, const unsigned ve
   
   //Load geometry
   //*****************
-  err = GEOMIN(IRD,IWR,verbose);
-  if(err != PEN_QUAD_GEO_SUCCESS){
-    if(verbose > 0){
-      printf("pen_quadricGeo:configure: Error loading geometry.\n");
-      printf("                          Error code: %d\n",err);
-    }
+  penred::errors::Error errorGEOMIN;
+  errorGEOMIN = GEOMIN(IRD,IWR,verbose);
+  if(errorGEOMIN){
+    error.code = GEOMIN_ERROR;
+    error.description = "pen_quadricGeo:configure: Error during GEOMIN configuration.";
+    error.setTrace(errorGEOMIN);
     fclose(IRD);
     if(IWR != nullptr){fclose(IWR);}
-    return err;
+    return error;
   }
   fclose(IRD);
   if(IWR != nullptr){fclose(IWR);}
@@ -171,22 +169,20 @@ int pen_quadricGeo::configure(const pen_parserSection& config, const unsigned ve
 	  double auxDSmax;
 	  err = config.read(key,auxDSmax);
 	  if(err != INTDATA_SUCCESS){
-	    if(verbose > 0){
-	      printf("pen_quadricGeo:configure: Error reading 'dsmax' of body %s\n",bodies[j].BALIAS);
-	      printf("                     key: %s\n",key.c_str());
-	    }
-	    configStatus = PEN_QUAD_GEO_BAD_READ_DSMAX;
-	    return PEN_QUAD_GEO_BAD_READ_DSMAX;
+	    error.code = BAD_VALUE;
+	    error.description = "pen_quadricGeo:configure: Error reading 'dsmax' of body ";
+	    error.description += bodies[j].BALIAS;
+	    return error;
 	  }
 
 	  //Check dsmax value
 	  if(auxDSmax <= 0.0){
-	    if(verbose > 0){
-	      printf("pen_quadricGeo:configure: Error: 'DSMAX' must be greater than zero.\n");
-	      printf("            Specified for body %s: %12.4E\n",bodies[j].BALIAS,auxDSmax);
-	    }
-	    configStatus = PEN_QUAD_GEO_INVALID_DSMAX;
-	    return PEN_QUAD_GEO_INVALID_DSMAX;
+	    error.code = BAD_VALUE;
+	    error.description = "pen_quadricGeo:configure:Error: 'dsmax' value of body ";
+	    error.description += bodies[j].BALIAS;
+	    error.description += " must be greater than 0.";
+	    
+	    return error;
 	  }
 	  //Assign dsmax
 	  bodies[j].DSMAX = auxDSmax;
@@ -232,22 +228,21 @@ int pen_quadricGeo::configure(const pen_parserSection& config, const unsigned ve
 	  int auxKDET;
 	  err = config.read(key,auxKDET);
 	  if(err != INTDATA_SUCCESS){
-	    if(verbose > 0){
-	      printf("pen_quadricGeo:configure: Error reading 'kdet' for body %s\n",bodies[bIndex].BALIAS);
-	      printf("                     key: %s\n",key.c_str());
-	    }
-	    configStatus = PEN_QUAD_GEO_BAD_READ_KDET;
-	    return PEN_QUAD_GEO_BAD_READ_KDET;
+	    error.code = BAD_VALUE;
+	    error.description = "pen_quadricGeo:configure: Error reading 'kdet' for body ";
+	    error.description += bodies[bIndex].BALIAS;
+	    
+	    return error;
 	  }
 
 	  //Check kdet value
 	  if(auxKDET <= 0){
-	    if(verbose > 0){
-	      printf("pen_quadricGeo:configure: Error: 'KDET' must be greater than zero.\n");
-	      printf("            Specified for body %s: %d\n",bodies[bIndex].BALIAS,auxKDET);
-	    }
-	    configStatus = PEN_QUAD_GEO_INVALID_KDET;
-	    return PEN_QUAD_GEO_INVALID_KDET;
+	    error.code = BAD_VALUE;
+	    error.description = "pen_quadricGeo:configure:Error: 'kdet' value for body ";
+	    error.description += bodies[bIndex].BALIAS;
+	    error.description += " must be greater than 0";
+	    
+	    return error;
 	  }
 	  //Assign dsmax
 	  bodies[bIndex].KDET = (unsigned)auxKDET;
@@ -297,32 +292,30 @@ int pen_quadricGeo::configure(const pen_parserSection& config, const unsigned ve
 
 	  unsigned kpar = particleID(particleNames[j].c_str());
 	  if(kpar >= ALWAYS_AT_END){
-	    if(verbose > 0){
-	      printf("pen_quadricGeo:configure: Error on 'eabs' field, unknown particle '%s' on body '%s'.\n",particleNames[j].c_str(),bodiesAlias[i].c_str());
-	    }
-	    return PEN_QUAD_GEO_UNKNOWN_PARTICLE;
+	    error.code = UNKNOWN_PARTICLE;
+	    error.description = "pen_quadricGeo:configure: Unknown particle '" +
+	      particleNames[j] + "' in 'eabs' definition of body " + bodiesAlias[i];
+	    
+	    return error;
 	  }
 	  
 	  std::string key2 = key + std::string("/") + particleNames[j];
 	  double eabs;
 	  err = config.read(key2,eabs);
 	  if(err != INTDATA_SUCCESS){
-	    if(verbose > 0){
-	      printf("pen_quadricGeo:configure: Error reading energy "
-		     "absorption at field '%s'. Double expected.\n",
-		     key2.c_str());
-	    }
-	    return PEN_QUAD_GEO_BAD_READ_EABS;
+	    error.code = BAD_VALUE;
+	    error.description = "pen_quadricGeo:configure: Error reading energy "
+	      "absorption from field '" + key2 + "'. Number expected.";
+	    
+	    return error;
 	  }
 
 	  if(eabs <= 0.0){
-	    if(verbose > 0){
-	      printf("pen_quadricGeo:configure: Error: Invalid energy "
-		     "absorption %12.4E for body '%s' particle '%s'. "
-		     "Must be greater than zero.\n",
-		     eabs,bodiesAlias[i].c_str(),particleNames[j].c_str());
-	    }
-	    return PEN_QUAD_GEO_INVALID_EABS;
+	    error.code = BAD_VALUE;
+	    error.description = "pen_quadricGeo:configure: Invalid 'eabs' value in body " +
+	    bodiesAlias[i] + ". Must be greater than 0.";
+	    
+	    return error;
 	  }
 	  
 	  bodyEABS[kpar] = eabs;
@@ -330,10 +323,10 @@ int pen_quadricGeo::configure(const pen_parserSection& config, const unsigned ve
 
 	//Set body eabs for each specified particle
 	if(setBodyEabs(bIndex,bodyEABS) != 0){
-	  if(verbose > 0){
-	    printf("pen_quadricGeo:configure: Error on 'eabs' field, unknown body '%s'\n",bodiesAlias[i].c_str());
-	  }
-	  return PEN_QUAD_GEO_UNDEF_BODY_LABEL;	  
+	  error.code = BAD_VALUE;
+	  error.description = "pen_quadricGeo:configure: Error reading 'eabs' of unknown body " +
+	    bodiesAlias[i];
+	  return error;	  
 	}
 	
 	if(verbose > 1){
@@ -365,14 +358,13 @@ int pen_quadricGeo::configure(const pen_parserSection& config, const unsigned ve
     printf("\n");
   }
   
-  configStatus = PEN_QUAD_GEO_SUCCESS;
-  return PEN_QUAD_GEO_SUCCESS;
+  return error;
 }
 
 //  *********************************************************************
 //                       SUBROUTINE GEOMIN
 //  *********************************************************************
-int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
+penred::errors::Error pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 {
   
   //     Reads the geometry-definition file and sets up the arrays used
@@ -461,14 +453,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
   char LKEYW[9];
 
   unsigned int KB;
+
+  penred::errors::SpecificError<pen_quadricGeo> error;
   
   //Check if input file is open
   if(IRD == nullptr){
-    if(verbose > 0){
-      printf("pen_quadricGeo:configure:Error: The input file is "
-	     "a null pointer. Does the file exist?.\n");
-    }
-    configStatus = PEN_QUAD_GEO_INPUT; return configStatus;    
+    error.code = NO_FILE_PROVIDED;
+    error.description = "pen_quadricGeo:GEOMIN:Error: The input file is "
+      "a null pointer. Does the file exist?";
+    return error;
   }
 
   //  ************  Initialise parameters.
@@ -552,15 +545,14 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
   
   if(IW == IR)
     {
+      error.code = BAD_VALUE;
+      error.description = "pen_quadricGeo:GEOMIN:Error: The input and output units must be different.";
       if(verbose > 0){
 	fprintf(IW, "SUBROUTINE GEOMIN. Input arguments.\n");
 	fprintf(IW, "IRD =%p,  IWR =%p\n", (void*)IRD, (void*)IWR);
 	fprintf(IW, "*** The input and output units must be different.\n");
-	if(verbose > 0){
-	  printf("pen_quadricGeo:configure:Error: The input and output units must be different.\n");
-	}
       }
-      configStatus = PEN_QUAD_GEO_WR; return configStatus;
+      return error;
     }
 
   bool Eixir0 = false;   //GOTO 1
@@ -640,14 +632,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  
       if(Num_Elements_Llegits == 0)
 	{
+	  error.code = BAD_VALUE;
+	  error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format: ";
+	  error.description += BLINE;
+	  
 	  if(verbose > 0){	      
 	    if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 	    fprintf(IW, "*** Wrong input format.\n");
-	    if(verbose > 1){
-	      printf("pen_quadricGeo:configure:Error: Wrong input format.\n");
-	    }
 	  }
-	  configStatus = PEN_QUAD_GEO_INPUT; return configStatus;
+	  return error;
 	}
       
       char AuxStr[9];strcpy(AuxStr,"        ");
@@ -665,14 +658,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  //	 
 	  if(BLINE[8] != '(' || BLINE[13] != ')')
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: Incorrect label format: ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 		fprintf(IW, "*** Incorrect label format.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: Incorrect label format.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_LABEL_FORMAT; return configStatus;
+	      return error;
 	    }
 	  Num_Elements_Llegits = sscanf(BLINE, "%*9c%4c%8c%8c%8c%8c%8c%8c%8c", C4, LARRAY[0], LARRAY[1], LARRAY[2], LARRAY[3], LARRAY[4], LARRAY[5], LARRAY[6]);
 
@@ -688,14 +682,14 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    
 	  if(Num_Elements_Llegits == 0)
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format: ";
+	      error.description += BLINE;
 	      if(verbose > 0){	      
 		if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 		fprintf(IW, "*** Wrong input format.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: Wrong input format.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_INPUT; return configStatus;
+	      return error;
 	    }
 	  if(IR == IRD)
 	    {
@@ -718,14 +712,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		{
 		  if(strcmp(C5,ALIAS[KS0].data()) == 0)
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: Same label for two surfaces: ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 			fprintf(IW, "*** Same label for two surfaces.\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: Same label for two surfaces.\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_SAME_LABEL_SURF; return configStatus;
+		      return error;
 		    }
 		}
 	    }
@@ -736,13 +731,13 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  }
 	  if(KS > NS)
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: The parameter NS must be increased. ";
+	      
 	      if(verbose > 0){	      
 		fprintf(IW, "*** The parameter NS must be increased.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: The parameter NS must be increased.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_NS; return configStatus;	      
+	      return error;	      
 	    }
 	  sprintf(DEF, "%s(%4d%s%s%s%s%s%s%s", LKEYW, KS, LARRAY[0], LARRAY[1], LARRAY[2], LARRAY[3], LARRAY[4], LARRAY[5], LARRAY[6]);
 	  strcpy(ALIAS[KS-1].data(), C5);
@@ -777,14 +772,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  
 	  if(Num_Elements_Llegits == 0)
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format: ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 		fprintf(IW, "*** Wrong input format.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: Wrong input format.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_INPUT; return configStatus;
+	      return error;
 	    }
 
 	  if(verbose > 0){	      
@@ -793,13 +789,13 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  //  ****  Check parentheses and commas.
 	  if(CHR[0] != '(' || CHR[1] != ',' || CHR[2] != ',' || CHR[3] != ',' || CHR[4] != ',' || CHR[5] != ')')
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: Incorrect format of surface indices.";
+	      
 	      if(verbose > 0){	      
 		fprintf(IW, "*** Incorrect format of surface indices.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: Incorrect format of surface indices.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_SURF_FORMAT; return configStatus;
+	      return error;
 	    }
 	  //  ****  Now check the values of the indices:
 
@@ -811,13 +807,13 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  
 	  if(IMODE > 1 || strcmp(LKEYW, LIND) != 0)
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: Incorrect surface indices.";
+	      
 	      if(verbose > 0){	      
 		fprintf(IW, "*** Incorrect surface indices.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: Incorrect surface indices.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_SURF_IND; return configStatus;
+	      return error;
 	    }
 	  if(IMODE != 0)
 	    {
@@ -864,14 +860,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		  if(strcmp(LKEYW, LNUL) == 0){ break;}   //GOTO 102
 		  if(Num_Elements_Llegits == 0 )
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format:";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "%72s\n", BLINE);
 			fprintf(IW, "*** Wrong input format.\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: Wrong input format.\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_INPUT; return configStatus;
+		      return error;
 		    }
 		  
 		  //  ****  Transformation parameters.
@@ -882,13 +879,14 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		      }
 		      if(VALUE < 1.0E-15)
 			{
+			  error.code = BAD_VALUE;
+			  error.description = "pen_quadricGeo:GEOMIN:Error: X-scale factor less "
+			    "than 1.0E-15.";
+			  
 			  if(verbose > 0){	      
 			    fprintf(IW, "*** Scale factor less than 1.0E-15.\n");
-			    if(verbose > 1){
-			      printf("pen_quadricGeo:configure:Error: X-scale factor less than 1.0E-15.\n");
-			    }
 			  }
-			  configStatus = PEN_QUAD_GEO_XSCALE; return configStatus;
+			  return error;
 			}
 		      XSCALE = VALUE;
 		    }
@@ -899,13 +897,14 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		      }
 		      if(VALUE < 1.0E-15)
 			{
+			  error.code = BAD_VALUE;
+			  error.description = "pen_quadricGeo:GEOMIN:Error: Y-scale factor less "
+			    "than 1.0E-15.";
+			  
 			  if(verbose > 0){	      
 			    fprintf(IW, "*** Scale factor less than 1.0E-15.\n");
-			    if(verbose > 1){
-			      printf("pen_quadricGeo:configure:Error: Y-scale factor less than 1.0E-15.\n");
-			    }
 			  }
-			  configStatus = PEN_QUAD_GEO_YSCALE; return configStatus;
+			  return error;
 		        }
 		      YSCALE = VALUE;
 		    }
@@ -917,13 +916,14 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 			  
 		      if(VALUE < 1.0E-15)
 			{
+			  error.code = BAD_VALUE;
+			  error.description = "pen_quadricGeo:GEOMIN:Error: Z-scale factor less "
+			    "than 1.0E-15.";
+			  
 			  if(verbose > 0){	      
 			    fprintf(IW, "*** Scale factor less than 1.0E-15.\n");
-			    if(verbose > 1){
-			      printf("pen_quadricGeo:configure:Error: Z-scale factor less than 1.0E-15.\n");
-			    }
 			  }
-			  configStatus = PEN_QUAD_GEO_ZSCALE; return configStatus;
+			  return error;
 			}
 		      ZSCALE = VALUE;
 		    }
@@ -1001,16 +1001,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		    }
 		  else
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: What do you mean? ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "%72s\n", BLINE);
 			fprintf(IW, "*** What do you mean?\n");
-			if(verbose > 1){
-
-			  printf("pen_quadricGeo:configure:Error: %72s\n",BLINE);
-			  printf("pen_quadricGeo:configure:Error: What do you mean?\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_MEAN; return configStatus;
+		      return error;
 		    }
 		  Eixir2 = false;
 		  continue;
@@ -1111,15 +1110,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	      if(strcmp(LKEYW, LONE) == 0){ Eixir2 = true; Goto104 = true ; Goto107 = true; break;}
 	      if(Nombre_Elements_Escrits == 0)
 		{
+		  error.code = BAD_VALUE;
+		  error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format: ";
+		  error.description += BLINE;
+		  
 		  if(verbose > 0){	      
 		    fprintf(IW, "%72s\n", BLINE);
 		    fprintf(IW, "*** Wrong input format.\n");
-		    if(verbose > 1){		    
-		      printf("pen_quadricGeo:configure:Error: %72s\n",BLINE);
-		      printf("pen_quadricGeo:configure:Error: Wrong input format.\n");
-		    }
 		  }
-		  configStatus = PEN_QUAD_GEO_INPUT; return configStatus;
+		  return error;
 		}
 
 	      
@@ -1195,15 +1194,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		}
 	      else
 		{
+		  error.code = BAD_VALUE;
+		  error.description = "pen_quadricGeo:GEOMIN:Error: What do you mean? ";
+		  error.description += BLINE;
+		  
 		  if(verbose > 0){	      
 		    fprintf(IW, "%72s\n", BLINE);
 		    fprintf(IW, "*** What do you mean?\n");
-		    if(verbose > 1){		    
-		      printf("pen_quadricGeo:configure:Error: %72s\n",BLINE);
-		      printf("pen_quadricGeo:configure:Error: What do you mean?\n");
-		    }
 		  }
-		  configStatus = PEN_QUAD_GEO_MEAN; return configStatus;
+		  return error;
 		}
 	      Eixir2 = false;
 	      continue;
@@ -1250,15 +1249,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    	  sprintf(LANGLE,"%-8s",AUXSTR);
 		  if(Nombre_Elements_Escrits == 0)
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format: ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "%72s\n", BLINE);
 			fprintf(IW, "*** Wrong input format.\n");
-			if(verbose > 1){		    
-			  printf("pen_quadricGeo:configure:Error: %72s\n",BLINE);
-			  printf("pen_quadricGeo:configure:Error: Wrong input format\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_INPUT; return configStatus;
+		      return error;
 		    }
 		  if(strcmp(LKEYW, LNUL) == 0){ break;}		      
 
@@ -1338,15 +1337,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		    }
 		  else
 	  	    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: What do you mean? ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "%72s\n", BLINE);
 			fprintf(IW, "*** What do you mean?\n");
-			if(verbose > 1){		    
-			  printf("pen_quadricGeo:configure:Error: %72s\n",BLINE);
-			  printf("pen_quadricGeo:configure:Error: What do you mean?\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_MEAN; return configStatus;
+		      return error;
 		    }
 		  Eixir3 = false;
 		  continue;
@@ -1400,14 +1399,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  //	  
 	  if(BLINE[8] != '(' || BLINE[13] != ')')
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: Incorrect label format: ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 		fprintf(IW,"*** Incorrect label format.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: Incorrect label format.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_LABEL_FORMAT; return configStatus;
+	      return error;
 	    }
 	  int Nombre_Elements_Escrits = sscanf(BLINE, "%*9c%4c%8c%8c%8c%8c%8c%8c%8c", C4, LARRAY[0], LARRAY[1], LARRAY[2], LARRAY[3], LARRAY[4], LARRAY[5], LARRAY[6]);
 
@@ -1423,14 +1423,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  
 	  if(Nombre_Elements_Escrits == 0)
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format: ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 		fprintf(IW, "*** Wrong input format.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: Wrong input format.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_INPUT; return configStatus;
+	      return error;
 	    } 
 	  if(IR == IRD)
 	    {
@@ -1453,14 +1454,16 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		{
 		  if(strcmp(C5, ALIAB[KB0].data()) == 0)
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: Same label for two bodies"
+			" (or modules): ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 			fprintf(IW, "*** Same label for two bodies (or modules).\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: Same label for two bodies (or modules).\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_SAME_LABEL_BODY; return configStatus;		      
+		      return error;		      
 		    }
 		}
 	    }
@@ -1471,13 +1474,13 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  }
 	  if(NBODYS > NB)
 	    {
+	      error.code = NB_LIMIT_REACHED;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: The parameter NB must be increased.";
+	      
 	      if(verbose > 0){	      
 		fprintf(IW, "*** The parameter NB must be increased.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: The parameter NB must be increased.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_NB; return configStatus;
+	      return error;
 	    }
 	  
 	  sprintf(DEF, "%s(%4d%s%s%s%s%s%s%s", LKEYW, NBODYS, LARRAY[0], LARRAY[1], LARRAY[2], LARRAY[3], LARRAY[4], LARRAY[5], LARRAY[6]);
@@ -1508,25 +1511,27 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  
 	  if(Nombre_Elements_Escrits == 0)
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format: ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 		fprintf(IW, "*** Wrong input format.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: Wrong input format.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_INPUT; return configStatus;
+	      return error;
 	    }
 	  if(strcmp(LKEYW, LMAT) != 0)
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: Incorrect material definition line: ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 		fprintf(IW, "*** Incorrect material definition line.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: Incorrect material definition line.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_MAT; return configStatus;
+	      return error;
 	    }
 	  if(verbose > 0){	      
 	    fprintf(IW, "%s(%4d)\n", LKEYW, IMAT);
@@ -1563,14 +1568,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	      
 	      if(Nombre_Elements_Escrits == 0)
 		{
+		  error.code = BAD_VALUE;
+		  error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format: ";
+		  error.description += BLINE;
+		  
 		  if(verbose > 0){	      
 		    if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 		    fprintf(IW, "*** Wrong input format.\n");
-		    if(verbose > 1){
-		      printf("pen_quadricGeo:configure:Error: Wrong input format.\n");
-		    }
 		  }
-		  configStatus = PEN_QUAD_GEO_INPUT; return configStatus;
+		  return error;
 		}
 	      if(IR == IRD)
 		{
@@ -1593,14 +1599,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		  Nombre_Elements_Escrits = sscanf(BLINE, "%*30c%2d", &INDS);
 		  if(Nombre_Elements_Escrits == 0)
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format: ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 			fprintf(IW, "*** Wrong input format.\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: Wrong input format.\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_INPUT; return configStatus;
+		      return error;
 		    }
 		  //  ****  Surface.
 		  unsigned int KS;
@@ -1616,15 +1623,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		    }
 		  if(!Eixir3)
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: Undefined surface label: ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "%72s\n", BLINE);
 			fprintf(IW, "*** Undefined surface label.\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-			  printf("pen_quadricGeo:configure:Error: Undefined surface label.\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_UNDEF_SURF_LABEL; return configStatus;
+		      return error;
 		    }
 		      
 		  if(verbose > 0){	      
@@ -1642,13 +1649,14 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 			    {
 			      if(bodies[NBODYS-1].getKFLAG(K) < 3)
 				{
+				  error.code = BAD_VALUE;
+				  error.description = "pen_quadricGeo:GEOMIN:Error: The last limiting "
+				    "surface has been defined twice. ";
+				  
 				  if(verbose > 0){	      
 				    fprintf(IW, "*** The last limiting surface has been defined twice.\n");
-				    if(verbose > 1){
-				      printf("pen_quadricGeo:configure:Error: The last limiting surface has been defined twice.\n");
-				    }
 				  }
-				  configStatus = PEN_QUAD_GEO_LIMIT_SURF_DEF_TWICE; return configStatus;
+				  return error;
 				}
 			      else
 				{
@@ -1664,13 +1672,14 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		      KST = KST+1;
 		      if(KST >= NXG)
 			{
+			  error.code = BAD_VALUE;
+			  error.description = "pen_quadricGeo:GEOMIN:Error: The number of "
+			    "limiting surfaces is too large.";
+			  
 			  if(verbose > 0){	      
 			    fprintf(IW, "*** The number of limiting surfaces is too large.\n");
-			    if(verbose > 1){
-			      printf("pen_quadricGeo:configure:Error: The number of limiting surfaces is too large.\n");
-			    }
 			  }
-			  configStatus = PEN_QUAD_GEO_MANY_LIMIT_SURFACE; return configStatus;
+			  return error;
 			}
 		      
 		      bodies[NBODYS-1].setKSURF(NXG-1,KST);
@@ -1687,14 +1696,14 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		    }
 		  else
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: Check side pointer value.";
+		      
 		      if(verbose > 0){	      
 			if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 			fprintf(IW, "*** Check side pointer value.\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: Check side pointer value.\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_SIDE_POINTER; return configStatus;
+		      return error;
 		    }
 		}
 	      else if(strcmp(LKEYW, LBOD) == 0)
@@ -1714,14 +1723,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 			}
 		      if(!Eixir3)
 			{
+			  error.code = BAD_VALUE;
+			  error.description = "pen_quadricGeo:GEOMIN:Error: Undefined body label: ";
+			  error.description += BLINE;
+			  
 			  if(verbose > 0){	      
 			    if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 			    fprintf(IW, "*** Undefined body label.\n");
-			    if(verbose > 1){
-			      printf("pen_quadricGeo:configure:Error: Undefined body label.\n");
-			    }
 			  }
-			  configStatus = PEN_QUAD_GEO_UNDEF_BODY_LABEL; return configStatus;
+			  return error;
 			}
 		    }
 		      
@@ -1730,13 +1740,14 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		  }
 		  if(bodies[KB-1].KBOMO != 0)
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: This body is a module: ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "*** This body is a module.\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: This body is a module.\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_BODY_IS_MODULE; return configStatus;
+		      return error;
 		    }
 		      
 		  int KN1 = bodies[KB-1].getKSURF(NXG-1);
@@ -1756,14 +1767,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		      unsigned int KST = KN2+1;
 		      if(KST >= NXG)
 			{
+			  error.code = BAD_VALUE;
+			  error.description = "pen_quadricGeo:GEOMIN:Error: The number of "
+			    "limiting surfaces is too large.";
+			  
 			  if(verbose > 0){	      
 			    if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 			    fprintf(IW, "*** The number of limiting surfaces is too large.\n");
-			    if(verbose > 1){
-			      printf("pen_quadricGeo:configure:Error: The number of limiting surfaces is too large.\n");
-			    }
 			  }
-			  configStatus = PEN_QUAD_GEO_MANY_LIMIT_SURFACE; return configStatus;
+			  return error;
 			}
 
 		      bodies[NBODYS-1].setKSURF(NXG-1,KST);
@@ -1791,14 +1803,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 			}
 		      if(!Eixir3)
 			{
+			  error.code = BAD_VALUE;
+			  error.description = "pen_quadricGeo:GEOMIN:Error: Undefined body label: ";
+			  error.description += BLINE;
+			  
 			  if(verbose > 0){	      
 			    if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 			    fprintf(IW, "*** Undefined body label.\n");
-			    if(verbose > 1){
-			      printf("pen_quadricGeo:configure:Error: Undefined body label.\n");
-			    }
 			  }
-			  configStatus = PEN_QUAD_GEO_UNDEF_BODY_LABEL; return configStatus;
+			  return error;
 			}
 		    }
 		      
@@ -1807,13 +1820,14 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		  }
 		  if(bodies[KB-1].KBOMO != 1)
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: This module is a body: ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "*** This module is a body.\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: This module is a body.\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_MODULE_IS_BODY; return configStatus;
+		      return error;
 		    }
 		      
 		  int KN1 = bodies[KB-1].getKSURF(NXG-1);
@@ -1832,14 +1846,16 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		      unsigned int KST = KN2+1;
 		      if(KST >= NXG)
 			{
+			  error.code = BAD_VALUE;
+			  error.description = "pen_quadricGeo:GEOMIN:Error: The number of limiting "
+			    "surfaces is too large: ";
+			  error.description += BLINE;
+			  
 			  if(verbose > 0){	      
 			    if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 			    fprintf(IW, "*** The number of limiting surfaces is too large.\n");
-			    if(verbose > 1){
-			      printf("pen_quadricGeo:configure:Error: The number of limiting surfaces is too large.\n");
-			    }
 			  }
-			  configStatus = PEN_QUAD_GEO_MANY_LIMIT_SURFACE; return configStatus;
+			  return error;
 			}
 
 		      bodies[NBODYS-1].setKSURF(NXG-1,KST);
@@ -1852,14 +1868,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		}
 	      else
 		{
+		  error.code = BAD_VALUE;
+		  error.description = "pen_quadricGeo:GEOMIN:Error: What do you mean? ";
+		  error.description += BLINE;
+		  
 		  if(verbose > 0){	      
 		    if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 		    fprintf(IW, "*** What do you mean?\n");
-		    if(verbose > 1){
-		      printf("pen_quadricGeo:configure:Error: What do you mean?\n");
-		    }
 		  }
-		  configStatus = PEN_QUAD_GEO_MEAN; return configStatus;
+		  return error;
 		}
 	      Eixir2 = false;
 	      continue;
@@ -1878,14 +1895,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  //	    
 	  if(BLINE[8] != '(' || BLINE[13] != ')')
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: Incorrect label format: ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 		fprintf(IW, "*** Incorrect label format.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: Incorrect label format.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_LABEL_FORMAT; return configStatus;
+	      return error;
 	    }
 	  int Nombre_Elements_Escrits = sscanf(BLINE, "%*9c%4c%8c%8c%8c%8c%8c%8c%8c", C4, LARRAY[0], LARRAY[1], LARRAY[2], LARRAY[3], LARRAY[4], LARRAY[5], LARRAY[6]);
 
@@ -1901,15 +1919,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  
 	  if(Nombre_Elements_Escrits == 0)
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format: ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		fprintf(IW, "%72s\n", BLINE);
 		fprintf(IW, "*** Wrong input format.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-		  printf("pen_quadricGeo:configure:Error: Wrong input format.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_INPUT; return configStatus;
+	      return error;
 	    }
 	  if(IR == IRD)
 	    {
@@ -1932,15 +1950,16 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		{
 		  if(strcmp(C5, ALIAB[KB0].data()) == 0)
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: Same label for two "
+			"bodies (or modules): ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "%72s\n", BLINE);
 			fprintf(IW, "*** Same label for two bodies (or modules).\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-			  printf("pen_quadricGeo:configure:Error: Same label for two bodies (or modules).\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_SAME_LABEL_BODY; return configStatus;
+		      return error;
 		    }
 		}
 	    }
@@ -1950,13 +1969,14 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  }
 	  if(NBODYS > NB)
 	    {
+	      error.code = NB_LIMIT_REACHED;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: The parameter NB must be increased.";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		fprintf(IW, "*** The parameter NB must be increased.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: The parameter NB must be increased.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_NB; return configStatus;
+	      return error;
 	    }
 	  sprintf(DEF, "%s(%4d%s%s%s%s%s%s%s", LKEYW, NBODYS, LARRAY[0], LARRAY[1], LARRAY[2], LARRAY[3], LARRAY[4], LARRAY[5], LARRAY[6]);      
 
@@ -1986,28 +2006,29 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  
 	  if(Nombre_Elements_Escrits == 0)
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format: ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		fprintf(IW, "%72s\n", BLINE);
 		fprintf(IW, "*** Wrong input format.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-		  printf("pen_quadricGeo:configure:Error: Wrong input format.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_INPUT; return configStatus;
+	      return error;
 	    }
 	  if(verbose > 0){	      
 	    fprintf(IW, "%s(%4d)\n", LKEYW, IMAT);
 	  }
 	  if(strcmp(LKEYW, LMAT) != 0)
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: Incorrect material definition line: ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		fprintf(IW, "*** Incorrect material definition line.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: Incorrect material definition line.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_MAT; return configStatus;
+	      return error;
 	    }
 	  if(IMAT < 0){ IMAT = 0;}
 	  bodies[NBODYS-1].MATER = IMAT;
@@ -2082,15 +2103,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		  
 		  if(Nombre_Elements_Escrits == 0)
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format: ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "%72s\n", BLINE);
 			fprintf(IW, "*** Wrong input format.\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-			  printf("pen_quadricGeo:configure:Error: Wrong input format.\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_INPUT; return configStatus;
+		      return error;
 		    }
 		  if(IR == IRD)
 		    {
@@ -2120,11 +2141,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		    }
 		  if(!Eixir3)
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: Undefined surface label: ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "%s(%4s), SIDE POINTER=(%2d)\n", LKEYW, C5, INDS);
 			fprintf(IW, "*** Undefined surface label.\n");
 		      }
-		      //PEN_QUAD_GEO_UNDEF_SURF_LABEL
+		      return error;
 		    }
 			  
 		  if(verbose > 0){	      
@@ -2142,13 +2167,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 			    {
 			      if(bodies[NBODYS-1].getKFLAG(K) < 3)
 				{
+				  error.code = BAD_VALUE;
+				  error.description = "pen_quadricGeo:GEOMIN:Error: The last "
+				    "limiting surface has been defined twice: ";
+				  error.description += BLINE;
+				  
 				  if(verbose > 0){	      
 				    fprintf(IW, "*** The last limiting surface has been defined twice.\n");
-				    if(verbose > 1){
-				      printf("pen_quadricGeo:configure:Error: The last limiting surface has been defined twice.\n");
-				    }
 				  }
-				  configStatus = PEN_QUAD_GEO_LIMIT_SURF_DEF_TWICE; return configStatus;
+				  return error;
 				}
 			      else
 				{
@@ -2164,13 +2191,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		      KST = KST+1;
 		      if(KST >= NXG)
 			{
+			  error.code = BAD_VALUE;
+			  error.description = "pen_quadricGeo:GEOMIN:Error: The number of "
+			    "limiting surfaces is too large: ";
+			  error.description += BLINE;
+			  
 			  if(verbose > 0){	      
 			    fprintf(IW, "*** The number of limiting surfaces is too large.\n");
-			    if(verbose > 1){
-			      printf("pen_quadricGeo:configure:Error: The number of limiting surfaces is too large.\n");
-			    }
 			  }
-			  configStatus = PEN_QUAD_GEO_MANY_LIMIT_SURFACE; return configStatus;			  
+			  return error;			  
 			}
 
 		      bodies[NBODYS-1].setKSURF(NXG-1,KST);
@@ -2188,13 +2217,14 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		    }
 		  else
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: Check side pointer value: ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "*** Check side pointer value.\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: Check side pointer value.\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_SIDE_POINTER; return configStatus;
+		      return error;
 		    }
 			  
 		  //  ****  Body.
@@ -2208,15 +2238,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		  
 		  if(Nombre_Elements_Escrits == 0)
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format: ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "%72s\n", BLINE );			
 			fprintf(IW, "*** Wrong input format.\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-			  printf("pen_quadricGeo:configure:Error: Wrong input format.\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_INPUT; return configStatus;
+		      return error;
 		    }
 		  if(IR == IRD)
 		    {
@@ -2247,15 +2277,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 			}
 		      if(!Eixir3)
 			{
+			  error.code = BAD_VALUE;
+			  error.description = "pen_quadricGeo:GEOMIN:Error: Undefined body label ";
+			  error.description += std::string(LKEYW) + "(" + std::string(C4) + ")";
+			  
 			  if(verbose > 0){	      
 			    fprintf(IW, "%s(%s)\n", LKEYW, C4);
 			    fprintf(IW, "*** Undefined body label.\n");
-			    if(verbose > 1){
-			      printf("pen_quadricGeo:configure:Error: %s(%s)\n", LKEYW, C4);
-			      printf("pen_quadricGeo:configure:Error: Undefined body label.\n");
-			    }
 			  }
-			  configStatus = PEN_QUAD_GEO_UNDEF_BODY_LABEL; return configStatus;
+			  return error;
 			}
 		    }
 
@@ -2264,23 +2294,26 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		  }
 		  if(bodies[KB-1].KBOMO != 0)
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: This body is a module ";
+		      error.description += std::string(LKEYW) + "(" + std::to_string(KB) + ")";
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "*** This body is a module.\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: This body is a module.\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_BODY_IS_MODULE; return configStatus;
+		      return error;
 		    }
 		  if(bodies[KB-1].KMOTH > 0 && bodies[KB-1].KMOTH != NBODYS)
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: You are trying to assign "
+			"two mothers to the last body.";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "*** You are trying to assign two mothers to the last body.\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: You are trying to assign two mothers to the last body.\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_TWO_MOTHERS_LAST; return configStatus;
+		      return error;
 		    }
 		  bodies[KB-1].KMOTH = NBODYS;
 		  unsigned int KDT = bodies[NBODYS-1].KDGHT[NXG-1]+1;
@@ -2325,13 +2358,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		      KN2 = KN2+1;
 		      if(KN2 >= NXG)
 			{
+			  error.code = BAD_VALUE;
+			  error.description = "pen_quadricGeo:GEOMIN:Error: The number of limiting "
+			    "surfaces is too large: ";
+			  error.description += BLINE;
+			  
 			  if(verbose > 0){	      
 			    fprintf(IW, "*** The number of limiting surfaces is too large.\n");
-			    if(verbose > 1){
-			      printf("pen_quadricGeo:configure:Error: The number of limiting surfaces is too large.\n");
-			    }
 			  }
-			  configStatus = PEN_QUAD_GEO_MANY_LIMIT_SURFACE; return configStatus;
+			  return error;
 			}
 
 		      bodies[NBODYS-1].setKSURF(NXG-1,KN2);
@@ -2351,15 +2386,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		  
 		  if(Nombre_Elements_Escrits == 0)
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format: ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "%72s\n", BLINE);
 			fprintf(IW, "*** Wrong input format.\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-			  printf("pen_quadricGeo:configure:Error: Wrong input format.\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_INPUT; return configStatus;
+		      return error;
 		    }
 			  
 		  if(IR == IRD)
@@ -2391,15 +2426,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 			}
 		      if(!Eixir3)
 			{
+			  error.code = BAD_VALUE;
+			  error.description = "pen_quadricGeo:GEOMIN:Error: Undefined body label ";
+			  error.description += std::string(LKEYW) + "(" + std::string(C4) + ")";
+			  
 			  if(verbose > 0){	      
 			    fprintf(IW, "%s(%s)\n", LKEYW, C4);
 			    fprintf(IW, "*** Undefined body label.\n");
-			    if(verbose > 1){
-			      printf("pen_quadricGeo:configure:Error: %s(%s)\n", LKEYW, C4);
-			      printf("pen_quadricGeo:configure:Error: Undefined body label.\n");
-			    }
 			  }
-			  configStatus = PEN_QUAD_GEO_UNDEF_BODY_LABEL; return configStatus;
+			  return error;
 			}
 		    }
 
@@ -2408,23 +2443,26 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		  }
 		  if(bodies[KB-1].KBOMO != 1)
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: This module is a body: ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "*** This module is a body.\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: This module is a body.\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_MODULE_IS_BODY; return configStatus;
+		      return error;
 		    }
 		  if(bodies[KB-1].KMOTH > 0 && bodies[KB-1].KMOTH != NBODYS)
   		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: You are trying to assign"
+			" two mothers to the last module: ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "*** You are trying to assign two mothers to the last module.\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: You are trying to assign two mothers to the last module.\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_TWO_MOTHERS_LAST; return configStatus;
+		      return error;
 		    }
 		  bodies[KB-1].KMOTH = NBODYS;
 		  int KDT = bodies[NBODYS-1].KDGHT[NXG-1]+1;
@@ -2448,13 +2486,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		      KN2 = KN2+1;
 		      if(KN2 >= NXG)
 			{
+			  error.code = BAD_VALUE;
+			  error.description = "pen_quadricGeo:GEOMIN:Error: The number of "
+			    "limiting surfaces is too large: ";
+			  error.description += BLINE;
+			  
 			  if(verbose > 0){	      
 			    fprintf(IW, "*** The number of limiting surfaces is too large.\n");
-			    if(verbose > 1){
-			      printf("pen_quadricGeo:configure:Error: The number of limiting surfaces is too large.\n");
-			    }
 			  }
-			  configStatus = PEN_QUAD_GEO_MANY_LIMIT_SURFACE; return configStatus;
+			  return error;
 			}
 		      bodies[NBODYS-1].setKSURF(NXG-1,KN2);
 		      bodies[NBODYS-1].setSurf(KN2-1,KSURF1,4);
@@ -2463,15 +2503,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		}
 	      else
 		{
+		  error.code = BAD_VALUE;
+		  error.description = "pen_quadricGeo:GEOMIN:Error: What do you mean? ";
+		  error.description += BLINE;
+		  
 		  if(verbose > 0){	      
 		    fprintf(IW, "%72s\n", BLINE);
 		    fprintf(IW, "*** What do you mean?\n");
-		    if(verbose > 1){
-		      printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-		      printf("pen_quadricGeo:configure:Error: What do you mean?\n");
-		    }
 		  }
-		  configStatus = PEN_QUAD_GEO_MEAN; return configStatus;
+		  return error;
 		}
 	      Eixir2 = false;         //GOTO 301
 	      continue;
@@ -2518,15 +2558,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		  
 		  if(Nombre_Elements_Escrits == 0)
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format: ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "%72s\n", BLINE);
 			fprintf(IW, "*** Wrong input format.\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-			  printf("pen_quadricGeo:configure:Error: Wrong input format.\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_INPUT; return configStatus;
+		      return error;
 		    }
 		  if(strcmp(LKEYW, LNUL) == 0){ break;} //GOTO 310
 		  sprintf(LANGLE,"%-8s",AUXSTR);		  
@@ -2606,15 +2646,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		    }
 		  else
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: What do you mean? ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "%72s\n", BLINE);
 			fprintf(IW, "*** What do you mean?\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-			  printf("pen_quadricGeo:configure:Error: What do you mean?\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_MEAN; return configStatus;
+		      return error;
 		    }
 		  Eixir3 = false;   //GOTO 309
 		  continue;
@@ -2693,14 +2733,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  //
 	  if(BLINE[8] != '(' || BLINE[13] != ')')
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: Incorrect label format: ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 		fprintf(IW, "*** Incorrect label format.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: Incorrect label format.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_LABEL_FORMAT; return configStatus;
+	      return error;
 	    }
 	  if(verbose > 0){	      
 	    fprintf(IW, "C \n");
@@ -2723,15 +2764,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  
 	  if(Nombre_Elements_Escrits == 0)
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format: ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		fprintf(IW, "%72s\n", BLINE);
 		fprintf(IW, "*** Wrong input format.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-		  printf("pen_quadricGeo:configure:Error: Wrong input format.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_INPUT; return configStatus;
+	      return error;
 	    }
 	  if(IR == IRD)
 	    {
@@ -2767,14 +2808,16 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		{
 		  if(strcmp(C5, ALIAB[KB0].data()) == 0)
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: Same label for two "
+			"bodies or modules: ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 			fprintf(IW, "*** Same label for two bodies or modules.\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: Same label for two bodies or modules.\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_SAME_LABEL_BODY; return configStatus;
+		      return error;
 		    }
 		}
 	    }
@@ -2803,15 +2846,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  
 	  if(Nombre_Elements_Escrits == 0)
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format: ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		fprintf(IW, "%72s\n", BLINE);
 		fprintf(IW, "*** Wrong input format.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-		  printf("pen_quadricGeo:configure:Error: Wrong input format.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_INPUT; return configStatus;
+	      return error;
 	    }
 	  if(IR == IRD)
 	    {
@@ -2833,27 +2876,27 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  }
 	  if(strcmp(LKEYW, LMOD) != 0)
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: The cloned object must be a module: ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		fprintf(IW, "%72s\n", BLINE);
 		fprintf(IW, "*** The cloned object must be a module.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-		  printf("pen_quadricGeo:configure:Error: The cloned object must be a module.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_CLONED_NO_MODULE; return configStatus;
+	      return error;
 	    }
 	  if(NBODYS == 0)
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: This module is not defined: ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		fprintf(IW, "%72s\n", BLINE);
 		fprintf(IW, "*** This module is not defined.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-		  printf("pen_quadricGeo:configure:Error: This module is not defined.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_MODULE_UNDEF; return configStatus;
+	      return error;
 	    }
 	  bool Eixir3 = false;  //GOTO 402
 	  int KORIG;
@@ -2864,15 +2907,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		  KORIG = KB0+1;
 		  if(bodies[KORIG-1].KBOMO != 1)
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: The cloned object "
+			"must be a module, not a body. ";
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "*** The cloned object must be a module.\n");
 			fprintf(IW, "*** The selected object is a body.\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: The cloned object must be a module.\n");
-			  printf("pen_quadricGeo:configure:Error: The selected object is a body.\n");			
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_OBJECT_IS_BODY; return configStatus;
+		      return error;
 		    }
 		  Eixir3 = true;
 		  break;
@@ -2880,13 +2923,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    }
 	  if(!Eixir3)
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: The label does not "
+		"correspond to a module: ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		fprintf(IW, "*** The label does not correspond to a module.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: The label does not correspond to a module.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_LABEL_NOT_MODULE; return configStatus;	  
+	      return error;	  
 	    }
 
 	  Eixir2 = false;  //GOTO 402
@@ -2913,15 +2958,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  if(strcmp(LKEYW, LONE) == 0 || strcmp(LKEYW, LNUL) == 0){}
 	  else
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: What do you mean? ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		fprintf(IW, "%72s\n", BLINE);
 		fprintf(IW, "*** What do you mean?\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-		  printf("pen_quadricGeo:configure:Error: What do you mean?\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_MEAN; return configStatus;
+	      return error;
 	    }
 
 	  //  ****  Transformation parameters.
@@ -2963,15 +3008,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		  sprintf(LANGLE,"%-8s",AUXSTR);
 		  if(Nombre_Elements_Escrits == 0)
 		    {
+		      error.code = BAD_VALUE;
+		      error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format: ";
+		      error.description += BLINE;
+		      
 		      if(verbose > 0){	      
 			fprintf(IW, "%72s\n", BLINE);
 			fprintf(IW, "*** Wrong input format.\n");
-			if(verbose > 1){
-			  printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-			  printf("pen_quadricGeo:configure:Error: Wrong input format.\n");
-			}
 		      }
-		      configStatus = PEN_QUAD_GEO_INPUT; return configStatus;
+		      return error;
 		    }
 		  if(strcmp(LKEYW, LNUL) == 0){ break;}
 		  else
@@ -3052,15 +3097,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		        }
 		      else
 			{
+			  error.code = BAD_VALUE;
+			  error.description = "pen_quadricGeo:GEOMIN:Error: What do you mean? ";
+			  error.description += BLINE;
+			  
 			  if(verbose > 0){	      
 			    fprintf(IW, "%72s\n", BLINE);
 			    fprintf(IW, "*** What do you mean?\n");
-			    if(verbose > 1){
-			      printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-			      printf("pen_quadricGeo:configure:Error: What do you mean?\n");
-			    }
 			  }
-			  configStatus = PEN_QUAD_GEO_MEAN; return configStatus;
+			  return error;
 			}
 		    }
 		  Eixir2 = false;
@@ -3147,14 +3192,14 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 				  KSD = KSD+1;
 				  if(KSD > NS)
 				    {
+				      error.code = NS_LIMIT_REACHED;
+				      error.description = "pen_quadricGeo:GEOMIN:Error: The "
+					"parameter NS must be increased.";
+				      
 				      if(verbose > 0){	      
 					fprintf(IW, "*** The parameter NS must be increased.\n");
-				      
-					if(verbose > 1){
-					  printf("pen_quadricGeo:configure:Error: The parameter NS must be increased.\n");
-					}
 				      }
-				      configStatus = PEN_QUAD_GEO_NS; return configStatus;
+				      return error;
 				    }
 
 				  DEFS[KSD-1] = DEFS[KS-1];
@@ -3251,13 +3296,14 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    {
 	      if(KB+1 > NB)
 		{
+		  error.code = NB_LIMIT_REACHED;
+		  error.description = "pen_quadricGeo:GEOMIN:Error: The "
+		    "parameter NB must be increased.";
+		  
 		  if(verbose > 0){	      
 		    fprintf(IW, "*** The parameter NB must be increased.\n");
-		    if(verbose > 1){
-		      printf("pen_quadricGeo:configure:Error: The parameter NB must be increased.\n");
-		    }
 		  }
-		  configStatus = PEN_QUAD_GEO_NB; return configStatus;
+		  return error;
 		}
 	      int KBO = IBOR[KB];
 	      if(bodies[KBO-1].KMOTH > 0)
@@ -3297,15 +3343,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		}
 	      else
 		{
+		  error.code = BAD_VALUE;
+		  error.description = "pen_quadricGeo:GEOMIN:Error: KBOMO(" + std::to_string(KB+1) +
+		    ") = " + std::to_string(bodies[KB].KBOMO) + ". Something wrong...";
+		  
 		  if(verbose > 0){	      
 		    fprintf(IW, "KBOMO(%4d) =%4d\n", KB+1, bodies[KB].KBOMO);
 		    fprintf(IW, "*** Something wrong...\n");
-		    if(verbose > 1){
-		      printf("pen_quadricGeo:configure:Error: KBOMO(%4d) =%4d\n", KB+1, bodies[KB].KBOMO);
-		      printf("pen_quadricGeo:configure:Error: Something wrong...\n");
-		    }
 		  }
-		  configStatus = PEN_QUAD_GEO_WRONG; return configStatus;
+		  return error;
 		}
 	      if(verbose > 0){	      
 		fprintf(IW, "%s(%4d)\n", LMAT, bodies[KB].MATER);
@@ -3354,13 +3400,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 			}
 		      if(KBB >= KB+1)
 			{
+			  error.code = BAD_VALUE;
+			  error.description = "pen_quadricGeo:GEOMIN:Error: The limiting body or "
+			    "module is not yet defined: ";
+			  error.description += BLINE;
+			  
 			  if(verbose > 0){	      
 			    fprintf(IW, "*** The limiting body or module is not yet defined\n");
-			    if(verbose > 1){
-			      printf("pen_quadricGeo:configure:Error: The limiting body or module is not yet defined\n");
-			    }
 			  }
-			  configStatus = PEN_QUAD_GEO_LIMITING_BODY_NOT_DEF; return configStatus;
+			  return error;
 			}
 		    }
 		}
@@ -3389,13 +3437,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 			    }
 			  if(KBB >= KB+1)
 			    {
+			      error.code = BAD_VALUE;
+			      error.description = "pen_quadricGeo:GEOMIN:Error: The limiting body or "
+				"module is not yet defined: ";
+			      error.description += BLINE;
+			      
 			      if(verbose > 0){	      
 				fprintf(IW, "*** The limiting body or module is not yet defined\n");
-				if(verbose > 1){
-				  printf("pen_quadricGeo:configure:Error: The limiting body or module is not yet defined\n");
-				}
 			      }
-			      configStatus = PEN_QUAD_GEO_LIMITING_BODY_NOT_DEF; return configStatus;
+			      return error;
 			    }
 			}
 		    }
@@ -3461,14 +3511,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    }
 	  if(BLINE[8] != '(' || BLINE[21] != ')')
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: Incorrect label format: ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 		fprintf(IW, "*** Incorrect label format.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: Incorrect label format.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_LABEL_FORMAT; return configStatus;
+	      return error;
 	    }
 	  int Nombre_Elements_Escrits = sscanf(BLINE, "%8c%*c%12c%8c%8c%8c%8c%8c%8c", LKEYW, GFILE, LARRAY[0], LARRAY[1], LARRAY[2], LARRAY[3], LARRAY[4], LARRAY[5]);
 
@@ -3484,28 +3535,28 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	  
 	  if(Nombre_Elements_Escrits == 0)
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: Wrong input format: ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		fprintf(IW, "%72s\n", BLINE);
 		fprintf(IW, "*** Wrong input format.\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-		  printf("pen_quadricGeo:configure:Error: Wrong input format.\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_INPUT; return configStatus;		  
+	      return error;		  
 	    }
 		
 	  if(strcmp(LKEYW, LFIL) != 0)
 	    {
+	      error.code = BAD_VALUE;
+	      error.description = "pen_quadricGeo:GEOMIN:Error: What do you mean? ";
+	      error.description += BLINE;
+	      
 	      if(verbose > 0){	      
 		fprintf(IW, "%72s\n", BLINE);
 		fprintf(IW, "*** What do you mean?\n");
-		if(verbose > 1){
-		  printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-		  printf("pen_quadricGeo:configure:Error: What do you mean?\n");
-		}
 	      }
-	      configStatus = PEN_QUAD_GEO_MEAN; return configStatus;
+	      return error;
 	    }
 	  else
 	    {
@@ -3545,14 +3596,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    {
 	      if(IR == IRI)
 		{
+		  error.code = BAD_VALUE;
+		  error.description = "pen_quadricGeo:GEOMIN:Error: Too many include levels ";
+		  error.description += BLINE;
+		  
 		  if(verbose > 0){	      
 		    if(strlen(BLINE)>72){fprintf(IW, "%-.72s\n", BLINE);}else{fprintf(IW, "%-72s\n", BLINE);}
 		    fprintf(IW, "*** Too many include levels.\n");
-		    if(verbose > 1){
-		      printf("pen_quadricGeo:configure:Error: Too many include levels.\n");
-		    }
 		  }
-		  configStatus = PEN_QUAD_GEO_LEVELS; return configStatus;
+		  return error;
 		}
 	      else
 		{
@@ -3564,15 +3616,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		      NINCL = NINCL+1;
 		      if(NINCL > 35)
 			{
+			  error.code = BAD_VALUE;
+			  error.description = "pen_quadricGeo:GEOMIN:Error: Too many included files: ";
+			  error.description += BLINE;
+			  
 			  if(verbose > 0){	      
 			    fprintf(IW, "No. of included files =%3d\n", NINCL);
 			    fprintf(IW, "*** Too many included files.\n");
-			    if(verbose > 1){
-			      printf("pen_quadricGeo:configure:Error: No. of included files =%3d\n", NINCL);
-			      printf("pen_quadricGeo:configure:Error: Too many included files.\n");			    
-			    }
 			  }
-			  configStatus = PEN_QUAD_GEO_LEVELS; return configStatus;
+			  return error;
 			}
 		      C1 = CA[NINCL+1-1];
 		    }
@@ -3593,13 +3645,15 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		    fclose(IR);
 		  IR = fopen(GFILE, "r");
 		  if(IR == nullptr){
+		    error.code = UNABLE_TO_OPEN_FILE;
+		    error.description = "pen_quadricGeo:GEOMIN:Error: Unable to open file ";
+		    error.description += GFILE;
+		    
 		    if(verbose > 0){
 		      fprintf(IW, "C Unable to open file %s. "
 			      "Does the file exist?.\n", GFILE);
-		      printf("pen_quadricGeo:configure:Error: Unable to open file %s. "
-			     "Does the file exist?.\n", GFILE);
 		    }
-		    configStatus = PEN_QUAD_GEO_INPUT; return configStatus;    		    
+		    return error;    		    
 		  }
 		}
 	      Eixir0 = false;
@@ -3663,23 +3717,23 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	      //
 	      if(NBODYS > NB-1)
 		{
+		    error.code = NB_LIMIT_REACHED;
+		    error.description = "pen_quadricGeo:GEOMIN:Error: The parameter NB must be increased";
+		  
 		  if(verbose > 0){	      
 		    fprintf(IW, "*** The parameter NB must be increased.\n");
-		    if(verbose > 1){
-		      printf("pen_quadricGeo:configure:Error: The parameter NB must be increased.\n");
-		    }
 		  }
-		  configStatus = PEN_QUAD_GEO_NB; return configStatus;
+		  return error;
 		}
 	      if(NSURF > NS-1)
 		{
+		    error.code = NS_LIMIT_REACHED;
+		    error.description = "pen_quadricGeo:GEOMIN:Error: The parameter NS must be increased";
+		  
 		  if(verbose > 0){	      
 		    fprintf(IW, "*** The parameter NS must be increased.\n");
-		    if(verbose > 1){
-		      printf("pen_quadricGeo:configure:Error: The parameter NS must be increased.\n");
-		    }
 		  }
-		  configStatus = PEN_QUAD_GEO_NS; return configStatus;
+		  return error;
 		}
 	      //  ****  The next line serves only to avoid a warning issued by
 	      //        certain compilers.
@@ -3720,13 +3774,14 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 			  KN2 = KN2+1;
 			  if(KN2 >= NXG)
 			    {
+			      error.code = NXG_LIMIT_REACHED;
+			      error.description = "pen_quadricGeo:GEOMIN:Error: The parameter NXG "
+				"must be increased";
+			      
 			      if(verbose > 0){	      
 				fprintf(IW, "*** The parameter NXG is too small.\n");
-				if(verbose > 1){
-				  printf("pen_quadricGeo:configure:Error: The parameter NXG is too small.\n");
-				}
 			      }
-			      configStatus = PEN_QUAD_GEO_NXG; return configStatus;
+			      return error;
 			    }
 			  bodies[KB-1].setKSURF(NXG-1,KN2);
 			  bodies[KB-1].setSurf(KN2-1,KSURF1,4);
@@ -4037,23 +4092,27 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 
 					      if(KFL != KFLP && (KFL > KFLP ? KFL : KFLP) < 3)
 						{
+						  error.code = NXG_LIMIT_REACHED;
+						  error.description = "pen_quadricGeo:GEOMIN:Error: ";
+						  if(bodies[KB].KBOMO == 0)
+						    error.description += "BODY(" + std::to_string(KB+1);
+						  else
+						    error.description += "MODULE(" + std::to_string(KB+1);
+						  error.description += ") is limited by two equivalent "
+						    "surfaces. Probably, this body cannot be resolved "
+						    "because it is small and located far from the origin.";
+						    
 						  if(verbose > 0){	      
 						    if(bodies[KB].KBOMO == 0)
 						      {
 							fprintf(IW, "*** ERROR: BODY(%4d) is limited by two equivalent surfaces. Probably, \n           this body cannot be resolved because it is small and located\n           far from the origin.\n", KB+1);
-							if(verbose > 1){
-							  printf("pen_quadricGeo:configure:Error: BODY(%4d) is limited by two equivalent surfaces. Probably, \n           this body cannot be resolved because it is small and located\n           far from the origin.\n", KB+1);
-							}
 						      }
 						    else
 						      {
 							fprintf(IW, "*** ERROR: MODULE(%4d) is limited by two equivalent surfaces. Probably, \n           this module cannot be resolved because it is small and located\n           far from the origin.\n", KB+1);
-							if(verbose > 1){
-							  printf("pen_quadricGeo:configure:Error: MODULE(%4d) is limited by two equivalent surfaces. Probably, \n           this module cannot be resolved because it is small and located\n           far from the origin.\n", KB+1);
-							}
 						      }
 						  }
-						  configStatus = PEN_QUAD_GEO_UNRESOLVED_BODY; return configStatus;
+						  return error;
 						}
 					    }
 					  else if(bodies[KB].KBOMO == 0)
@@ -4141,11 +4200,12 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 		  }
 		else
 		  {
+		    error.code = BAD_VALUE;
+		    error.description = "pen_quadricGeo:GEOMIN:Error: Label " +
+		      std::to_string(KB+1) + " does not correspond to a body";
+		    
 		    fprintf(IW, "\n\n*** ERROR: the label %5d does not correspond to a body.\n", KB+1);
-		    if(verbose > 1){
-		      printf("pen_quadricGeo:configure:Error: the label %5d does not correspond to a body.\n", KB+1);
-		    }
-		    configStatus = PEN_QUAD_GEO_INCONSISTENT_BODY_LAB; return configStatus;
+		    return error;
 		  }
 
 		fprintf(IW, "KSURF =");
@@ -4206,23 +4266,26 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 			  
 			  if((KF == 1 && bodies[KB1-1].getKFLAG(J) == 2) || (KF == 2 && bodies[KB1-1].getKFLAG(J) == 1))
 			    {
-			      if(verbose > 0){	      
+			      error.code = BAD_VALUE;
+			      error.description = "pen_quadricGeo:GEOMIN:Error: The SURFACE (" +
+				std::to_string(KS) + "), which limits ";
+			      if(bodies[KB].KBOMO == 0)
+				error.description += "BODY(" + std::to_string(KB+1);
+			      else
+				error.description += "MODULE(" + std::to_string(KB+1);
+			      error.description += ") and MODULE (" + std::to_string(KB1) +
+				") has inconsistent side pointers";
+			      if(verbose > 0){
 				if(bodies[KB].KBOMO == 0)
 				  {
 				    fprintf(IW, "\n\n*** ERROR: the SURFACE (%4d), which limits BODY (%4d) and MODULE (%4d)\n           has inconsistent side pointers.\n", KS, KB+1, KB1);
-				    if(verbose > 1){
-				      printf("pen_quadricGeo:configure:Error: the SURFACE (%4d), which limits BODY (%4d) and MODULE (%4d)\n           has inconsistent side pointers.\n", KS, KB+1, KB1);
-				    }
 				  }
 				else
 				  {
 				    fprintf(IW, "\n\n*** ERROR: the SURFACE (%4d), which limits MODULE (%4d) and MODULE (%4d)\n           has inconsistent side pointers.\n", KS, KB+1, KB1);
-				    if(verbose > 1){
-				      printf("pen_quadricGeo:configure:Error: the SURFACE (%4d), which limits MODULE (%4d) and MODULE (%4d)\n           has inconsistent side pointers.\n", KS, KB+1, KB1);
-				    }
 				  }
 			      }
-			      configStatus = PEN_QUAD_GEO_INCONSISTENT_SIDE; return configStatus;
+			      return error;
 			    }
 			  break;
 			}
@@ -4288,32 +4351,30 @@ int pen_quadricGeo::GEOMIN(FILE* IRD, FILE* IWR, const unsigned verbose)
 	    }
 	  }
 
-	  configStatus = PEN_QUAD_GEO_SUCCESS;
-  	  return configStatus;	      
+  	  return error;	      
   	}
       else
 	{
+	  error.code = BAD_VALUE;
+	  error.description = "pen_quadricGeo:GEOMIN:Error: What do you mean? ";
+	  error.description += BLINE;
 	  if(verbose > 0){	      
 	    fprintf(IW, "%72s\n", BLINE);
 	    fprintf(IW, "*** What do you mean?\n");
-	    if(verbose > 1){
-	      printf("pen_quadricGeo:configure:Error: %72s\n", BLINE);
-	      printf("pen_quadricGeo:configure:Error: What do you mean?\n");
-	    }
 	  }
-	  configStatus = PEN_QUAD_GEO_MEAN; return configStatus;
+	  return error;
 	}
     }
 
   //Just in case
-  configStatus = PEN_QUAD_GEO_UNKNOWN_ERROR;
-  return configStatus;
+  error.code = UNKNOWN_ERROR;
+  return error;
 }
 
 //  *********************************************************************
 //                       SUBROUTINE LOCATE
 //  *********************************************************************
-void pen_quadricGeo::locate(pen_particleState& state) const
+void pen_quadricGeo::locateLocal(pen_particleState& state) const
 {
   //     This subroutine determines the body that contains the point with
   //  coordinates (X,Y,Z). The effects of numerical round-off errors are
@@ -4422,11 +4483,11 @@ void pen_quadricGeo::locate(pen_particleState& state) const
 //  *********************************************************************
 //                       SUBROUTINE LOCATE
 //  *********************************************************************
-void pen_quadricGeo::step(pen_particleState& state,
-			  double DS,
-			  double &DSEF,
-			  double &DSTOT,
-			  int &NCROSS) const
+void pen_quadricGeo::stepLocal(pen_particleState& state,
+                               double DS,
+                               double &DSEF,
+                               double &DSTOT,
+                               int &NCROSS) const
 {
   //     This subroutine handles the geometrical part of the track simula-
   //  tion. The particle starts from the point (X,Y,Z) and travels a length

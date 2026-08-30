@@ -191,7 +191,8 @@ namespace penred{
 	strcpy (REASON, "Fatal Error in PEMATR. Too many materials");
 	break;
       case 1009:
-	strcpy (REASON, "Fatal Error in PEMATR. Corrupt material data file");
+	strcpy (REASON, "Fatal Error in PEMATR. Corrupt material data file. "
+		"Check locale, must be set to C");
 	break;
       case 1010:
 	strcpy (REASON,
@@ -4043,8 +4044,19 @@ namespace penred{
 	      for (int I = 0; I < NELEM; I++)
 		{
 		  iss.getline(line);
-		  sscanf(line.c_str(), "%d %lf %lf",
+		  int readCheck = sscanf(line.c_str(), "%d %lf %lf",
 			 &IZ[I], &HOLLOW, &STF[I]);
+		  if(!disableOutput && readCheck != 3){
+		    printf ("Unable to  read from corrupted line: %s\n"
+			    "  Expected to read: 3\n"
+			    "  Read (%d): %d %E %E\n",
+			    line.c_str(), readCheck,
+			    IZ[I], HOLLOW, STF[I]);
+		  }
+		  if(readCheck != 3){
+		    ErrorFunction (1009);
+		    return;
+		  }
 		}
 	      if (IORD == IDNUM)
 		{

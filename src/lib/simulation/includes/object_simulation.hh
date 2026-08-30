@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2024-2025 Universitat de València - UV
 //    Copyright (C) 2024-2025 Universitat Politècnica de València - UPV
-//    Copyright (C) 2024-2025 Vicent Giménez Alventosa
+//    Copyright (C) 2024-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -137,7 +137,9 @@ namespace penred{
       std::array<bool,pen_imageExporter::nFormats()> enabledFormats;
       unsigned nThreads;
       int nSeedPair;
-      bool ASCIIResults, finalDump, interactive;
+      std::vector<std::string> dumps2add;
+      std::string dump2read;
+      bool dump2ascii, ASCIIResults, finalDump, interactive;
       //Instructions for interactive execution on each thead
       std::queue<InteractiveInstruction> instructions; 
       std::condition_variable instructionsCondition;
@@ -186,13 +188,14 @@ namespace penred{
 			    const unsigned verbose){
       
 	if(inst.operation == InstructionOperations::MOVE_AND_ROTATE){
-	  if(inst.parameters.size() >= 7){
+	  if(inst.parameters.size() >= 8){
 	    source.setPostTranslation(inst.parameters[1],
 				      inst.parameters[2],
 				      inst.parameters[3]);
-	    source.setPostRotationZYZ(inst.parameters[4],
-				      inst.parameters[5],
-				      inst.parameters[6]);
+	    source.setPostRotation(inst.parameters[4],
+				   inst.parameters[5],
+				   inst.parameters[6],
+				   inst.parameters[7]);
 	  }
 	}
 	else if(inst.operation == InstructionOperations::MOVE){
@@ -206,9 +209,10 @@ namespace penred{
 	else if(inst.operation == InstructionOperations::ROTATE){
 	  //Rotate the source
 	  if(inst.parameters.size() >= 4){
-	    source.setPostRotationZYZ(inst.parameters[1],
-				      inst.parameters[2],
-				      inst.parameters[3]);
+	    source.setPostRotation(inst.parameters[1],
+				   inst.parameters[2],
+				   inst.parameters[3],
+				   inst.parameters[4]);
 	  }
 	}
 
@@ -545,10 +549,13 @@ namespace penred{
 	}
 
 	//Configure geometry  
-	geometry->name.assign("geometry");    
-	if(geometry->configure(geometrySection,verbose) != 0){
+	geometry->name.assign("geometry");
+	penred::errors::Error geoError = geometry->configure(geometrySection,
+							     verbose);
+	if(geoError){
 	  if(verbose > 0){
 	    cout << "createGeometry: Error: Geometry configuration failed." << std::endl;
+	    cout << geoError.stringify() << std::endl;
 	  }
 	  return errors::ERROR_AT_GEOMETRY_CONFIGURATION;
 	}
@@ -849,10 +856,10 @@ namespace penred{
       static std::string versionMessage(){
 
 	return std::string("***************************************************************\n"
-			   " PenRed version: 1.14.0 (08-Aug-2025) \n"
-			   " Copyright (c) 2019-2025 Universitat Politecnica de Valencia\n"
-			   " Copyright (c) 2019-2025 Universitat de Valencia\n"
-			   " Copyright (c) 2024-2025 Vicent Giménez Alventosa\n"
+			   " PenRed version: 1.15.0 (29-Aug-2026) \n"
+			   " Copyright (c) 2019-2026 Universitat Politecnica de Valencia\n"
+			   " Copyright (c) 2019-2026 Universitat de Valencia\n"
+			   " Copyright (c) 2024-2026 Vicent Giménez Alventosa\n"
 			   " Reference: Computer Physics Communications, 267 (2021) 108065\n"
 			   "            https://doi.org/10.1016/j.cpc.2021.108065\n"
 			   " This is free software; see the source for copying conditions.\n"
@@ -864,17 +871,19 @@ namespace penred{
       }
       
       simulator() : simulating(false),
-		    nThreads(1),
-		    nSeedPair(-1),
-		    ASCIIResults(true),
-		    finalDump(false),
-		    interactive(false),
-		    nextInstructionID(1),
-		    lastProcessedInstructionID(0)
+                    nThreads(1),
+                    nSeedPair(-1),
+                    dump2read(""),
+                    dump2ascii(false),
+                    ASCIIResults(true),
+                    finalDump(false),
+                    interactive(false),
+                    nextInstructionID(1),
+                    lastProcessedInstructionID(0)
       {
-	//Set default log to configuration
-	setDefaultLog(penred::logs::CONFIGURATION);
-	std::fill(enabledFormats.begin(), enabledFormats.end(), false);
+        //Set default log to configuration
+        setDefaultLog(penred::logs::CONFIGURATION);
+        std::fill(enabledFormats.begin(), enabledFormats.end(), false);
       }
       
 
@@ -1241,7 +1250,20 @@ namespace penred{
 	if(verbose > 0){
       cout << "Final dump "
            << (finalDump ? "enabled" : "disabled") << std::endl;
-    }		  
+    }
+
+	path = prefixSimConfig + "/dump2read"; 
+    if(config.read(path,dump2read) != INTDATA_SUCCESS){
+      if(verbose > 0){
+        cout << "No recovery dump filename specified." << std::endl;
+      }
+      dump2read.clear();
+    }
+
+	path = prefixSimConfig + "/dump2ascii"; 
+    if(config.read(path,dump2ascii) != INTDATA_SUCCESS){
+      dump2ascii = false;
+    }
 
 	// Save context config
 	//*******************************
@@ -1558,6 +1580,184 @@ namespace penred{
 	  return errors::SUCCESS;
 	}
 
+    // Add dumps option
+    //*******************************
+    if(dumps2add.size() > 0){
+      std::vector<std::string> auxDumps = dumps2add;
+      dumps2add.clear();
+
+      bool firstLoad = true;
+      unsigned long long totalSimHists = 0;
+      for(const std::string& dumpf : auxDumps){
+
+        unsigned long long simulated;
+        int seed1,seed2;
+        int lastSource;
+        unsigned long long sourceHists;
+      
+        if(firstLoad){
+          firstLoad = false;
+          //Read the first dump file
+          cout << "Loading first dump file: '" << dumpf << "'" << std::endl;
+          int errDump = talliesVect[0].readDumpfile(dumpf.c_str(),
+                                                    simulated,
+                                                    seed1,seed2,
+                                                    lastSource,
+                                                    sourceHists,
+                                                    verbose);
+
+          if(errDump != 0){
+            if(verbose > 0){
+              cout << "Error loading dumped data file '" << dumpf << "': " << errDump << std::endl;
+            }
+            return errors::ERROR_LOADING_DUMP;
+          }
+        }
+        else{
+
+          //Read and add the dump file
+          cout << "Adding dump file: '" << dumpf << "'" << std::endl;
+          int errDump = talliesVect[1].readDumpfile(dumpf.c_str(),
+                                                    simulated,
+                                                    seed1,seed2,
+                                                    lastSource,
+                                                    sourceHists,
+                                                    verbose);	
+          if(errDump != 0){
+            if(verbose > 0){
+              cout << "Error loading dumped data file '" << dumpf << "': " << errDump << std::endl;
+            }
+            return errors::ERROR_LOADING_DUMP;
+          }
+
+          int errSum = talliesVect[0].sum(talliesVect[1],verbose);
+
+          if(errSum != 0){
+            if(verbose > 0){
+              cout << "Error adding dumped data from file '" << dumpf << "': " << errSum << std::endl;
+            }
+            return errors::ERROR_ADDING_DUMP;
+          }
+        }
+
+        totalSimHists += simulated;
+        if(lastSource >= 0){
+          if(verbose > 1){
+            cout << "Warning: Dump file '" << dumpf << "' generated from a "
+              "non finished simulation" << std::endl;
+          }
+        }
+        if(verbose > 1){
+          cout << " - Simulated histories: " << simulated << "\n"
+               << " - Last seeds: " << seed1 << " " << seed2 << std::endl;
+        }
+      }
+
+      cout << "\nTotal simulated histories: " << totalSimHists << std::endl;
+    
+      if(ASCIIResults){
+        talliesVect[0].saveData(totalSimHists);
+      }
+    
+      talliesVect[0].dump2file("mergedDump.dump",totalSimHists,-1,-1,-1,0ull,verbose);
+    
+      return errors::SUCCESS;
+    }
+    //*******************************
+    
+
+    // Check if we are restoring a simulation from dumpfile  
+    if(dump2read.length() > 0){
+
+      if(verbose > 1){
+        cout << "Load dump files '" << dump2read << "' for " << nThreads << " threads\n" << std::endl;
+      }
+
+      std::string auxstr(dump2read); 
+      std::size_t found = auxstr.find_last_of("/\\");
+
+      //Read dump file for each thread
+      for(unsigned i = 0; i < nThreads; i++){
+        //Create filename
+
+        std::string filenameDump;
+        if(found != std::string::npos){
+          filenameDump = auxstr.substr(0,found+1) + std::string("th") + std::to_string(i) + auxstr.substr(found+1);
+        } else{
+          filenameDump = std::string("th") + std::to_string(i) + dump2read;
+        }
+
+        //Read dump file
+        int errDump = simConfigs[i].readTallyDump(filenameDump.c_str(),talliesVect[i]);
+      
+        if(errDump != 0){
+          if(verbose > 0){
+            cout << "Error loading dumped data for thread " << i << ": " << errDump << std::endl;
+          }
+          return errors::ERROR_LOADING_DUMP;
+        }
+
+        if(verbose > 1){
+          //Report data in dump file and finish execution
+          cout << " *** Dump information of thread " << i << ":\n"
+               << "  Total simulated histories: "
+               << simConfigs[i].getSimulatedInFinished() +
+            simConfigs[i].getInitiallySimulatedInFirstSource()
+               << std::endl;
+          int seed1, seed2;
+          simConfigs[i].getSeeds(seed1,seed2);
+          cout << "                 Last seeds: " << seed1 << " " << seed2 << "\n"
+               << "    Next source to simulate: " << simConfigs[i].getFirstSourceIndex() << "\n"
+               << " Source histories simulated: " << simConfigs[i].getInitiallySimulatedInFirstSource()
+               << std::endl;
+        }
+      
+        if(dump2ascii){
+          // Save the data of this thread
+          talliesVect[i].saveData(simConfigs[i].getSimulatedInFinished() +
+                                  simConfigs[i].getInitiallySimulatedInFirstSource());
+        }
+      }
+
+      if(dump2ascii){
+        //Finish execution
+        return errors::SUCCESS;
+      }
+    
+      //Skip the required iterations from each source
+      int iSource = 0;
+      std::vector<unsigned long long>toSkip(nThreads);
+      // Generic sources
+      for(auto& source : genericSources){
+
+        //Calculate the iterations per thread to skip for this source
+        for(size_t ithread = 0; ithread < nThreads; ++ithread){
+          if(simConfigs[ithread].getFirstSourceIndex() == iSource){
+            toSkip[ithread] = simConfigs[ithread].getInitiallySimulatedInFirstSource();
+          }else{
+            toSkip[ithread] = 0;
+          }
+        }
+
+        source.skip(toSkip);
+        ++iSource;
+      }
+      // Polarised sources
+      for(auto& source : polarisedGammaSources){
+
+        //Calculate the iterations per thread to skip for this source
+        for(size_t ithread = 0; ithread < nThreads; ++ithread){
+          if(simConfigs[ithread].getFirstSourceIndex() == iSource){
+            toSkip[ithread] = simConfigs[ithread].getInitiallySimulatedInFirstSource();
+          }else{
+            toSkip[ithread] = 0;
+          }
+        }
+        source.skip(toSkip);
+        ++iSource;
+      }
+    
+    }    
 	
 	//****************************
 	// Variance Reduction 
@@ -1938,8 +2138,9 @@ namespace penred{
 	if(finalDump){
 	  for(unsigned ithread = 0; ithread < nThreads; ithread++){
 	    int seeds1, seeds2;
+        std::string finalDumpFilename = "final-" + simConfigs[ithread].dumpFilename;        
 	    simConfigs[ithread].getSeeds(seeds1, seeds2);
-	    talliesVect[ithread].dump2file(simConfigs[ithread].dumpFilename.c_str(),
+	    talliesVect[ithread].dump2file(finalDumpFilename.c_str(),
 					   simConfigs[ithread].getSimulatedInFinished(),
 					   seeds1,seeds2,-1,0ull,verbose);
 	  }
@@ -2053,6 +2254,14 @@ namespace penred{
 	return simFuture.get();
       }
 
+      inline int addDumps(const std::vector<std::string>& filenames){
+        if(filenames.size() > 0){
+          dumps2add = filenames;
+          return simulate();
+        }
+        return errors::SUCCESS;
+      }
+
       //Simulation status functions
       inline std::vector<double> simSpeeds() const {
 	//Get lock
@@ -2150,57 +2359,72 @@ namespace penred{
 
 	return instructionSend(std::move(aux));
       }
+      
       inline unsigned long long instructionSimulate(const std::string& sourceName,
 						    const double nhists,
-						    const std::vector<double>& trans = {},
-						    const std::vector<double>& rot = {}){
+						    const vector3D<double>& trans = vector3D<double>::zero(),
+						    const Quaternion<double>& rot = Quaternion<double>::identity()){
+
 	InteractiveInstruction inst;
 	inst.type = InstructionTypes::SIMULATE_SOURCE;
 	inst.name = sourceName;
-	if(trans.size() >= 3){
-	  if(rot.size() >= 3){
-	    inst.operation = InstructionOperations::MOVE_AND_ROTATE;
-	    
-	    inst.parameters.resize(7);
-	    inst.parameters[0] = nhists;
-	    
-	    inst.parameters[1] = trans[0];
-	    inst.parameters[2] = trans[1];
-	    inst.parameters[3] = trans[2];
-	    
-	    inst.parameters[4] = rot[0];
-	    inst.parameters[5] = rot[1];
-	    inst.parameters[6] = rot[2];
-	  }else{
+
+	if(trans.mod2() > 0.0){
+	  //The source is moved
+	  if(rot == Quaternion<double>::identity()){
+	    //The source is moved but not rotated
 	    inst.operation = InstructionOperations::MOVE;
 
 	    inst.parameters.resize(4);
 	    inst.parameters[0] = nhists;
 	    
-	    inst.parameters[1] = trans[0];
-	    inst.parameters[2] = trans[1];
-	    inst.parameters[3] = trans[2];	    
+	    inst.parameters[1] = trans.x;
+	    inst.parameters[2] = trans.y;
+	    inst.parameters[3] = trans.z;	    	    
+	  }
+	  else{
+	    //The source is moved and rotated
+	    inst.operation = InstructionOperations::MOVE_AND_ROTATE;
+	    
+	    inst.parameters.resize(7);
+	    inst.parameters[0] = nhists;
+	    
+	    inst.parameters[1] = trans.x;
+	    inst.parameters[2] = trans.y;
+	    inst.parameters[3] = trans.z;
+	    
+	    inst.parameters[4] = rot.w;
+	    inst.parameters[5] = rot.x;
+	    inst.parameters[6] = rot.y;
+	    inst.parameters[7] = rot.z;	    
 	  }
 	}
-	else if(rot.size() >= 3){
-	  inst.operation = InstructionOperations::ROTATE;
-	  
-	  inst.parameters.resize(4);
-	  inst.parameters[0] = nhists;
-	    
-	  inst.parameters[1] = rot[0];
-	  inst.parameters[2] = rot[1];
-	  inst.parameters[3] = rot[2];	    	  
-	}
 	else{
-	  inst.operation = InstructionOperations::NONE;
+	  //The source is not moved
+	  if(rot == Quaternion<double>::identity()){
+	    //The source is neither moved nor rotated
+	    inst.operation = InstructionOperations::NONE;
 	  
-	  inst.parameters.resize(1);
-	  inst.parameters[0] = nhists;
+	    inst.parameters.resize(1);
+	    inst.parameters[0] = nhists;	    
+	  }
+	  else{
+	    //The source is only rotated
+	    inst.operation = InstructionOperations::ROTATE;
+	  
+	    inst.parameters.resize(5);
+	    inst.parameters[0] = nhists;
+	    
+	    inst.parameters[1] = rot.w;
+	    inst.parameters[2] = rot.x;
+	    inst.parameters[3] = rot.y;	    	  	    
+	    inst.parameters[4] = rot.z;	    	  	    
+	  }
 	}
 
-	return instructionSend(std::move(inst));
+	return instructionSend(std::move(inst));	
       }
+      
       inline unsigned long long instructionUpdateResults(const std::string& tallyName){
 		
 	InteractiveInstruction inst;

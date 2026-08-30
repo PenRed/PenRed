@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2021-2023 Universitat de València - UV
 //    Copyright (C) 2021-2023 Universitat Politècnica de València - UPV
-//    Copyright (C) 2025 Vicent Giménez Alventosa
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -159,7 +159,14 @@ int pen_tallyDICOMkerma::configure(const wrapper_geometry& geometry,
 				    const unsigned verbose){
     
     //Check if this geometry is a DICOM based geometry
-  const pen_dicomGeo* pDICOMgeo = dynamic_cast<const pen_dicomGeo*>(&geometry);
+  const pen_dicomGeo* pDICOMgeo = geometry.convertTo<pen_dicomGeo>();
+
+  if(pDICOMgeo == nullptr){
+    //The geometry is not a DICOM, check if it contains one
+    size_t geoPos;
+    pDICOMgeo = geometry.getInternalGeoType<pen_dicomGeo>(geoPos);
+  }
+
   if(pDICOMgeo == nullptr){
     if(verbose > 0)
       printf("pen_DICOMkerma::configure: Error: DICOM kerma distribution "

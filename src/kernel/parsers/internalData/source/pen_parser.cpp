@@ -2,6 +2,7 @@
 //
 //    Copyright (C) 2019-2024 Universitat de València - UV
 //    Copyright (C) 2019-2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -758,14 +759,33 @@ bool pen_parserSection::isSection(const std::string& key) const{
   //Is not an element, so, the introduced key and key pointed by
   //"itlow" must be different. The two possibilities are:
   //
-  //  -Introduced key is a substring of itlow pointed key. Return true
+  //  -Introduced key is a substring of itlow pointed key. Could be a section
   //  -Introduced key is completly different of itlow pointed key. Return false
   //
 
   //So, find key in iterator key
   if(itlow->first.find(key) == 0){
-    //Coincidence at first position, is a section
-    return true;
+    //Coincidence at first position, could be a section.
+    //If it is a section, the next character in the map key must be a '/'
+    //in order to limit the section name
+
+    if(itlow->first.size() <= key.size()){ //This should not happens
+      printf("pen_parserSection:isSection:Error: Unexpected error, please report this. "
+             "Unexpected key sizes:\n"
+             " In map   (%lu): %s\n"
+             " to check (%lu): %s\n",
+             static_cast<unsigned long>(itlow->first.size()),
+             itlow->first.c_str(),
+             static_cast<unsigned long>(key.size()),key.c_str());
+      return false;
+    }
+    
+    if(key.back() == '/')
+      return true; //Last key character is a '/'. It is indeed a section
+    if(itlow->first[key.size()] == '/')
+      return true; //Is a section
+    //Is not a section, but a key with the same start as the pointed by 'itlow'
+    return false;
   }
 
   //Is not a section

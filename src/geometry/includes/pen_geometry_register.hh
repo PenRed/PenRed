@@ -36,7 +36,7 @@
 #define DECLARE_GEOMETRY(Class)						\
   public:								\
   static int registerStatus();						\
-  const char* readID() const;						\
+  const char* readID() const override;						\
   static const char* ___ID;						\
   static volatile const int ___register_return;				\
 private:

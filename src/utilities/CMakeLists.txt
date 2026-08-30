@@ -261,7 +261,7 @@ if(GEO_2_VOXEL)
     add_executable(geo2voxel ${PROJECT_SOURCE_DIR}/utilities/geometry/geo2voxel.cpp)
 
     #target libs
-    target_link_libraries(geo2voxel pen_geos)
+    target_link_libraries(geo2voxel geoHandlerLib)
 
 
     # Install geometry to voxel executable
@@ -272,15 +272,12 @@ if(GEO_2_VOXEL)
 endif(GEO_2_VOXEL)
 
 if(GEO_2_MESH)
-    find_package (Threads REQUIRED)
 
     # Create geometry to voxel executable
     add_executable(geo2mesh ${PROJECT_SOURCE_DIR}/utilities/geometry/geo2simpleMesh.cpp)
 
     #target libs
-    target_link_libraries(geo2mesh pen_geos)
-    target_link_libraries (geo2mesh ${CMAKE_THREAD_LIBS_INIT})
-
+    target_link_libraries(geo2mesh geoHandlerLib)
 
     # Install geometry to voxel executable
     install(

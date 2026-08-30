@@ -110,8 +110,9 @@ pen_genericStateGen::pen_genericStateGen() : spatialSampler(nullptr),
 					     geometry(nullptr),
 					     configStatus(0),
 					     Emax(0.0),
+					     bindingBody(""),
 					     rotate(false),
-					     translation{0.0,0.0,0.0},
+					     translation(0.0,0.0,0.0),
 					     sourceBody(-1),
 					     sourceMat(0),
 					     name("unamed"),
@@ -238,7 +239,17 @@ int pen_genericStateGen::setGeometry(const wrapper_geometry* geometryIn){
   
   if(timeSampler != nullptr)
     timeSampler->updateGeometry(geometry);
-  
+
+  if(bindingBody.size() > 0){
+    bindingIBody = geometry->getIBody(bindingBody.c_str());
+    if(bindingIBody >= geometry->getBodies()){
+      printf("SetGeometry: Error: Binded body '%s' not found "
+	     "in the provided geometry ",
+	     bindingBody.c_str());
+      
+      return -2;
+    }
+  }
   return 0;
 }
 
@@ -398,31 +409,14 @@ void pen_genericStateGen::sample(pen_particleState& state, pen_rand& random) con
 
   //Perform direction sampling
   directionSampler->sample(state,random);
-  if(rotate){
-    //Rotate sampled direction
-    double dir[3] = {state.U,state.V,state.W};
-    matmul3D(rotation, dir);
-    state.U = dir[0];
-    state.V = dir[1];
-    state.W = dir[2];
-  }
-  
-  //Perform spatial sampling and locate the particle
+
+  //Perform spatial sampling
   spatialSampler->sample(state,random);
-  if(rotate){
-    //Rotate and move sampled position
-    double pos[3] = {state.X,state.Y,state.Z};
-    matmul3D(rotation, pos);
-    state.X = pos[0] + translation[0];
-    state.Y = pos[1] + translation[1];
-    state.Z = pos[2] + translation[2];
-  }else{
-    //Apply post-translation
-    state.X += translation[0];
-    state.Y += translation[1];
-    state.Z += translation[2];
-  }
-  
+
+  //Post-process direction and position if needed
+  postProcess(state);
+
+  //Locate the particle in the geometry system
   geometry->locate(state);
 
   //Check if source is restricted to specified body
@@ -430,21 +424,73 @@ void pen_genericStateGen::sample(pen_particleState& state, pen_rand& random) con
   if(sourceBody >= 0){
     while(state.IBODY != (unsigned)sourceBody){	
       spatialSampler->sample(state,random);
+      //Post-process position
+      postProcessPos(state);
+      //Locate the particle in the geometry system
       geometry->locate(state);
     }
   }
   else if(sourceMat > 0){
     while(state.MAT != sourceMat){	
       spatialSampler->sample(state,random);
+      //Post-process position
+      postProcessPos(state);
+      //Locate the particle in the geometry system
       geometry->locate(state);
-    }      
+    }
   }
-  
+
   //Perform energy sampling
   energySampler->sample(state,random);
 
   //Its a primary (source) particle, set ILB[0] = 1
   state.ILB[0] = 1;
+}
+
+void pen_genericStateGen::configurePostProcessing(const pen_parserSection& config,
+						  const unsigned verbose){
+
+  clearPostProcessing();
+  
+  //Check if the source is binded to some object
+  std::string bindObject;
+  if(config.read("bind",bindObject) == INTDATA_SUCCESS){
+    if(verbose > 1){
+      printf("Source binded to body %s\n", bindObject.c_str());
+    }
+    bind2Body(bindObject);
+  }
+  else{
+    //Check if a post-processing transformation has been defined instead
+    double dx, dy, dz;
+    if(config.read("translation/dx", dx) != INTDATA_SUCCESS){
+      dx = 0.0;
+    }
+    if(config.read("translation/dy", dy) != INTDATA_SUCCESS){
+      dy = 0.0;
+    }
+    if(config.read("translation/dz", dz) != INTDATA_SUCCESS){
+      dz = 0.0;
+    }
+    setPostTranslation(dx,dy,dz);
+
+    bool rotationProvided = true;
+    double w, x, y, z;
+    if(config.read("rotation/w", w) != INTDATA_SUCCESS){
+      rotationProvided = false;
+    }
+    if(config.read("rotation/x", x) != INTDATA_SUCCESS){
+      rotationProvided = false;
+    }
+    if(config.read("rotation/y", y) != INTDATA_SUCCESS){
+      rotationProvided = false;
+    }
+    if(config.read("rotation/z", z) != INTDATA_SUCCESS){
+      rotationProvided = false;
+    }
+    if(rotationProvided)
+      setPostRotation(w,x,y,z);		
+  }  
 }
 
 void pen_genericStateGen::configure(const pen_parserSection& config,
@@ -678,6 +724,9 @@ void pen_genericStateGen::configure(const pen_parserSection& config,
   } else if(verbose > 1){
     printf("No source material selected\n");
   }
+
+  // ** Post processing options **//
+  configurePostProcessing(config,verbose);
   
   if(verbose > 1){
 
@@ -689,7 +738,17 @@ void pen_genericStateGen::configure(const pen_parserSection& config,
     printf("Spatial   -> %s\n", spatialID());
     printf("Direction -> %s\n", directionID());
     printf("Energy    -> %s\n", energyID());
-    printf("Time      -> %s\n", timeID());
+    printf("Time      -> %s\n\n", timeID());
+
+    printf("+ Post-sampling transforms:\n");
+    if(bindingBody.size() > 0){
+      printf("  - Binded to object %s\n", bindingBody.c_str());      
+    }
+    else{
+      printf("  - Translation : %s\n", translation.stringify().c_str());
+      if(rotate)
+	printf("  - Rotation    : %s\n", rotation.stringify().c_str());      
+    }
   }
 
   configStatus = 0;  

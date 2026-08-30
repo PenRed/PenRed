@@ -28,8 +28,10 @@
 
 #include "filter_geo.hh"
 
-int pen_filterGeo::configure(const pen_parserSection& config, unsigned verbose){
+penred::errors::Error pen_filterGeo::specificConfigure(const pen_parserSection& config, unsigned verbose){
 
+  penred::errors::SpecificError<pen_filterGeo> error;
+  
   //Read origin
   int err = config.read("origin", origin);
   if(err != INTDATA_SUCCESS){
@@ -44,28 +46,23 @@ int pen_filterGeo::configure(const pen_parserSection& config, unsigned verbose){
   std::vector<std::string> filters;
   err = config.ls("filters", filters);
   if(err != INTDATA_SUCCESS){
-    if(verbose > 0){
-      printf("pen_filterGeo:configure: Error: No section 'filter' specified\n");
-    }
-    configStatus = PEN_FILTER_GEO_NO_FILTERS;
-    return PEN_FILTER_GEO_NO_FILTERS;
+    error.code = PEN_FILTER_GEO_NO_FILTERS;
+    error.description = "pen_filterGeo:configure:Error: No section 'filter' specified";
+    return error;
   }
 
   NBODYS = filters.size(); //The geometry has as many bodies as filters
   if(NBODYS < 1){
-    if(verbose > 0){
-      printf("pen_filterGeo:configure: Error: No filters configured\n");
-    }
-    configStatus = PEN_FILTER_GEO_NO_FILTERS;
-    return PEN_FILTER_GEO_NO_FILTERS;
+    error.code = PEN_FILTER_GEO_INVALID_NUMBER_OF_FILTERS;
+    error.description = "pen_filterGeo:configure:Error: No filters configured";
+    return error;
   }
 
   if(NBODYS > NB){
-    if(verbose > 0){
-      printf("pen_filterGeo:configure: Error: Maximum number of filters exceeded\n");
-    }
-    configStatus = PEN_FILTER_GEO_INVALID_NUMBER_OF_FILTERS;
-    return PEN_FILTER_GEO_INVALID_NUMBER_OF_FILTERS;    
+    error.code = PEN_FILTER_GEO_INVALID_NUMBER_OF_FILTERS;
+    error.description = "pen_filterGeo:configure: Error: Maximum number of filters exceeded: " +
+      std::to_string(NB);
+    return error;    
   }
 
   std::array<bool,NB> usedPosition;
@@ -79,12 +76,10 @@ int pen_filterGeo::configure(const pen_parserSection& config, unsigned verbose){
     pen_parserSection filterSection;
     err = config.readSubsection(filterPath, filterSection);
     if(err != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("pen_filterGeo:configure: Error: Unable to read "
-	       "'%s' filter configuration.  Error code: %d\n", filter.c_str(), err);
-      }
-      configStatus = PEN_FILTER_GEO_NO_FILTERS;
-      return PEN_FILTER_GEO_NO_FILTERS;
+      error.code = PEN_FILTER_GEO_MISSING_PARAMETER;
+      error.description = "pen_filterGeo:configure:Error: Unable to read '"
+	+ filter + "' filter configuration";
+      return error;
     }
 
     // ** Filter position
@@ -92,32 +87,24 @@ int pen_filterGeo::configure(const pen_parserSection& config, unsigned verbose){
     int position;
     err = filterSection.read("position", position);
     if(err != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("pen_filterGeo:configure: Error: Unable to read "
-	       "'%s' filter configuration.  Error code: %d\n", filter.c_str(), err);
-      }
-      configStatus = PEN_FILTER_GEO_MISSING_POSITION;
-      return PEN_FILTER_GEO_MISSING_POSITION;
+      error.code = PEN_FILTER_GEO_MISSING_PARAMETER;
+      error.description = "pen_filterGeo:configure:Error: Unable to read '"
+	+ filter + "' filter 'position'";      
+      return error;
     }
 
     if(position < 0 || position >= static_cast<int>(NBODYS)){
-      if(verbose > 0){
-	printf("pen_filterGeo:configure: Error: Invalid 'position' (%d) for filter '%s'. "
-	       "The value must be positive and lesser than the number of filters (%u)\n",
-	       position, filter.c_str(), NBODYS);
-      }
-      configStatus = PEN_FILTER_GEO_INVALID_POSITION;
-      return PEN_FILTER_GEO_INVALID_POSITION;      
+      error.code = PEN_FILTER_GEO_BAD_VALUE;
+      error.description = "pen_filterGeo:configure:Error: Bad position for filter '"
+	+ filter + "', must be positive and lesser than the number of filters";
+      return error;
     }
 
     if(usedPosition[position]){
-      if(verbose > 0){
-	printf("pen_filterGeo:configure: Error: Invalid 'position' (%d) for filter '%s'. "
-	       "This position is already used by the filter '%s'.\n",
-	       position, filter.c_str(), bodies[position].name.c_str());
-      }
-      configStatus = PEN_FILTER_GEO_INVALID_POSITION;
-      return PEN_FILTER_GEO_INVALID_POSITION;      
+      error.code = PEN_FILTER_GEO_BAD_VALUE;
+      error.description = "pen_filterGeo:configure:Error: Bad position for filter '"
+	+ filter + "', already used by filter '" + bodies[position].name + "'";
+      return error;      
     }
 
     //Get body corresponding to this position
@@ -133,22 +120,17 @@ int pen_filterGeo::configure(const pen_parserSection& config, unsigned verbose){
     double width;
     err = filterSection.read("width", width);
     if(err != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("pen_filterGeo:configure: Error: Missing 'width' for filter '%s'\n",
-	       filter.c_str());
-      }
-      configStatus = PEN_FILTER_GEO_MISSING_WIDTH;
-      return PEN_FILTER_GEO_MISSING_WIDTH;          
+      error.code = PEN_FILTER_GEO_MISSING_PARAMETER;
+      error.description = "pen_filterGeo:configure:Error: Unable to read '"
+	+ filter + "' filter 'width'";      
+      return error;          
     }
 
     if(width <= 0.0){
-      if(verbose > 0){
-	printf("pen_filterGeo:configure: Error: Invalid width value (%E) for "
-	       "filter '%s'. It must be positive and greater than 0.",
-	       width, filter.c_str());
-      }
-      configStatus = PEN_FILTER_GEO_INVALID_WIDTH;
-      return PEN_FILTER_GEO_INVALID_WIDTH;          
+      error.code = PEN_FILTER_GEO_BAD_VALUE;
+      error.description = "pen_filterGeo:configure:Error: Invalid width for filter '"
+	+ filter + "'. Must be greater than 0";
+      return error;          
     }
     
     //Set width
@@ -158,23 +140,17 @@ int pen_filterGeo::configure(const pen_parserSection& config, unsigned verbose){
     int matIndex;
     err = filterSection.read("material", matIndex);
     if(err != INTDATA_SUCCESS){
-      if(verbose > 0){
-	printf("pen_filterGeo:configure: Error: Missing 'material' "
-	       "for filter '%s'. Integer expected.\n",
-	       filter.c_str());
-      }
-      configStatus = PEN_FILTER_GEO_MISSING_MATERIAL;
-      return PEN_FILTER_GEO_MISSING_MATERIAL;          
+      error.code = PEN_FILTER_GEO_MISSING_PARAMETER;
+      error.description = "pen_filterGeo:configure:Error: Unable to read '"
+	+ filter + "' filter 'material'. Integer expected";            
+      return error;          
     }
 
     if(matIndex < 0){
-      if(verbose > 0){
-	printf("pen_filterGeo:configure: Error: Invalid material "
-	       "index (%d) for filter '%s'. Must be positive or zero.",
-	       matIndex, filter.c_str());
-      }
-      configStatus = PEN_FILTER_GEO_INVALID_MATERIAL;
-      return PEN_FILTER_GEO_INVALID_MATERIAL;
+      error.code = PEN_FILTER_GEO_BAD_VALUE;
+      error.description = "pen_filterGeo:configure:Error: Invalid material index for filter '"
+	+ filter + "'. Must be greater or equal to 0";
+      return error;
     }
 
     body.MATER = static_cast<unsigned>(matIndex);
@@ -185,13 +161,10 @@ int pen_filterGeo::configure(const pen_parserSection& config, unsigned verbose){
     if(err == INTDATA_SUCCESS){
 
       if(detector < 0){
-	if(verbose > 0){
-	  printf("pen_filterGeo:configure: Error: Invalid detector "
-		 "index (%d) for filter '%s'. Must be positive or zero.",
-		 detector, filter.c_str());
-	}
-	configStatus = PEN_FILTER_GEO_INVALID_DETECTOR;
-	return PEN_FILTER_GEO_INVALID_DETECTOR;
+	error.code = PEN_FILTER_GEO_BAD_VALUE;
+	error.description = "pen_filterGeo:configure:Error: Invalid detector index for filter '"
+	+ filter + "'. Must be greater or equal to 0";
+	return error;
       }
       
       body.KDET = detector;
@@ -223,34 +196,28 @@ int pen_filterGeo::configure(const pen_parserSection& config, unsigned verbose){
 
       unsigned kpar = particleID(particleNames[j].c_str());
       if(kpar >= ALWAYS_AT_END){
-	if(verbose > 0){
-	  printf("pen_filterGeo:configure: Error on 'eabs' field, "
-		 "unknown particle '%s' on filter '%s'.\n",
-		 particleNames[j].c_str(),filter.c_str());
-	}
-	return PEN_FILTER_GEO_KNOWN_PARTICLE;
+	error.code = PEN_FILTER_GEO_BAD_VALUE;
+	error.description = "pen_filterGeo:configure:Error: Error on 'eabs' field for filter '"
+	  + filter + "'. Unknown particle type: " + particleNames[j];
+	return error;
       }
       
       std::string eabsPath = std::string("eabs/") + particleNames[j];
       double eabs;
       err = filterSection.read(eabsPath,eabs);
       if(err != INTDATA_SUCCESS){
-	    if(verbose > 0){
-	      printf("pen_filterGeo:configure: Error reading energy absorption"
-		     " at field '%s' for filter '%s'. Double expected.\n",
-		     eabsPath.c_str(), filter.c_str());
-	    }
-	    return PEN_FILTER_GEO_BAD_EABS;
-	  }
+	error.code = PEN_FILTER_GEO_MISSING_PARAMETER;
+	error.description = "pen_filterGeo:configure:Error: Unable to read '"
+	  + filter + "' filter absorption energy from path: " + eabsPath;            
+	return error;
+      }
 
       if(eabs <= 0.0){
-	if(verbose > 0){
-	  printf("pen_filterGeo:configure: Error: Invalid energy "
-		 "absorption (%12.4E eV) for filter '%s' particle '%s'. "
-		 "Must be greater than zero.\n",
-		 eabs,filter.c_str(),particleNames[j].c_str());
-	}
-	return PEN_FILTER_GEO_BAD_EABS;
+	error.code = PEN_FILTER_GEO_BAD_VALUE;
+	error.description = "pen_filterGeo:configure: Error on 'eabs' field for filter '"
+	  + filter + "' and particle '" + particleNames[j] + "'. Absorption energy must be "
+	  "greater than 0";
+	return error;
       }
 	  
       filterEABS[kpar] = eabs;
@@ -258,11 +225,10 @@ int pen_filterGeo::configure(const pen_parserSection& config, unsigned verbose){
 
     //Set filter eabs for each specified particle
     if(setBodyEabs(position,filterEABS) != 0){
-      if(verbose > 0){
-	printf("pen_filterGeo:configure: Error on 'eabs' "
-	       "field, unknown body '%s'\n",filter.c_str());
-      }
-      return PEN_FILTER_GEO_BAD_EABS;	  
+      error.code = PEN_FILTER_GEO_BAD_VALUE;
+      error.description = "pen_filterGeo:configure:Error: Error on 'eabs' field, "
+	"unknown body '" + filter + "'";            
+      return error;
     }
     
     if(verbose > 1){
@@ -303,12 +269,11 @@ int pen_filterGeo::configure(const pen_parserSection& config, unsigned verbose){
     }
     
   }
-    
-  configStatus = PEN_FILTER_GEO_SUCCESS;
-  return PEN_FILTER_GEO_SUCCESS;
+  
+  return error;
 }
 
-void pen_filterGeo::locate(pen_particleState& state) const{
+void pen_filterGeo::locateLocal(pen_particleState& state) const{
 
   for(unsigned i = 0; i < getBodies(); ++i)
     if(bodies[i].isIn(state)){
@@ -324,7 +289,7 @@ void pen_filterGeo::locate(pen_particleState& state) const{
   
  
 
-void pen_filterGeo::step(pen_particleState& state, double DS, double &DSEF, double &DSTOT, int &NCROSS) const{
+void pen_filterGeo::stepLocal(pen_particleState& state, double DS, double &DSEF, double &DSTOT, int &NCROSS) const{
 
   double dsef = 0.0;
   double dstot = 0.0;

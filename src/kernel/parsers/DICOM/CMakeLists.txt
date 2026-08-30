@@ -300,5 +300,6 @@ endif ()
 target_include_directories(pen_dicom PUBLIC ${DCMTK_INCLUDE_DIRS})
 target_link_libraries(pen_dicom ${DCMTK_LIBRARIES} ${ZLIB_LIBRARIES})
 
-# Link logger
+# Link errors and logger
+target_link_libraries(pen_dicom pen_errors)
 target_link_libraries(pen_dicom pen_logger)

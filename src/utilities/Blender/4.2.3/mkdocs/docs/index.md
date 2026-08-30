@@ -8,6 +8,10 @@ This documentation covers the plugin's functionalities in detail. However, some 
 
 ## Sections
 
+### **PyPenred Install**
+
+Some features, like DICOM loading or running simulations in Blender require the pyPenred package installed in the Blender python environment. The [pyPenred install](pyPenred.md) section explains how to install.
+
 ### **Geometry Construction**
 Create simulation geometries using Blender's powerful modeling tools. The plugin supports:
 
@@ -16,6 +20,11 @@ Create simulation geometries using Blender's powerful modeling tools. The plugin
 - **Triangular Meshes**: Convert any Blender mesh into a PenRed-compatible format.
 
 For more details, see the [Geometry Construction](geometry-construction/index.md) section.
+
+---
+
+### **DICOM Load**
+Additionally to geometry construction, DICOM images can be load via pyPenred to be used for simulation. For more details, see the [DICOM](dicom.md) section.
 
 ---
 

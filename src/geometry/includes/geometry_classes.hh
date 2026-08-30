@@ -3,7 +3,7 @@
 //
 //    Copyright (C) 2019 Universitat de València - UV
 //    Copyright (C) 2019 Universitat Politècnica de València - UPV
-//    Copyright (C) 2025 Vicent Giménez Alventosa
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -35,6 +35,7 @@
 #include <cstdio>
 #include <stdexcept>
 #include <cmath>
+#include <fstream>
 
 #include "pen_classes.hh"
 
@@ -53,7 +54,7 @@ namespace penred{
 // Base body struct
 //-------------------
 
-struct pen_baseBody{
+struct pen_baseBody : public penred::geometry::AnimatedBody{
   
   unsigned int MATER;
   unsigned int KDET;
@@ -117,7 +118,7 @@ public:
   }
 
   inline const char* getType() const {return "BODIES";}
-  void usedMat(bool used[constants::MAXMAT+1]) const {
+  void usedMatLocal(bool used[constants::MAXMAT+1]) const final override{
 
     //Set all materials to unused
     for(unsigned i = 0; i <= constants::MAXMAT; i++)
@@ -134,7 +135,7 @@ public:
     return bodies[ibody].localEABS[kpar];
   }
   
-  inline unsigned getMat(const unsigned ibody) const{
+  inline unsigned getMatLocal(const unsigned ibody) const final override{
     if(ibody >= NBODYS)
       return 0;
     return bodies[ibody].MATER;
@@ -150,10 +151,17 @@ public:
     return bodies[ibody].KDET;
   }  
   
-  inline unsigned long getElements() const{
+  inline unsigned long getElements() const override{
     return NBODYS;
   }
+  inline unsigned long getDimElements(const unsigned long idim) const override{
+    return idim == 0 ? NBODYS : 0;
+  }
 
+  inline unsigned long getElementsDim() const override{
+    return 1;
+  }
+  
   inline unsigned getBodies() const{
     return NBODYS;
   }
@@ -271,15 +279,15 @@ public:
   inline const char* getType() const {return "MESH";}
   
   inline pen_meshStates getStatus() const {return meshStatus;}
-  inline unsigned long getElements() const {
+  inline unsigned long getElements() const  override{
     return nElements;
   }
-
+  
   inline unsigned getBodies() const{
     return nBodies;
   }
 
-  inline unsigned getMat(const unsigned ibody) const{
+  inline unsigned getMatLocal(const unsigned ibody) const final override{
     if(ibody == 0)
         return enclosureMat;
     if(ibody >= nBodies)
@@ -298,7 +306,7 @@ public:
     return KDET[ibody];
   }  
   
-  void usedMat(bool used[constants::MAXMAT+1]) const {
+  void usedMatLocal(bool used[constants::MAXMAT+1]) const final override{
 
     //Set all materials to unused
     for(unsigned i = 0; i <= constants::MAXMAT; i++)
