@@ -688,50 +688,42 @@ def createDICOM_Dict(context):
         # Contours
         if dicomProperties.contours:
 
-            contourOW = any(contouritem.overwrite for contouritem in dicomProperties.contours)
-            if contourOW:
+            dicom_dict.update({"contours": {}}) 
 
-                dicom_dict.update({"contours": {}}) 
+            for index, contouritem in enumerate(dicomProperties.contours):
 
-                for index, contouritem in enumerate(dicomProperties.contours):
+                name = f"{contouritem.name}"
 
-                    if not contouritem.overwrite:
-                        # self.report({'INFO'}, f"Contour #{index} with name {contouritem.name} not overwritten")
-                        print(f"INFO: contours: Contour #{index} with name {contouritem.name} not overwritten")
-                        continue
+                # check that the name is unique 
+                if name in dicom_dict["contours"]:
+                    return dict(), [{'ERROR'}, f"Contour \"{name}\" already exists. Names must be unique. Aborting"]
 
-                    name = f"{contouritem.name}"
+                # check that a name is provided
+                if name == "":
+                    return dict(), [{'ERROR'}, f"Provide a name to the contour #{index}"]
 
-                    # check that the name is unique 
-                    if name in dicom_dict["contours"]:
-                        return dict(), [{'ERROR'}, f"Contour \"{name}\" already exists. Names must be unique. Aborting"]
-                    
-                    # check that a name is provided
-                    if name == "":
-                        return dict(), [{'ERROR'}, f"Provide a name to the contour #{index}"]
-
-                    dicom_dict["contours"].update({f"{name}": {}})
-                    dicom_contour_dic = dicom_dict["contours"][name]
+                dicom_dict["contours"].update({f"{name}": {}})
+                dicom_contour_dic = dicom_dict["contours"][name]
+                if contouritem.overwriteMat:
                     dicom_contour_dic.update({"material": contouritem.material})
+                if contouritem.overwriteDens:
                     dicom_contour_dic.update({"density" : contouritem.density })
-                    dicom_contour_dic.update({"priority": contouritem.priority})
 
-                    if contouritem.intensityRanges:
+                dicom_contour_dic.update({"priority": contouritem.priority})
 
-                        code = fill_intensityranges(dicom_contour_dic, contouritem)
-                        if code:
-                            print(f"ERROR: contour: intensityRanges : {code}")
-                            return dict(), [{'ERROR'}, f"Contour #{index} named {name}. {code}"]                      
+                if contouritem.intensityRanges:
 
-                    if contouritem.ranges:
+                    code = fill_intensityranges(dicom_contour_dic, contouritem)
+                    if code:
+                        print(f"ERROR: contour: intensityRanges : {code}")
+                        return dict(), [{'ERROR'}, f"Contour #{index} named {name}. {code}"]                      
 
-                        code = fill_ranges(dicom_contour_dic, contouritem)
-                        if code:
-                            print(f"ERROR: contour: intensityRanges : {code}")
-                            return dict(), [{'ERROR'}, f"Contour #{index} named {name}. {code}"]
-                        
-            else:
-                print("No contour is going to be overwritten")
+                if contouritem.ranges:
+
+                    code = fill_ranges(dicom_contour_dic, contouritem)
+                    if code:
+                        print(f"ERROR: contour: intensityRanges : {code}")
+                        return dict(), [{'ERROR'}, f"Contour #{index} named {name}. {code}"]
 
     return dicom_dict, [] # empty array means no errors found
 
@@ -2813,8 +2805,8 @@ class export_penred(Operator, ExportHelper):
                 }
 
                 if dependency_manager.is_installed():
-                    from pyPenred.data import dict2SectionString
-                    fconf.write(dict2SectionString(dicConfig))
+                    import pyPenred
+                    fconf.write(pyPenred.data.dict2SectionString(dicConfig))
             
             if self.exportType == 'DICOM':
 
@@ -2827,8 +2819,8 @@ class export_penred(Operator, ExportHelper):
                 dicConfig["geometry"] = dicDICOM
 
                 if dependency_manager.is_installed():
-                    from pyPenred.data import dict2SectionString
-                    fconf.write(dict2SectionString(dicConfig))          
+                    import pyPenred
+                    fconf.write(pyPenred.data.dict2SectionString(dicConfig))          
 
         if self.exportType == 'QUADRICS' or (self.secondaryExportType == 'QUADRICS' and self.exportType == 'DICOM+GEO'):
             #Create an array for object names

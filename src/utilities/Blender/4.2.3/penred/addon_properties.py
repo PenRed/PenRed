@@ -1112,13 +1112,11 @@ class intensityProperties(bpy.types.PropertyGroup):
         name = "",
         description = "Minumum range pixel value, [low,top), to assign the material and density specified",
         default = 0,
-        min = 0
     )
     top : bpy.props.IntProperty(
         name = "",
         description = "Maximum range pixel value, [low,top), to assign the material and density specified",
         default = 0,
-        min = 0
     )
 
 class rangesProperties(bpy.types.PropertyGroup):
@@ -1182,24 +1180,30 @@ class contoursProperties(bpy.types.PropertyGroup):
         default=False
     )
    
-    overwrite : bpy.props.BoolProperty(
+    overwriteMat : bpy.props.BoolProperty(
         name = "",
-        description = "Overwrites this material for the contour.",
+        description = "Overwrites contour's voxels with default material.",
         default = True
     )
 
     material : bpy.props.IntProperty(
         name = "",
         description = "Default material index to assign to this contour. Optional (default -1)",
-        default = 0,  # SR: I dont know if that will work as expected, maybe we need to lower the min value to -1 and allow default -1
-        min = 0
+        default = 1,
+        min = 1
+    )
+    
+    overwriteDens : bpy.props.BoolProperty(
+        name = "",
+        description = "Overwrites contour's voxels with default density.",
+        default = True
     )
     
     density : bpy.props.FloatProperty(
         name = "",
         description = "Density value (g/cm\u00B3) to assign for all voxels with intensity values in the range [low,top)",
-        default = 0.0, # SR: I dont know if that will work as expected, maybe we need to lower the min value to -1 and allow default -1
-        min = 0.0
+        default = 1.0,
+        min = 1.0e-12
     )
     priority : bpy.props.FloatProperty(
         name = "",

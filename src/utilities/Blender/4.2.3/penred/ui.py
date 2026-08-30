@@ -1186,11 +1186,11 @@ class PenredDicomPanel(bpy.types.Panel):
             box = layout.box()
 
             row = box.row()
-            row.label(text="Material")
+            row.label(text="Default Material")
             row.prop(dicomproperties, "material", text="")
 
             row = box.row()
-            row.label(text="Density")
+            row.label(text="Default Density")
             row.prop(dicomproperties, "density", text="")
 
             row = box.row()
@@ -1308,15 +1308,16 @@ class PenredDicomPanel(bpy.types.Panel):
                         row.prop(contouritem, "name", text="")
 
                         row = contourbox.row()
-                        row.prop(contouritem, "overwrite", text="Overwrite Material")
-
+                        row.prop(contouritem, "overwriteMat", text="Default Material")
                         row = contourbox.row()
-                        row.label(text="Material")
                         row.prop(contouritem, "material", text="")
+                        row.enabled = contouritem.overwriteMat
 
                         row = contourbox.row()
-                        row.label(text="Density")
+                        row.prop(contouritem, "overwriteDens", text="Default Density")
+                        row = contourbox.row()
                         row.prop(contouritem, "density", text="")
+                        row.enabled = contouritem.overwriteDens
 
                         row = contourbox.row()
                         row.label(text="Priority")
