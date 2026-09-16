@@ -29,7 +29,7 @@
 import bpy
 from mathutils import Vector
 from mathutils import Color
-from . import addon_properties, materialDB, utils, tracks, dependency_manager
+from . import addon_properties, materialDB, utils, tracks, penred_import
 from math import pi, cos, sin
 import os
 
@@ -1165,13 +1165,13 @@ class PenredDicomPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        pyPenredInstalled = dependency_manager.is_installed()
+        pyPenredInstalled = penred_import.is_available
 
         if not pyPenredInstalled:
             box = layout.box()
             box.alert = True
             box.label(text="Dependency Missing", icon='ERROR')
-            box.label(text="pyPenred must be installed to use this tool.")
+            box.label(text="pyPenred must be installed to use this tool. Please, reinstall the addon.")
             box.operator("pypenred.open_preferences", icon='PREFERENCES')
             return
 
@@ -1742,13 +1742,13 @@ class penred_PT_SimulationPanel(bpy.types.Panel):
     
     def draw(self, context):
         layout = self.layout
-        pyPenredInstalled = dependency_manager.is_installed()
+        pyPenredInstalled = penred_import.is_available
 
         if not pyPenredInstalled:
             box = layout.box()
             box.alert = True
             box.label(text="Dependency Missing", icon='ERROR')
-            box.label(text="pyPenred must be installed to use this tool.")
+            box.label(text="pyPenred must be installed to use this tool. Please, reinstall the addon.")
             box.operator("pypenred.open_preferences", icon='PREFERENCES')
             return
         
@@ -1756,11 +1756,22 @@ class penred_PT_SimulationPanel(bpy.types.Panel):
         if scene and scene.penred_settings:
             sceneProp = scene.penred_settings
             row = layout.row()
-            if sceneProp.simulationState == "RUNNING":
-                row.operator("scene.cancel_penred_simulation",
-                             text="Cancel Simulation")
-            else:
-                row.operator("scene.simulate_penred", text="Simulate")
+            col = row.column(align=True)
+            col.operator("scene.simulate_penred", icon='PLAY')
+            col.operator("scene.cancel_penred_simulation", icon='CANCEL')
+
+            # Simulation progress
+            if sceneProp.simulationState != "NONE" or sceneProp.simulationProgress > 0.0:
+                box = layout.box()
+                box.label(text=sceneProp.simulationStatus or "Idle", icon='INFO')
+
+                row = box.row()
+                row.progress(
+                    factor=sceneProp.simulationProgress/100.0,
+                    type='BAR',
+                    text=f"Progress: {sceneProp.simulationProgress:.2f}%"
+                )
+            
 
             # Tracks
             trackBox = layout.box()

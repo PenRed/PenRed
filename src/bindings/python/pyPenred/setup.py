@@ -38,6 +38,7 @@ setup(
     install_requires=[
         'pyyaml',
         'numpy',
+        'matplotlib'
     ],
     python_requires='>=3.8',
     zip_safe=False,

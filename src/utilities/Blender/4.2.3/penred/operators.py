@@ -40,7 +40,7 @@ from mathutils import Color
 from math import cos, acos, sin, asin, tan, atan2, sqrt, pi
 import os
 import time
-from . import surfaces, utils, addon_properties, conf, tracks, dependency_manager
+from . import surfaces, utils, addon_properties, conf, tracks, penred_import
 
 ### Material view
 class QUADRIC_OT_view_material(Operator, AddObjectHelper):
@@ -743,7 +743,7 @@ class DICOM_OT_LoadDicom(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         # Button is grayed out in UI if package is missing
-        return dependency_manager.is_installed()    
+        return penred_import.is_available()    
 
     def invoke(self, context, event):
         # Explicitly open the file browser in directory mode
@@ -1559,174 +1559,36 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
     _start_time = 0.0
     _simu = None
     _ticks = 0
-    _progress = 0
-    _fade_alpha = 0.0
-    _fade_in = True
-    _draw_handler = None
+    _maxSimTime = None
 
     @classmethod
     def poll(cls, context):
         # Button is grayed out in UI if package is missing
-        return dependency_manager.is_installed()    
+        return penred_import.is_available()
 
-    # Define the progress popup draw as a static method
-    @staticmethod
-    def draw_progress(self, context):
-        region = context.region
-        width, height = region.width, region.height
+    def plotResults(self):
+        #Get results
+        resultsDic = self._simu.getResults(save_type=True)
+        #print(f"Extracted results: {resultsDic}")
 
-        # Get alpha
-        alpha = getattr(self, "_fade_alpha", 1.0)
-
-        # UI box size (relative to screen)
-        bar_width = width // 3
-        bar_height = max(30, bar_width // 10)
-        border_size = max(1, bar_height // 10)
-        corner_radius = 8
-
-        x = (width - bar_width) // 2
-        y = height // 5
-
-        gpu.state.blend_set('ALPHA')
-
-        # Colors (RGBA)
-        bg_color = (0.0, 0.0, 0.0, 0.5 * alpha)
-        fg_color = (0.2, 0.6, 1.0, 0.8 * alpha)
-        border_color = (1, 1, 1, 0.2 * alpha)
-        text_color = (1, 1, 1, alpha)
-        
-        # Draw background box
-        shader = gpu.shader.from_builtin('UNIFORM_COLOR')
-
-
-        def draw_rounded_rect(x, y, w, h, r, color):
-
-            segments = 12  # More segments = smoother corners
-
-            # Corner centers
-            cx = x + r
-            cy = y + r
-            corners = [
-                (cx, cy),                 # Bottom-left
-                (x + w - r, cy),          # Bottom-right
-                (x + w - r, y + h - r),   # Top-right
-                (cx, y + h - r)           # Top-left
-            ]
-
-            # Angles for each corner (start angle, end angle)
-            angles = [
-                (pi, 1.5 * pi),
-                (1.5 * pi, 2 * pi),
-                (0, 0.5 * pi),
-                (0.5 * pi, pi)
-            ]
-
-            verts = []
-            indices = []
-
-            # Center body quad (not covering corners)
-            body_verts = [
-                (x + r, y),
-                (x + w - r, y),
-                (x + w - r, y + h),
-                (x + r, y + h),
-            ]
-            base_idx = len(verts)
-            verts.extend(body_verts)
-            indices.extend([
-                (base_idx, base_idx + 1, base_idx + 2),
-                (base_idx, base_idx + 2, base_idx + 3)
-            ])
-
-            # Side rects (excluding corners)
-            side_verts = [
-                (x, y + r), (x + r, y + r), (x + r, y + h - r), (x, y + h - r),  # Left
-                (x + w - r, y + r), (x + w, y + r), (x + w, y + h - r), (x + w - r, y + h - r)  # Right
-            ]
-            side_indices = [
-                (4, 5, 6), (4, 6, 7),  # Right side
-                (0, 1, 2), (0, 2, 3)   # Left side
-            ]
-            for i, (v0, v1, v2) in enumerate(side_indices):
-                base = len(verts)
-                verts.extend(side_verts)
-                indices.append((base + v0, base + v1, base + v2))
-
-            # Top and bottom bars (excluding corners)
-            top_verts = [
-                (x + r, y + h - r), (x + w - r, y + h - r),
-                (x + w - r, y + h), (x + r, y + h)
-            ]
-            bottom_verts = [
-                (x + r, y), (x + w - r, y),
-                (x + w - r, y + r), (x + r, y + r)
-            ]
-            for verts_set in [top_verts, bottom_verts]:
-                base = len(verts)
-                verts.extend(verts_set)
-                indices.extend([
-                    (base, base + 1, base + 2),
-                    (base, base + 2, base + 3)
-                ])
-
-            # Draw each rounded corner
-            for i, (cx, cy) in enumerate(corners):
-                start_angle, end_angle = angles[i]
-                arc = []
-                for j in range(segments + 1):
-                    t = start_angle + (end_angle - start_angle) * (j / segments)
-                    arc.append((cx + r * cos(t), cy + r * sin(t)))
-
-                base = len(verts)
-                verts.append((cx, cy))  # Center of the fan
-                verts.extend(arc)
-                for j in range(len(arc)):
-                    indices.append((base, base + j + 1, base + ((j + 1) % len(arc)) + 1))
-
-            # Draw the batch
-            batch = batch_for_shader(shader, 'TRIS', {"pos": verts}, indices=indices)
-            shader.bind()
-            shader.uniform_float("color", color)
-            batch.draw(shader)
-
-
-        def draw_rect(x, y, w, h, color):
-            vertices = [
-                (x,     y),
-                (x + w, y),
-                (x + w, y + h),
-                (x,     y + h)
-            ]
-            batch = batch_for_shader(shader, 'TRI_FAN', {"pos": vertices})
-            shader.bind()
-            shader.uniform_float("color", color)
-            batch.draw(shader)
-
-        # Border
-        draw_rounded_rect(x - border_size, y - border_size, bar_width + 2*border_size, bar_height + 2*border_size, corner_radius+border_size, border_color)
-
-        # Background
-        draw_rounded_rect(x, y, bar_width, bar_height, corner_radius, bg_color)
-        
-        # Foreground (progress fill)
-        if self._progress > 2.5:
-            progress_width = int(bar_width * (self._progress / 100.0))
-            draw_rounded_rect(x, y, progress_width, bar_height, corner_radius, fg_color)
-
-        # --- Text overlay ---
-        percent_text = f"Simulation progress: {self._progress:.1f}%"
-        font_id = 0
-        blf.size(font_id, 16)
-        text_width, text_height = blf.dimensions(font_id, percent_text)
-
-        text_x = x + (bar_width - text_width) / 2
-        text_y = y + (bar_height - text_height) / 2
-
-        blf.position(font_id, text_x, text_y, 0)
-        blf.color(font_id, 1.0, 1.0, 1.0, 1.0)
-        blf.draw(font_id, percent_text)
-
-        gpu.state.blend_set('NONE')
+        #Generate images
+        for tallyType, tallyList in resultsDic.items():
+            for tallyName, tallyRes in tallyList.items():
+                if isinstance(tallyRes,tuple):
+                    if len(tallyRes) > 0:
+                        ir = 0
+                        for res in tallyRes:
+                            from pyPenred.data import results1D, results2D
+                            # Plot only those results with, at least, 2 bins
+                            if (isinstance(res,results1D) or isinstance(res,results2D)) and res.bins() > 1:
+                                #Create the plot
+                                localName = f"{tallyName}_{ir}_{res.title()}"
+                                fig = res.plot()
+                                #Convert it to blender image
+                                img = utils.figure2BlenderImage(fig,localName)
+                                if img:
+                                    img.use_fake_user = True
+                                ir = ir+1    
 
     def invoke(self, context, event):
 
@@ -1744,6 +1606,8 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
         
         # Set simulation to exporting state
         scene.penred_settings.simulationState = "EXPORTING"
+        scene.penred_settings.simulationStatus = "Exporting..."
+        scene.penred_settings.simulationProgress = 0.0
 
         # Invoke penred export UI
         bpy.ops.export_penred.data('INVOKE_DEFAULT',
@@ -1779,8 +1643,7 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
 
                 # Files exported, set a timer
                 self._timer = context.window_manager.event_timer_add(
-                    0.1, # Ensure frequent calls to update the UI
-                    window=context.window
+                    0.25, window=context.window
                 )
 
                 # Save initial time
@@ -1788,31 +1651,12 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
                 
                 # Start simulation
                 self.setup_simulation(context)
-                
-                # Init progress
-                self._progress = 0.0
-
-                # Init fade
-                self._fade_alpha = 0.0
-                self._fade_in = True
-
-                # Create the popup
-                self._draw_handler = bpy.types.SpaceView3D.draw_handler_add(
-                    self.__class__.draw_progress, (self, context), 'WINDOW', 'POST_PIXEL'
-                )
-                
+                scene.penred_settings.simulationProgress = 0.0
+                scene.penred_settings.simulationStatus = "Running..."
+                utils.redrawAll(context)
                 return {'RUNNING_MODAL'}
                         
         elif event.type == 'TIMER':
-
-            if self._fade_in:
-                self._fade_alpha = self._fade_alpha + 0.02
-                if self._fade_alpha >= 1.0:
-                    self._fade_in = False
-            else:
-                self._fade_alpha = self._fade_alpha - 0.02
-                if self._fade_alpha <= 0.6:
-                    self._fade_in = True
 
             # Check if the simulation should be cancelled
             if scene.penred_settings.simulationState == "CANCELLED":
@@ -1823,24 +1667,16 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
             # Increase counter
             self._ticks = self._ticks + 1
 
-            if self._ticks % 100 == 0: # Limit status requests rate
+            if self._ticks % 20 == 0: # Limit status requests rate
                 self.update_progress(context)
 
                 # Check if the simulation is still running
                 if self._simu.isSimulating():
+                    utils.redrawAll(context)
                     return {'RUNNING_MODAL'}
                 else:
                     # Simulation finished
                     return self.finish(context)
-
-            # Force redraw of windows in the viewport
-            for window in context.window_manager.windows:
-                screen = window.screen
-                for area in screen.areas:
-                    if area.type == 'VIEW_3D':
-                        for region in area.regions:
-                            if region.type == 'WINDOW':
-                                region.tag_redraw()
             
         return {'PASS_THROUGH'}
 
@@ -1870,9 +1706,19 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
             self._simu.configFromFile(paths[1])
             self._simu.simulate(True) # Async mode
 
+            #Save necessary information from world parameters
+            world = context.scene.world
+            if world and world.penred_settings:
+                if world.penred_settings.simulation.limitSimTime:
+                    self._maxSimTime = world.penred_settings.simulation.maxSimTime
+                else:
+                    self._maxSimTime = None
+            else:
+                self._maxSimTime = None
+                
             # Change the state to running
             scene.penred_settings.simulationState = "RUNNING"
-            utils.redrawView3D(context)
+            utils.redrawAll(context)
             
             return {'RUNNING_MODAL'}
                 
@@ -1887,19 +1733,24 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
             return
 
         try:
+
+            settings = context.scene.penred_settings
+            
             simulated = self._simu.simulated()
-            self._progress = min((s[0]/s[1]*100.0 for s in simulated if s[1] > 0), default=0)
+            progress = min((s[0]/s[1]*100.0 for s in simulated if s[1] > 0), default=0)
             totalSimulated = sum(s[0] for s in simulated)
 
-            #Check elapsed time progress
-            simProp = context.scene.world.penred_settings.simulation
-            
-            if simProp.limitSimTime:
-                elapsed_progress = 100.0*(time.perf_counter() - self._start_time) / float(simProp.maxSimTime)
-                if self._progress < elapsed_progress:
-                    self._progress = elapsed_progress
+            elapsedTime = time.perf_counter() - self._start_time
+
+            if self._maxSimTime:
+                elapsed_progress = 100.0*elapsedTime / float(self._maxSimTime)
+                if progress < elapsed_progress:
+                    progress = elapsed_progress
+
+            settings.simulationProgress = progress
+            settings.simulationStatus = f"Running... ({totalSimulated/elapsedTime:.1E} hist/s)"
                 
-            self.report({'INFO'}, f"Simulation Progress: {self._progress:.2f}% (Simulated: {totalSimulated})")
+            self.report({'INFO'}, f"Simulation Progress: {progress:.2f}% (Simulated: {totalSimulated})")
 
         except Exception as e:
             self.report({'WARNING'}, f"Progress update failed: {str(e)}")
@@ -1911,18 +1762,16 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
                 self._simu.forceFinish()
                 while self._simu.isSimulating(): # Wait until the simulation ends
                     time.sleep(5)
-                    
+
+            #Plot final results
+            self.plotResults()
+            
             del self._simu
-            _simu = None
+            self._simu = None
 
         scene = context.scene            
         if scene and scene.penred_settings:
             scene.penred_settings.simulationState = "NONE"
-
-        # Clean the popup
-        if self._draw_handler:
-            bpy.types.SpaceView3D.draw_handler_remove(self._draw_handler, 'WINDOW')
-            self._draw_handler = None
             
     def finish(self, context):
 
@@ -1930,18 +1779,16 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
             context.window_manager.event_timer_remove(self._timer)
             self._timer = None
 
-        self.cleanSimu(context)
-        
-        self.report({'INFO'}, "Simulation finished")
+        simulated = self._simu.simulated()
+        totalSimulated = sum(s[0] for s in simulated)
 
-        # Force redraw of windows in the viewport
-        for window in context.window_manager.windows:
-            screen = window.screen
-            for area in screen.areas:
-                if area.type == 'VIEW_3D':
-                    for region in area.regions:
-                        if region.type == 'WINDOW':
-                            region.tag_redraw()        
+        settings = context.scene.penred_settings
+        settings.simulationProgress = 100.0
+        settings.simulationStatus = f"Finished. Simulated {totalSimulated:.3E} histories"
+
+        self.cleanSimu(context)
+        self.report({'INFO'}, "Simulation finished")
+        utils.redrawAll(context)
         return {'FINISHED'}
 
     def cancel(self, context):
@@ -1949,19 +1796,16 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
         if self._timer:
             context.window_manager.event_timer_remove(self._timer)
             self._timer = None
+
+        simulated = self._simu.simulated()
+        totalSimulated = sum(s[0] for s in simulated)
+
+        settings = context.scene.penred_settings
+        settings.simulationStatus = f"Cancelled. Simulated {totalSimulated:.3E} histories"            
         
         self.cleanSimu(context)
-
         self.report({'WARNING'}, "Simulation cancelled")
-
-        # Force redraw of windows in the viewport
-        for window in context.window_manager.windows:
-            screen = window.screen
-            for area in screen.areas:
-                if area.type == 'VIEW_3D':
-                    for region in area.regions:
-                        if region.type == 'WINDOW':
-                            region.tag_redraw()        
+        utils.redrawAll(context)
         return {'CANCELLED'}
 
 # Import tracks operator
@@ -2804,7 +2648,7 @@ class export_penred(Operator, ExportHelper):
                     }
                 }
 
-                if dependency_manager.is_installed():
+                if penred_import.is_available():
                     import pyPenred
                     fconf.write(pyPenred.data.dict2SectionString(dicConfig))
             
@@ -2818,7 +2662,7 @@ class export_penred(Operator, ExportHelper):
                 dicConfig = dict()
                 dicConfig["geometry"] = dicDICOM
 
-                if dependency_manager.is_installed():
+                if penred_import.is_available():
                     import pyPenred
                     fconf.write(pyPenred.data.dict2SectionString(dicConfig))          
 

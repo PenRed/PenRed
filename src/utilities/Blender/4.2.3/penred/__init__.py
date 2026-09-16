@@ -26,72 +26,14 @@
 #        vicente.gimenez@uv.es              (Vicent Giménez Gómez)
 #
 
-bl_info = {
-    "name": "PenRed for blender",
-    "author": "PenRed colaboration",
-    "version": (2, 0),
-    "blender": (4, 5, 0),
-    "location": "File > Export",
-    "description": "Adds geometry construction capabilities and simulation configuration for PenRed simulations",
-    "warning": "",
-    "doc_url": "https://penred.github.io/PenRed/Blender",
-    "category": "Import-Export",
-}
-
 import bpy
 import importlib
-from . import addon_properties, operators, ui, dependency_manager
+from . import addon_properties, operators, ui, penred_import
 
+importlib.reload(penred_import)
 importlib.reload(addon_properties)
-importlib.reload(dependency_manager)
 importlib.reload(operators)
 importlib.reload(ui)
-
-# --- Operators for Install / Update / Uninstall pyPenred ---
-
-class PYPENRED_OT_install_dependency(bpy.types.Operator):
-    bl_idname = "pypenred.install_dependency"
-    bl_label = "Install pyPenred"
-    bl_description = "Downloads and installs the required pyPenred package"
-
-    def execute(self, context):
-        try:
-            dependency_manager.install_package()
-            self.report({"INFO"}, "pyPenred installed successfully!")
-        except Exception as e:
-            self.report({"ERROR"}, f"Installation failed: {e}")
-            return {"CANCELLED"}
-        return {"FINISHED"}
-
-
-class PYPENRED_OT_update_dependency(bpy.types.Operator):
-    bl_idname = "pypenred.update_dependency"
-    bl_label = "Update pyPenred"
-    bl_description = "Upgrades pyPenred to the latest version"
-
-    def execute(self, context):
-        try:
-            dependency_manager.update_package()
-            self.report({"INFO"}, "pyPenred updated successfully!")
-        except Exception as e:
-            self.report({"ERROR"}, f"Update failed: {e}")
-            return {"CANCELLED"}
-        return {"FINISHED"}
-
-
-class PYPENRED_OT_uninstall_dependency(bpy.types.Operator):
-    bl_idname = "pypenred.uninstall_dependency"
-    bl_label = "Remove pyPenred"
-    bl_description = "Uninstalls the pyPenred package"
-
-    def execute(self, context):
-        try:
-            dependency_manager.uninstall_package()
-            self.report({"INFO"}, "pyPenred removed.")
-        except Exception as e:
-            self.report({"ERROR"}, f"Removal failed: {e}")
-            return {"CANCELLED"}
-        return {"FINISHED"}
 
 # --- Add-on Preferences UI ---
 
@@ -100,43 +42,10 @@ class PYPENRED_Preferences(bpy.types.AddonPreferences):
 
     def draw(self, context):
         layout = self.layout
-        installed = dependency_manager.is_installed()
+        layout.label(text="PenRed for Blender", icon="PREFERENCES")
+        layout.label(text="pyPenred and dependencies are bundled with this extension.")
 
-        box = layout.box()
-        box.label(text="Dependency Management", icon="PREFERENCES")
-
-        status_row = box.row()
-        if installed:
-            status_row.label(text="Status: pyPenred is Installed", icon="CHECKMARK")
-            row = box.row(align=True)
-            row.operator(
-                PYPENRED_OT_update_dependency.bl_idname, icon="FILE_REFRESH"
-            )
-            row.operator(
-                PYPENRED_OT_uninstall_dependency.bl_idname, icon="TRASH"
-            )
-        else:
-            status_row.label(
-                text="Status: pyPenred is NOT installed", icon="ERROR"
-            )
-            box.operator(
-                PYPENRED_OT_install_dependency.bl_idname, icon="IMPORT"
-            )
-
-class PYPENRED_OT_open_preferences(bpy.types.Operator):
-    bl_idname = "pypenred.open_preferences"
-    bl_label = "Open pyPenred Preferences"
-    bl_description = "Opens preferences to manage pyPenred dependencies"
-
-    def execute(self, context):
-        bpy.ops.preferences.addon_show(module=__package__)
-        return {'FINISHED'}
-
-addonClasses = (PYPENRED_OT_install_dependency,
-                PYPENRED_OT_update_dependency,
-                PYPENRED_OT_uninstall_dependency,
-                PYPENRED_Preferences,
-                PYPENRED_OT_open_preferences)
+addonClasses = (PYPENRED_Preferences,)
 
 # Register all modules
 def register():

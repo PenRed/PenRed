@@ -34,9 +34,34 @@ from bpy_extras.io_utils import ExportHelper
 from bpy.types import Operator
 from bpy.props import FloatVectorProperty
 from bpy_extras.object_utils import AddObjectHelper, object_data_add
+import numpy as np
 from mathutils import Vector, Quaternion
 from mathutils import Color
 from math import cos, acos, sin, asin, tan, atan2, sqrt, pi
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+
+def figure2BlenderImage(fig, name):
+    canvas = FigureCanvasAgg(fig)
+    canvas.draw()
+    rgba = np.asarray(canvas.buffer_rgba())
+
+    h, w, _ = rgba.shape
+    pixels = rgba.astype(np.float32) / 255.0
+    pixels = pixels[::-1]  # flip vertical for Blender
+    pixels = pixels.reshape(-1)
+
+    # Reuse the image datablock if it exists
+    img = bpy.data.images.get(name)
+    if img is None:
+        img = bpy.data.images.new(name, width=w, height=h, alpha=True)
+    else:
+        bpy.data.images.remove(img)
+        img = bpy.data.images.new(name, width=w, height=h, alpha=True)
+
+    img.pixels.foreach_set(pixels)
+    img.update()
+    print(f"Image registered: {name}")
+    return img
 
 def clamp(v, minV, maxV):
     return max(minV, min(v, maxV))
@@ -46,6 +71,11 @@ def redrawView3D(context):
         if area.type == 'VIEW_3D':
             area.tag_redraw()
 
+def redrawAll(context):
+    for window in context.window_manager.windows:
+        for area in window.screen.areas:
+            area.tag_redraw()
+            
 def getFCurve(action, dataPath, index):
     for fcurve in action.fcurves:
         if fcurve.data_path == dataPath and fcurve.array_index == index:

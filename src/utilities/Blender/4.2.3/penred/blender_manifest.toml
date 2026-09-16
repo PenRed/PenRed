@@ -1,0 +1,20 @@
+schema_version = "1.0.0"
+id = "penred_blender"
+version = "2.1.0"
+name = "PenRed for Blender"
+tagline = "Model, configure, and run PenRed Monte Carlo simulations"
+maintainer = "PenRed Collaboration <vicent.gimenez.alventosa@gmail.com>"
+type = "add-on"
+blender_version_min = "4.2.0"
+license = ["SPDX:AGPL-3.0-or-later"]
+
+# Supported platforms
+platforms = ["windows-x64", "macos-x64", "macos-arm64", "linux-x64"]
+
+# dependencies
+dependencies = [
+    "numpy",
+    "pyyaml",
+    "matplotlib",
+    "pyPenred"
+]

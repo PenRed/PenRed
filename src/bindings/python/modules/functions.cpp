@@ -118,39 +118,3 @@ std::string dict2SectionStringWithPrefix(const py::dict& dict, const std::string
 std::string dict2SectionString(const py::dict& dict){
   return dict2SectionStringWithPrefix(dict, "");
 }
-
-size_t assertShapes(const py::array_t<double>& arr1,
-		    const py::array_t<double>& arr2,
-		    std::vector<unsigned long>& dimsSizes) {
-  
-  // Get shape information
-  py::buffer_info buf1 = arr1.request();
-  py::buffer_info buf2 = arr2.request();
-    
-  // Compare number of dimensions
-  if (buf1.ndim != buf2.ndim) {
-    std::string errorMsg("Different number of dimensions: ");
-    errorMsg += std::to_string(buf1.ndim);
-    errorMsg += " vs ";
-    errorMsg += std::to_string(buf2.ndim);
-    throw py::buffer_error(errorMsg);
-  }
-    
-  // Compare shape
-  for (long int i = 0; i < buf1.ndim; ++i) {
-    if (buf1.shape[i] != buf2.shape[i] || buf1.shape[i] <= 0 ) {
-      std::string errorMsg("Dimension ");
-      errorMsg += std::to_string(i);
-      errorMsg += "mismatch: ";
-      errorMsg += std::to_string(buf1.shape[i]);
-      errorMsg += " vs ";
-      errorMsg += std::to_string(buf2.shape[i]);
-      throw py::buffer_error(errorMsg);	  
-      std::cout << "Dimension " << i << " mismatch: " 
-		<< buf1.shape[i] << " vs " << buf2.shape[i] << std::endl;
-    }
-    dimsSizes.push_back(static_cast<unsigned long>(buf1.shape[i]));
-  }
-
-  return buf1.ndim;
-}

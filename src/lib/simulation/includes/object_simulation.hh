@@ -1966,15 +1966,21 @@ namespace penred{
 		//Get simulated histories
 		const unsigned long long simulatedHists = simConfigs[0].getTotalSimulated();
 
-		//Update results from thread 0
-		bool found = lastSimResults.update(talliesVect[0],
-						   nextInstruction.name,
-						   simulatedHists);
+        if(nextInstruction.name.empty()){
+          //No name specified, update all tallies from thread 0
+          lastSimResults.update(talliesVect[0], simulatedHists);
+        }
+        else{
+          //Update specified tally results from thread 0
+          bool found = lastSimResults.update(talliesVect[0],
+                                             nextInstruction.name,
+                                             simulatedHists);
 
-		if(verbose > 1 && !found){
-		  printf("Unable to update results. Tally '%s' not found!\n",
-			 nextInstruction.name.c_str());
-		}
+          if(verbose > 1 && !found){
+            printf("Unable to update results. Tally '%s' not found!\n",
+                   nextInstruction.name.c_str());
+          }
+        }
 	      }
 	      
 	      break;

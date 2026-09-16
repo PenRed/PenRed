@@ -5,13 +5,159 @@ import time
 import os
 import sys
 import numpy as np
-from pyPenred import simulation
-from pyPenred import psf
+from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
+import locale
 from pyPenred import data
 from pyPenred import geometry
+from pyPenred import psf
+from pyPenred import simulation
 
 simulation.create = simulation.simulator
 geometry.create = geometry.geometry
+
+def _plotRes1D(self, filename = "", with_errors=True, nsigma=2):
+    if not isinstance(self, data.results1D):
+        raise TypeError(f"Expected a data.results1D object, got {type(self)}")
+
+    values, sigma, xinfo, vheader, _ = self.data()
+    xPoints = np.linspace(xinfo[0], xinfo[1], values.shape[0])
+
+    # Create a Figure
+    fig = Figure(figsize=(8, 5), dpi=300)
+    ax = fig.add_subplot(111)
+
+    if with_errors:
+        ax.errorbar(xPoints, values, yerr=nsigma*sigma,
+                    capsize=3, fmt="r--x", ecolor="black")
+    else:
+        ax.plot(xPoints, values)
+
+    if self.title():
+        ax.set_title(self.title())
+    if xinfo[2]:
+        ax.set_xlabel(xinfo[2])
+    if vheader:
+        ax.set_ylabel(vheader)
+
+    # Check if the image must be saved to a file
+    if filename:
+        fig.savefig(filename, dpi=300)
+        
+    # Restore locale after building the figure
+    locale.setlocale(locale.LC_TIME, 'C')
+    
+    return fig
+
+def _plotRes2D(self, filename="", with_errors=True, nsigma=2, max_rel_error=0.20):
+    """
+    Plot a 2D result.
+
+    Parameters
+    ----------
+    with_errors : bool
+        If True, add a second panel with the relative error.
+    nsigma : float
+        Number of standar deviations used to calculate the relative error.
+    max_rel_error : float
+        Maximum absolute relative error shown on the color scale.
+        Default 0.20 (i.e. ±20%). If the data maximum is smaller,
+        the range is shrunk automatically to preserve contrast.
+    """
+    if not isinstance(self, data.results2D):
+        raise TypeError(f"Expected a data.results2D object, got {type(self)}")
+
+    values, sigma, yinfo, xinfo, vheader, _ = self.data()
+    extent = [xinfo[0], xinfo[1], yinfo[0], yinfo[1]]
+
+    if with_errors:
+        fig = Figure(figsize=(14, 6), dpi=300)
+        ax_val, ax_err = fig.subplots(1, 2)
+    else:
+        fig = Figure(figsize=(8, 6), dpi=300)
+        ax_val = fig.add_subplot(111)
+        ax_err = None
+
+    # --- Value panel ---
+    im_val = ax_val.imshow(
+        values,
+        origin="lower",
+        extent=extent,
+        cmap="viridis",
+        aspect="equal",
+    )
+    if self.title():
+        ax_val.set_title(self.title())
+    if xinfo[2]:
+        ax_val.set_xlabel(xinfo[2])
+    if yinfo[2]:
+        ax_val.set_ylabel(yinfo[2])
+    if vheader:
+        fig.colorbar(im_val, ax=ax_val, label=vheader)
+
+    # --- Relative error panel ---
+    if ax_err is not None:
+        with np.errstate(divide="ignore", invalid="ignore"):
+            rel_err = np.where(
+                values != 0,
+                sigma / values,
+                np.nan,
+            )
+
+        # Cells with zero value -> show as zero error, not NaN
+        rel_err = np.nan_to_num(rel_err, nan=0.0)
+
+        # Determine the color range
+
+        # - vmax
+        data_max = np.max(rel_err) if rel_err.size else 0.0
+        if data_max == 0.0:
+            vmax = max_rel_error
+        elif data_max < max_rel_error:
+            # Shrink the range to the data, with 1% headroom
+            vmax = data_max * 1.01
+        else:
+            vmax = max_rel_error
+
+        # - vmin
+        data_min = np.min(rel_err) if rel_err.size else 0.0
+        if data_min == 0.0:
+            vmin = 0.0
+        if data_min > -max_rel_error:
+            vmin = data_min * 0.99
+        else:
+            vmin = -max_rel_error
+            
+        im_err = ax_err.imshow(
+            100.0*rel_err,
+            origin="lower",
+            extent=extent,
+            cmap="magma",
+            vmin=vmin*100.0,
+            vmax=vmax*100.0,
+            aspect="equal",
+        )
+        if self.title():
+            ax_err.set_title(f"{self.title()}")
+        if xinfo[2]:
+            ax_err.set_xlabel(xinfo[2])
+        if yinfo[2]:
+            ax_err.set_ylabel(yinfo[2])
+        fig.colorbar(im_err, ax=ax_err, label="Relative Error (%)")
+
+    fig.tight_layout()
+
+    # Check if the image must be saved to a file
+    if filename:
+        fig.savefig(filename, dpi=300)
+    
+    # Restore locale after building the figure
+    locale.setlocale(locale.LC_TIME, 'C')
+    
+    return fig
+        
+data.results1D.plot = _plotRes1D
+data.results2D.plot = _plotRes2D
 
 def readConfigFile(filename):
     '''

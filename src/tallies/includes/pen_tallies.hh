@@ -900,9 +900,12 @@ public:
     for(pen_genericTally<pen_particleState>* t : tallies){
       TallyType* derived = penred::tally::downcast<TallyType>(t);
       if(derived != nullptr){
-	if(derived->readName().compare(tallyName) == 0){
-	  return derived->getResults(nhists);
-	}
+        if(derived->readName().compare(tallyName) == 0){
+          //Flush tally
+          t->flush();
+          //Get and return results
+          return derived->getResults(nhists);
+        }
       }
     }
     //Not found
@@ -913,9 +916,12 @@ public:
 
     if(i >= tallies.size())
       return typename TallyType::ResultsTypes();
-
+    
     TallyType* derived = penred::tally::downcast<TallyType>(tallies[i]);
     if(derived != nullptr){
+      //Flush tally
+      tallies[i]->flush();
+      //Get and return results
       return derived->getResults(nhists);
     }
 
@@ -1067,6 +1073,12 @@ public:
     for(tallyIterator i = tallies_lastHist.begin();
 	i != tallies_lastHist.end(); ++i)
       (*i)->tally_lastHist(lastHist);
+  }
+
+  inline void flushTallies(){
+    for(tallyIterator i = tallies.begin(); i != tallies.end(); ++i){
+      (*i)->flush();
+    }
   }
   
   inline void saveData(const unsigned long long nhist, const bool doflush = true){

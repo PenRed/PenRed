@@ -1724,7 +1724,7 @@ namespace penred{
     }
 
 	
-    constexpr size_t maxDims = 1000;
+    constexpr size_t maxDims = 30;
 
     typedef std::pair<double, double> limitsType;
 
@@ -1888,6 +1888,7 @@ namespace penred{
 
       //Variables
       std::string description;
+      std::string title;
 
       //Constructors
       inline multiDimension(){
@@ -3791,6 +3792,7 @@ namespace penred{
 	res.init(this->nBins, this->limits);
 
 	res.description = this->description;
+    res.title = this->title;
 
 	//Set headers
 	for(size_t idim = 0; idim < dim; ++idim){

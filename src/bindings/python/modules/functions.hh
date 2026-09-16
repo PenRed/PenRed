@@ -33,6 +33,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 #include <algorithm>
+#include <fstream>
 #include "pen_data.hh"
 #include "math_classes.hh"
 
@@ -48,6 +49,58 @@ inline int dict2section(const pybind11::dict& dict,
 
   unsigned long errorLine;
   return parseString(text, result, errorString, errorLine);
+}
+
+// Numpy utilities
+
+template<typename T>
+size_t assertShapes(const pybind11::array_t<T>& arr1,
+                    const pybind11::array_t<T>& arr2,
+                    std::vector<unsigned long>& dimsSizes) {
+  
+  // Get shape information
+  pybind11::buffer_info buf1 = arr1.request();
+  pybind11::buffer_info buf2 = arr2.request();
+    
+  // Compare number of dimensions
+  if (buf1.ndim != buf2.ndim) {
+    std::string errorMsg("Different number of dimensions: ");
+    errorMsg += std::to_string(buf1.ndim);
+    errorMsg += " vs ";
+    errorMsg += std::to_string(buf2.ndim);
+    throw pybind11::buffer_error(errorMsg);
+  }
+    
+  // Compare shape
+  for (long int i = 0; i < buf1.ndim; ++i) {
+    if (buf1.shape[i] != buf2.shape[i] || buf1.shape[i] <= 0 ) {
+      std::string errorMsg("Dimension ");
+      errorMsg += std::to_string(i);
+      errorMsg += "mismatch: ";
+      errorMsg += std::to_string(buf1.shape[i]);
+      errorMsg += " vs ";
+      errorMsg += std::to_string(buf2.shape[i]);
+      throw pybind11::buffer_error(errorMsg);	  
+      std::cout << "Dimension " << i << " mismatch: " 
+                << buf1.shape[i] << " vs " << buf2.shape[i] << std::endl;
+    }
+    dimsSizes.push_back(static_cast<unsigned long>(buf1.shape[i]));
+  }
+
+  return buf1.ndim;
+}
+
+template<typename T>
+std::vector<T> flattenArray(const pybind11::array_t<T>& arr) {
+  pybind11::buffer_info buf = arr.request();
+    
+  // Get pointer to data
+  T* ptr = static_cast<T*>(buf.ptr);
+    
+  // Create vector from data
+  std::vector<T> result(ptr, ptr + buf.size);
+    
+  return result;
 }
 
 // + Results value extraction
@@ -99,9 +152,9 @@ pybind11::tuple result2numpy(const penred::measurements::results<T, dim>& result
     for(int i = static_cast<int>(dim)-1; i >= 0; --i){
 
       if(onlyEffective && nBins[i] <= 1){
-	//Skip "empty" dimensions
-	//printf("Skipping: %s (%lu)\n", results.readDimHeader(i).c_str(), nBins[i]);
-	continue;
+        //Skip "empty" dimensions
+        //printf("Skipping: %s (%lu)\n", results.readDimHeader(i).c_str(), nBins[i]);
+        continue;
       }
       
       pybind11::tuple dimInfo(3);
@@ -131,21 +184,148 @@ pybind11::array_t<T> result2numpy(const std::vector<T>& results, const bool, con
   return pyRes;
 }
 
-size_t assertShapes(const pybind11::array_t<double>& arr1,
-		    const pybind11::array_t<double>& arr2,
-		    std::vector<unsigned long>& dimsSizes);
+// + Results constructor extraction
 
-template<typename T>
-std::vector<T> flattenArray(const pybind11::array_t<T>& arr) {
-    pybind11::buffer_info buf = arr.request();
+template<typename T, size_t dim>
+void numpy2result(penred::measurements::results<T, dim>& obj,
+                  const pybind11::array_t<T>& values,
+                  const pybind11::array_t<T>& sigma,
+                  const pybind11::list& info,
+                  const std::string& valueHeader){
+
+  //Check dimensions
+  std::vector<unsigned long> dimBins;
+  const size_t nDim = assertShapes(values, sigma, dimBins);
+
+  if(nDim > dim){
+    throw pybind11::type_error("Number of data dimensions is larger than results dimensions");
+  }
+
+  //Ensure the information is a list
+  if (!pybind11::isinstance<pybind11::list>(info) && !pybind11::isinstance<pybind11::tuple>(info)) {
+    throw pybind11::type_error("Argument 'info' must be a list");
+  }
+
+  //Check information length
+  if(info.size() != nDim){
+    throw pybind11::value_error("Data and information dimensions mismatch");      
+  }    
+
+  //Check and extract information
+  std::vector<std::pair<double, double>> limits;
+  std::vector<std::string> headers;
+  for(size_t i = 0; i < info.size(); ++i){
+    //Check if the element is a tuple
+    if (!pybind11::isinstance<pybind11::tuple>(info[i])) {
+      throw pybind11::type_error("Information element " + std::to_string(i) + " is not a tuple");
+    }
+
+    pybind11::tuple t = info[i];
+    if(t.size() != 3){
+      throw pybind11::value_error("Tuple " + std::to_string(i) + " has " + 
+                                  std::to_string(t.size()) + " elements, expected 3");
+    }
+
+    // Check first element is numeric
+    if (!pybind11::isinstance<pybind11::int_>(t[0]) && !pybind11::isinstance<pybind11::float_>(t[0])) {
+      throw pybind11::type_error("Tuple " + std::to_string(i) + 
+                                 ", first element must be numeric (int or float)");
+    }
+        
+    // Check second element is numeric
+    if (!pybind11::isinstance<pybind11::int_>(t[1]) && !pybind11::isinstance<pybind11::float_>(t[1])) {
+      throw pybind11::type_error("Tuple " + std::to_string(i) + 
+                                 ", second element must be numeric (int or float)");
+    }
+
+    // Check third element is string
+    if (!pybind11::isinstance<pybind11::str>(t[2])) {
+      throw pybind11::type_error("Tuple " + std::to_string(i) + 
+                                 ", third element must be a string");
+    }
+
+    // Extract values
+    double min = t[0].cast<double>();
+    double max = t[1].cast<double>();
+    std::string header = t[2].cast<std::string>();
+
+    limits.emplace_back(min,max);
+    headers.push_back(std::move(header));
+  }
     
-    // Get pointer to data
-    T* ptr = static_cast<T*>(buf.ptr);
-    
-    // Create vector from data
-    std::vector<T> result(ptr, ptr + buf.size);
-    
-    return result;
+  //Reverse bins per dimension and limits to correct numpy ordering
+  std::reverse(dimBins.begin(), dimBins.end());
+  std::reverse(limits.begin(), limits.end());
+  std::reverse(headers.begin(), headers.end());
+
+  //Init it
+  int err = obj.init(dimBins, limits, flattenArray(values), flattenArray(sigma));
+  if(err != penred::measurements::errors::SUCCESS){
+    throw pybind11::value_error(penred::measurements::errorToString(err));
+  }
+
+  //Set headers
+  for(size_t i = 0; i < headers.size(); ++i){
+    obj.setDimHeader(i,headers[i]);
+  }
+  obj.setValueHeader(valueHeader);
+}
+
+// + Results load
+template<typename T, size_t dim>
+void resultsLoad(penred::measurements::results<T, dim>& obj, const std::string& filename){
+
+  //Read data
+  std::ifstream fin(filename, std::ifstream::in);
+  if(!fin){
+    std::string errorMsg("Unable to open file ");
+    errorMsg += filename;
+    throw pybind11::value_error(errorMsg.c_str());
+  }
+  
+  int err = obj.read(fin);
+  fin.close();
+  if(err != 0){
+    std::string errorMsg("Error reading data file. ");
+    errorMsg += penred::measurements::errorToString(err);
+    throw pybind11::value_error(errorMsg.c_str());
+  }
+}
+
+// + Results extract values
+template<typename T, size_t dim>
+pybind11::tuple extractValue(const penred::measurements::results<T, dim>& obj,
+                             const std::array<double, dim>& position) {
+  T value;
+  double uncertainty;
+
+  int err = obj.extractValue(position, value, uncertainty);
+  if(err != penred::measurements::errors::SUCCESS) {
+    std::string errorMsg("Error extracting interpolated value from results. ");
+    errorMsg += penred::measurements::errorToString(err);
+    throw pybind11::value_error(errorMsg.c_str());
+  }
+
+  pybind11::tuple ret(2);
+  ret[0] = value;
+  ret[1] = uncertainty;
+  return ret;
+}
+
+template<typename T, size_t dim>
+pybind11::tuple extractSpectrum1D(const penred::measurements::results<T, dim>& obj,
+                                  const unsigned spectrumDim,
+                                  const std::array<double, dim-1>& position){
+  penred::measurements::results<T, 1> spectrum;
+
+  int err = obj.extractSpectrum1D(spectrumDim, position, spectrum);
+  if(err != penred::measurements::errors::SUCCESS) {
+    std::string errorMsg("Error extracting interpolated spectrum from results. ");
+    errorMsg += penred::measurements::errorToString(err);
+    throw pybind11::value_error(errorMsg.c_str());
+  }
+
+  return result2numpy(spectrum, false, false);
 }
 
 #endif
