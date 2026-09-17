@@ -587,6 +587,9 @@ penred::measurements::results<double, 1> pen_AngularDet::generateResults(const p
   description += ",  phi2 = " + std::to_string(phi2*rad2deg) + "\n";
   description += " Histories simulated: " + std::to_string(nhists) + "\n";
   description += " Energy spectra of emerging particles (1/(eV*sr*particle)).\n";
+
+  std::string title("Angular detector: ");
+  title += particleName(kpar);
   
   //Create results
   penred::measurements::results<double, 1> results;
@@ -594,6 +597,7 @@ penred::measurements::results<double, 1> pen_AngularDet::generateResults(const p
 			{penred::measurements::limitsType(emin, emax)});
 	  
   results.description = description;
+  results.title = title;
   
   results.setDimHeader(0, "Energy (eV)");
   results.setValueHeader("Particles (1/hist)");

@@ -1797,8 +1797,11 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
             context.window_manager.event_timer_remove(self._timer)
             self._timer = None
 
-        simulated = self._simu.simulated()
-        totalSimulated = sum(s[0] for s in simulated)
+        if self._simu:
+            simulated = self._simu.simulated()
+            totalSimulated = sum(s[0] for s in simulated)
+        else:
+            totalSimulated = 0.0
 
         settings = context.scene.penred_settings
         settings.simulationStatus = f"Cancelled. Simulated {totalSimulated:.3E} histories"            
@@ -2574,7 +2577,6 @@ class export_penred(Operator, ExportHelper):
             scene = context.scene
             if scene and scene.penred_settings:
                 scene.penred_settings.simulationState = "CANCELLED"
-        return {'CANCELLED'}    
     
     def execute(self, context):
 

@@ -268,6 +268,7 @@ int pen_DetectionEDep::configure(const wrapper_geometry& geometry,
   //Configure the corresponding measurement
   
   measure.description = "Tally energy deposition in detector " + std::to_string(idet);
+  measure.title = "Energy Deposition";
   
   measure.setDimHeader(0, "x (cm)");
   measure.setDimHeader(1, "y (cm)");

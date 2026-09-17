@@ -137,6 +137,8 @@ public:
 	  "  bin reported in degrees.\n\n";
 	results.description += " Histories simulated: " + std::to_string(nhists) + "\n\n";
 
+    results.title = "CT Sinogram";
+    
 	results.setDimHeader(0, "Detection angle (deg)");
 	results.setDimHeader(1, "Projection Angle (deg)");
 	results.setValueHeader("  \u03BC\u00B7x  ");

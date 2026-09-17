@@ -80,6 +80,7 @@ pen_DICOMDoseDistrib::pen_DICOMDoseDistrib() :
 	 });
 	  
       results.description = "PenRed: DICOM dose per voxel distribution report\n";
+      results.title = "DICOM Absorbed Dose";
   
       results.setDimHeader(0, "x (cm)");
       results.setDimHeader(1, "y (cm)");

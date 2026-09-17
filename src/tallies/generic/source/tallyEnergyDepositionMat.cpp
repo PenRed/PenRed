@@ -57,8 +57,9 @@ pen_EdepMat::pen_EdepMat() : pen_genericTally( USE_LOCALEDEP |
 			    {penred::measurements::limitsType(0.0, static_cast<double>(nmat))});
 	  
       results.description = "PenRed: Material energy deposition report.\n\n";
+      results.title = "Energy Deposition per Material";
   
-      results.setDimHeader(0, "Material");
+      results.setDimHeader(0, "Material index");
       results.setValueHeader("Energy (eV/hist)");
 
       for(int i = 0; i < nmat; i++)

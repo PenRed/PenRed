@@ -63,8 +63,10 @@ pen_EdepBody::pen_EdepBody() :
       for(int i = 0; i < nBody; ++i){
 	results.description += std::to_string(i) + ": " + geo->getBodyName(i) + "\n";
       }
+
+      results.title = "Energy Deposition per Body";
   
-      results.setDimHeader(0, "Body");
+      results.setDimHeader(0, "Body index");
       results.setValueHeader("Energy (eV/hist)");
 
       for(int i = 0; i < nBody; i++)

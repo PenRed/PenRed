@@ -339,6 +339,8 @@ int pen_EmergingSphericalDistrib::configure(const wrapper_geometry& /*geometry*/
     if(enabled[ip]){
 
       results[ip].description = "Tally emerging spherical distribution";
+      results[ip].title = "Emerging Spherical Distribution of ";
+      results[ip].title += particleName(ip);
   
       results[ip].setDimHeader(0, "E (eV)");
       results[ip].setDimHeader(1, "theta (rad)");
@@ -346,21 +348,26 @@ int pen_EmergingSphericalDistrib::configure(const wrapper_geometry& /*geometry*/
       results[ip].setValueHeader("Prob(1/hist)");
   
       results[ip].
-	initFromLists({reader.ne, reader.nt, reader.np},
-		      {penred::measurements::limitsType(reader.emin, reader.emax),
-		       penred::measurements::limitsType(reader.tmin, reader.tmax),
-		       penred::measurements::limitsType(reader.pmin, reader.pmax)});
+        initFromLists({reader.ne, reader.nt, reader.np},
+                      {penred::measurements::limitsType(reader.emin, reader.emax),
+                       penred::measurements::limitsType(reader.tmin, reader.tmax),
+                       penred::measurements::limitsType(reader.pmin, reader.pmax)});
 
+      lastInter[ip].description = "Tally emerging spherical distribution, last position\n"
+        " Stores the position distribution of last interactions before a particle escapes";
+      lastInter[ip].title = "Last Interaction Distribution of ";
+      lastInter[ip].title += particleName(ip);
+      
       lastInter[ip].setDimHeader(0, "X (cm)");
       lastInter[ip].setDimHeader(1, "Y (cm)");
       lastInter[ip].setDimHeader(2, "Z (cm)");
       lastInter[ip].setValueHeader("Prob(1/hist)");      
 
       lastInter[ip].
-	initFromLists({reader.nx, reader.ny, reader.nz},
-		      {penred::measurements::limitsType(reader.xmin, reader.xmax),
-		       penred::measurements::limitsType(reader.ymin, reader.ymax),
-		       penred::measurements::limitsType(reader.zmin, reader.zmax)});
+        initFromLists({reader.nx, reader.ny, reader.nz},
+                      {penred::measurements::limitsType(reader.xmin, reader.xmax),
+                       penred::measurements::limitsType(reader.ymin, reader.ymax),
+                       penred::measurements::limitsType(reader.zmin, reader.zmax)});
 
       if(verbose > 1 && !printedInfo){
 	//Print summary

@@ -75,7 +75,9 @@ pen_SpatialDoseDistrib::pen_SpatialDoseDistrib() :
       results.description =
 	"PenRed: Spatial dose distribution report\n"
 	"Dose units are: eV/g per history\n";
-  
+
+      results.title = "Absorbed Dose Distribution";
+      
       results.setDimHeader(0, "x (cm)");
       results.setDimHeader(1, "y (cm)");
       results.setDimHeader(2, "z (cm)");

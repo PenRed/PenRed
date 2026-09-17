@@ -86,8 +86,8 @@ def _plotRes2D(self, filename="", with_errors=True, nsigma=2, max_rel_error=0.20
         cmap="viridis",
         aspect="equal",
     )
-    if self.title():
-        ax_val.set_title(self.title())
+    if ax_err is not None:
+        ax_val.set_title("Values")
     if xinfo[2]:
         ax_val.set_xlabel(xinfo[2])
     if yinfo[2]:
@@ -100,7 +100,7 @@ def _plotRes2D(self, filename="", with_errors=True, nsigma=2, max_rel_error=0.20
         with np.errstate(divide="ignore", invalid="ignore"):
             rel_err = np.where(
                 values != 0,
-                sigma / values,
+                nsigma * sigma / values,
                 np.nan,
             )
 
@@ -137,15 +137,18 @@ def _plotRes2D(self, filename="", with_errors=True, nsigma=2, max_rel_error=0.20
             vmax=vmax*100.0,
             aspect="equal",
         )
-        if self.title():
-            ax_err.set_title(f"{self.title()}")
+        ax_err.set_title(f"Relative Uncertainty ({nsigma} $\sigma$)")
         if xinfo[2]:
             ax_err.set_xlabel(xinfo[2])
         if yinfo[2]:
             ax_err.set_ylabel(yinfo[2])
         fig.colorbar(im_err, ax=ax_err, label="Relative Error (%)")
 
-    fig.tight_layout()
+    if self.title():
+        fig.suptitle(f"{self.title()}")
+        fig.tight_layout(rect=[0, 0, 1, 0.95])
+    else:
+        fig.tight_layout()
 
     # Check if the image must be saved to a file
     if filename:

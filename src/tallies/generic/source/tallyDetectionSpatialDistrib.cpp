@@ -153,6 +153,7 @@ int pen_DetectionSpatialDistrib::configure(const wrapper_geometry& /*geometry*/,
   //Configure the corresponding measurement
   
   results.description = "Tally spatial distribution in detector";
+  results.title = "Absorbed Energy";
   
   results.setDimHeader(0, "E (eV)");
   results.setDimHeader(1, "x (cm)");

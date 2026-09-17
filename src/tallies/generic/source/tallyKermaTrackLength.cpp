@@ -71,7 +71,9 @@ pen_tallyKermaTrackLength::pen_tallyKermaTrackLength() :
 	  
       results.description =
 	"PenRed: Cartesian kerma report";
-  
+
+      results.title = "Cartesian Kerma Distribution";
+      
       results.setDimHeader(0, "x (cm)");
       results.setDimHeader(1, "y (cm)");
       results.setDimHeader(2, "z (cm)");
@@ -115,7 +117,9 @@ pen_tallyKermaTrackLength::pen_tallyKermaTrackLength() :
 	  
       results.description =
 	"PenRed: Cylindrical kerma report";
-  
+
+      results.title = "Cylindrical Kerma Distribution";
+      
       results.setDimHeader(0, "r (cm)");
       results.setDimHeader(1, "phi (deg)");
       results.setDimHeader(2, "z (cm)");
@@ -174,6 +178,8 @@ pen_tallyKermaTrackLength::pen_tallyKermaTrackLength() :
 	  
       results.description =
 	"PenRed: Spherical kerma report";
+      
+      results.title = "Spherical Kerma Distribution";
   
       results.setDimHeader(0, "r (cm)");
       results.setDimHeader(1, "polar (deg)");
