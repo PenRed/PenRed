@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.1] - 2026-09-17
+
+### Added
+- Expose the results class in pyPenred
+- Add plot methods for 1D and 2D results in pyPenred
+- Blender addon: Generate 1D and 2D result plots automatically after the simulation ends
+
+### Changed
+- pyPenred's simulation.getResults() method now returns a dictionary with results objects instead of a tuple of numpy arrays
+- Blender addon: Show simulation progress as a progress bar in the panel, replacing the previous viewport overlay
+
+### Fixed
+- Bundle all Python dependencies inside the Blender addon, following Blender's extension packaging guidelines
+
 ## [1.15.0] - 2026-08-30
 
 ### Added
