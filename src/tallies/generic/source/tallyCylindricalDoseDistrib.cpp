@@ -65,10 +65,12 @@ pen_CylindricalDoseDistrib::pen_CylindricalDoseDistrib() :
       results.setDimHeader(2, "z (cm)");
       if(idz == 0.0){
 	results.description = "PenRed: Radial dose distribution\n\n";	  
+    results.title = "Radial Dose";
 	results.setValueHeader("Dose (eV cm /g hist)");
       }
       else{
 	results.description = "PenRed: Cylindrical dose distribution\n\n";	  
+    results.title = "Cylindrical Dose";
 	results.setValueHeader("Dose (eV/g hist)");
       }
       results.description +=
@@ -106,10 +108,12 @@ pen_CylindricalDoseDistrib::pen_CylindricalDoseDistrib() :
       results.setDimHeader(2, "z (cm)");
       results.setValueHeader("E (eV/hist)");
       if(idz == 0.0){
-	results.description = "PenRed: Radial absorbed energy distribution\n\n";	  
+	results.description = "PenRed: Radial absorbed energy distribution\n\n";
+    results.title = "Radial Absorbed Energy";
       }
       else{
-	results.description = "PenRed: Cylindrical absorbed energy distribution\n\n";	  
+	results.description = "PenRed: Cylindrical absorbed energy distribution\n\n";
+    results.title = "Cylindrical Absorbed Energy";    
       }
       results.description +=
 	" Origin: " + origin.stringify() + "\n";      

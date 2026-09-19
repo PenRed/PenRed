@@ -3,7 +3,7 @@ import os
 import codecs
 
 # Read the version from an environment variable or use the default
-VERSION = os.getenv("PENRED_VERSION", "1.15.0")
+VERSION = os.getenv("PENRED_VERSION", "1.15.1")
 
 ext_modules = [
     Extension(
@@ -38,6 +38,7 @@ setup(
     install_requires=[
         'pyyaml',
         'numpy',
+        'matplotlib'
     ],
     python_requires='>=3.8',
     zip_safe=False,

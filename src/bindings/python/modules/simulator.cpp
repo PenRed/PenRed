@@ -46,21 +46,21 @@ using FilterList = std::vector<FilterData>;
 
 template<class TallyType, size_t I>
 typename std::enable_if<I >= std::tuple_size<typename TallyType::ResultsTypes>::value, void>::type
-tallyResults2numpy(const typename TallyType::ResultsTypes&, py::tuple&, const bool, const bool){}
+tallyResultsGetPos(const typename TallyType::ResultsTypes&, py::tuple&){}
 
 template<class TallyType, size_t I>
 typename std::enable_if<I < std::tuple_size<typename TallyType::ResultsTypes>::value, void>::type
-tallyResults2numpy(const typename TallyType::ResultsTypes& r, py::tuple& pyRes, const bool extractInfo, const bool onlyEffective){
-  pyRes[I] = result2numpy(std::get<I>(r), extractInfo, onlyEffective);
-  tallyResults2numpy<TallyType, I+1>(r, pyRes, extractInfo, onlyEffective);
+tallyResultsGetPos(const typename TallyType::ResultsTypes& r, py::tuple& pyRes){
+  pyRes[I] = py::cast(std::get<I>(r));
+  tallyResultsGetPos<TallyType, I+1>(r, pyRes);
 }
 
 template<class TallyType>
-py::tuple tallyExtractResults(const typename TallyType::ResultsTypes& r, const bool extractInfo, const bool onlyEffective){
+py::tuple tallyExtractResults(const typename TallyType::ResultsTypes& r){
 
   py::tuple pyRes(std::tuple_size<typename TallyType::ResultsTypes>::value);
 
-  tallyResults2numpy<TallyType, 0>(r, pyRes, extractInfo, onlyEffective);
+  tallyResultsGetPos<TallyType, 0>(r, pyRes);
 
   return pyRes;
 }
@@ -68,25 +68,48 @@ py::tuple tallyExtractResults(const typename TallyType::ResultsTypes& r, const b
 // + Tally search functions
 
 template<size_t I = 0>
-typename std::enable_if<I >= std::tuple_size<penred::tally::typesGenericTallies>::value, py::tuple>::type
-getResults(const penred::tally::Results&, const std::string&, const bool, const bool){
-  return py::tuple();
-}  
+typename std::enable_if<I >= std::tuple_size<penred::tally::typesGenericTallies>::value, void>::type
+getResults(const penred::tally::Results&,
+           const std::vector<std::string>&,
+           const bool,
+           py::dict&){}  
 
 template<size_t I = 0>
-typename std::enable_if<I < std::tuple_size<penred::tally::typesGenericTallies>::value, py::tuple>::type
-getResults(const penred::tally::Results& results, const std::string& tallyName, const bool extractInfo, const bool onlyEffective){
+typename std::enable_if<I < std::tuple_size<penred::tally::typesGenericTallies>::value, void>::type
+getResults(const penred::tally::Results& results,
+           const std::vector<std::string>& tallyNames,
+           const bool saveType,
+           py::dict& rDict){
 
   using TallyType = typename std::tuple_element<I, penred::tally::typesGenericTallies>::type;
 
+  // Store if any tally has been found for this type
+  bool found = false;
+  const std::string tallyID = std::string(TallyType::tallyID());
+
   const auto& tallyMap = results.read<I>();
   for(const auto& element : tallyMap){
-    if(element.first.compare(tallyName) == 0){
-      const typename TallyType::ResultsTypes& tallyResults = element.second;
-      return tallyExtractResults<TallyType>(tallyResults, extractInfo, onlyEffective);
+
+    const typename TallyType::ResultsTypes& tallyResults = element.second;
+    if(tallyNames.empty() ||
+       (std::find(tallyNames.cbegin(), tallyNames.cend(), element.first) != tallyNames.cend())){
+      if(saveType){
+        if(!found){
+          //Create an empty dictionary for this tally type
+          rDict[py::cast(tallyID)] = py::dict();
+          found = true;
+        }
+        //Extract and save the tuple with all tally's results
+        rDict[py::cast(tallyID)][py::cast(element.first)] =
+          tallyExtractResults<TallyType>(tallyResults);
+      }else{
+        //Extract and save the tuple with all tally's results
+        rDict[py::cast(element.first)] = tallyExtractResults<TallyType>(tallyResults);
+      }
     }
   }
-  return getResults<I+1>(results, tallyName, extractInfo, onlyEffective);
+
+  getResults<I+1>(results, tallyNames, saveType, rDict);
 }
 
 PYBIND11_MODULE(simulation,m){
@@ -688,31 +711,53 @@ Returns:
     The numerical ID of the enqueued instruction.
 
 )")
-    .def("getResults",
-	 [](penred::simulation::simulator<pen_context>& obj,
-	    const std::string& tallyName, const bool extractInfo, const bool onlyEffective) -> py::tuple{
+    .def("instructionUpdateResults",
+         [](penred::simulation::simulator<pen_context>& obj,
+            const std::string& tallyName) -> unsigned long long{
+           
+           return obj.instructionUpdateResults(tallyName);
+         },
+         py::arg("tally_name"),
+         R"(
 
-	   py::tuple toRet = obj.processResults<py::tuple>
-	     ([tallyName, extractInfo, onlyEffective](const penred::tally::Results& results){
-	       return getResults<0>(results, tallyName, extractInfo, onlyEffective);
-	     });
-	   return toRet;
-	 },
-	 py::arg("tally_name"),
-	 py::arg("extract_info") = false,
-	 py::arg("only_effective") = false,
-	 R"(
-
-Gets the simulation results from the specified tally.
+Request the results of the specified tally to be updated. Note that only the results from the first thread are requested.
 
 Args:
-    tally_name (str): Name of the tally to get the results from.
-    extract_info (bool): If enabled, the limits and dimensions information will be returned along with results values.
-    only_effective (bool): If enabled, dimensions with a single bin are ignored, reducing the result's dimension.
-Returns:
-    On success, a tuple of numpy vectors storing the tally's specific results is returned. If the requested tally does not support retrieving results in that format, returned vectors will be empty.
+    tally_name (str): Name of the tally to be requested.
 
-)")    
+Returns:
+    The numerical ID of the enqueued instruction.
+
+Raises:
+    None
+
+)")        
+    .def("getResults",
+         [](penred::simulation::simulator<pen_context>& obj,
+            const std::vector<std::string>& tallyNames,
+            const bool saveType) -> py::dict{
+
+           py::dict toRet = obj.processResults<py::dict>
+             ([tallyNames,saveType](const penred::tally::Results& results){
+               py::dict r;
+               getResults<0>(results, tallyNames, saveType, r);
+               return r;
+             });
+           return toRet;
+         },
+         py::arg("tallies") = std::vector<std::string>(),
+         py::arg("save_type") = false,
+         R"(
+
+Gets the simulation results from the specified tallies.
+
+Args:
+    tallies (str): Name of the tallies to get the results from.
+    save_type (bool): If enabled, the results dictionary will be classified per tally type
+Returns:
+    On success, a dictionary with the specified results data objects is returned. If some of the requested tallies does not support retrieving results in that format, returned results will be empty.
+
+)")
     .def("instructionClear",
 	 [](penred::simulation::simulator<pen_context>& obj) -> unsigned long long{
 	   return obj.instructionClear();
@@ -1855,8 +1900,8 @@ Example:
 
         sim = pyPenred.simulation.xray.deviceSim(ebins=100, inherent_filter_width=0.15, anode_angle=16, source_to_detector=100.0, max_time=600, histories=1.0e8)
 
-        # Extract spatial distribution
-        results = sim.getResults("SpatialDetector", extract_info=True, only_effective=True)
+        # Plot spatial distribution results manually
+        results = sim.getResults(tallies=["SpatialDetector"])["SpatialDetector"][0].data()
 
         # Extract spatial ranges
         xLimits = results[0][3]
@@ -1876,33 +1921,9 @@ Example:
         plt.savefig("spatial-distrib.png", dpi=300)
         plt.close()
 
-        # Extract mean detected spectrum
-        resultsSpec = sim.getResults("SpectrumDetector", extract_info=True, only_effective=True)
-
-        # Extract energy limits (in eV)
-        eLimits = resultsSpec[0][2]
-        e_plot = np.linspace(eLimits[0]/1000.0, eLimits[1]/1000.0, resultsSpec[0][0].shape[0])
-
-        spectrum = resultsSpec[0][0]
-        spectrumError = resultsSpec[0][1]
-
-        plt.figure(figsize=(6,5))
-        plt.errorbar(
-            e_plot,
-            spectrum,
-            yerr=spectrumError,
-            fmt='-',
-            linewidth=1.2,
-            ecolor='gray',
-            elinewidth=0.8,
-            capsize=2,
-        )
-
-        plt.xlabel("Energy (KeV)")
-        plt.ylabel("Counts")
-        plt.grid(True)
-        plt.savefig("spectrum", dpi=300)
-        plt.close()
+        # Plot detected spectrum
+        resultsSpec = sim.getResults(tallies=["SpectrumDetector"])["SpectrumDetector"][0]
+        resultSpec.plot("spectrum")
 
 )doc");
   

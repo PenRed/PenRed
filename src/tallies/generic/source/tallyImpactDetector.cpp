@@ -99,7 +99,9 @@ pen_ImpactDetector::pen_ImpactDetector() :
 	"PenRed: Deposited energy spectrum\n\n"
 	"Units are 1/(eV history).\n\n"
 	"Detector:\n" + std::to_string(idet) + "\n\n";
-  
+
+      results.title = "Deposited Energy Spectrum";
+      
       results.setDimHeader(0, "Deposited (eV)");
       results.setValueHeader("Prob (1/eV history)");
 
@@ -141,7 +143,9 @@ pen_ImpactDetector::pen_ImpactDetector() :
 	"PenRed: Age distribution report\n\n"
 	"Units are 1/(s history).\n\n"
 	"Detector:\n" + std::to_string(idet) + "\n\n";
-  
+
+      results.title = "Age Distribution";
+      
       results.setDimHeader(0, "Age (s)");
       results.setValueHeader("Prob (1/s history)");
 
@@ -185,6 +189,9 @@ pen_ImpactDetector::generateFluence(const pen_KPAR kpar,
     "PenRed: Integrated fluence spectrum\n\n"
     "The spectral fluence is integrated over the detector volume. Its units are cm/eV.\n\n"
     "Detector:\n" + std::to_string(idet) + "\n\n";
+
+  results.title = "Spectral Integrated Fluence of ";
+  results.title += particleName(kpar);
   
   results.setDimHeader(0, "Energy (eV)");
   results.setValueHeader("Fluence (cm/eV hist)");
@@ -225,6 +232,9 @@ pen_ImpactDetector::generateSpectrum(const pen_KPAR kpar,
     "PenRed: Energy spectrum report\n\n"
     "The spectrum units are 1/(eV*history).\n\n"
     "Detector:\n" + std::to_string(idet) + "\n\n";
+
+  results.title = "Impact Energy Spectrum of ";
+  results.title += particleName(kpar);
   
   results.setDimHeader(0, "Energy (eV)");
   results.setValueHeader("Spectrum (particles/eV history)");

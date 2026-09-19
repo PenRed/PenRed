@@ -1,21 +1,18 @@
 # Installing pyPenred
 
-Certain features, such as DICOM loading or running simulations, require the `pyPenred` package inside Blender's Python environment. This section explains how to install and manage the package. Note that Blender uses its own embedded Python environment, which **is separate from your system's default Python installation**.
+Certain features, such as DICOM loading or running simulations, require the `pyPenred` package inside Blender's Python environment. This section explains how to manage the package. Note that Blender uses its own embedded Python environment, which **is separate from your system's default Python installation**.
 
 ## Automatic Installation
 
-If `pyPenred` is not installed, a warning banner will appear in any panel that depends on it:
+The `pyPenred` module and all its dependencies are already bundled within the Blender plugin ZIP file, so no additional steps are required to enable it. 
+
+Each plugin release bundles a specific `pyPenred` version. To use a different version or update it, check the **[PenRed releases page](https://github.com/PenRed/PenRed/releases)**.
+
+If `pyPenred` is uninstalled or missing, a warning banner will appear in any panel that depends on it:
 
 <img src="../images/dependencyWarning.png" alt="pyPenred missing warning" width="500" style="display: block; margin: 0 auto"/>
 
-To install the package automatically:
-
-1. Click the **Open pyPenred Preferences** button in the warning banner to open the preferences window.
-2. Click the **Install pyPenred** button:
-
-<img src="../images/installPyPenredAddon.png" alt="pyPenred preferences panel" width="500" style="display: block; margin: 0 auto"/>
-
-From this same window, you can also update or remove `pyPenred` at any time.
+To resolve this issue, simply reinstall the Blender plugin.
 
 ## Manual / Custom Installation
 
@@ -38,3 +35,5 @@ print(sys.executable)
 # Example (Windows):
 "C:\Path\To\Blender\python.exe" -m pip install pyPenred
 ```
+
+**Note**: This method may fail due to a lack of write permissions, especially on macOS or system-wide Blender installations.

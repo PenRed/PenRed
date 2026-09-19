@@ -65,7 +65,9 @@ pen_tallyDICOMkerma::pen_tallyDICOMkerma() : pen_genericTally(USE_JUMP | USE_STE
 	results.description += std::to_string(j) + " " + contNames[j] + "\n";
       }
       results.description += "\n";
-  
+
+      results.title += "DICOM Kerma Distribution";
+      
       results.setDimHeader(0, "Dose (Gy)");
       results.setDimHeader(1, "Contour");
       results.setValueHeader("Volume (%)");

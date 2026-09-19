@@ -60,7 +60,9 @@ pen_SphericalDoseDistrib::pen_SphericalDoseDistrib() :
 	"PenRed: Spherical dose distribution report\n"
 	"Dose units are: eV/g per history\n"
 	"Origin: " + origin.stringify() + " cm";
-  
+
+      results.title = "Spherical Dose Distribution";
+      
       results.setDimHeader(0, "r (cm)");
       results.setDimHeader(1, "polar (deg)");
       results.setDimHeader(2, "azimuth (deg)");

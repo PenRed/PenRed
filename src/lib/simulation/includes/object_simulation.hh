@@ -856,7 +856,7 @@ namespace penred{
       static std::string versionMessage(){
 
 	return std::string("***************************************************************\n"
-			   " PenRed version: 1.15.0 (29-Aug-2026) \n"
+			   " PenRed version: 1.15.1 (2026-Sept-17) \n"
 			   " Copyright (c) 2019-2026 Universitat Politecnica de Valencia\n"
 			   " Copyright (c) 2019-2026 Universitat de Valencia\n"
 			   " Copyright (c) 2024-2026 Vicent Giménez Alventosa\n"
@@ -1966,15 +1966,21 @@ namespace penred{
 		//Get simulated histories
 		const unsigned long long simulatedHists = simConfigs[0].getTotalSimulated();
 
-		//Update results from thread 0
-		bool found = lastSimResults.update(talliesVect[0],
-						   nextInstruction.name,
-						   simulatedHists);
+        if(nextInstruction.name.empty()){
+          //No name specified, update all tallies from thread 0
+          lastSimResults.update(talliesVect[0], simulatedHists);
+        }
+        else{
+          //Update specified tally results from thread 0
+          bool found = lastSimResults.update(talliesVect[0],
+                                             nextInstruction.name,
+                                             simulatedHists);
 
-		if(verbose > 1 && !found){
-		  printf("Unable to update results. Tally '%s' not found!\n",
-			 nextInstruction.name.c_str());
-		}
+          if(verbose > 1 && !found){
+            printf("Unable to update results. Tally '%s' not found!\n",
+                   nextInstruction.name.c_str());
+          }
+        }
 	      }
 	      
 	      break;

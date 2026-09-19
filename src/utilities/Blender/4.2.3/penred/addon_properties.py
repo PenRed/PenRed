@@ -1319,7 +1319,7 @@ class simulationProperties(bpy.types.PropertyGroup):
     dumpInterval : bpy.props.FloatProperty(
         name = "Dump Interval",
         default = 3600,
-        min = 0.0,
+        min = 10.0,
         description=
         "Interval, in seconds, between results dump.")
 
@@ -1567,7 +1567,7 @@ class worldProperties(bpy.types.PropertyGroup):
 # Scene properties group
 #############################
 class penredSceneProperties(bpy.types.PropertyGroup):
-
+    
     simulationState : bpy.props.EnumProperty(
         name = "Simulation Status",
         description = "Saves the current simulation status",
@@ -1580,6 +1580,20 @@ class penredSceneProperties(bpy.types.PropertyGroup):
         ],
         default = "NONE",
         options={'SKIP_SAVE'}
+    )
+
+    simulationProgress: bpy.props.FloatProperty(
+        name="Simulation Progress",
+        description="Simulation progress",
+        default=0.0,
+        min=0.0, max=100.0,
+        subtype='PERCENTAGE',
+        precision=2,
+    )
+
+    simulationStatus: bpy.props.StringProperty(
+        name="Status",
+        default="",
     )
 
     simulationConfigPath : bpy.props.StringProperty(

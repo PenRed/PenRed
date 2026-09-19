@@ -581,6 +581,9 @@ pen_EmergingPartDistrib::generateUpbound(const pen_KPAR kpar,
 	  
   results.description = "PenRed: Upbound (W > 0) emerging ";
   results.description += particleName(kpar);
+
+  results.title = "Upbound Emerging ";
+  results.title += particleName(kpar);
   
   results.setDimHeader(0, "Energy (eV)");
   results.setValueHeader("Particles (1/eV history)");
@@ -617,6 +620,9 @@ pen_EmergingPartDistrib::generateDownbound(const pen_KPAR kpar,
 	  
   results.description = "PenRed: Downbound (W < 0) emerging ";
   results.description += particleName(kpar);
+
+  results.title = "Downbound Emerging ";
+  results.title += particleName(kpar);
   
   results.setDimHeader(0, "Energy (eV)");
   results.setValueHeader("Particles (1/eV history)");
@@ -657,6 +663,9 @@ pen_EmergingPartDistrib::generateAngular(const pen_KPAR kpar,
 	  
   results.description = "PenRed: Angular distribution of emerging ";
   results.description += particleName(kpar);
+  
+  results.title = "Angular distribution of Emerging ";
+  results.title += particleName(kpar);
   
   results.setDimHeader(0, "azimuth (deg)");
   results.setDimHeader(1, "polar (deg)");
