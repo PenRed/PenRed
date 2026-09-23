@@ -60,13 +60,11 @@ For a detailed description, see the *Python Wrapper (pyPenred)* section in the P
 
 ## Blender Integration
 
-A [Blender](https://www.blender.org/) plugin has been developed to integrate geometry construction, simulation configuration, and execution within the Blender environment, providing a user-friendly graphical interface. The plugin can be installed via the zip file:
+A [Blender](https://blender.org) plugin has been developed to integrate geometry construction, simulation configuration, and execution within the Blender environment, providing a user-friendly graphical interface. The plugin bundles every dependency and is provided via ZIP files within the repository's [releases page](https://github.com/PenRed/PenRed/releases/). Make sure to check your OS and Blender version to download the correct file. The [plugin documentation is available online]([https://github.io](https://penred.github.io/PenRed/Blender)), and both the plugin and documentation source code can be found within the repository's dedicated folder:
 
 ```
-src/utilities/Blender/4.2.3/penred.zip
+src/utilities/Blender/4.2.3
 ```
-
-The plugin [documentation is available online](https://penred.github.io/PenRed/Blender), and both the plugin and documentation source code can be found in the same folder as the zipped plugin.
 
 ## Code Compilation
 
