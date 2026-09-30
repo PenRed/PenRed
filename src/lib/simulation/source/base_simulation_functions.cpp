@@ -126,10 +126,8 @@ namespace penred{
 
 	//Read and parse file lines
 	char line[1000];
-	long unsigned lineNum = 0;
 	unsigned long read;
 	while(pen_getLine(fseed,1000,line,read) == 0){
-	  lineNum += read;
 	  int aux1, aux2;
 	  if(sscanf(line, "%d %d", &aux1, &aux2) != 2){
 	    fclose(fseed);

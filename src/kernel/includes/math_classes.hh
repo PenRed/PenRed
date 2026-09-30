@@ -1700,6 +1700,7 @@ namespace penred{
 	SIGMA_NOT_FOUND,
 	DATA_NOT_FOUND,
 	CORRUPTED_DATA,
+    NEGATIVE_BIN_VALUE,
       };
 
     constexpr const char* errorToString( const unsigned i ){
@@ -1719,6 +1720,7 @@ namespace penred{
       case SIGMA_NOT_FOUND: return "Sigma not found";
       case DATA_NOT_FOUND: return "Data not found";
       case CORRUPTED_DATA: return "Corrupted data";
+      case NEGATIVE_BIN_VALUE: return "Negative bin value found";
       default: return "Unknown error";
       };
     }
@@ -1891,9 +1893,32 @@ namespace penred{
       std::string title;
 
       //Constructors
+      multiDimension(const multiDimension&) = default;
+      multiDimension(multiDimension&&) = default;
+      multiDimension& operator=(const multiDimension&) = default;
+      multiDimension& operator=(multiDimension&&) = default;      
       inline multiDimension(){
-	initHeaders();
-	initDims();
+        initHeaders();
+        initDims();
+      }
+
+      //Check compatibility functions
+      template<size_t auxDim>
+      typename std::enable_if_t<auxDim == dim, bool>
+      compatibleDims(const multiDimension<auxDim>& o) const noexcept {
+
+        //Check number of bins in each dimension
+        for(size_t i = 0; i < dim; ++i){
+          if(this->nBins[i] != o.nBins[i])
+            return false;
+        }
+        return true;
+      }
+
+      template<size_t auxDim>
+      typename std::enable_if_t<auxDim != dim, bool>
+      compatibleDims(const multiDimension<auxDim>&) const noexcept {
+        return false; //Dimensions mismatch
       }
       
       //Loop functions
@@ -2779,9 +2804,16 @@ namespace penred{
       std::vector<double> sigma;
 
       //Constructors
+      results(const results&) = default;
+      results(results&&) = default;
+      results& operator=(const results&) = default;
+      results& operator=(results&&) = default;
       inline results(){
-	clear();
+        clear();
       }
+
+      //Destructor
+      ~results() = default;
 
       //Get functions
       const std::vector<type>& readData() const { return data; }
@@ -3302,6 +3334,29 @@ namespace penred{
 	return profileByBins(aux, binLimits, profile);
       }
 
+      inline int to1D(results<type, 1>& profile) const {
+        //Create a 1D results from the actual one. The effecite dimension of the
+        //current results must be equal to 1
+
+        //Check effective dimensions
+        if(this->effectiveDim() != 1){
+          return errors::EFFECTIVE_DIMENSIONS_MISMATCH;
+        }
+
+        //Get effective dimensions' positions
+        const std::array<unsigned long, dim>& binsPerDim = this->readDimBins();
+        unsigned long dim1 = dim;
+        for(size_t i = 0; i < dim; ++i){
+          if(binsPerDim[i] > 1){
+            dim1 = i;
+            break;
+          }
+        }
+
+        //Construct the profile
+        return this->profile1D(dim1, profile);
+      }
+      
       // Profile to 2D with full array bin limits
       int profile2D(const unsigned long profDim1,
                     const unsigned long profDim2,
@@ -3381,6 +3436,35 @@ namespace penred{
     
         // Call the existing profileByBins function
         return profileByBins(profDimsIndex, binLimits, profile);
+      }
+
+      inline int to2D(results<type, 2>& profile) const {
+        //Create a 2D results from the actual one. The effecite dimension of the
+        //current results must be equal to 2
+
+        //Check effective dimensions
+        if(this->effectiveDim() != 2){
+          return errors::EFFECTIVE_DIMENSIONS_MISMATCH;
+        }
+
+        //Get effective dimensions' positions
+        const std::array<unsigned long, dim>& binsPerDim = this->readDimBins();
+        unsigned long dim1 = dim;
+        unsigned long dim2 = dim;
+        for(size_t i = 0; i < dim; ++i){
+          if(binsPerDim[i] > 1){
+            if(dim1 >= dim){
+              dim1 = i;
+            }
+            else if(dim2 >= dim){
+              dim2 = i;
+              break;
+            }
+          }
+        }
+
+        //Construct the profile
+        return this->profile2D(dim1, dim2, profile);
       }
 
       // Create 1D cubic spline interpolation from a profile
@@ -3528,6 +3612,300 @@ namespace penred{
     
         return interpolate2D(profDim1, profDim2, binLimits, spline);
       }
+
+      // Operations
+      /**
+       * Normalize so that Σ y_i = 1.
+       *
+       * Requires all bin values to be non-negative. If any bin has a negative
+       * value, errors::NEGATIVE_BIN_VALUE is returned and the object is left
+       * untouched.
+       *
+       * Uncertainties are propagated assuming independent bins. Because the
+       * normalization sum S = Σ x_i is itself estimated from the data, the
+       * normalized bins become negatively correlated:
+       *
+       *   σ²(y_i) = [ σ_i² − 2 y_i σ_i² + y_i² σ_S² ] / S²
+       *
+       * with σ_S² = Σ_j σ_j² and y_i = x_i / S.
+       *
+       * @return errors::SUCCESS, or an error code on failure.
+       */
+      inline int normalize() {
+
+        // Compute sum and its variance
+        double sum = 0.0;
+        double sumVar = 0.0;
+        for(unsigned long i = 0; i < this->totalBins; ++i) {
+
+          const double xi = static_cast<double>(data[i]);
+          const double si = sigma[i];
+          
+          if(xi < 0.0){
+            return errors::NEGATIVE_BIN_VALUE;
+          }
+          
+          sum    += xi;
+          sumVar += si*si;
+        }
+
+        //Ensure some data is recorded
+        if(sum == 0.0) {
+          return errors::DATA_NOT_FOUND;
+        }
+
+        const double invSum   = 1.0/sum;
+        const double invSum2  = invSum*invSum;
+        const double sigmaSum2 = sumVar;   // σ_S²
+
+        for(unsigned long i = 0; i < this->totalBins; ++i) {
+          const double xi = static_cast<double>(data[i]);
+          const double si = sigma[i];
+          const double si2 = si*si;
+
+          // Normalized value
+          const double yi = xi * invSum;
+
+          // Normalized uncertainty:
+          // σ²(y_i) = [ σ_i² − 2 y_i σ_i² + y_i² σ_S² ] / S²
+          double varY = ( si2
+                          - 2.0*yi*si2
+                          + yi*yi*sigmaSum2 ) * invSum2;
+
+          if(varY < 0.0) varY = 0.0;
+
+          data[i]  = static_cast<type>(yi);
+          sigma[i] = std::sqrt(varY);
+        }
+
+        return errors::SUCCESS;
+      }
+
+      /**
+       * Compute the bin-by-bin difference  dres_i = x_i - y_i, where x = *this
+       * and y = o.
+       *
+       * The two histograms are assumed to be statistically independent, so the
+       * uncertainties add in quadrature:
+       *
+       *     σ(dres_i)² = σ_x_i² + σ_y_i²
+       *
+       * Binning, headers, description, and other metadata of the output are
+       * copied from *this; only `data`, `sigma`, and `title` are modified.
+       *
+       * @param dres  Output histogram.
+       * @param o     Histogram to subtract.
+       * @return errors::SUCCESS, or errors::DIMENSION_MISMATCH.
+       */
+      inline int subtract(results<type, dim>& dres, const results<type, dim>& o) const {
+
+        //Check compatibility
+        if(!this->compatibleDims(o)){
+          return errors::DIMENSION_MISMATCH;
+        }
+
+        //Init the result object to store the differences
+        dres = *this;
+
+        //Compute differences
+        for(size_t i = 0; i < this->totalBins; ++i){
+          const double si = dres.sigma[i];          
+          dres.sigma[i] = std::sqrt( si*si + o.sigma[i]*o.sigma[i] );
+        }
+        for(size_t i = 0; i < this->totalBins; ++i){
+          dres.data[i] -= o.data[i];
+        }
+
+        //Modify the title
+        dres.title += " (Differences)";
+
+        return errors::SUCCESS;
+      }
+
+      /**
+       * Subtract a constant reference value v with uncertainty s from each bin:
+       *
+       *     dres_i = x_i - v
+       *
+       * with the uncertainties adding in quadrature:
+       *
+       *     σ(dres_i)² = σ_x_i² + s²
+       *
+       * Binning, headers, description, and other metadata of the output are
+       * copied from *this; only `data`, `sigma`, and `title` are modified.
+       *
+       * @param dres  Output histogram.
+       * @param v     Constant subtracted from each bin.
+       * @param s     Uncertainty on v.
+       * @return errors::SUCCESS, or errors::CORRUPTED_DATA if v or s is not
+       *         finite.
+       */      
+      inline int subtract(results<type, dim>& dres, const type v, const double s) const {
+
+        if(!std::isfinite(static_cast<double>(v)) || !std::isfinite(s) || s < 0.0) {
+          return errors::CORRUPTED_DATA;
+        }
+        
+        //Init the result object to store the differences
+        dres = *this;
+
+        //Compute differences
+        for(size_t i = 0; i < this->totalBins; ++i){
+          const double si = dres.sigma[i];          
+          dres.sigma[i] = std::sqrt( si*si + s*s );
+        }
+        for(size_t i = 0; i < this->totalBins; ++i){
+          dres.data[i] -= v;
+        }
+
+        //Modify the title
+        dres.title += " (Shifted " + std::to_string(v) + ")";
+
+        return errors::SUCCESS;
+      }
+
+      /**
+       * Compute the bin-by-bin relative comparison between this histogram (x)
+       * and a reference histogram o (y):
+       *
+       *     dres_i = x_i / y_i - subValue
+       *
+       * with the first-order (delta-method) uncertainty, valid for statistically
+       * independent x and y:
+       *
+       *     σ(dres_i)² = (σ_x_i / y_i)²  +  (x_i σ_y_i / y_i²)²
+       *
+       * Note that subtracting `subValue` (a constant) does not affect the
+       * uncertainties: σ(x/y - subValue) = σ(x/y).
+       *
+       * Common uses:
+       *   - subValue = 0.0 (default): plain ratio to the reference, x/y
+       *   - subValue = 1.0:           standard "ratio minus one", x/v - 1
+       *
+       * If |y_i| < threshold, the bin is treated as having no denominator and
+       * is assigned the sentinel value `div0To` with zero uncertainty. Note
+       * that `subValue` is NOT applied to such bins.
+       *
+       * @param dres       Output histogram (binning/metadata copied from *this).
+       * @param o          Reference histogram (the "y").
+       * @param subValue   Constant subtracted from each ratio (default 0.0).
+       *                   Use 1.0 for the standard "ratio minus one" comparison.
+       * @param div0To     Sentinel assigned when the denominator bin is ~0.
+       * @param threshold  Absolute threshold below which |y_i| is treated as 0.
+       * @return errors::SUCCESS, or errors::DIMENSION_MISMATCH.
+       */      
+      inline int relative(results<type, dim>& dres,
+                          const results<type, dim>& o,
+                          const double subValue = 0.0,
+                          const type div0To = static_cast<type>(0),
+                          const double threshold = 1.0e-20) const {
+
+        //Check compatibility
+        if(!this->compatibleDims(o)){
+          return errors::DIMENSION_MISMATCH;
+        }
+
+        //Init the result object to store the differences
+        dres = *this;
+
+        //Compute
+        for(size_t i = 0; i < this->totalBins; ++i){
+          const double oVal = static_cast<double>(o.data[i]);
+          if(std::fabs(oVal) < threshold){
+            dres.sigma[i] = 0.0;
+            dres.data[i] = div0To;
+          } else {
+            const double ioVal = 1.0/oVal;
+            const double ioVal2 = ioVal*ioVal;
+            const double xi = static_cast<double>(dres.data[i]);
+            const double si = dres.sigma[i];
+            
+            dres.sigma[i] = std::sqrt( pow(ioVal*si, 2) + pow(xi*ioVal2*o.sigma[i], 2) );
+            dres.data[i] = static_cast<type>(xi*ioVal - subValue);
+          }
+        }
+
+        //Modify the title
+        dres.title += " (Relative)";
+        
+        return errors::SUCCESS;
+      }
+
+      /**
+       * Compute the bin-by-bin relative comparison of this histogram (x) against
+       * a single reference value v with uncertainty s:
+       *
+       *     dres_i = x_i / v - subValue
+       *
+       * The uncertainty is the first-order (delta-method) propagation of the
+       * ratio x_i / v, valid for statistically independent x_i and v:
+       *
+       *     σ(dres_i)² = (σ_x_i / v)²  +  (x_i s / v²)²
+       *
+       * The offset `subValue` is a constant and therefore does not contribute
+       * to the uncertainty: σ(x/v - subValue) = σ(x/v).
+       *
+       * Common uses:
+       *   - subValue = 0.0 (default): plain ratio to the reference, x/v
+       *   - subValue = 1.0:           standard "ratio minus one", x/v - 1
+       *
+       * The binning, headers, description, and other metadata of the output are
+       * copied from *this; only `data`, `sigma`, and `title` are modified. The
+       * string " (Relative)" is appended to the output title.
+       *
+       * @param dres      Output histogram. Overwritten on success.
+       * @param v         Reference value (the denominator). Must satisfy
+       *                  |v| >= 1.0e-20; otherwise errors::CORRUPTED_DATA is
+       *                  returned and dres is left untouched.
+       * @param s         Uncertainty on v.
+       * @param subValue  Constant subtracted from each ratio (default 0.0).
+       *
+       * @return errors::SUCCESS on success,
+       *         errors::CORRUPTED_DATA if |v| is below the minimum threshold.
+       *
+       * @note The reference value v is treated as a single scalar, not as a
+       *       per-bin histogram. For a bin-by-bin reference, use the overload
+       *       that takes a results<type, dim> object.
+       *
+       * @note Assumes x and v are statistically independent. If v is derived
+       *       from the same data as x, the covariance term is omitted and the
+       *       resulting uncertainties will be incorrect.
+       *
+       * @note The delta-method approximation is accurate when s/|v| is small.
+       *       For large relative uncertainties on v, the true distribution of
+       *       the ratio is skewed and this formula underestimates the spread.
+       */      
+      inline int relative(results<type, dim>& dres,
+                          const double v,
+                          const double s,
+                          const double subValue = 0.0) const {
+
+        //Check compatibility
+        if(std::fabs(v) < 1.0e-20 || s < 0.0){
+          return errors::CORRUPTED_DATA;
+        }
+
+        //Init the result object to store the differences
+        dres = *this;
+
+        //Compute
+        for(size_t i = 0; i < this->totalBins; ++i){
+            const double iVal = 1.0/v;
+            const double iVal2 = iVal*iVal;
+            const double xi = static_cast<double>(dres.data[i]);
+            const double si = dres.sigma[i];
+
+            dres.sigma[i] = std::sqrt( pow(iVal*si, 2) + pow(xi*iVal2*s, 2) );
+            dres.data[i] = static_cast<type>(xi*iVal - subValue);
+        }
+
+        //Modify the title
+        dres.title += " (Relative)";
+        
+        return errors::SUCCESS;
+      }
+
+      
       
       //Print functions
       inline void print(FILE* fout,
@@ -3596,9 +3974,16 @@ namespace penred{
       static constexpr size_t dimensions = dim;
 
       //Constructors
+      measurement(const measurement&) = default;
+      measurement(measurement&&) = default;
+      measurement& operator=(const measurement&) = default;
+      measurement& operator=(measurement&&) = default;
       inline measurement(){
-	clear();
+        clear();
       };
+
+      //Destructor
+      ~measurement() = default;
       
       //Get functions
       inline const std::vector<type>& readData() const { return data; }
@@ -3756,14 +4141,14 @@ namespace penred{
 	//Check number of bins
 	for(size_t i = 0; i < dim; ++i){
 	  if(this->nBins[i] != toAdd.nBins[i])
-	    return -1;
+	    return errors::DIMENSION_MISMATCH;
 	}
 	for(size_t i = 0; i < this->totalBins; ++i){
 	  data[i]  += toAdd.data[i];
 	  data2[i] += toAdd.data2[i];
 	}
 
-	return 0;
+	return errors::SUCCESS;
       }
 
       /**
