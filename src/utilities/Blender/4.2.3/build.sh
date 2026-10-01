@@ -1,3 +1,5 @@
+#Build bundles with blender-extension-builder
+
 cd penred
 
 # For Python 3.11 (Blender 4.2/4.5)

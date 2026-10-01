@@ -213,7 +213,10 @@ class tallyKerma(bpy.types.PropertyGroup):
     spatialBBFit : bpy.props.BoolProperty(
         name = "Spatial Bounding Box Fit",
         description = "When enabled, the spatial tally mesh will be sized to fit inside the object bounding box. If disabled, the mesh size is enlarged to include the entire bounding box",
-        default = False)    
+        default = False)
+
+    printCartCoord : bpy.props.BoolProperty(name = "Print Cartesian Coordinates", default = True,
+                                            description="Enable/disable printing coordinates in cartesian meshes")
 
 # Spatial distribution
 class tallySpatialDistrib(bpy.types.PropertyGroup):

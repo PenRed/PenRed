@@ -3117,6 +3117,8 @@ namespace penred{
         spectrum.setDimHeader(0, this->headers[spectrumDim]);
         spectrum.setValueHeader(this->headers[dim]);
         spectrum.setSigmaHeader(this->headers[dim+1]);
+        spectrum.title = this->title;
+        spectrum.description = this->description;
     
         // Number of corners in the interpolation hypercube
         const unsigned long nCorners = 1ul << (dim - 1ul);
@@ -3250,6 +3252,8 @@ namespace penred{
 	}
 	profile.setValueHeader(this->headers[dim]);
 	profile.setSigmaHeader(this->headers[dim+1]);
+    profile.title = this->title;
+    profile.description = this->description;
 
 	int err = this->
 	  forEach(binLimits,

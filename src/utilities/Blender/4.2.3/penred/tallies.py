@@ -163,6 +163,7 @@ def createTallyKerma(f, name, output,
                      n1, n2, n3,
                      min1, min2, min3,
                      max1, max2, max3,
+                     printCartCoord,
                      toRound):
     f.write(f"# Kerma tally configuration for '{name}'\n")
     f.write(f"tallies/{name}/type \"KERMA_TRACK_LENGTH\"\n")
@@ -181,6 +182,11 @@ def createTallyKerma(f, name, output,
         f.write(f"tallies/{name}/cartesian/nz {n3}\n")
         f.write(f"tallies/{name}/cartesian/zmin {round(min3,toRound)}\n")
         f.write(f"tallies/{name}/cartesian/zmax {round(max3,toRound)}\n")
+
+        if printCartCoord:
+            f.write(f"tallies/{name}/cartesian/print-coord true\n")
+        else:
+            f.write(f"tallies/{name}/cartesian/print-coord false\n")
         
     elif meshType == 1: # Cylindrical
         f.write(f"tallies/{name}/cylindrical/nr {n1}\n")
