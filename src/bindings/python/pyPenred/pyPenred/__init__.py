@@ -137,7 +137,7 @@ def _plotRes2D(self, filename="", with_errors=True, nsigma=2, max_rel_error=0.20
             vmax=vmax*100.0,
             aspect="equal",
         )
-        ax_err.set_title(f"Relative Uncertainty ({nsigma} $\sigma$)")
+        ax_err.set_title(fr"Relative Uncertainty ({nsigma} $\sigma$)")
         if xinfo[2]:
             ax_err.set_xlabel(xinfo[2])
         if yinfo[2]:

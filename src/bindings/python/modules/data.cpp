@@ -35,7 +35,58 @@ namespace py = pybind11;
 // No special methods
 template <typename T, std::size_t D, typename PyClass>
 struct specialMethods{
-  static void add(PyClass&) {}
+  static void add(PyClass& cls) {
+
+    cls.def("to2D",
+            [](const penred::measurements::results<T, D>& obj) -> penred::measurements::results<T, 2>{
+
+              penred::measurements::results<T, 2> r;
+              int err = obj.to2D(r);
+              if(err != penred::measurements::errors::SUCCESS) {
+                std::string errorMsg("Error extracting 2D results. ");
+                errorMsg += penred::measurements::errorToString(err);
+                throw pybind11::value_error(errorMsg.c_str());
+              }
+              return r;
+            },
+            R"(
+Create a result object with 2 dimensions with the data contained in the current object. The latter must contain 2 effective dimensions (dimensions with a number of bins greater than 1).
+
+Args:
+    None
+
+Returns:
+    A 2D results object.
+
+Raises:
+    ValueError: If the effective dimensions are not 2.
+)")
+      .def("to1D",
+           [](const penred::measurements::results<T, D>& obj) -> penred::measurements::results<T, 1>{
+
+             penred::measurements::results<T, 1> r;
+             int err = obj.to1D(r);
+             if(err != penred::measurements::errors::SUCCESS) {
+               std::string errorMsg("Error extracting 1D results. ");
+               errorMsg += penred::measurements::errorToString(err);
+               throw pybind11::value_error(errorMsg.c_str());
+             }
+             return r;
+           },
+           R"(
+Create a result object with 1 dimension with the data contained in the current object. The latter must contain 1 effective dimension (dimensions with a number of bins greater than 1).
+
+Args:
+    None
+
+Returns:
+    A 1D results object.
+
+Raises:
+    ValueError: If the effective dimensions are not 1.
+)");
+
+  }
 };
 
 
@@ -161,6 +212,55 @@ Returns:
 
 Raises:
     ValueError: If the interpolation fails.
+)")
+      
+      .def("to2D",
+           [](const penred::measurements::results<T, 3>& obj) -> penred::measurements::results<T, 2>{
+
+             penred::measurements::results<T, 2> r;
+             int err = obj.to2D(r);
+             if(err != penred::measurements::errors::SUCCESS) {
+               std::string errorMsg("Error extracting 2D results. ");
+               errorMsg += penred::measurements::errorToString(err);
+               throw pybind11::value_error(errorMsg.c_str());
+             }
+             return r;
+           },
+           R"(
+Create a result object with 2 dimensions with the data contained in the current object. The latter must contain 2 effective dimensions (dimensions with a number of bins greater than 1).
+
+Args:
+    None
+
+Returns:
+    A 2D results object.
+
+Raises:
+    ValueError: If the effective dimensions are not 2.
+)")
+      .def("to1D",
+           [](const penred::measurements::results<T, 3>& obj) -> penred::measurements::results<T, 1>{
+
+             penred::measurements::results<T, 1> r;
+             int err = obj.to1D(r);
+             if(err != penred::measurements::errors::SUCCESS) {
+               std::string errorMsg("Error extracting 1D results. ");
+               errorMsg += penred::measurements::errorToString(err);
+               throw pybind11::value_error(errorMsg.c_str());
+             }
+             return r;
+           },
+           R"(
+Create a result object with 1 dimension with the data contained in the current object. The latter must contain 1 effective dimension (dimensions with a number of bins greater than 1).
+
+Args:
+    None
+
+Returns:
+    A 1D results object.
+
+Raises:
+    ValueError: If the effective dimensions are not 1.
 )");
   }
 };
@@ -243,7 +343,8 @@ Raises:
                     const std::string& filename,
                     const unsigned nSigma,
                     const bool printCoordinates,
-                    const bool printBinNumber) -> void{
+                    const bool printBinNumber,
+                    const bool onlyEffective) -> void{
       //Open output file
       FILE* fout = fopen(filename.c_str(),"w");
       if(fout == nullptr){
@@ -253,13 +354,14 @@ Raises:
       }
 
       //Print data
-      obj.print(fout, nSigma, printCoordinates, printBinNumber, true);
+      obj.print(fout, nSigma, printCoordinates, printBinNumber, onlyEffective);
       fclose(fout);
     },
          py::arg("filename"),
          py::arg("print_sigmas") = 2,
          py::arg("print_coordinates") = true,
          py::arg("print_bins") = true,
+         py::arg("only_effective") = true,
          R"(
 Writes the stored data as standard penRed's results file.
 
@@ -268,6 +370,7 @@ Args:
     print_sigmas (int): Specify the number of printed sigmas, i.e. the uncertainties column will be transformed as print_sigmas*sigma
     print_coordinates (bool): If enabled, the coordinates of each dimension will be printed
     print_bins (bool): If enabled, the bin number of each dimension will be printed
+    only_effective (bool): If enabled, only effective dimensions (those with more than a single bin), will be printed
 Returns:
     None
 
@@ -362,6 +465,96 @@ Returns:
 
 Raises:
     ValueError: If the interpolation fails.
+)")
+    .def("subtract",
+         [](const R& obj, const R& obj2) -> R {
+           R res;
+           int err = obj.subtract(res, obj2);
+           if(err != penred::measurements::errors::SUCCESS) {
+             std::string errorMsg("Error calculating results' differences. ");
+             errorMsg += penred::measurements::errorToString(err);
+             throw pybind11::value_error(errorMsg.c_str());
+           }
+           return res;
+         },
+         py::arg("y"),
+         R"(
+Compute the bin-by-bin difference  res_i = x_i - y_i, where x is the current histogram and y the provided parameter.
+
+Args:
+    y (obj) : Results object to subtract.
+
+Returns:
+    A results object with the subtraction values and uncertainties. Binning, headers, description, and other metadata of the output are copied from x
+
+Raises:
+    ValueError: If objects' grid dimensions mismatch.
+)")
+    .def("relative",
+         [](const R& obj, const R& ref,
+            const double subValue,
+            const T div0To,
+            const double threshold) -> R {
+           R res;
+           int err = obj.relative(res, ref, subValue, div0To, threshold);
+           if(err != penred::measurements::errors::SUCCESS) {
+             std::string errorMsg("Error calculating results' relative. ");
+             errorMsg += penred::measurements::errorToString(err);
+             throw pybind11::value_error(errorMsg.c_str());
+           }
+           return res;
+         },
+         py::arg("y"),
+         py::arg("sub") = static_cast<T>(0),
+         py::arg("zero") = 0.0,
+         py::arg("threshold") = 1.0e-20,
+         R"(
+Compute the bin-by-bin relative comparison between this histogram (x) and a reference histogram (y):
+
+    res_i = x_i / y_x - sub
+
+with the first-order (delta-method) uncertainty, valid for statistically independent x and y:
+
+    σ(dres_i)² = (σ_x_i / y_i)²  +  (x_i σ_y_i / y_i²)²
+
+Args:
+    y (obj) : Results object dividing this histogram (x).
+    sub (float) : Value to subtract. Defaults to 0, reproducing a plain ratio (x/y).
+    zero (float) : Value assigned when the denominator bin is approximately 0.
+    threshold (float) : Absolute threshold below which |y_i| is treated as 0.
+
+Returns:
+    A results object with the division values and uncertainties. The binning and metadata is copied form x.
+
+Raises:
+    ValueError: If objects' grid dimensions mismatch.
+)")
+    .def("normalize",
+         [](R& obj) -> void {
+           int err = obj.normalize();
+           if(err != penred::measurements::errors::SUCCESS) {
+             std::string errorMsg("Error normalizing data. ");
+             errorMsg += penred::measurements::errorToString(err);
+             throw pybind11::value_error(errorMsg.c_str());
+           }
+         },
+         R"(
+Normalize the data in place, so that Σ y_i = 1. Requires all bin values to be non-negative. If any bin has a negative value the object is left untouched.
+
+Uncertainties are propagated assuming independent bins. Because the normalization sum S = Σ x_i is itself estimated from the data, the normalized bins become negatively correlated:
+
+       σ²(y_i) = [ σ_i² − 2 y_i σ_i² + y_i² σ_S² ] / S²
+
+with σ_S² = Σ_j σ_j² and y_i = x_i / S.
+
+Args:
+    None
+
+Returns:
+    None
+
+Raises:
+    ValueError: If a negative value is found or the data is empty (Σ y_i = 0).
 )");
 
   // Add the dimension-specific methods.

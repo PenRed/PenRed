@@ -1,8 +1,8 @@
 //
 //
 //    Copyright (C) 2024 Universitat de València - UV
-//    Copyright (C) 2024-2025 Universitat Politècnica de València - UPV
-//    Copyright (C) 2025 Vicent Giménez Alventosa
+//    Copyright (C) 2024-2026 Universitat Politècnica de València - UPV
+//    Copyright (C) 2025-2026 Vicent Giménez Alventosa
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -46,88 +46,74 @@ PYBIND11_MODULE(psf,m){
            const double emax,
            const unsigned nbins)->py::tuple{
 
-	  //Check parameters
-	  if(emin < 0){
-	    throw py::value_error("Error:'emin' must be >= 0");
-	  }
+          //Check parameters
+          if(emin < 0){
+            throw py::value_error("Error:'emin' must be >= 0");
+          }
 
-	  if(emin >= emax){
-	    throw py::value_error("Error:'emin' must be greater than 'emax'");
-	  }
+          if(emin >= emax){
+            throw py::value_error("Error:'emin' must be greater than 'emax'");
+          }
 
-	  if(nbins == 0){
-	    throw py::value_error("Error: At least one energy been is necessary");
-	  }
+          if(nbins == 0){
+            throw py::value_error("Error: At least one energy been is necessary");
+          }
       
-	  //Calculate bin width
-	  double de = (emax - emin) / (double)nbins;
-	  double ide = 1.0/de;
-
-	  //Create a phase space file
-	  pen_psfreader psf;
+          //Create a phase space file
+          pen_psfreader psf;
 
 
-	  //Open specified input file
-	  FILE* fin = nullptr;
-	  fin = fopen(filename.c_str(),"rb");
-	  if(fin == nullptr){
-	    throw py::value_error("Error: unable to open file: " + filename);
-	  }
+          //Open specified input file
+          FILE* fin = nullptr;
+          fin = fopen(filename.c_str(),"rb");
+          if(fin == nullptr){
+            throw py::value_error("Error: unable to open file: " + filename);
+          }
 
-	  //Create tally variables
-	  std::array<std::vector<double>, constants::nParTypes> spectre;
-	  for(std::vector<double>& s : spectre){
-	    s.resize(nbins, 0.0);
-	  }	  
+          //Create tally variables
+          std::array<std::vector<double>, constants::nParTypes> spectre;
+          for(std::vector<double>& s : spectre){
+            s.resize(nbins, 0.0);
+          }
 
-	  //Read input file until the end
-	  unsigned nchunks = 0;
-	  long long unsigned nhists = 0;
-	  while(psf.read(fin,1) == PEN_PSF_SUCCESS){
-	    nchunks++;
-	    //Iterate over read states
-	    pen_particleState state;
-	    unsigned long dhist;
-	    unsigned kpar;
-	    while(psf.get(dhist,kpar,state) > 0){
+          //Init spectrums
+          std::array<penred::measurements::measurement<double, 1>, constants::nParTypes> spectres;
+          for(unsigned i = 0; i < constants::nParTypes; ++i){
+            spectres[i].initFromLists({nbins},
+                                      {penred::measurements::limitsType(emin, emax)});
+            spectres[i].title = particleName(i);
+            spectres[i].title += " energetic spectrum";
 
-	      //Calculate bin index
-	      int ibin = (state.E-emin)*ide;
+            spectres[i].setDimHeader(0, "Energy (eV)");
+            spectres[i].setValueHeader("Prob(1/hist)");
+          }
 
-	      nhists += dhist;
-	      //Check bin index
-	      if(ibin >= 0 && ibin < (int)nbins){
-		spectre[kpar][ibin] += state.WGHT;
-	      }
-	    }
-	  }
+          //Read input file until the end
+          long long unsigned nhists = 0;
+          while(psf.read(fin,1) == PEN_PSF_SUCCESS){
+            //Iterate over read states
+            pen_particleState state;
+            unsigned long dhist;
+            unsigned kpar;
+            while(psf.get(dhist,kpar,state) > 0){
+              nhists += dhist;
+              spectres[kpar].add({state.E}, state.WGHT, nhists);
+            }
+          }
 
-	  //Close files
-	  fclose(fin);
+          //Close files
+          fclose(fin);
 		
 
-	  //Create the resulting python tuple
-	  py::tuple results(constants::nParTypes+1);
+          //Create the resulting python tuple
+          py::tuple results(constants::nParTypes);
 
-	  std::vector<double> energies(nbins);
-	  for(unsigned j = 0; j < nbins; j++)
-	    {
-	      energies[j] = double(j)*de+emin;
-	    }
-
-	  for(unsigned i = 0; i < constants::nParTypes; i++)
-	    {
-	      std::vector<double> spectPSF(nbins);
-	      for(unsigned j = 0; j < nbins; j++)
-		{
-		  spectPSF[j] = spectre[i][j];
-		}
-	      results[i+1] = py::tuple(py::cast(spectPSF));
-	    }
-
-		
-	  results[0] = py::tuple(py::cast(energies));
-	  return results;
+          for(unsigned i = 0; i < constants::nParTypes; i++){
+            penred::measurements::results<double, 1> res;
+            spectres[i].results(nhists, res);
+            results[i] = py::cast(std::move(res));
+          }
+          return results;
 	},    
 	py::arg("filename"),
 	py::arg("emin"),
@@ -143,7 +129,7 @@ Args:
     nbins (unsigned): Number of linear-spaced energy bins between emin and emax.
 
 Returns:
-    tuple: A tuple containing four tuples in the following order: energy bin edges, electron, gamma and positron spectrum.
+    tuple: A tuple containing a results1D object for each particle type: electron, gamma and positrons.
 
 Example:
     .. code-block:: python
@@ -248,10 +234,8 @@ Example:
                                     penred::measurements::limitsType(zmin, zmax)});          
           
           //Read input file until the end
-          unsigned nchunks = 0;
           long long unsigned nhist = 0;
           while(psf.read(fin,1) == PEN_PSF_SUCCESS){
-            nchunks++;
             //Iterate over read states
             pen_particleState state;
             unsigned long dhist;

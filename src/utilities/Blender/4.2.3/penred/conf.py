@@ -372,6 +372,7 @@ def createTallies(context, f, toRound):
                                          n1, n2, n3,
                                          min1, min2, min3,
                                          max1, max2, max3,
+                                         item.printCartCoord,
                                          toRound)
 
             if obj.penred_settings.source and obj.penred_settings.source.ctEnable:

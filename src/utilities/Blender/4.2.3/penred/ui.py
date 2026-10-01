@@ -621,6 +621,8 @@ class PenredTallyPropertiesPanel(bpy.types.Panel):
                         row.prop(item, "ny", text="Y Bins")
                         row = sbox.row()
                         row.prop(item, "nz", text="Z Bins")
+                        row = sbox.row()
+                        row.prop(item, "printCartCoord", text="Coordinates")
                     elif item.meshType == "MESH_CYL":
                         
                         # Mesh inside bounding box

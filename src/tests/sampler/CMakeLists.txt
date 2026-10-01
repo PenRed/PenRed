@@ -57,3 +57,14 @@ install(
   DESTINATION ${PROJECT_SOURCE_DIR}/compiled/tests/samplers
   )  
 #-----------------------------------------------------------------------------
+
+add_executable(sample_t2 ${CMAKE_CURRENT_SOURCE_DIR}/test2.cpp)
+
+target_link_libraries(sample_t2 PUBLIC pen_randoms)
+
+#-----------------------------------------------------------------------------
+install(
+  TARGETS sample_t2
+  DESTINATION ${PROJECT_SOURCE_DIR}/compiled/tests/samplers
+  )
+#-----------------------------------------------------------------------------

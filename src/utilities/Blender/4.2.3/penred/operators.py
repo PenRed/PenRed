@@ -1572,23 +1572,40 @@ class SIMULATE_PENRED_OT_run(bpy.types.Operator):
         #print(f"Extracted results: {resultsDic}")
 
         #Generate images
+        from pyPenred.data import results1D, results2D
         for tallyType, tallyList in resultsDic.items():
             for tallyName, tallyRes in tallyList.items():
                 if isinstance(tallyRes,tuple):
                     if len(tallyRes) > 0:
                         ir = 0
                         for res in tallyRes:
-                            from pyPenred.data import results1D, results2D
                             # Plot only those results with, at least, 2 bins
-                            if (isinstance(res,results1D) or isinstance(res,results2D)) and res.bins() > 1:
-                                #Create the plot
-                                localName = f"{tallyName}_{ir}_{res.title()}"
-                                fig = res.plot()
-                                #Convert it to blender image
-                                img = utils.figure2BlenderImage(fig,localName)
-                                if img:
-                                    img.use_fake_user = True
-                                ir = ir+1    
+                            if res.bins() < 2:
+                                # Empty results, skip
+                                continue
+
+                            # Ensure suitable dimensions for plot (1D or 2D)
+                            if not isinstance(res,results1D) and not isinstance(res,results2D):
+                                # Check efective dimensions
+                                try: # Try reducing to 2D
+                                    auxRes = res.to2D()
+                                    res = auxRes
+                                except: # Failed, try reducing to 1D instead
+                                    try:
+                                        auxRes = res.to1D()
+                                        res = auxRes
+                                    except:
+                                        # Unable to reduce dimensions neither to 1D nor 2D. Skip this result
+                                        continue
+                            
+                            #Create the plot
+                            localName = f"{tallyName}_{ir}_{res.title()}"
+                            fig = res.plot()
+                            #Convert it to blender image
+                            img = utils.figure2BlenderImage(fig,localName)
+                            if img:
+                                img.use_fake_user = True
+                            ir = ir+1    
 
     def invoke(self, context, event):
 

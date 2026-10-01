@@ -53,7 +53,7 @@ int main(){
   //Create results vector
   std::vector<double> res(xbins*ybins,0.0);
   
-  constexpr unsigned long nIter = 10000000000;
+  constexpr unsigned long nIter = 5000000000;
   for(size_t i = 0; i < nIter; ++i){
     ++res[sampler.sample(random)];
   }

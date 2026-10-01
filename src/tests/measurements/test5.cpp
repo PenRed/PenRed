@@ -281,9 +281,318 @@ void test_measurement_boundary_overflow_safety() {
   TEST_ASSERT_NEAR(meas.readData().back(), 10.0, 1e-9, "Boundary score was not assigned to last bin");
 }
 
+// ============================================================================
+// 5. NORMALIZATION TESTS
+// ============================================================================
+
+void test_normalize_basic() {
+  penred::measurements::results<double, 1> res;
+  res.init(std::vector<unsigned long>{4},
+           std::vector<std::pair<double, double>>{{0.0, 4.0}});
+
+  // x = {1, 1, 1, 1}, σ = {0.1, 0.1, 0.1, 0.1}
+  const double x[4]  = {1.0, 1.0, 1.0, 1.0};
+  const double sx[4] = {0.1, 0.1, 0.1, 0.1};
+  for(size_t i = 0; i < 4; ++i) {
+    res.data[i]  = x[i];
+    res.sigma[i] = sx[i];
+  }
+
+  int err = res.normalize();
+  TEST_ASSERT(err == penred::measurements::errors::SUCCESS, "normalize() should succeed");
+
+  // y_i = 0.25 each, sum = 1
+  double sum = 0.0;
+  for(size_t i = 0; i < 4; ++i) sum += res.data[i];
+  TEST_ASSERT_NEAR(sum, 1.0, 1e-12, "Normalized sum should be 1");
+
+  // σ²(y_i) = [σ_i² - 2 y_i σ_i² + y_i² σ_S²] / S²
+  // S = 4, σ_S² = 4*0.01 = 0.04, y_i = 0.25
+  // σ² = [0.01 - 2*0.25*0.01 + 0.0625*0.04] / 16
+  //    = [0.01 - 0.005 + 0.0025] / 16 = 0.0075 / 16 = 4.6875e-4
+  const double expectedSigma = std::sqrt(4.6875e-4);
+  for(size_t i = 0; i < 4; ++i) {
+    TEST_ASSERT_NEAR(res.data[i],  0.25,          1e-12, "Normalized value");
+    TEST_ASSERT_NEAR(res.sigma[i], expectedSigma, 1e-12, "Normalized sigma");
+  }
+}
+
+void test_normalize_rejects_negative() {
+  penred::measurements::results<double, 1> res;
+  res.init(std::vector<unsigned long>{3},
+           std::vector<std::pair<double, double>>{{0.0, 3.0}});
+
+  res.data[0] =  1.0;  res.sigma[0] = 0.1;
+  res.data[1] = -0.5;  res.sigma[1] = 0.1;   // negative!
+  res.data[2] =  2.0;  res.sigma[2] = 0.1;
+
+  // Snapshot before the call
+  const std::vector<double> dataBefore  = res.data;
+  const std::vector<double> sigmaBefore = res.sigma;
+
+  int err = res.normalize();
+  TEST_ASSERT(err == penred::measurements::errors::NEGATIVE_BIN_VALUE,
+              "normalize() must reject negative bins");
+
+  // Object must be untouched
+  for(size_t i = 0; i < res.data.size(); ++i) {
+    TEST_ASSERT_NEAR(res.data[i],  dataBefore[i],  0.0, "Data must be unchanged after error");
+    TEST_ASSERT_NEAR(res.sigma[i], sigmaBefore[i], 0.0, "Sigma must be unchanged after error");
+  }
+}
+
+void test_normalize_empty_histogram() {
+  penred::measurements::results<double, 1> res;
+  res.init(std::vector<unsigned long>{3},
+           std::vector<std::pair<double, double>>{{0.0, 3.0}});
+  // all data and sigma default to 0 from init()
+
+  int err = res.normalize();
+  TEST_ASSERT(err == penred::measurements::errors::DATA_NOT_FOUND,
+              "normalize() must report empty histogram");
+}
+
+void test_normalize_returns_success_and_sums_to_one_3d() {
+  // Larger histogram, all positive, sum should be 1
+  penred::measurements::results<double, 3> res;
+  res.init(std::vector<unsigned long>{3, 3, 3},
+           std::vector<std::pair<double, double>>{{0.0, 3.0}, {0.0, 3.0}, {0.0, 3.0}});
+
+  for(size_t i = 0; i < res.data.size(); ++i) {
+    res.data[i]  = 1.0 + 0.5 * static_cast<double>(i % 5);
+    res.sigma[i] = 0.1;
+  }
+
+  int err = res.normalize();
+  TEST_ASSERT(err == penred::measurements::errors::SUCCESS, "normalize() should succeed");
+
+  double sum = 0.0;
+  for(size_t i = 0; i < res.data.size(); ++i) sum += res.data[i];
+  TEST_ASSERT_NEAR(sum, 1.0, 1e-12, "Normalized sum should be 1");
+}
+
 
 // ============================================================================
-// 5. MAIN RUNNER
+// 6. RELATIVE (HISTOGRAM) TESTS
+// ============================================================================
+
+void test_relative_histogram_basic() {
+  penred::measurements::results<double, 1> x, y, dres;
+  x.init(std::vector<unsigned long>{3}, std::vector<std::pair<double,double>>{{0.0, 3.0}});
+  y.init(std::vector<unsigned long>{3}, std::vector<std::pair<double,double>>{{0.0, 3.0}});
+
+  // x = {2, 4, 8}, σx = {0.2, 0.4, 0.8}
+  // y = {1, 2, 4}, σy = {0.1, 0.2, 0.4}
+  x.data[0]=2.0; x.data[1]=4.0; x.data[2]=8.0;
+  x.sigma[0]=0.2; x.sigma[1]=0.4; x.sigma[2]=0.8;
+  y.data[0]=1.0; y.data[1]=2.0; y.data[2]=4.0;
+  y.sigma[0]=0.1; y.sigma[1]=0.2; y.sigma[2]=0.4;
+
+  // subValue = 0 → pure ratio
+  int err = x.relative(dres, y);
+  TEST_ASSERT(err == penred::measurements::errors::SUCCESS, "relative() should succeed");
+
+  // r_i = 2, 2, 2
+  for(size_t i = 0; i < 3; ++i)
+    TEST_ASSERT_NEAR(dres.data[i], 2.0, 1e-12, "Ratio value");
+
+  // σ²(r_i) = (σx/y)² + (x σy / y²)²
+  // i=0: (0.2/1)² + (2*0.1/1)² = 0.04 + 0.04 = 0.08 → σ = 0.2828427124746190
+  // i=1: (0.4/2)² + (4*0.2/4)² = 0.04 + 0.04 = 0.08
+  // i=2: (0.8/4)² + (8*0.4/16)² = 0.04 + 0.04 = 0.08
+  const double expectedSigma = std::sqrt(0.08);
+  for(size_t i = 0; i < 3; ++i)
+    TEST_ASSERT_NEAR(dres.sigma[i], expectedSigma, 1e-12, "Ratio sigma");
+}
+
+void test_relative_histogram_subvalue_one() {
+  penred::measurements::results<double, 1> x, y, dres;
+  x.init(std::vector<unsigned long>{2}, std::vector<std::pair<double,double>>{{0.0, 2.0}});
+  y.init(std::vector<unsigned long>{2}, std::vector<std::pair<double,double>>{{0.0, 2.0}});
+
+  x.data[0]=3.0; x.data[1]=6.0;
+  x.sigma[0]=0.3; x.sigma[1]=0.6;
+  y.data[0]=2.0; y.data[1]=4.0;
+  y.sigma[0]=0.2; y.sigma[1]=0.4;
+
+  int err = x.relative(dres, y, /*subValue=*/1.0);
+  TEST_ASSERT(err == penred::measurements::errors::SUCCESS, "relative(subValue=1) should succeed");
+
+  // r_i = 3/2 - 1 = 0.5;  6/4 - 1 = 0.5
+  for(size_t i = 0; i < 2; ++i)
+    TEST_ASSERT_NEAR(dres.data[i], 0.5, 1e-12, "Ratio minus one");
+
+  // σ²(r_i) = (σx/y)² + (x σy / y²)²
+  // i=0: (0.3/2)² + (3*0.2/4)² = 0.0225 + 0.0225 = 0.045
+  // i=1: (0.6/4)² + (6*0.4/16)² = 0.0225 + 0.0225 = 0.045
+  const double expectedSigma = std::sqrt(0.045);
+  for(size_t i = 0; i < 2; ++i)
+    TEST_ASSERT_NEAR(dres.sigma[i], expectedSigma, 1e-12, "Sigma unaffected by subValue");
+}
+
+void test_relative_histogram_zero_denominator() {
+  penred::measurements::results<double, 1> x, y, dres;
+  x.init(std::vector<unsigned long>{3}, std::vector<std::pair<double,double>>{{0.0, 3.0}});
+  y.init(std::vector<unsigned long>{3}, std::vector<std::pair<double,double>>{{0.0, 3.0}});
+
+  x.data[0]=1.0; x.data[1]=2.0; x.data[2]=3.0;
+  x.sigma[0]=0.1; x.sigma[1]=0.2; x.sigma[2]=0.3;
+  y.data[0]=0.0; y.data[1]=1.0; y.data[2]=3.0;   // bin 0 has zero denominator
+  y.sigma[0]=0.0; y.sigma[1]=0.1; y.sigma[2]=0.3;
+
+  // Default div0To = 0
+  int err = x.relative(dres, y);
+  TEST_ASSERT(err == penred::measurements::errors::SUCCESS, "relative() should succeed");
+
+  // Bin 0 substituted with div0To = 0, σ = 0
+  TEST_ASSERT_NEAR(dres.data[0],  0.0, 0.0, "Zero-denominator bin holds div0To");
+  TEST_ASSERT_NEAR(dres.sigma[0], 0.0, 0.0, "Zero-denominator bin sigma is 0");
+
+  // Bin 1, 2 computed normally
+  TEST_ASSERT_NEAR(dres.data[1], 2.0, 1e-12, "Normal bin 1");
+  TEST_ASSERT_NEAR(dres.data[2], 1.0, 1e-12, "Normal bin 2");
+
+  // Custom div0To
+  penred::measurements::results<double, 1> dres2;
+  err = x.relative(dres2, y, /*subValue=*/0.0, /*div0To=*/42.0);
+  TEST_ASSERT(err == penred::measurements::errors::SUCCESS, "relative(div0To=42) should succeed");
+  TEST_ASSERT_NEAR(dres2.data[0], 42.0, 0.0, "Custom div0To value");
+}
+
+void test_relative_histogram_dimension_mismatch() {
+  penred::measurements::results<double, 1> x, y, dres;
+  x.init(std::vector<unsigned long>{3}, std::vector<std::pair<double,double>>{{0.0, 3.0}});
+  y.init(std::vector<unsigned long>{4}, std::vector<std::pair<double,double>>{{0.0, 4.0}});
+
+  int err = x.relative(dres, y);
+  TEST_ASSERT(err == penred::measurements::errors::DIMENSION_MISMATCH,
+              "relative() must reject dimension mismatch");
+}
+
+
+// ============================================================================
+// 7. RELATIVE (SCALAR) TESTS
+// ============================================================================
+
+void test_relative_scalar_basic() {
+  penred::measurements::results<double, 1> x, dres;
+  x.init(std::vector<unsigned long>{3}, std::vector<std::pair<double,double>>{{0.0, 3.0}});
+
+  x.data[0]=2.0; x.data[1]=4.0; x.data[2]=6.0;
+  x.sigma[0]=0.2; x.sigma[1]=0.4; x.sigma[2]=0.6;
+
+  const double v = 2.0;
+  const double s = 0.1;
+
+  // Default subValue = 0 → pure ratio x_i / v
+  int err = x.relative(dres, v, s);
+  TEST_ASSERT(err == penred::measurements::errors::SUCCESS, "relative(scalar) should succeed");
+
+  TEST_ASSERT_NEAR(dres.data[0], 1.0, 1e-12, "Scalar ratio bin 0");
+  TEST_ASSERT_NEAR(dres.data[1], 2.0, 1e-12, "Scalar ratio bin 1");
+  TEST_ASSERT_NEAR(dres.data[2], 3.0, 1e-12, "Scalar ratio bin 2");
+
+  // σ²(z_i) = (σ_i/v)² + (x_i s / v²)²
+  // v = 2, s = 0.1
+  // i=0: (0.2/2)² + (2*0.1/4)² = 0.01 + 0.0025 = 0.0125
+  // i=1: (0.4/2)² + (4*0.1/4)² = 0.04 + 0.01   = 0.05
+  // i=2: (0.6/2)² + (6*0.1/4)² = 0.09 + 0.0225 = 0.1125
+  TEST_ASSERT_NEAR(dres.sigma[0], std::sqrt(0.0125), 1e-12, "Scalar sigma bin 0");
+  TEST_ASSERT_NEAR(dres.sigma[1], std::sqrt(0.05),   1e-12, "Scalar sigma bin 1");
+  TEST_ASSERT_NEAR(dres.sigma[2], std::sqrt(0.1125), 1e-12, "Scalar sigma bin 2");
+}
+
+void test_relative_scalar_subvalue_one() {
+  penred::measurements::results<double, 1> x, dres;
+  x.init(std::vector<unsigned long>{2}, std::vector<std::pair<double,double>>{{0.0, 2.0}});
+
+  x.data[0]=4.0; x.data[1]=6.0;
+  x.sigma[0]=0.4; x.sigma[1]=0.6;
+
+  int err = x.relative(dres, /*v=*/2.0, /*s=*/0.1, /*subValue=*/1.0);
+  TEST_ASSERT(err == penred::measurements::errors::SUCCESS, "relative(scalar, subValue=1) should succeed");
+
+  // z_i = x_i / 2 - 1
+  TEST_ASSERT_NEAR(dres.data[0], 1.0, 1e-12, "Scalar ratio minus one bin 0");
+  TEST_ASSERT_NEAR(dres.data[1], 2.0, 1e-12, "Scalar ratio minus one bin 1");
+}
+
+void test_relative_scalar_invalid_v() {
+  penred::measurements::results<double, 1> x, dres;
+  x.init(std::vector<unsigned long>{2}, std::vector<std::pair<double,double>>{{0.0, 2.0}});
+  x.data[0]=1.0; x.data[1]=2.0;
+
+  int err = x.relative(dres, /*v=*/0.0, /*s=*/0.1);
+  TEST_ASSERT(err == penred::measurements::errors::CORRUPTED_DATA,
+              "relative(scalar) must reject v = 0");
+}
+
+
+// ============================================================================
+// 8. SUBTRACT TESTS
+// ============================================================================
+
+void test_subtract_histogram_basic() {
+  penred::measurements::results<double, 1> x, y, dres;
+  x.init(std::vector<unsigned long>{3}, std::vector<std::pair<double,double>>{{0.0, 3.0}});
+  y.init(std::vector<unsigned long>{3}, std::vector<std::pair<double,double>>{{0.0, 3.0}});
+
+  x.data[0]=5.0; x.data[1]=7.0; x.data[2]=9.0;
+  x.sigma[0]=0.5; x.sigma[1]=0.7; x.sigma[2]=0.9;
+  y.data[0]=1.0; y.data[1]=2.0; y.data[2]=3.0;
+  y.sigma[0]=0.1; y.sigma[1]=0.2; y.sigma[2]=0.3;
+
+  int err = x.subtract(dres, y);
+  TEST_ASSERT(err == penred::measurements::errors::SUCCESS, "subtract() should succeed");
+
+  TEST_ASSERT_NEAR(dres.data[0], 4.0, 1e-12, "Difference bin 0");
+  TEST_ASSERT_NEAR(dres.data[1], 5.0, 1e-12, "Difference bin 1");
+  TEST_ASSERT_NEAR(dres.data[2], 6.0, 1e-12, "Difference bin 2");
+
+  // σ² = σx² + σy²
+  // i=0: 0.25 + 0.01 = 0.26
+  // i=1: 0.49 + 0.04 = 0.53
+  // i=2: 0.81 + 0.09 = 0.90
+  TEST_ASSERT_NEAR(dres.sigma[0], std::sqrt(0.26), 1e-12, "Difference sigma bin 0");
+  TEST_ASSERT_NEAR(dres.sigma[1], std::sqrt(0.53), 1e-12, "Difference sigma bin 1");
+  TEST_ASSERT_NEAR(dres.sigma[2], std::sqrt(0.90), 1e-12, "Difference sigma bin 2");
+}
+
+void test_subtract_histogram_dimension_mismatch() {
+  penred::measurements::results<double, 1> x, y, dres;
+  x.init(std::vector<unsigned long>{3}, std::vector<std::pair<double,double>>{{0.0, 3.0}});
+  y.init(std::vector<unsigned long>{4}, std::vector<std::pair<double,double>>{{0.0, 4.0}});
+
+  int err = x.subtract(dres, y);
+  TEST_ASSERT(err == penred::measurements::errors::DIMENSION_MISMATCH,
+              "subtract() must reject dimension mismatch");
+}
+
+void test_subtract_scalar_basic() {
+  penred::measurements::results<double, 1> x, dres;
+  x.init(std::vector<unsigned long>{3}, std::vector<std::pair<double,double>>{{0.0, 3.0}});
+
+  x.data[0]=5.0; x.data[1]=7.0; x.data[2]=9.0;
+  x.sigma[0]=0.5; x.sigma[1]=0.7; x.sigma[2]=0.9;
+
+  const double v = 2.0;
+  const double s = 0.1;
+
+  int err = x.subtract(dres, v, s);
+  TEST_ASSERT(err == penred::measurements::errors::SUCCESS, "subtract(scalar) should succeed");
+
+  TEST_ASSERT_NEAR(dres.data[0], 3.0, 1e-12, "Shifted bin 0");
+  TEST_ASSERT_NEAR(dres.data[1], 5.0, 1e-12, "Shifted bin 1");
+  TEST_ASSERT_NEAR(dres.data[2], 7.0, 1e-12, "Shifted bin 2");
+
+  // σ² = σx² + s², s² = 0.01
+  TEST_ASSERT_NEAR(dres.sigma[0], std::sqrt(0.25 + 0.01), 1e-12, "Shifted sigma bin 0");
+  TEST_ASSERT_NEAR(dres.sigma[1], std::sqrt(0.49 + 0.01), 1e-12, "Shifted sigma bin 1");
+  TEST_ASSERT_NEAR(dres.sigma[2], std::sqrt(0.81 + 0.01), 1e-12, "Shifted sigma bin 2");
+}
+
+// ============================================================================
+// 9. MAIN RUNNER
 // ============================================================================
 
 int main() {
@@ -308,6 +617,28 @@ int main() {
   RUN_TEST(test_measurement_randomized_tallies);
   RUN_TEST(test_measurement_boundary_overflow_safety);
 
+  // Normalization
+  RUN_TEST(test_normalize_basic);
+  RUN_TEST(test_normalize_rejects_negative);
+  RUN_TEST(test_normalize_empty_histogram);
+  RUN_TEST(test_normalize_returns_success_and_sums_to_one_3d);
+
+  // Relative (histogram)
+  RUN_TEST(test_relative_histogram_basic);
+  RUN_TEST(test_relative_histogram_subvalue_one);
+  RUN_TEST(test_relative_histogram_zero_denominator);
+  RUN_TEST(test_relative_histogram_dimension_mismatch);
+
+  // Relative (scalar)
+  RUN_TEST(test_relative_scalar_basic);
+  RUN_TEST(test_relative_scalar_subvalue_one);
+  RUN_TEST(test_relative_scalar_invalid_v);
+
+  // Subtract
+  RUN_TEST(test_subtract_histogram_basic);
+  RUN_TEST(test_subtract_histogram_dimension_mismatch);
+  RUN_TEST(test_subtract_scalar_basic);
+  
   std::cout << "\n----------------------------------------\n";
   std::cout << "RESULTS: " << g_tests_passed << " PASSED, " << g_tests_failed << " FAILED.\n";
   std::cout << "----------------------------------------\n";

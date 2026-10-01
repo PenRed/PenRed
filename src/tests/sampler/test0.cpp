@@ -29,10 +29,10 @@
 int main(){
 
   //Create distribution
-  constexpr unsigned nx = 53;
-  constexpr unsigned ny = 87;
+  constexpr unsigned nx = 20;
+  constexpr unsigned ny = 17;
   constexpr unsigned nz = 23;
-  constexpr unsigned nE = 100;
+  constexpr unsigned nE = 30;
 
   constexpr unsigned nxy = nx*ny;
   constexpr unsigned nxyz = nxy*nz;  
@@ -42,27 +42,31 @@ int main(){
   for(size_t e = 0; e < nE; ++e){
     for(size_t k = 0; k < nz; ++k){
       for(size_t j = 0; j < ny; ++j){
-	for(size_t i = 0; i < nx; ++i){
-	  dis[e*nxyz + k*nxy + j*nx + i] =
-	    (2.0+sin(static_cast<double>(j)+0.5)*
-	     cos(static_cast<double>(i)+0.5))/((e+k)/(k+1));
-	}
+        for(size_t i = 0; i < nx; ++i){
+          dis[e*nxyz + k*nxy + j*nx + i] =
+            (2.0+sin(static_cast<double>(j)+0.5)*
+             cos(static_cast<double>(i)+0.5))/((e+k+1)/(k+1));
+        }
       }
     }
   }
 
   //Init sampler
   penred::sampling::aliasing<4> sampler; 
-  sampler.init(dis, {nx,ny,nz,nE},
-	       {std::pair<double, double>(-102.54,10.06),
-		std::pair<double, double>(302.5,543.87),
-		std::pair<double, double>(-23,64.87),
-		std::pair<double, double>(-65.2,45.76)});
-
+  int initErr = sampler.init(dis, {nx,ny,nz,nE},
+                             {std::pair<double, double>(-102.54,10.06),
+                              std::pair<double, double>(302.5,543.87),
+                              std::pair<double, double>(-23,64.87),
+                              std::pair<double, double>(-65.2,45.76)});
+  if (initErr != penred::sampling::aliasing<4>::SUCCESS) {
+    printf("init failed with code %d. Check it!\n", initErr);
+    return 1;
+  }
+  
   //Create random number generator
   pen_rand random;
   
-  constexpr unsigned long nIter = 1000000000;
+  constexpr unsigned long nIter = 10000000;
   for(size_t i = 0; i < nIter; ++i){
 
     //Get seeds

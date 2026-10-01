@@ -1,7 +1,7 @@
 //
 //
 //    Copyright (C) 2024 Universitat de València - UV
-//    Copyright (C) 2024 Universitat Politècnica de València - UPV
+//    Copyright (C) 2024,2026 Universitat Politècnica de València - UPV
 //
 //    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 //
@@ -33,6 +33,7 @@
 #include <array>
 #include <vector>
 #include <functional>
+#include <algorithm>
 
 namespace penred{
 
@@ -49,6 +50,7 @@ namespace penred{
 	INVALID_NUMBER_OF_BINS,
 	NUMBER_OF_BINS_MISMATCH,
 	INVALID_LIMITS,
+    BAD_DISTRIBUTION,
       };            
     private:
 
@@ -59,121 +61,133 @@ namespace penred{
       std::array<std::pair<double, double>, dim> limits;
 
       std::vector<double> cutoff;
-      std::vector<unsigned> alias;
+      std::vector<unsigned long> alias;
       
     public:
 
-      static constexpr size_t dimensions = dim;      
+      static constexpr size_t dimensions = dim;
+
+      inline const std::vector<double>& readCutoff() const noexcept { return cutoff; }
+      inline const std::vector<unsigned long>& readAlias() const noexcept { return alias; }
 
       int init(const std::vector<double>& data,
-	       const std::array<unsigned long, dim>& nBinsIn,
-	       const std::array<std::pair<double, double>, dim>& limitsIn){
+               const std::array<unsigned long, dim>& nBinsIn,
+               const std::array<std::pair<double, double>, dim>& limitsIn){
 
-	//Init aliasing algorithm. Notice that provided probabilities must be positive or zero.
-	//
-	//
-	// Input:
-	//
-	// data    : Probabilities of each bin (not necessarily normalized to unity)
-	// nBinsIn : Number of bins in each dimension. Total number of bins must match with "data" size 
-	// limitsIn: Pairs with limits for each dimension
-	//
-	// Return error code or "SUCCESS" on success execution
+        //Init aliasing algorithm. Notice that provided probabilities must be positive or zero.
+        //
+        //
+        // Input:
+        //
+        // data    : Probabilities of each bin (not necessarily normalized to unity)
+        // nBinsIn : Number of bins in each dimension. Total number of bins must match with "data" size 
+        // limitsIn: Pairs with limits for each dimension
+        //
+        // Return error code or "SUCCESS" on success execution
 
-	//Calculate total number of bins
-	totalBins = std::accumulate(nBinsIn.begin(),
-				    nBinsIn.end(), 1,
-				    std::multiplies<unsigned long>());
-	if(totalBins == 0)
-	  return errors::INVALID_NUMBER_OF_BINS;
+        //Calculate total number of bins
+        totalBins = std::accumulate(nBinsIn.begin(),
+                                    nBinsIn.end(), 1UL,
+                                    std::multiplies<unsigned long>());
+        if(totalBins == 0)
+          return errors::INVALID_NUMBER_OF_BINS;
 
-	if(totalBins != data.size()){
-	  return errors::NUMBER_OF_BINS_MISMATCH;
-	}
+        if(totalBins != data.size()){
+          return errors::NUMBER_OF_BINS_MISMATCH;
+        }
     
-	//Check limits
-	for(size_t i = 0; i < dim; ++i){
-	  if(limitsIn[i].first >= limitsIn[i].second){
-	    return errors::INVALID_LIMITS;
-	  }
-	}
+        //Check limits
+        for(size_t i = 0; i < dim; ++i){
+          if(limitsIn[i].first >= limitsIn[i].second){
+            return errors::INVALID_LIMITS;
+          }
+        }
 
-	//Save bins
-	nBins = nBinsIn;
+        //Check the distribution correctness (0 cummulative probability or negative values)
+        const double minVal = *std::min_element(data.cbegin(), data.cend());
+        if(minVal < -1.0e-10){
+          return BAD_DISTRIBUTION;
+        }
+        const double sum = std::accumulate(data.cbegin(), data.cend(), 0.0);
+        if(sum < 1.0e-12 || !std::isfinite(sum)){
+          return BAD_DISTRIBUTION;
+        }
+    
+        //Get normalization factor
+        const double normFact = static_cast<double>(totalBins)/sum;    
 
-	//Calculate bins per increment in each dimension
-	binsPerIncrement[0] = 1;
-	for(size_t i = 1; i < dim; ++i){
-	  binsPerIncrement[i] = binsPerIncrement[i-1]*nBins[i-1];
-	}
+        //Save bins
+        nBins = nBinsIn;
 
-	//Save limits
-	limits = limitsIn;
+        //Calculate bins per increment in each dimension
+        binsPerIncrement[0] = 1;
+        for(size_t i = 1; i < dim; ++i){
+          binsPerIncrement[i] = binsPerIncrement[i-1]*nBins[i-1];
+        }
 
-	//Calculate bin widths
-	for(size_t i = 0; i < dim; ++i){
-	  binWidths[i] = (limits[i].second - limits[i].first)/static_cast<double>(nBins[i]);
-	}
+        //Save limits
+        limits = limitsIn;
 
-	//Save initial cutoffs
-	cutoff = data;
+        //Calculate bin widths
+        for(size_t i = 0; i < dim; ++i){
+          binWidths[i] = (limits[i].second - limits[i].first)/static_cast<double>(nBins[i]);
+        }
 	
-	//Resize alias vector
-	alias.resize(totalBins);
-	//Fill alias with the next bin index
-	std::iota(alias.begin(), alias.end(), 1);
+        //Resize alias vector
+        alias.resize(totalBins);
+        //Fill alias with the corresponding bin index
+        std::iota(alias.begin(), alias.end(), 0UL);
 
-	//Get normalization factor
-	const double sum = std::accumulate(data.cbegin(), data.cend(), 0.0);
-	const double normFact = static_cast<double>(totalBins)/sum;
+    
+        //Save initial cutoffs and normalize
+        cutoff = data;
+        for(double& c : cutoff){
+          c = std::max(c, 0.0);
+          c *= normFact;
+        }
 
-	//Normalize initial cutoffs
-	for(double& c : cutoff){
-	  c *= normFact;
-	}
+        //Compute alias and cutoffs
+        for(unsigned long i = 0; i < totalBins-1; ++i){
 
-	//Compute alias and cutoffs
-	for(unsigned long i = 0; i < totalBins-1; ++i){
-
-	  double lowVal = 1.0;
-	  double highVal = 1.0;
-	  unsigned ilow = totalBins;
-	  unsigned ihigh = totalBins;
+          double lowVal = 1.0;
+          double highVal = 1.0;
+          unsigned long ilow = totalBins;
+          unsigned long ihigh = totalBins;
 	  
-	  //Get maximum and minimum value
-	  for(unsigned long j = 0; j < totalBins; ++j){
+          //Get maximum and minimum value
+          for(unsigned long j = 0; j < totalBins; ++j){
 
-	    if(alias[j] == j+1){
+            if(alias[j] == j){
 	      
-	      if(cutoff[j] < lowVal){
-		lowVal = cutoff[j];
-		ilow = j;
-	      }
-	      else if(cutoff[j] > highVal){
-		highVal = cutoff[j];
-		ihigh = j;		
-	      }		
-	    }
-	  }
-	  if(ilow == totalBins || ihigh == totalBins){ return errors::SUCCESS; }
-	  alias[ilow] = ihigh;
-	  cutoff[ihigh] = highVal + lowVal - 1.0;
-	}
+              if(cutoff[j] < lowVal){
+                lowVal = cutoff[j];
+                ilow = j;
+              }
+              else if(cutoff[j] > highVal){
+                highVal = cutoff[j];
+                ihigh = j;		
+              }		
+            }
+          }
+          if(ilow == totalBins || ihigh == totalBins){ return errors::SUCCESS; }
+          alias[ilow] = ihigh;
+          cutoff[ihigh] = highVal + lowVal - 1.0;
+        }
 
-	return errors::SUCCESS;    
+        return errors::SUCCESS;    
       }
       
       unsigned long sample(pen_rand& random) const {
 
-	double r = random.rand()*totalBins;
-	unsigned long rInt = static_cast<unsigned long>(r);
-	double tst = r - static_cast<double>(rInt);
-	if(tst > cutoff[rInt]){
-	  return alias[rInt];
-	}
-	else{
-	  return rInt;
-	}	
+        double r = random.rand()*totalBins;
+        unsigned long rInt = static_cast<unsigned long>(r);
+        double tst = r - static_cast<double>(rInt);
+        if(tst > cutoff[rInt]){
+          return alias[rInt];
+        }
+        else{
+          return rInt;
+        }	
       }
 
       inline std::array<unsigned long, dim> sampleByDim(pen_rand& random) const {
