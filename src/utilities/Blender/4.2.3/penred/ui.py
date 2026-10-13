@@ -1,8 +1,8 @@
 #
 #
-#    Copyright (C) 2022-2025 Universitat de València - UV
-#    Copyright (C) 2022-2025 Universitat Politècnica de València - UPV
-#    Copyright (C) 2024-2025 Vicent Giménez Alventosa
+#    Copyright (C) 2022-2026 Universitat de València - UV
+#    Copyright (C) 2022-2026 Universitat Politècnica de València - UPV
+#    Copyright (C) 2024-2026 Vicent Giménez Alventosa
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -1466,10 +1466,79 @@ class PenredWorldTalliesPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        world = context.scene.world
+        scene = context.scene
+        world = scene.world
 
         if world and hasattr(world, "penred_settings"):
 
+            if hasattr(scene, "penred_settings") and scene.penred_settings.dicomProperties.loaded:
+            
+                # DICOM kerma tallies
+                ############################
+                boxTallies = layout.box()
+                row = boxTallies.row()
+                row.prop(world.penred_settings, "showTalliesDICOMKerma",
+                         text="DICOM Kerma Tallies", emboss=True,
+                         icon="TRIA_DOWN" if world.penred_settings.showTalliesDICOMKerma else "TRIA_RIGHT")
+
+                row.operator("tallies_dicomkerma.add_item", text="", icon="ADD")
+
+                if world.penred_settings.showTalliesDICOMKerma:
+                    for i, item in enumerate(world.penred_settings.talliesDICOMKerma):
+
+                        box = boxTallies.box()
+                        row = box.row()
+                        row.prop(item, "show", text=item.name, emboss=True,
+                                 icon="TRIA_DOWN" if item.show else "TRIA_RIGHT")
+                        row.operator("tallies_dicomkerma.remove_item", text="", icon="TRASH").index = i
+                        if not item.show:
+                            continue
+
+                        # Name
+                        row = box.row()
+                        row.prop(item, "name", text="Name")
+
+                        # Energy box
+                        ebox = box.box()
+                        ebox.label(text="Energy")
+
+                        row = ebox.row()
+                        if item.eminEdit:
+                            row.prop(item, "emin", text="")
+                        else:
+                            row.label(text=f"Min :  {item.emin:.3e} eV")
+                            row.prop(item, "eminEdit", text="", icon="GREASEPENCIL", toggle=True)
+
+                        row = ebox.row()
+                        if item.emaxEdit:
+                            row.prop(item, "emax", text="")
+                        else:
+                            row.label(text=f"Max:  {item.emax:.3e} eV")
+                            row.prop(item, "emaxEdit", text="", icon="GREASEPENCIL", toggle=True)
+                            
+                        row = box.row()
+                        row.prop(item, "dataPath", text="Data Path")
+
+                        # DVH
+                        dbox = box.box()
+                        dbox.label(text="DVH")
+                        
+                        row = dbox.row()
+                        if item.MC2DoseEdit:
+                            row.prop(item, "MC2Dose", text="")
+                        else:
+                            row.label(text=f"MC to Dose Factor :  {item.MC2Dose:.3e}")
+                            row.prop(item, "MC2DoseEdit", text="", icon="GREASEPENCIL", toggle=True)
+
+                        row = dbox.row()
+                        row.prop(item, "prescribedDose", text="Prescribed Dose (Gy)")            
+
+                        row = dbox.row()
+                        row.prop(item, "maxDoseDVH", text="Max Dose (Gy)")            
+
+                        row = dbox.row()
+                        row.prop(item, "binsDVH", text="Bins")
+                        
             # Emerging particle tallies
             ############################
             boxTallies = layout.box()

@@ -1,8 +1,8 @@
 #
 #
-#    Copyright (C) 2022-2025 Universitat de València - UV
-#    Copyright (C) 2022-2025 Universitat Politècnica de València - UPV
-#    Copyright (C) 2024-2025 Vicent Giménez Alventosa
+#    Copyright (C) 2022-2026 Universitat de València - UV
+#    Copyright (C) 2022-2026 Universitat Politècnica de València - UPV
+#    Copyright (C) 2024-2026 Vicent Giménez Alventosa
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -25,6 +25,28 @@
 #        sanolgi@upvnet.upv.es              (Sandra Oliver Gil)
 #        vicente.gimenez@uv.es              (Vicent Giménez Gómez)
 #
+
+def createTallyDICOMKerma(f, name, output,
+                          emin, emax,
+                          dataPrefix, materialList,
+                          prescribedDose, MC2Dose, maxDoseDVH, binsDVH,
+                          toRound):
+    f.write(f"# DICOM kerma tally configuration for '{name}'\n")
+    f.write(f"tallies/{name}/type \"DICOM_KERMA_TRACK_LENGTH\"\n")
+    f.write(f"tallies/{name}/kerma/emin {round(emin,toRound)}\n")
+    f.write(f"tallies/{name}/kerma/emax {round(emax,toRound)}\n")
+
+    for mat in materialList:
+        f.write(f"tallies/{name}/dataFiles/{mat[0]} \"{dataPrefix}{mat[1]}.muen\"\n")
+
+    f.write(f"tallies/{name}/prescribedDose {round(prescribedDose,toRound)}\n")    
+    f.write(f"tallies/{name}/MCkerma2Dose {round(MC2Dose,toRound)}\n")    
+    f.write(f"tallies/{name}/DVH-maxDose {round(maxDoseDVH,toRound)}\n")    
+    f.write(f"tallies/{name}/DVH-bins {round(binsDVH,toRound)}\n")    
+    
+    if output:
+        f.write(f"tallies/{name}/outputdir \"{output}\"\n")
+    f.write("\n")
 
 def createTallyCylDoseDistrib(f, name, output, rmax, nr, zmin, zmax, nz, nphi, x, y, toRound):
     f.write(f"# Cylindrical dose tally configuration for '{name}'\n")

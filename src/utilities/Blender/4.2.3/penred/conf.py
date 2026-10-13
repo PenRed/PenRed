@@ -207,6 +207,33 @@ def createTallies(context, f, toRound):
         # Get output folder
         outputPrefix = world.penred_settings.simulation.outputPrefix
 
+        if len(world.penred_settings.talliesDICOMKerma) > 0:
+
+            # Get DICOM properties
+            dicomProp = context.scene.penred_settings.dicomProperties
+            
+            # Get material list
+            matsIndex = []
+            for item in dicomProp.usedMats:
+                matsIndex.append(item.value)
+                
+            matPairs = []
+            for m in matsIndex:
+                if len(world.penred_settings.materials) >= m:
+                    matName = world.penred_settings.materials[m-1].name
+                else:
+                    matName = f"mat{m}"
+                matPairs.append([m, matName])
+        
+        for i, item in enumerate(world.penred_settings.talliesDICOMKerma):
+            tallyName = f"{i}_{item.name}"
+
+            tallies.createTallyDICOMKerma(f, tallyName, outputPrefix,
+                                     item.emin, item.emax,
+                                     item.dataPath, matPairs,
+                                     item.prescribedDose, item.MC2Dose, item.maxDoseDVH, item.binsDVH,
+                                     toRound)
+                
         # Emerging particle tallies
         for i, item in enumerate(world.penred_settings.talliesEmergingParticle):
             tallyName = f"{i}_{item.name}"

@@ -1,8 +1,8 @@
 #
 #
-#    Copyright (C) 2022-2025 Universitat de València - UV
-#    Copyright (C) 2022-2025 Universitat Politècnica de València - UPV
-#    Copyright (C) 2024-2025 Vicent Giménez Alventosa
+#    Copyright (C) 2022-2026 Universitat de València - UV
+#    Copyright (C) 2022-2026 Universitat Politècnica de València - UPV
+#    Copyright (C) 2024-2026 Vicent Giménez Alventosa
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -380,7 +380,35 @@ class TALLY_OT_removeCTTally(bpy.types.Operator):
     
 ## World based tallies ##
 
-# Add Cylindrical dose
+# Add DICOM kerma
+class TALLY_OT_addDICOMKermaTally(bpy.types.Operator):
+    bl_idname = "tallies_dicomkerma.add_item"
+    bl_label = "Add Item"
+    bl_description = "Add a DICOM kerma tally"
+
+    def execute(self, context):
+        world = context.scene.world
+        if world and world.penred_settings:
+            world.penred_settings.talliesDICOMKerma.add()
+            utils.redrawView3D(context)
+        return {"FINISHED"}
+
+# Remove DICOM kerma
+class TALLY_OT_removeDICOMKermaTally(bpy.types.Operator):
+    bl_idname = "tallies_dicomkerma.remove_item"
+    bl_label = "Remove Item"
+    bl_description = "Remove the DICOM kerma tally"
+
+    index: bpy.props.IntProperty()  # Index of the item to remove
+
+    def execute(self, context):
+        world = context.scene.world
+        if world and world.penred_settings:
+            world.penred_settings.talliesDICOMKerma.remove(self.index)
+            utils.redrawView3D(context)
+        return {"FINISHED"}
+
+# Add Emerging particle
 class TALLY_OT_addEmergingParticleTally(bpy.types.Operator):
     bl_idname = "tallies_emergingparticle.add_item"
     bl_label = "Add Item"
@@ -393,7 +421,7 @@ class TALLY_OT_addEmergingParticleTally(bpy.types.Operator):
             utils.redrawView3D(context)
         return {"FINISHED"}
 
-# Remove Cylindrical dose
+# Remove Emerging particle
 class TALLY_OT_EmergingParticleTally(bpy.types.Operator):
     bl_idname = "tallies_emergingparticle.remove_item"
     bl_label = "Remove Item"
@@ -431,6 +459,8 @@ talliesOperatorClasses = (
     TALLY_OT_removeCTTally,
     TALLY_OT_addEmergingParticleTally,
     TALLY_OT_EmergingParticleTally,
+    TALLY_OT_addDICOMKermaTally,
+    TALLY_OT_removeDICOMKermaTally,
 )
 
 ### Dicom
@@ -753,7 +783,10 @@ class DICOM_OT_LoadDicom(bpy.types.Operator):
     def execute(self, context):
         print("Folder: %s" % (self.directory))
 
-        context.scene.penred_settings.dicomProperties.directory = self.directory
+        dicomProp = context.scene.penred_settings.dicomProperties
+
+        dicomProp.loaded = False
+        dicomProp.directory = self.directory
 
         dicom_dict, status = createDICOM_Dict (context)
 
@@ -767,6 +800,16 @@ class DICOM_OT_LoadDicom(bpy.types.Operator):
         from pyPenred import geometry
         geo = geometry.create()
         geo.configure(dicom_dict,2)
+
+        # Get DICOM materials
+        dicomMats = geo.usedMat()
+        
+        for m in dicomMats:
+            dicomProp.usedMats.add()
+            dicomProp.usedMats[-1].value = m
+
+        # Flag DICOM as loaded
+        dicomProp.loaded = True
 
         vsize = geo.voxelSize()
 
@@ -787,7 +830,6 @@ class DICOM_OT_LoadDicom(bpy.types.Operator):
         new_objects = after - before
 
         for obj in new_objects:
-            print("variable",obj,obj.penred_settings.isdicom)
             obj.penred_settings.isdicom = True
 
         return {"FINISHED"}

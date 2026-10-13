@@ -1,8 +1,8 @@
 #
 #
-#    Copyright (C) 2022-2025 Universitat de València - UV
-#    Copyright (C) 2022-2025 Universitat Politècnica de València - UPV
-#    Copyright (C) 2024-2025 Vicent Giménez Alventosa
+#    Copyright (C) 2022-2026 Universitat de València - UV
+#    Copyright (C) 2022-2026 Universitat Politècnica de València - UPV
+#    Copyright (C) 2024-2026 Vicent Giménez Alventosa
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -38,6 +38,15 @@ def update_source_direction(self, context):
     for area in context.screen.areas:
         if area.type == 'VIEW_3D':
             area.tag_redraw()
+
+# Auxiliary classes
+
+class IntItem(bpy.types.PropertyGroup):
+    value: bpy.props.IntProperty()
+
+auxClasses = (
+    IntItem,
+)
 
 # Tallies properties
 #####################
@@ -430,6 +439,56 @@ class tallyEmergingParticle(bpy.types.PropertyGroup):
     nPhi : bpy.props.IntProperty(name = "Azimuthal Bins", min = 1, default = 1,
                                  description="Number of azimuthal bins")
 
+# DICOM kerma tally
+class tallyDICOMKerma(bpy.types.PropertyGroup):
+    name : bpy.props.StringProperty(name = "Tally Name", default = "DICOM-Kerma")
+    show : bpy.props.BoolProperty(name = "Show Tally Properties", default = True)
+
+    emin : bpy.props.FloatProperty(
+        name = "Minimum Energy",
+        default = 1.0e3,
+        min = 0.0,
+        description="Minimum energy, in eV, to be scored. Particles below the threshold will not contribute to Kerma calculation",
+        update=lambda self, context: setattr(self, "eminEdit", False))
+    eminEdit : bpy.props.BoolProperty(name = "Minimum Energy Edit", default = False)
+    
+    emax : bpy.props.FloatProperty(
+        name = "Maximum Energy",
+        default = 1.0e6,
+        min = 0.0,
+        description="Maximum energy, in eV, to be detected. Particles above the threshold will not contribute to kerma calculation",
+        update=lambda self, context: setattr(self, "emaxEdit", False))
+    emaxEdit : bpy.props.BoolProperty(name = "Maximum Energy Edit", default = False)
+
+    MC2Dose : bpy.props.FloatProperty(
+        name = "Monte Carlo to Dose Factor",
+        default = 1.0,
+        min = 0.0,
+        description="Factor to convert Monte Carlo units to Dose (Gy). Check the documentation to know how this parameter is calculated for brachytherapy seeds",
+        update=lambda self, context: setattr(self, "MC2DoseEdit", False))
+    MC2DoseEdit : bpy.props.BoolProperty(name = "Monte Carlo to Dose Factor Edit", default = False)
+    
+    prescribedDose : bpy.props.FloatProperty(
+        name = "Prescribed Dose",
+        default = 5,
+        min = 0.00001,
+        description="Treatment prescribed dose, in Gy",
+    )
+
+    maxDoseDVH : bpy.props.FloatProperty(
+        name = "DVH Maximum Dose",
+        default = 15,
+        min = 0.00001,
+        description="Maximum dose, in Gy, used to calculate DVH curves",
+    )
+
+    binsDVH: bpy.props.IntProperty(name = "DVH Bins", min = 1, default = 300,
+                                   description="Number of DVH bins")
+    
+    dataPath : bpy.props.StringProperty(name = "Data Prefix", default = "",
+                                        description = "Prefix of the mu-en data files."
+                                        " If empty, the data files will be created in the simulation folder")
+
 # Tracks
 class tallyTracks(bpy.types.PropertyGroup):
     name : bpy.props.StringProperty(name = "Tally Name", default = "Tracks")
@@ -453,6 +512,7 @@ talliesPropsClasses = (
     tallyAngularDetector,
     tallyEmergingParticle,
     tallyTracks,
+    tallyDICOMKerma,
 )
 
 # Source properties
@@ -1304,11 +1364,21 @@ class dicomProperties(bpy.types.PropertyGroup):
     contours : bpy.props.CollectionProperty(type=contoursProperties)
 
     directory : bpy.props.StringProperty(
-        name = "", 
+        name = "DICOM Directory", 
         description="Directory where the DICOM has been loaded",
         default = ""
     )
 
+    loaded : bpy.props.BoolProperty(
+        name = "DICOM Loaded Flag",
+        description = "Flags if a DICOM has been loaded.",
+        default = False
+    )
+
+    usedMats : bpy.props.CollectionProperty(type=IntItem,
+        name = "DICOM Used Materials",
+        description = "Indexes of used materials within the DICOM geometry"
+    )
 
 # Simulation properties groups
 #############################
@@ -1567,6 +1637,9 @@ class worldProperties(bpy.types.PropertyGroup):
     talliesEmergingParticle : bpy.props.CollectionProperty(type=tallyEmergingParticle)
     tracksTally : bpy.props.PointerProperty(type=tallyTracks)
 
+    showTalliesDICOMKerma : bpy.props.BoolProperty(name="Show DICOM Kerma Tallies", default = True)
+    talliesDICOMKerma : bpy.props.CollectionProperty(type=tallyDICOMKerma)
+
 # Scene properties group
 #############################
 class penredSceneProperties(bpy.types.PropertyGroup):
@@ -1677,6 +1750,10 @@ def register():
 
     # Register source properties
     bpy.utils.register_class(sourceProperties)
+
+    # Register auxilary classes
+    for cls in auxClasses:
+        bpy.utils.register_class(cls)
     
     # Register tally properties
     for cls in talliesPropsClasses:
@@ -1752,7 +1829,11 @@ def unregister():
 
     #Unregister dicom property groups
     for cls in dicomClasses:
-        bpy.utils.unregister_class(cls) 
+        bpy.utils.unregister_class(cls)
+        
+    # Unregister auxilary classes
+    for cls in auxClasses:
+        bpy.utils.unregister_class(cls)
         
     # Unregister element properties
     bpy.utils.unregister_class(elementProperties)
