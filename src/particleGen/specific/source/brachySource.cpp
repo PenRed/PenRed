@@ -49,25 +49,31 @@ int brachy_specificSampler::configure(double& Emax,
   
   //Get configuration subsections
   pen_parserSection psfSection;
-  
+  usePSF = true;
   int err = config.readSubsection("psf", psfSection);
-  if(err != INTDATA_SUCCESS){
-    printf("brachySource:configure: Error: Unable to extract psf configuration. PSF configuration is needed for BRACHY source.\n");
-    printf("error code: %d\n",err);
-    return err;
+  if(err != INTDATA_SUCCESS){ //PSF section not found
+    usePSF = false;
+    
+    //No PSF provided, force generic sampling
+    printf("Brachy source configured with no PSF, generic sampling must be used instead\n");
+    forceGenericSampling(true);
+    
+  } else { //PSF section found
+  
+    forceGenericSampling(false);
+    err = psf.configure(Emax,psfSection,nthreads,verbose);
+    if(err != 0){
+      if(verbose > 0)
+        printf("brachySource:configure: Error: Unable to configure psf.\n"
+               "               error code: %d\n",err);
+      return err;
+    }
+  
+    if(verbose > 1)
+      printf("Phase space file source configured.\n");
   }
-  
-  err = psf.configure(Emax,psfSection,nthreads,verbose);
-  if(err != 0){
-    if(verbose > 0)
-      printf("brachySource:configure: Error: Unable to configure psf.\n"
-	     "               error code: %d\n",err);
-    return err;
-  }
-  
-  if(verbose > 1)
-    printf("Phase space file source configured.\n");
-  
+
+  //Common configuration
   err = config.read("seedID", seedID);
   if(err != INTDATA_SUCCESS){
     if(verbose > 0 && getThread() == 0){
@@ -90,12 +96,17 @@ void brachy_specificSampler::sample(pen_particleState& state,
 				 pen_KPAR& genKpar,
 				 unsigned long long& dhist,
 				 pen_rand& random){
-  
+
         pen_particleState localstate;
         
-        //PSF must be located at 0, 0, 0
-        //then, the corresponding trnaslation must be applied in the PSF configure
-        psf.sample(localstate,genKpar,dhist,random);
+        if(usePSF){
+          //PSF must be located at 0, 0, 0
+          //then, the corresponding trnaslation must be applied in the PSF configure
+          psf.sample(localstate,genKpar,dhist,random);
+        } else{
+          //Get the state already sampled by the generic source configuration
+          localstate = state;
+        }
             
         double pos[3] = {localstate.X,localstate.Y,localstate.Z};
         double dir[3] = {localstate.U,localstate.V,localstate.W};
@@ -107,10 +118,10 @@ void brachy_specificSampler::sample(pen_particleState& state,
         double rand = random.rand();
         unsigned seedIndex = seeki(weights.data(),rand, weights.size());
 
-	if(seedRotation){
-	  matmul3D(rotations[seedIndex].data(),pos);
-	  matmul3D(rotations[seedIndex].data(),dir);
-	}
+        if(seedRotation){
+          matmul3D(rotations[seedIndex].data(),pos);
+          matmul3D(rotations[seedIndex].data(),dir);
+        }
         
         
         localstate.X=pos[0];

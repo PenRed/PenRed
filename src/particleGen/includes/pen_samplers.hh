@@ -206,15 +206,21 @@ private:
   unsigned nthread;
   
 protected:
+
+  bool forcedGenericSampling;
+  
 public:
 
   abc_specificSampler(__usedSamp usedSamplingsIn) : usedSamplings(usedSamplingsIn),
-						    pSpatial(nullptr),
-						    pDirection(nullptr),
-						    pEnergy(nullptr),
-						    pTime(nullptr)
+                                                    pSpatial(nullptr),
+                                                    pDirection(nullptr),
+                                                    pEnergy(nullptr),
+                                                    pTime(nullptr),
+                                                    forcedGenericSampling(false)
   {}
 
+  inline void forceGenericSampling(const bool enable){ forcedGenericSampling = enable; }
+  inline bool isGenericSamplingForced() const noexcept { return forcedGenericSampling; }
   inline const abc_spatialSampler* spatial() const {return pSpatial;}
   inline const abc_directionSampler* direction() const {return pDirection;}
   inline const abc_energySampler* energy() const {return pEnergy;}
@@ -1465,6 +1471,24 @@ public:
       }
       if(verbose >= 1)
 	auxVerbose = 1;
+    }
+
+    //Check if the generic sampling is forced
+    if(specificSamplerVect[0]->isGenericSamplingForced()){
+      //Ensure necessary samplers are defined
+      if(spatial() == nullptr ||
+         direction() == nullptr ||
+         energy() == nullptr){
+	
+        if(verbose > 0){
+          printf("SelectSpecificSampler: Error: Specific sampler '%s' is trying to force "
+                 "generic sampling. So, spatial, direction and energy generic "
+                 "samplers must be provided. Check the configuration.\n",ID);
+        }
+        clearSpecificSamplers();
+        return -7;
+      }
+      useGeneric = true;
     }
 
     //Share configuration between sampler threads

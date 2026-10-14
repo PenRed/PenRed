@@ -41,6 +41,7 @@ class brachy_specificSampler : public abc_specificSampler<pen_particleState>{
   DECLARE_SPECIFIC_SAMPLER(brachy_specificSampler, pen_particleState)
   
   psf_specificSampler psf;
+  bool usePSF;
   
   std::vector<vector3D<double>> positions;
   std::vector<std::array<double,9>> rotations;
@@ -55,8 +56,9 @@ class brachy_specificSampler : public abc_specificSampler<pen_particleState>{
   public:
 
   brachy_specificSampler() : abc_specificSampler<pen_particleState>(USE_NONE),
-			     seedID(-1),
-			     seedRotation(true){}
+                             usePSF(false),
+                             seedID(-1),
+                             seedRotation(true){}
 
 
   void skip(const unsigned long long dhists);

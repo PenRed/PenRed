@@ -235,6 +235,25 @@ public:
   ~pen_seed();
 };
 
+namespace penred{
+  namespace dicom{
+    
+    struct SeedCP{
+      vector3D<double> pos;
+      vector3D<double> dir;
+      double weight;
+
+      SeedCP(){}
+      SeedCP(const vector3D<double>& posIn,
+             const vector3D<double>& dirIn,
+             const double weightIn) : pos(posIn),
+                                      dir(dirIn),
+                                      weight(weightIn){}
+    };
+    
+  }
+}
+
 struct pen_ctData{
   // 0-> SEQUENCED, 1-> SPIRAL, 2-> CONSTANT_ANGLE, 3-> STATIONARY, 4->FREE, 5-> UNKNOWN
   std::string acquisitionTypeString;
@@ -357,7 +376,8 @@ public:
     PEN_DICOM_ERROR_CREATING_FILE,
     PEN_DICOM_ERROR_NULL_FILENAME,
     PEN_DICOM_ERROR_SPACING_MISMATCH,
-    PEN_DICOM_IMPOSSIBLE_ERROR
+    PEN_DICOM_INVALID_SEED_NUMBER,
+    PEN_DICOM_IMPOSSIBLE_ERROR,
   };
 
   static constexpr const char* errorMessage(const int val) noexcept {
@@ -390,6 +410,7 @@ public:
     case PEN_DICOM_ERROR_CREATING_FILE: return "Unable to create file";
     case PEN_DICOM_ERROR_NULL_FILENAME: return "Null filename";
     case PEN_DICOM_ERROR_SPACING_MISMATCH: return "Spacing mismatch";
+    case PEN_DICOM_INVALID_SEED_NUMBER: return "Invalid seed number";
     default: return "Unknown error";
     }
   }  
@@ -445,7 +466,7 @@ protected:
   
   penred::errors::Error transformContoursAndSeeds(const double* imageOrientation,
 						  const unsigned verbose);    
-protected:
+
 public:
 
   pen_dicom();
@@ -514,6 +535,9 @@ public:
   inline const pen_seed& seed(unsigned long icont) const {
     return seeds[icont];
   }
+
+  penred::errors::Error seedPoints(const unsigned long iseed,
+                                   std::vector<penred::dicom::SeedCP>& cps) const;
 
   penred::errors::Error printContours(const char* filename) const;
   penred::errors::Error printContourMasks(const char* filename) const;

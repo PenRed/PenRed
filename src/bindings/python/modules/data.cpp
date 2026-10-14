@@ -740,5 +740,12 @@ Raises:
   // Registers results1D, results2D, ..., results{maxDims}D
   registerResultsRangeAll<double, /*Min=*/1, /*Max=*/11>(m, "results");
   registerResults<double, penred::measurements::maxDims>(m, "results");
+
+  py::class_<vector3D<double>>(m, "Vector3D")
+    .def(py::init<>())
+    .def_readwrite("x", &vector3D<double>::x)
+    .def_readwrite("y", &vector3D<double>::y)
+    .def_readwrite("z", &vector3D<double>::z)
+    .def("stringify", &vector3D<double>::stringify);
   
 }

@@ -34,6 +34,16 @@ PYBIND11_MODULE(geometry,m){
 
   m.doc() = "penred geometry module";
 
+#ifdef _PEN_USE_DICOM_
+  
+  py::class_<penred::dicom::SeedCP>(m, "SeedCP")
+    .def(py::init<>())
+    .def_readwrite("pos", &penred::dicom::SeedCP::pos)
+    .def_readwrite("dir", &penred::dicom::SeedCP::dir)
+    .def_readwrite("weight", &penred::dicom::SeedCP::weight);
+
+#endif
+  
   py::class_<penred::geometry::Handler>(m, "geometry")
     .def(py::init<>())
 
@@ -703,6 +713,53 @@ Returns:
 Raises:
     ValueError: If geometry has not been configured previously.
 
-    )");
+    )")
+
+#ifdef _PEN_USE_DICOM_
+    
+    .def("seedPositions",
+         [](penred::geometry::Handler& obj, const unsigned iseed) -> py::list{
+
+           //Read geometry
+           std::shared_ptr<const wrapper_geometry> geo;
+           penred::errors::Error error = obj.readGeometry(geo);
+           if(error){
+             throw py::value_error(error.stringify());
+           }
+
+           //Check if is a voxelized-based geometry
+           if(strcmp(geo->readID(), "DICOM") == 0){
+             std::shared_ptr<const pen_dicomGeo> dicomGeo = std::static_pointer_cast<const pen_dicomGeo>(geo);
+
+             //Read DICOM from geometry
+             const pen_dicom& dicom = dicomGeo->readDicom();
+             std::vector<penred::dicom::SeedCP> cps;
+             error = dicom.seedPoints(iseed, cps);
+             return py::cast(cps);
+             if(error){
+               throw py::value_error(error.stringify());
+             }
+             
+           }else{
+             throw py::value_error("Configured geometry is not DICOM-based");
+           }
+         },
+         R"(
+
+Return the brachytherapy seed positions read from the DICOM RTPLAN file. Only those control points with non zero weights will be extracted.
+
+Args:
+    None
+    
+Returns:
+    A list with the control points structures, including position, direction and weight.
+
+Raises:
+    ValueError: If the geometry is not configured or if the geometry is not DICOM-based.
+
+    )")
+#endif
+    
+    ;
     
 }
