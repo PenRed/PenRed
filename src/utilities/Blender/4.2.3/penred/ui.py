@@ -96,7 +96,7 @@ class PenredBodyPropertiesPanel(bpy.types.Panel):
 
         if obj and obj.penred_settings and obj.type == "MESH" and obj.penred_settings.isMaterialObject:
 
-            layout.enabled = not obj.penred_settings.isdicom
+            layout.enabled = not obj.penred_settings.isdicom and not utils.fromBrachySeed(obj)
 
             # Material
             row = layout.row()
@@ -284,9 +284,10 @@ class PenredSourcePropertiesPanel(bpy.types.Panel):
         if obj and obj.penred_settings:
             
             source = obj.penred_settings.source
-            senabled = source.enabled
+            senabled = source.enabled and not utils.fromBrachySeed(obj)
 
             row = layout.row()
+            row.enabled = not obj.penred_settings.isBrachySeed
             row.prop(source, "enabled")
             
             row = layout.row()
@@ -300,11 +301,37 @@ class PenredSourcePropertiesPanel(bpy.types.Panel):
             row = layout.row()
             row.enabled = senabled
             row.prop(source, "particleType", text="Type")
+
+
+            # Brachy source
+            dicomProp = context.scene.penred_settings.dicomProperties
+            if dicomProp.loaded and not obj.penred_settings.isdicom:
+                brachyBox = layout.box()
+                brachyBox.enabled = senabled and not source.ctEnable
+                brachyBox.label(text="Brachytherapy Seed")
+                row = brachyBox.row()
+                if source.brachyEnabled:
+                    row.operator("source.disable_brachy", text="Disable")
+                else:
+                    row.operator("source.enable_brachy", text="Enable")
+                    
+                row = brachyBox.row()
+                row.enabled = brachyBox.enabled and not source.brachyEnabled
+                row.prop(source, "brachyRotation", text="Apply Seed Rotation")
                 
+                row = brachyBox.row()
+                row.enabled = brachyBox.enabled and not source.brachyEnabled
+                row.prop(source, "brachySeedIDEnabled", text="Filter by ID")
+                
+                if source.brachySeedIDEnabled:
+                    row = brachyBox.row()
+                    row.enabled = brachyBox.enabled and not source.brachyEnabled
+                    row.prop(source, "brachySeedID", text="Seed ID")
+                        
             # CT-like source
             if obj.type == "EMPTY":
                 ctbox = layout.box()
-                ctbox.enabled = senabled
+                ctbox.enabled = senabled and not source.brachyEnabled
                 ctbox.label(text="CT-Like")
                 row = ctbox.row()
                 row.prop(source, "ctEnable", text="Enable")
@@ -1950,7 +1977,10 @@ def drawHintsHandler():
                     source = penSett.source
 
                     # Print source direction
-                    if source.particleType == "PART_PSF":
+                    if penSett.isBrachySeed:
+                        utils.draw_arrow(obj, obj.matrix_world.to_3x3().col[2], sourceColor)
+                    
+                    elif source.particleType == "PART_PSF":
                         rotationMatrix = obj.matrix_world.to_3x3()
                         
                         localZ = Vector((0,0,1))

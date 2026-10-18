@@ -44,8 +44,39 @@ def update_source_direction(self, context):
 class IntItem(bpy.types.PropertyGroup):
     value: bpy.props.IntProperty()
 
+class seedCP(bpy.types.PropertyGroup):
+    position : bpy.props.FloatVectorProperty(
+        name = "Control Point Position",
+        size = 3,
+        default = (0.0, 0.0, 0.0),
+        description="Position, in cm, where the control point is placed"
+    )
+
+    direction : bpy.props.FloatVectorProperty(
+        name = "Control Point Direction",
+        size = 3,
+        default = (0.0, 0.0, 1.0),
+        description="Direction vector corresponding to the seed orientation"
+    )
+
+    weight : bpy.props.FloatProperty(
+        name = "Control Point Weight",
+        default = 1.0,
+        description="Control point relative weight"
+    )
+    
+class SeedBrachy(bpy.types.PropertyGroup):
+    ID : bpy.props.IntProperty(
+        name = "Seed ID",
+        default = 0
+    )
+
+    controlPoints : bpy.props.CollectionProperty(type=seedCP)
+
 auxClasses = (
     IntItem,
+    seedCP,
+    SeedBrachy
 )
 
 # Tallies properties
@@ -524,6 +555,28 @@ class sourceProperties(bpy.types.PropertyGroup):
                                      description = "Flag this object as particle source",
                                      default = False)
 
+    # Brachytherapy
+    brachyEnabled : bpy.props.BoolProperty(
+        name = "Brachytherapy Source",
+        description = "Enables brachytherapy source. This source requies a previously loaded DICOM with a RTPLAN, including the seeds positions.",
+        default = False)
+
+    brachyRotation : bpy.props.BoolProperty(
+        name = "Brachytherapy Seed Rotation",
+        description = "If enabled, the seed rotation is applied to the sampled particle.",
+        default = False)
+
+    brachySeedIDEnabled : bpy.props.BoolProperty(
+        name = "Filter Brachytherapy Seed",
+        description = "If enabled, enables the selection of specific brachytherapy seed ID.",
+        default = False)
+    
+    brachySeedID : bpy.props.IntProperty(
+        name = "Brachytherapy Seed ID",
+        min = 0,
+        description = "Brachytherapy seed ID to be used as source",
+        default = 0)
+    
     # CT source
     ctEnable : bpy.props.BoolProperty(
         name = "CT Like Source",
@@ -824,6 +877,18 @@ class objectProperties(bpy.types.PropertyGroup):
         name = "Internal variable to know if the loaded .obj comes from a DICOM",
         description = "Set to true if loaded from DICOM_OT_LoadDicom",
         default = False)
+
+    isBrachySeed : bpy.props.BoolProperty(
+        name = "Is Brachytherapy seed copy",
+        description = "Internal variable to know if the objects is a Brachytherapy seed copy",
+        default = False
+    )
+    
+    brachyOrigin : bpy.props.PointerProperty(
+        type=bpy.types.Object,
+        name="Source Template",
+        description="The original object this seed was duplicated from"
+    )
     
     material : bpy.props.IntProperty(name = "Material Index",
                                      min = 0,
@@ -1338,15 +1403,15 @@ class dicomProperties(bpy.types.PropertyGroup):
     enclosureMargin : bpy.props.FloatProperty(
         name = "",
         description = "Distance between the DICOM mesh corner and the limit of an external enclosure, in cm.",
-        default = 0.0,
-        min = 0.0
+        default = 5.0,
+        min = 0.0001
     )    
 
     enclosureMaterial : bpy.props.IntProperty(
         name = "",
         description = "Specify the enclosure material index.",
-        default = 0,
-        min = 0
+        default = 1,
+        min = 1
     )   
 
     printASCII : bpy.props.BoolProperty(
@@ -1379,6 +1444,8 @@ class dicomProperties(bpy.types.PropertyGroup):
         name = "DICOM Used Materials",
         description = "Indexes of used materials within the DICOM geometry"
     )
+
+    seeds : bpy.props.CollectionProperty(type=SeedBrachy)
 
 # Simulation properties groups
 #############################

@@ -536,6 +536,19 @@ public:
     return seeds[icont];
   }
 
+  inline penred::errors::Error seedID(const unsigned long iseed, long int& id) const {
+    penred::errors::SpecificError<pen_dicom> error;
+    
+    if(iseed >= nSeeds()){
+      error.code = PEN_DICOM_INVALID_SEED_NUMBER;
+      error.description = "pen_dicom:seedPoints: Error: Invalid brachytherapy seed " + std::to_string(iseed);
+      error.description += ". The number of loaded seeds is: " + std::to_string(nSeeds());
+      return error;
+    }
+
+    id = seeds[iseed].ID;
+    return error;
+  }
   penred::errors::Error seedPoints(const unsigned long iseed,
                                    std::vector<penred::dicom::SeedCP>& cps) const;
 

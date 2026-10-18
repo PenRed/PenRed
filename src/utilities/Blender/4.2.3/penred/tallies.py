@@ -37,7 +37,7 @@ def createTallyDICOMKerma(f, name, output,
     f.write(f"tallies/{name}/kerma/emax {round(emax,toRound)}\n")
 
     for mat in materialList:
-        f.write(f"tallies/{name}/dataFiles/{mat[0]} \"{dataPrefix}{mat[1]}.muen\"\n")
+        f.write(f"tallies/{name}/kerma/dataFiles/{mat[0]} \"{dataPrefix}{mat[1]}.muen\"\n")
 
     f.write(f"tallies/{name}/prescribedDose {round(prescribedDose,toRound)}\n")    
     f.write(f"tallies/{name}/MCkerma2Dose {round(MC2Dose,toRound)}\n")    

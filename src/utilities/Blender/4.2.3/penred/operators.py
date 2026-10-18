@@ -785,6 +785,10 @@ class DICOM_OT_LoadDicom(bpy.types.Operator):
 
         dicomProp = context.scene.penred_settings.dicomProperties
 
+        # Clear previous data
+        dicomProp.usedMats.clear()
+        dicomProp.seeds.clear()
+
         dicomProp.loaded = False
         dicomProp.directory = self.directory
 
@@ -801,12 +805,42 @@ class DICOM_OT_LoadDicom(bpy.types.Operator):
         geo = geometry.create()
         geo.configure(dicom_dict,2)
 
-        # Get DICOM materials
+        # + Get DICOM materials
         dicomMats = geo.usedMat()
         
         for m in dicomMats:
             dicomProp.usedMats.add()
             dicomProp.usedMats[-1].value = m
+
+        # + Read brachytherapy seeds
+        nSeedTypes = geo.seedTypes()
+
+        # Iterate over seed positions
+        iSeed = 0
+        while iSeed < nSeedTypes:
+
+            dicomProp.seeds.add()
+            seed = dicomProp.seeds[-1]
+            seed.ID = geo.seedID(iSeed)
+            print(f"Loading seed with ID {seed.ID}")
+            
+            # Extrat seed control points
+            cps = geo.seedPoints(iSeed)
+            for dcp in cps:
+                seed.controlPoints.add()
+                cp = seed.controlPoints[-1]
+                
+                cp.position[0] = dcp.pos.x
+                cp.position[1] = dcp.pos.y
+                cp.position[2] = dcp.pos.z
+
+                cp.direction[0] = dcp.dir.x
+                cp.direction[1] = dcp.dir.y
+                cp.direction[2] = dcp.dir.z
+
+                cp.weight = dcp.weight
+
+            iSeed += 1
 
         # Flag DICOM as loaded
         dicomProp.loaded = True
@@ -834,7 +868,104 @@ class DICOM_OT_LoadDicom(bpy.types.Operator):
 
         return {"FINISHED"}
 
+# Brachy source operators
+class DICOM_OT_enableBrachySource(bpy.types.Operator):
+    bl_idname = "source.enable_brachy"
+    bl_label = "Enable Brachytherapy Source"
+    bl_description = "Enable the current object as a brachytherapy source"
 
+    def execute(self, context):
+        scene = context.scene
+        obj = context.object
+        dicomProp = scene.penred_settings.dicomProperties
+        
+        if dicomProp and dicomProp.loaded:
+
+            if len(dicomProp.seeds) < 1:
+                self.report({'ERROR'}, "No RTPLAN provided or no seeds found")
+                return {'CANCELLED'}
+
+            if obj and hasattr(obj, "penred_settings") and obj.penred_settings.source.enabled:
+                
+                sourceProp = obj.penred_settings.source
+                
+                # Clear a previous configuration
+                if sourceProp.brachyEnabled:
+                    cleanBrachySeed(obj)                
+
+                
+                # Create or get the brachytherapy seed collection
+                seedCollectionName = "Brachy_Seeds"
+                seedRootCol = bpy.data.collections.get(seedCollectionName)
+                if not seedRootCol:
+                    seedRootCol = bpy.data.collections.new(seedCollectionName)
+                    bpy.context.scene.collection.children.link(seedRootCol)
+    
+                # Iterate over seed types
+                found = False
+                iseed = 1
+                for seed in dicomProp.seeds:
+                    if sourceProp.brachySeedIDEnabled and seed.ID != sourceProp.brachySeedID:
+                        # Skip seed if filter is enabled
+                        continue
+                    else:
+                        # Create seeds at each control point
+                        for cp in seed.controlPoints:
+
+                            toMove = obj
+                            if not found:
+                                # Move the original seed to the first position
+                                found = True
+                                sourceProp.brachyEnabled = True
+                            else:
+                                # Create a subcollection for this seed control point
+                                seedCol = bpy.data.collections.new(f"Seed_{obj.name}_{iseed:03d}")
+                                seedRootCol.children.link(seedCol)
+                                
+                                toMove = utils.duplicateHierarchy(obj, seedCol)
+                                toMove.name = f"Seed_{obj.name}_{iseed:03d}"
+                                toMove.penred_settings.isBrachySeed = True
+                                toMove.penred_settings.brachyOrigin = obj
+                                iseed += 1
+
+                            # Set position
+                            toMove.matrix_world.translation = cp.position
+
+                            # Set rotation
+                            if sourceProp.brachyRotation:
+                                #Set direction
+                                direction = Vector(cp.direction)
+
+                                # Align local Z to point along seed direction
+                                rotQuat = direction.to_track_quat('Z', 'Y')
+
+                                toMove.rotation_mode = 'QUATERNION'
+                                toMove.rotation_quaternion = rotQuat                                
+                    
+                if not found:
+                    if sourceProp.brachySeedIDEnabled:
+                        self.report({'ERROR'}, "No seeds found for the specified type")
+                    else:
+                        self.report({'ERROR'}, "No seeds found")
+                    return {'CANCELLED'}
+            
+        return {"FINISHED"}
+
+# Remove Composition Element
+class DICOM_OT_disableBrachySource(bpy.types.Operator):
+    bl_idname = "source.disable_brachy"
+    bl_label = "Disable Brachytherapy Source"
+    bl_description = "Enable the current object as a brachytherapy source"
+
+    def execute(self, context):
+
+        obj = context.object
+        if obj and hasattr(obj, "penred_settings"):
+            if obj.penred_settings.source.brachyEnabled:
+                utils.cleanBrachySeed(context,obj)
+                obj.penred_settings.source.brachyEnabled = False
+                
+        return {"FINISHED"}
 
 dicomClases = (
     DICOM_OT_addCalibrationElement,
@@ -850,6 +981,8 @@ dicomClases = (
     DICOM_OT_addContourElement,
     DICOM_OT_removeContourElement,
     DICOM_OT_LoadDicom,
+    DICOM_OT_enableBrachySource,
+    DICOM_OT_disableBrachySource,
 )
 
 ### Materials

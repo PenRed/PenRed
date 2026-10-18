@@ -121,6 +121,11 @@ def createSources(context, f, toRound):
     f.write("## Sources ##\n\n")
     
     for obj in context.scene.objects:
+
+        # Skip objects duplicated from a brachytherapy seed
+        if utils.fromBrachySeed(obj):
+            continue
+        
         if hasattr(obj, "penred_settings"):
             source = obj.penred_settings.source
             if source.enabled:
@@ -132,6 +137,16 @@ def createSources(context, f, toRound):
                 omega *= 180.0/pi
                 theta *= 180.0/pi
                 phi   *= 180.0/pi
+
+                if source.brachyEnabled:
+                    # Set position to origin
+                    x = 0
+                    y = 0
+                    z = 0
+                    if source.brachySeedIDEnabled:
+                        sources.createBrachy(f, name, source.brachyRotation, source.brachySeedID, toRound)
+                    else:
+                        sources.createBrachy(f, name, source.brachyRotation, -1, toRound)
 
                 if source.ctEnable:
                     psfShift = (-source.ctPSFOrigin[0], -source.ctPSFOrigin[1], -source.ctPSFOrigin[2])
@@ -148,7 +163,7 @@ def createSources(context, f, toRound):
                 if source.particleType == "PART_PSF":
 
                     # Create the PSF source
-                    sources.createPSF(f, name, source.nHists, source.ctEnable,
+                    sources.createPSF(f, name, source.nHists, source.ctEnable or source.brachyEnabled,
                                       source.sourcePSF, source.psfMaxE,
                                       source.split, source.psfWindow,
                                       psfShift, (omega, theta, phi), toRound)
@@ -187,8 +202,9 @@ def createSources(context, f, toRound):
                     sources.createTime(f, name, source.timeType,
                                        source.decayHalf, source.timeWindow)
 
-                # Bind the source to the object
-                f.write(f"sources/generic/{name}/bind \"{name}\"\n\n")
+                # Bind the source to the object if animated
+                if obj.animation_data and obj.animation_data.action:
+                    f.write(f"sources/generic/{name}/bind \"{name}\"\n\n")
                 
 
 def createTallies(context, f, toRound):

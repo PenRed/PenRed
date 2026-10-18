@@ -93,6 +93,7 @@ namespace penred{
 	ERROR_UNKNOWN_TYPE,
 	ERROR_AT_GEOMETRY_CONFIGURATION,
 	ERROR_SETTING_GEOMETRY_TO_CONTEXT,
+	ERROR_SETTING_GEOMETRY_TO_SOURCE,
 	ERROR_CREATING_TALLIES,
 	ERROR_ON_TALLIES_CONFIGURATION,
 	ERROR_ON_VR_CONFIGURATION,
@@ -127,6 +128,7 @@ namespace penred{
 	case ERROR_UNKNOWN_TYPE: return "Unknown type";
 	case ERROR_AT_GEOMETRY_CONFIGURATION: return "Error configuring geometry";
 	case ERROR_SETTING_GEOMETRY_TO_CONTEXT: return "Error setting geometry to context";
+    case ERROR_SETTING_GEOMETRY_TO_SOURCE: return "Error setting geometry to source";
 	case ERROR_CREATING_TALLIES: return "Error creating tallies";
 	case ERROR_ON_TALLIES_CONFIGURATION: return "Error configuring tallies";
 	case ERROR_ON_VR_CONFIGURATION: return "Error configuring variance reduction";

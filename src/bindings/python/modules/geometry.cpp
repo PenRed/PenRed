@@ -716,8 +716,85 @@ Raises:
     )")
 
 #ifdef _PEN_USE_DICOM_
+
+    .def("seedTypes",
+         [](penred::geometry::Handler& obj) -> unsigned{
+
+           //Read geometry
+           std::shared_ptr<const wrapper_geometry> geo;
+           penred::errors::Error error = obj.readGeometry(geo);
+           if(error){
+             throw py::value_error(error.stringify());
+           }
+
+           //Check if is a DICOM-based geometry
+           if(strcmp(geo->readID(), "DICOM") == 0){
+             std::shared_ptr<const pen_dicomGeo> dicomGeo = std::static_pointer_cast<const pen_dicomGeo>(geo);
+
+             //Read DICOM from geometry
+             const pen_dicom& dicom = dicomGeo->readDicom();
+             return dicom.nSeeds();
+             
+           }else{
+             throw py::value_error("Configured geometry is not DICOM-based");
+           }
+         },
+         R"(
+
+Return the number of different brachytherapy seed types from the DICOM RTPLAN file.
+
+Args:
+    None
     
-    .def("seedPositions",
+Returns:
+    An integer storing the number of different seed types.
+
+Raises:
+    ValueError: If the geometry is not configured or if the geometry is not DICOM-based.
+
+    )")
+
+    .def("seedID",
+         [](penred::geometry::Handler& obj, const unsigned int iseed) -> long int{
+
+           //Read geometry
+           std::shared_ptr<const wrapper_geometry> geo;
+           penred::errors::Error error = obj.readGeometry(geo);
+           if(error){
+             throw py::value_error(error.stringify());
+           }
+
+           //Check if is a DICOM-based geometry
+           if(strcmp(geo->readID(), "DICOM") == 0){
+             std::shared_ptr<const pen_dicomGeo> dicomGeo = std::static_pointer_cast<const pen_dicomGeo>(geo);
+
+             //Read DICOM from geometry
+             const pen_dicom& dicom = dicomGeo->readDicom();
+             long int seedid;
+             dicom.seedID(iseed, seedid);
+             return seedid;
+             
+           }else{
+             throw py::value_error("Configured geometry is not DICOM-based");
+           }
+         },
+         py::arg("index") = 0,
+         R"(
+
+Return the seed ID appearing in the DICOM RTPLAN, for the brachytherapy seed stored at the specified position.
+
+Args:
+    index: Index of the stored seed in the interval [0,NSeeds), where NSeeds is the total number of seed types
+    
+Returns:
+    An integer storing the number of different seed IDs.
+
+Raises:
+    ValueError: If the geometry is not configured or if the geometry is not DICOM-based.
+
+    )")    
+    
+    .def("seedPoints",
          [](penred::geometry::Handler& obj, const unsigned iseed) -> py::list{
 
            //Read geometry
@@ -727,7 +804,7 @@ Raises:
              throw py::value_error(error.stringify());
            }
 
-           //Check if is a voxelized-based geometry
+           //Check if is a DICOM-based geometry
            if(strcmp(geo->readID(), "DICOM") == 0){
              std::shared_ptr<const pen_dicomGeo> dicomGeo = std::static_pointer_cast<const pen_dicomGeo>(geo);
 
@@ -744,15 +821,16 @@ Raises:
              throw py::value_error("Configured geometry is not DICOM-based");
            }
          },
+         py::arg("index") = 0,
          R"(
 
-Return the brachytherapy seed positions read from the DICOM RTPLAN file. Only those control points with non zero weights will be extracted.
+Return the brachytherapy seed control points read from the DICOM RTPLAN file. Only those with non zero weights will be extracted.
 
 Args:
-    None
+    index: Index of the stored seed in the interval [0,NSeeds), where NSeeds is the total number of seed types
     
 Returns:
-    A list with the control points structures, including position, direction and weight.
+    A list of control point structures, including position, direction and weight.
 
 Raises:
     ValueError: If the geometry is not configured or if the geometry is not DICOM-based.

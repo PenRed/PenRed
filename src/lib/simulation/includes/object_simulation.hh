@@ -1549,10 +1549,16 @@ namespace penred{
 	}
   
 	//Set source geometry
-	for(unsigned i = 0; i < genericSources.size(); i++)
-	  genericSources[i].setGeometry(geometry.get());  
-	for(unsigned i = 0; i < polarisedGammaSources.size(); i++)
-	  polarisedGammaSources[i].setGeometry(geometry.get());  
+    for(unsigned i = 0; i < genericSources.size(); i++){
+      if(genericSources[i].setGeometry(geometry.get()) != 0){
+        return errors::ERROR_SETTING_GEOMETRY_TO_SOURCE;
+      }
+    }
+    for(unsigned i = 0; i < polarisedGammaSources.size(); i++){
+      if(polarisedGammaSources[i].setGeometry(geometry.get()) != 0){
+        return errors::ERROR_SETTING_GEOMETRY_TO_SOURCE;
+      }
+    }
 
 	//------------------------------------------------------------
 
