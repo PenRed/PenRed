@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.2] - 2026-10-01
+
+### Added
+- Tests for multidimensional sampler class
+- Subtraction, relative comparison and normalization methods for `measurements::results` class, along with tests
+- Methods to collapse `measurements::results` distributions with 1 or 2 effective dimensions (axes with more than one bin)
+- Extended Blender automatic plots to collapsible distributions
+- Exposed the above functionality in pyPenred
+
+### Fixed
+- Multidimensional sampler class indexing bug during sampling
+
 ## [1.15.1] - 2026-09-17
 
 ### Added
