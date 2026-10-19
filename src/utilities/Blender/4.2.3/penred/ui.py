@@ -1558,9 +1558,6 @@ class PenredWorldTalliesPanel(bpy.types.Panel):
                             row.prop(item, "MC2DoseEdit", text="", icon="GREASEPENCIL", toggle=True)
 
                         row = dbox.row()
-                        row.prop(item, "prescribedDose", text="Prescribed Dose (Gy)")            
-
-                        row = dbox.row()
                         row.prop(item, "maxDoseDVH", text="Max Dose (Gy)")            
 
                         row = dbox.row()

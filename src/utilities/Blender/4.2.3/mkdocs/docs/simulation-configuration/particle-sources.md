@@ -159,3 +159,30 @@ If the recording time is enabled, the simulation will calculate and increase the
   
 - **`PSF Origin`**  
   This parameter is only available if combined with PSF sources. Specify the original recording position of the PSF, required for proper transformation calculations.
+
+### Brachytherapy Source
+
+This source simulates brachytherapy treatments by reading seed positions from patient DICOM plans (RTPLAN). It requires a DICOM-based geometry containing the seed positioning data.
+
+The particle sampling can be performed either through a **generic sampling configuration** (spatial, direction, energy, time samplers) or via a **pre-generated phase space file (PSF)** characterizing the seed emission.
+
+Regardless of the selected sampling method, the following geometric conditions must hold:
+
+- **Seed centre at the origin** `(0, 0, 0)`. This is usually the geometric centroid of the active material.
+- **Seed orientation aligned with the +Z axis.**
+
+These conditions ensure a correct transformation during simulation.
+
+#### Configuration
+
+- **Seed ID**: If provided, only the specified seed ID is used as source. Otherwise, all dwell positions of all seeds included in the RTPLAN are used.
+
+- **Seed Rotation**: Enables or disables per-seed rotation. When enabled, regardless the sampling was performed using a PSF or a generic sampling, an extra rotation is applied to the generated particles according to each seed's orientation.
+
+#### Generating sources
+
+Both *Empty* elements and mesh/quadric objects can be used for this source type. Once the configuration is specified, the **Enable** button will create a set of copies of the selected object, including its hierarchy, and place them at the corresponding dwell positions, applying the orientation transform if enabled. To change the source object or configuration parameters, push the **Disable** button to remove the copies and enable configuration editing.
+
+#### Notes
+
+- The DICOM information is **not** specified in the source configuration; it is taken directly from the geometry. Therefore, this source is only intended to be used with a DICOM-based geometry.
