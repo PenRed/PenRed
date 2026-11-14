@@ -128,6 +128,7 @@ if(FORCE_DICOM_DOWNLOAD OR NOT DCMTK_FOUND)
     set(DCMTK_MODULES
         ofstd
         oflog
+        oficonv
         dcmdata
         dcmimgle            # Enable support for basic DICOM image processing
         dcmimage            # Enable support for advanced DICOM image processing
@@ -190,7 +191,7 @@ if(FORCE_DICOM_DOWNLOAD OR NOT DCMTK_FOUND)
     ExternalProject_Add(
         dcmtk
         GIT_REPOSITORY https://github.com/DCMTK/dcmtk.git
-        GIT_TAG        DCMTK-3.6.7  # DCMTK version
+        GIT_TAG        DCMTK-3.7.0  # DCMTK version
         INSTALL_DIR "${DCMTK_INSTALL_DIR}"                 # Installation directory
         CMAKE_CACHE_ARGS ${DCMTK_CMAKE_COMMON_ARGS}
         BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> -- ${PARALLEL_FLAG}
@@ -210,6 +211,7 @@ if(FORCE_DICOM_DOWNLOAD OR NOT DCMTK_FOUND)
             "dcmdata.lib"
             "oflog.lib"
             "ofstd.lib"
+            "oficonv.lib"
             "dcmdata.lib"
             "i2d.lib"
             "dcmimgle.lib"
@@ -244,6 +246,7 @@ if(FORCE_DICOM_DOWNLOAD OR NOT DCMTK_FOUND)
             "libdcmdata.a"
             "liboflog.a"
             "libofstd.a"
+            "liboficonv.a"
             "libi2d.a"
             "libdcmimgle.a"
             "libdcmimage.a"
