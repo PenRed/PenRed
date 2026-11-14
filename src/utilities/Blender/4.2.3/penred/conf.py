@@ -174,8 +174,15 @@ def createSources(context, f, toRound):
                             radius = min((bsize[0], bsize[1]))/2.0
                         else:
                             radius = sqrt(bsize[0]*bsize[0] + bsize[1]*bsize[1])/2.0
+
+                        if source.spatialShell:
+                            shellRad = min(source.cylShellInRad, radius)
+                            shellHeight = min(source.cylShellInHeight, bsize[2])
+                        else:
+                            shellRad = 0.0
+                            shellHeight = 0.0
                                          
-                        spatialSize = (0.0, radius, 0.0, bsize[2])
+                        spatialSize = (shellRad, radius, shellHeight, bsize[2])
                     else:
                         spatialSize = bsize
 

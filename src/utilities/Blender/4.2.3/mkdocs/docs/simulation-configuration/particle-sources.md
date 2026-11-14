@@ -46,6 +46,21 @@ These parameters define how the initial particle locations are sampled. The avai
         $$
 
         where \( dx \) and \( dy \) are the bounding box dimensions along the X and Y axes, respectively.
+        
+    Additionally, sampling can be performed within a cylindrical shell rather than the entire cylinder volume. This option can be enabled via the shell checkbox:
+    
+   <img src="../../simulation-configuration/images/spatial_cylinder_shell.png" alt="Cylinder shell options" width="350" style="display: block; margin: 0 auto"/>
+   
+   When enabled, two parameters are required:
+   
+   -  **Inner radius**: Radius of the inner cylindrical exclusion region. Corresponds to *rmin* in the penRed configuration.
+   -  **Inner height**: Height of the inner cylindrical exclusion region. Corresponds to *dzmin* in the penRed configuration.
+   
+   The resulting sampling region is shown in the following image:
+   
+   <img src="../../simulation-configuration/images/cylinder_shell_diagram.png" alt="Cylinder shell sampling region" width="400" style="display: block; margin: 0 auto"/>
+   
+   where *rmax* and *dzmax* are set automatically according to the object size.
   
 #### Energy
 

@@ -704,6 +704,23 @@ class sourceProperties(bpy.types.PropertyGroup):
         name = "Spatial Bounding Box Fit",
         description = "When enabled, the spatial source will be sized to fit inside the object bounding box. If disabled, the source size is enlarged to include the entire bounding box",
         default = False)
+
+    spatialShell : bpy.props.BoolProperty(
+        name = "Spatial Shell",
+        description = "When enabled, the spatial source is sampled in a shell rather than the entire volume. The minimum dimensions (below when enabled) define the inner volume of the shell, in which no particles are sampled.",
+        default = False)
+
+    cylShellInRad : bpy.props.FloatProperty(
+        name = "Cylindrical Shell Inner Radius",
+        description = "Cylindrical shell's inner radius, in cm",
+        default = 0.0,
+        min=0.0)
+
+    cylShellInHeight : bpy.props.FloatProperty(
+        name = "Cylindrical Shell Inner height",
+        description = "Cylindrical shell's inner height, in cm",
+        default = 0.0,
+        min=0.0)
     
     # Energy parameters
     energyType : bpy.props.EnumProperty(

@@ -409,6 +409,17 @@ class PenredSourcePropertiesPanel(bpy.types.Panel):
                 if source.spatialType == "SPATIAL_CYL":
                     row = spatialBox.row()
                     row.prop(source, "spatialBBFit", text="Inside Bounding Box")
+
+                    shellBox = spatialBox.box()
+                    shellBox.label(text="Shell")
+                    row = shellBox.row()
+                    row.prop(source, "spatialShell", text="Enabled")
+
+                    if source.spatialShell:
+                        row = shellBox.row()
+                        row.prop(source, "cylShellInRad", text="Inner radius")
+                        row = shellBox.row()
+                        row.prop(source, "cylShellInHeight", text="Inner height")
                 
                 # Energy
                 energyBox = layout.box()
