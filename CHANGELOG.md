@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.3] - 2026-11-14
+
+### Added
+- Blender addon: Configure DICOM kerma track-length tallies, including energy limits, material-specific mass energy-absorption coefficient data files, dose conversion, and DVH settings.
+- Blender addon: Create brachytherapy sources from DICOM RTPLAN seed positions, with optional seed rotation and seed-ID filtering.
+- Support generic sampling for brachytherapy sources without a phase-space file (PSF).
+- Blender addon: Sample spatial sources within a cylindrical shell using configurable inner radius and height.
+
+### Changed
+- Update Blender addon documentation for DICOM kerma tallies and brachytherapy sources
+
+### Fixed
+- Propagate errors when assigning geometry to a source.
+
 ## [1.15.2] - 2026-10-01
 
 ### Added
