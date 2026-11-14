@@ -856,7 +856,7 @@ namespace penred{
       static std::string versionMessage(){
 
 	return std::string("***************************************************************\n"
-			   " PenRed version: 1.15.2 (2026-Oct-01) \n"
+			   " PenRed version: 1.15.3 (2026-Nov-14) \n"
 			   " Copyright (c) 2019-2026 Universitat Politecnica de Valencia\n"
 			   " Copyright (c) 2019-2026 Universitat de Valencia\n"
 			   " Copyright (c) 2024-2026 Vicent Giménez Alventosa\n"
