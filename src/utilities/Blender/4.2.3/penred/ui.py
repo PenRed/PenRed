@@ -1,8 +1,8 @@
 #
 #
-#    Copyright (C) 2022-2025 Universitat de València - UV
-#    Copyright (C) 2022-2025 Universitat Politècnica de València - UPV
-#    Copyright (C) 2024-2025 Vicent Giménez Alventosa
+#    Copyright (C) 2022-2026 Universitat de València - UV
+#    Copyright (C) 2022-2026 Universitat Politècnica de València - UPV
+#    Copyright (C) 2024-2026 Vicent Giménez Alventosa
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -96,7 +96,7 @@ class PenredBodyPropertiesPanel(bpy.types.Panel):
 
         if obj and obj.penred_settings and obj.type == "MESH" and obj.penred_settings.isMaterialObject:
 
-            layout.enabled = not obj.penred_settings.isdicom
+            layout.enabled = not obj.penred_settings.isdicom and not utils.fromBrachySeed(obj)
 
             # Material
             row = layout.row()
@@ -284,9 +284,10 @@ class PenredSourcePropertiesPanel(bpy.types.Panel):
         if obj and obj.penred_settings:
             
             source = obj.penred_settings.source
-            senabled = source.enabled
+            senabled = source.enabled and not utils.fromBrachySeed(obj)
 
             row = layout.row()
+            row.enabled = not obj.penred_settings.isBrachySeed
             row.prop(source, "enabled")
             
             row = layout.row()
@@ -300,11 +301,37 @@ class PenredSourcePropertiesPanel(bpy.types.Panel):
             row = layout.row()
             row.enabled = senabled
             row.prop(source, "particleType", text="Type")
+
+
+            # Brachy source
+            dicomProp = context.scene.penred_settings.dicomProperties
+            if dicomProp.loaded and not obj.penred_settings.isdicom:
+                brachyBox = layout.box()
+                brachyBox.enabled = senabled and not source.ctEnable
+                brachyBox.label(text="Brachytherapy Seed")
+                row = brachyBox.row()
+                if source.brachyEnabled:
+                    row.operator("source.disable_brachy", text="Disable")
+                else:
+                    row.operator("source.enable_brachy", text="Enable")
+                    
+                row = brachyBox.row()
+                row.enabled = brachyBox.enabled and not source.brachyEnabled
+                row.prop(source, "brachyRotation", text="Apply Seed Rotation")
                 
+                row = brachyBox.row()
+                row.enabled = brachyBox.enabled and not source.brachyEnabled
+                row.prop(source, "brachySeedIDEnabled", text="Filter by ID")
+                
+                if source.brachySeedIDEnabled:
+                    row = brachyBox.row()
+                    row.enabled = brachyBox.enabled and not source.brachyEnabled
+                    row.prop(source, "brachySeedID", text="Seed ID")
+                        
             # CT-like source
             if obj.type == "EMPTY":
                 ctbox = layout.box()
-                ctbox.enabled = senabled
+                ctbox.enabled = senabled and not source.brachyEnabled
                 ctbox.label(text="CT-Like")
                 row = ctbox.row()
                 row.prop(source, "ctEnable", text="Enable")
@@ -382,6 +409,17 @@ class PenredSourcePropertiesPanel(bpy.types.Panel):
                 if source.spatialType == "SPATIAL_CYL":
                     row = spatialBox.row()
                     row.prop(source, "spatialBBFit", text="Inside Bounding Box")
+
+                    shellBox = spatialBox.box()
+                    shellBox.label(text="Shell")
+                    row = shellBox.row()
+                    row.prop(source, "spatialShell", text="Enabled")
+
+                    if source.spatialShell:
+                        row = shellBox.row()
+                        row.prop(source, "cylShellInRad", text="Inner radius")
+                        row = shellBox.row()
+                        row.prop(source, "cylShellInHeight", text="Inner height")
                 
                 # Energy
                 energyBox = layout.box()
@@ -1466,10 +1504,76 @@ class PenredWorldTalliesPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        world = context.scene.world
+        scene = context.scene
+        world = scene.world
 
         if world and hasattr(world, "penred_settings"):
 
+            if hasattr(scene, "penred_settings") and scene.penred_settings.dicomProperties.loaded:
+            
+                # DICOM kerma tallies
+                ############################
+                boxTallies = layout.box()
+                row = boxTallies.row()
+                row.prop(world.penred_settings, "showTalliesDICOMKerma",
+                         text="DICOM Kerma Tallies", emboss=True,
+                         icon="TRIA_DOWN" if world.penred_settings.showTalliesDICOMKerma else "TRIA_RIGHT")
+
+                row.operator("tallies_dicomkerma.add_item", text="", icon="ADD")
+
+                if world.penred_settings.showTalliesDICOMKerma:
+                    for i, item in enumerate(world.penred_settings.talliesDICOMKerma):
+
+                        box = boxTallies.box()
+                        row = box.row()
+                        row.prop(item, "show", text=item.name, emboss=True,
+                                 icon="TRIA_DOWN" if item.show else "TRIA_RIGHT")
+                        row.operator("tallies_dicomkerma.remove_item", text="", icon="TRASH").index = i
+                        if not item.show:
+                            continue
+
+                        # Name
+                        row = box.row()
+                        row.prop(item, "name", text="Name")
+
+                        # Energy box
+                        ebox = box.box()
+                        ebox.label(text="Energy")
+
+                        row = ebox.row()
+                        if item.eminEdit:
+                            row.prop(item, "emin", text="")
+                        else:
+                            row.label(text=f"Min :  {item.emin:.3e} eV")
+                            row.prop(item, "eminEdit", text="", icon="GREASEPENCIL", toggle=True)
+
+                        row = ebox.row()
+                        if item.emaxEdit:
+                            row.prop(item, "emax", text="")
+                        else:
+                            row.label(text=f"Max:  {item.emax:.3e} eV")
+                            row.prop(item, "emaxEdit", text="", icon="GREASEPENCIL", toggle=True)
+                            
+                        row = box.row()
+                        row.prop(item, "dataPath", text="Data Path")
+
+                        # DVH
+                        dbox = box.box()
+                        dbox.label(text="DVH")
+                        
+                        row = dbox.row()
+                        if item.MC2DoseEdit:
+                            row.prop(item, "MC2Dose", text="")
+                        else:
+                            row.label(text=f"MC to Dose Factor :  {item.MC2Dose:.3e}")
+                            row.prop(item, "MC2DoseEdit", text="", icon="GREASEPENCIL", toggle=True)
+
+                        row = dbox.row()
+                        row.prop(item, "maxDoseDVH", text="Max Dose (Gy)")            
+
+                        row = dbox.row()
+                        row.prop(item, "binsDVH", text="Bins")
+                        
             # Emerging particle tallies
             ############################
             boxTallies = layout.box()
@@ -1881,7 +1985,10 @@ def drawHintsHandler():
                     source = penSett.source
 
                     # Print source direction
-                    if source.particleType == "PART_PSF":
+                    if penSett.isBrachySeed:
+                        utils.draw_arrow(obj, obj.matrix_world.to_3x3().col[2], sourceColor)
+                    
+                    elif source.particleType == "PART_PSF":
                         rotationMatrix = obj.matrix_world.to_3x3()
                         
                         localZ = Vector((0,0,1))

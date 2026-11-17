@@ -2974,6 +2974,47 @@ penred::errors::Error pen_dicom::printContourMasksMHD(const char* filename) cons
   return error;
 }
 
+penred::errors::Error pen_dicom::seedPoints(const unsigned long iseed,
+                                            std::vector<penred::dicom::SeedCP>& cps) const {
+
+  penred::errors::SpecificError<pen_dicom> error;
+    
+  if(iseed >= nSeeds()){
+    error.code = PEN_DICOM_INVALID_SEED_NUMBER;
+    error.description = "pen_dicom:seedPoints: Error: Invalid brachytherapy seed " + std::to_string(iseed);
+    error.description += ". The number of loaded seeds is: " + std::to_string(nSeeds());
+    return error;
+  }
+
+  //Clear previous data
+  cps.clear();
+
+  //Get the seed
+  const pen_seed& seed = this->seed(iseed);
+
+  //Get the number of seed positions
+  unsigned long seednPositions = seed.nPoints();
+
+  //Create auxiliary arrays
+  double pos[3];
+  double dir[3];
+    
+  //Iterate over seed positions
+  for(unsigned long j = 0; j < seednPositions; ++j){
+    if(seed.getWeight(j) > 1.0E-8){ //Get only non zero weight control points
+      seed.getPos(pos,j);
+      seed.getDirection(dir,j);
+
+      cps.emplace_back(vector3D<double>(pos[0],pos[1],pos[2]),
+                       vector3D<double>(dir[0],dir[1],dir[2]),
+                       seed.getWeight(j));
+    }
+  }
+
+  return error;
+}
+
+
 penred::errors::Error pen_dicom::printContours(const char* filename) const{
 
   penred::errors::SpecificError<pen_dicom> error;

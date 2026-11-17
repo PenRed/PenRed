@@ -40,6 +40,86 @@ from mathutils import Color
 from math import cos, acos, sin, asin, tan, atan2, sqrt, pi
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
+def fromBrachySeed(obj):
+    
+    if obj and hasattr(obj, "penred_settings"):
+
+        if obj.penred_settings.isBrachySeed:
+            return True
+        
+        parent = obj.parent
+        while parent:
+            if hasattr(parent, "penred_settings") and parent.penred_settings.isBrachySeed:
+                return True
+            parent = parent.parent
+
+    return False
+    
+def deleteHierarchy(obj):
+    """
+    Delete `obj` and all its children, then remove any collection
+    that held the deleted objects and is now empty.
+    """
+    # 1. Capture the collections that contain any object in the subtree
+    collections_to_check = set()
+
+    def collect(obj_to_delete):
+        for coll in obj_to_delete.users_collection:
+            collections_to_check.add(coll)
+        for child in obj_to_delete.children:
+            collect(child)
+
+    collect(obj)
+
+    # 2. Delete the whole subtree
+    def delete_tree(o):
+        for child in list(o.children):
+            delete_tree(child)
+        bpy.data.objects.remove(o, do_unlink=True)
+
+    delete_tree(obj)
+
+    # 3. Remove any collection that is now empty
+    for coll in sorted(collections_to_check, key=lambda c: len(c.children)):
+        if coll and coll.name in bpy.data.collections:
+            if len(coll.objects) == 0 and len(coll.children) == 0:
+                bpy.data.collections.remove(coll)
+
+def cleanBrachySeed(context, templateSeed):
+    # Snapshot first — the collection will be mutated during the loop
+    candidates = [
+        obj for obj in context.scene.objects
+        if obj and hasattr(obj, "penred_settings")
+        and obj.penred_settings.isBrachySeed
+        and obj.penred_settings.brachyOrigin == templateSeed
+    ]
+
+    for obj in candidates:
+        # Skip if it was already removed as a child of a previous deletion
+        if obj.name not in context.scene.objects:
+            continue
+        deleteHierarchy(obj)
+                    
+def duplicateHierarchy(obj, collection):
+    """
+    Recursively duplicate `obj` and all its children into `target_collection`.
+    The whole subtree ends up flat inside `target_collection`, preserving
+    object parent-child relationships but not collection structure.
+    """
+    
+    # 1. Copy the object itself (retaining linked mesh data)
+    new_obj = obj.copy()
+    collection.objects.link(new_obj)
+    
+    # 2. Recursively copy all child objects
+    for child in obj.children:
+        new_child = duplicateHierarchy(child, collection)
+        # 3. Establish parent-child relationship and correct for the parent inverse matrix
+        new_child.parent = new_obj
+        new_child.matrix_parent_inverse = child.matrix_parent_inverse.copy()
+    
+    return new_obj
+
 def figure2BlenderImage(fig, name):
     canvas = FigureCanvasAgg(fig)
     canvas.draw()

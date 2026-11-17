@@ -26,6 +26,19 @@
 #        vicente.gimenez@uv.es              (Vicent Giménez Gómez)
 #
 
+def createBrachy(f, name, seedRotation, seedID, toRound):
+    f.write(f"# Brachy Source configuration for '{name}'\n")
+
+    prefix = f"sources/generic/{name}/specific"
+
+    f.write(f"{prefix}/type \"BRACHY\"\n")
+    if seedID >= 0:
+        f.write(f"{prefix}/seedID {seedID}\n")
+    if seedRotation:
+        f.write(f"{prefix}/seed-rotation True\n\n")
+    else:
+        f.write(f"{prefix}/seed-rotation False\n\n")
+
 def createHeaderCT(f, name, phiIni, phiEnd, nProj,
                    center, rad, tmin, dt, nSecond, toRound):
     f.write(f"# CT Source configuration for '{name}'\n")

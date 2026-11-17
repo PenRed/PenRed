@@ -966,10 +966,16 @@ int main(int argc, char** argv){
   }
   
   //Set source geometry
-  for(unsigned i = 0; i < genericSources.size(); i++)
-    genericSources[i].setGeometry(geometry);  
-  for(unsigned i = 0; i < polarisedGammaSources.size(); i++)
-    polarisedGammaSources[i].setGeometry(geometry);  
+  for(unsigned i = 0; i < genericSources.size(); i++){
+    if(genericSources[i].setGeometry(geometry) != 0){
+      return -6;
+    }
+  }
+  for(unsigned i = 0; i < polarisedGammaSources.size(); i++){
+    if(polarisedGammaSources[i].setGeometry(geometry) != 0){
+      return -6;
+    }
+  }
 
   //------------------------------------------------------------
 

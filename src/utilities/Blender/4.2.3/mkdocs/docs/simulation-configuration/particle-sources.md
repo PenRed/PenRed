@@ -46,6 +46,21 @@ These parameters define how the initial particle locations are sampled. The avai
         $$
 
         where \( dx \) and \( dy \) are the bounding box dimensions along the X and Y axes, respectively.
+        
+    Additionally, sampling can be performed within a cylindrical shell rather than the entire cylinder volume. This option can be enabled via the shell checkbox:
+    
+   <img src="../../simulation-configuration/images/spatial_cylinder_shell.png" alt="Cylinder shell options" width="350" style="display: block; margin: 0 auto"/>
+   
+   When enabled, two parameters are required:
+   
+   -  **Inner radius**: Radius of the inner cylindrical exclusion region. Corresponds to *rmin* in the penRed configuration.
+   -  **Inner height**: Height of the inner cylindrical exclusion region. Corresponds to *dzmin* in the penRed configuration.
+   
+   The resulting sampling region is shown in the following image:
+   
+   <img src="../../simulation-configuration/images/cylinder_shell_diagram.png" alt="Cylinder shell sampling region" width="400" style="display: block; margin: 0 auto"/>
+   
+   where *rmax* and *dzmax* are set automatically according to the object size.
   
 #### Energy
 
@@ -159,3 +174,30 @@ If the recording time is enabled, the simulation will calculate and increase the
   
 - **`PSF Origin`**  
   This parameter is only available if combined with PSF sources. Specify the original recording position of the PSF, required for proper transformation calculations.
+
+### Brachytherapy Source
+
+This source simulates brachytherapy treatments by reading seed positions from patient DICOM plans (RTPLAN). It requires a DICOM-based geometry containing the seed positioning data.
+
+The particle sampling can be performed either through a **generic sampling configuration** (spatial, direction, energy, time samplers) or via a **pre-generated phase space file (PSF)** characterizing the seed emission.
+
+Regardless of the selected sampling method, the following geometric conditions must hold:
+
+- **Seed centre at the origin** `(0, 0, 0)`. This is usually the geometric centroid of the active material.
+- **Seed orientation aligned with the +Z axis.**
+
+These conditions ensure a correct transformation during simulation.
+
+#### Configuration
+
+- **Seed ID**: If provided, only the specified seed ID is used as source. Otherwise, all dwell positions of all seeds included in the RTPLAN are used.
+
+- **Seed Rotation**: Enables or disables per-seed rotation. When enabled, regardless the sampling was performed using a PSF or a generic sampling, an extra rotation is applied to the generated particles according to each seed's orientation.
+
+#### Generating sources
+
+Both *Empty* elements and mesh/quadric objects can be used for this source type. Once the configuration is specified, the **Enable** button will create a set of copies of the selected object, including its hierarchy, and place them at the corresponding dwell positions, applying the orientation transform if enabled. To change the source object or configuration parameters, push the **Disable** button to remove the copies and enable configuration editing.
+
+#### Notes
+
+- The DICOM information is **not** specified in the source configuration; it is taken directly from the geometry. Therefore, this source is only intended to be used with a DICOM-based geometry.

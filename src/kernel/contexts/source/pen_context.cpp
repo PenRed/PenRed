@@ -615,7 +615,10 @@ int pen_context::init(double EMAX, FILE *IWR, int INFO, std::string PMFILE[const
   elements.GPHa0();  // Initialises photoelectric routines.
   elements.RELAX0();  // Initialises atomic relaxation routines.
   RNDG30(rndg3);  // Initialises the Gaussian sampling routine.
-  if(penGetError() != PEN_SUCCESS){ return penGetError();}
+  if(penGetError() != PEN_SUCCESS){
+    if (IWR != nullptr) fprintf(IWR , "\n Error: %s\n", penErrorString(penGetError()));
+    return penGetError();
+  }
 
   for(unsigned M = 0; M < getNMats(); M++)
     {

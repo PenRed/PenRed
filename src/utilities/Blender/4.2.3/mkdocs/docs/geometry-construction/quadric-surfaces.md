@@ -49,8 +49,10 @@ Regardless of the quadric object type, the following parameters must be specifie
 Additionally, the following object types require additional parameters:
 
 - **Cone**: The top and bottom radius must be specified.
-- **Trapezoid**: The *(dx,dy)* dimensions for both, top and bottom faces, must be specified.
+- **Trapezoid**: The *(dx,dy)* dimensions for both top and bottom faces must be specified.
 - **Tube**: The radius for both outer and inner cylinders, must be specified.
+
+Note that these additional parameters store the corresponding dimensions **with no applied scale**. Therefore, the final size of each one will be deformed according to the **scale** property and will differ from the **Dimensions** property if the scale in the corresponding axis is not set to 1. As the scale could be different for each axis, this behaviour allows the definition of elliptic cones or other figures.
 
 ### Cutting Planes
 

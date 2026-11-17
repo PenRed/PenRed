@@ -121,6 +121,11 @@ def createSources(context, f, toRound):
     f.write("## Sources ##\n\n")
     
     for obj in context.scene.objects:
+
+        # Skip objects duplicated from a brachytherapy seed
+        if utils.fromBrachySeed(obj):
+            continue
+        
         if hasattr(obj, "penred_settings"):
             source = obj.penred_settings.source
             if source.enabled:
@@ -132,6 +137,16 @@ def createSources(context, f, toRound):
                 omega *= 180.0/pi
                 theta *= 180.0/pi
                 phi   *= 180.0/pi
+
+                if source.brachyEnabled:
+                    # Set position to origin
+                    x = 0
+                    y = 0
+                    z = 0
+                    if source.brachySeedIDEnabled:
+                        sources.createBrachy(f, name, source.brachyRotation, source.brachySeedID, toRound)
+                    else:
+                        sources.createBrachy(f, name, source.brachyRotation, -1, toRound)
 
                 if source.ctEnable:
                     psfShift = (-source.ctPSFOrigin[0], -source.ctPSFOrigin[1], -source.ctPSFOrigin[2])
@@ -148,7 +163,7 @@ def createSources(context, f, toRound):
                 if source.particleType == "PART_PSF":
 
                     # Create the PSF source
-                    sources.createPSF(f, name, source.nHists, source.ctEnable,
+                    sources.createPSF(f, name, source.nHists, source.ctEnable or source.brachyEnabled,
                                       source.sourcePSF, source.psfMaxE,
                                       source.split, source.psfWindow,
                                       psfShift, (omega, theta, phi), toRound)
@@ -159,8 +174,15 @@ def createSources(context, f, toRound):
                             radius = min((bsize[0], bsize[1]))/2.0
                         else:
                             radius = sqrt(bsize[0]*bsize[0] + bsize[1]*bsize[1])/2.0
+
+                        if source.spatialShell:
+                            shellRad = min(source.cylShellInRad, radius)
+                            shellHeight = min(source.cylShellInHeight, bsize[2])
+                        else:
+                            shellRad = 0.0
+                            shellHeight = 0.0
                                          
-                        spatialSize = (0.0, radius, 0.0, bsize[2])
+                        spatialSize = (shellRad, radius, shellHeight, bsize[2])
                     else:
                         spatialSize = bsize
 
@@ -187,8 +209,9 @@ def createSources(context, f, toRound):
                     sources.createTime(f, name, source.timeType,
                                        source.decayHalf, source.timeWindow)
 
-                # Bind the source to the object
-                f.write(f"sources/generic/{name}/bind \"{name}\"\n\n")
+                # Bind the source to the object if animated
+                if obj.animation_data and obj.animation_data.action:
+                    f.write(f"sources/generic/{name}/bind \"{name}\"\n\n")
                 
 
 def createTallies(context, f, toRound):
@@ -207,6 +230,33 @@ def createTallies(context, f, toRound):
         # Get output folder
         outputPrefix = world.penred_settings.simulation.outputPrefix
 
+        if len(world.penred_settings.talliesDICOMKerma) > 0:
+
+            # Get DICOM properties
+            dicomProp = context.scene.penred_settings.dicomProperties
+            
+            # Get material list
+            matsIndex = []
+            for item in dicomProp.usedMats:
+                matsIndex.append(item.value)
+                
+            matPairs = []
+            for m in matsIndex:
+                if len(world.penred_settings.materials) >= m:
+                    matName = world.penred_settings.materials[m-1].name
+                else:
+                    matName = f"mat{m}"
+                matPairs.append([m, matName])
+        
+        for i, item in enumerate(world.penred_settings.talliesDICOMKerma):
+            tallyName = f"{i}_{item.name}"
+
+            tallies.createTallyDICOMKerma(f, tallyName, outputPrefix,
+                                     item.emin, item.emax,
+                                     item.dataPath, matPairs,
+                                     item.prescribedDose, item.MC2Dose, item.maxDoseDVH, item.binsDVH,
+                                     toRound)
+                
         # Emerging particle tallies
         for i, item in enumerate(world.penred_settings.talliesEmergingParticle):
             tallyName = f"{i}_{item.name}"

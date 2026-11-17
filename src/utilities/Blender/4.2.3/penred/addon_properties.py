@@ -1,8 +1,8 @@
 #
 #
-#    Copyright (C) 2022-2025 Universitat de València - UV
-#    Copyright (C) 2022-2025 Universitat Politècnica de València - UPV
-#    Copyright (C) 2024-2025 Vicent Giménez Alventosa
+#    Copyright (C) 2022-2026 Universitat de València - UV
+#    Copyright (C) 2022-2026 Universitat Politècnica de València - UPV
+#    Copyright (C) 2024-2026 Vicent Giménez Alventosa
 #
 #    This file is part of PenRed: Parallel Engine for Radiation Energy Deposition.
 #
@@ -38,6 +38,46 @@ def update_source_direction(self, context):
     for area in context.screen.areas:
         if area.type == 'VIEW_3D':
             area.tag_redraw()
+
+# Auxiliary classes
+
+class IntItem(bpy.types.PropertyGroup):
+    value: bpy.props.IntProperty()
+
+class seedCP(bpy.types.PropertyGroup):
+    position : bpy.props.FloatVectorProperty(
+        name = "Control Point Position",
+        size = 3,
+        default = (0.0, 0.0, 0.0),
+        description="Position, in cm, where the control point is placed"
+    )
+
+    direction : bpy.props.FloatVectorProperty(
+        name = "Control Point Direction",
+        size = 3,
+        default = (0.0, 0.0, 1.0),
+        description="Direction vector corresponding to the seed orientation"
+    )
+
+    weight : bpy.props.FloatProperty(
+        name = "Control Point Weight",
+        default = 1.0,
+        description="Control point relative weight"
+    )
+    
+class SeedBrachy(bpy.types.PropertyGroup):
+    ID : bpy.props.IntProperty(
+        name = "Seed ID",
+        default = 0
+    )
+
+    controlPoints : bpy.props.CollectionProperty(type=seedCP)
+
+auxClasses = (
+    IntItem,
+    seedCP,
+    SeedBrachy
+)
 
 # Tallies properties
 #####################
@@ -430,6 +470,56 @@ class tallyEmergingParticle(bpy.types.PropertyGroup):
     nPhi : bpy.props.IntProperty(name = "Azimuthal Bins", min = 1, default = 1,
                                  description="Number of azimuthal bins")
 
+# DICOM kerma tally
+class tallyDICOMKerma(bpy.types.PropertyGroup):
+    name : bpy.props.StringProperty(name = "Tally Name", default = "DICOM-Kerma")
+    show : bpy.props.BoolProperty(name = "Show Tally Properties", default = True)
+
+    emin : bpy.props.FloatProperty(
+        name = "Minimum Energy",
+        default = 1.0e3,
+        min = 0.0,
+        description="Minimum energy, in eV, to be scored. Particles below the threshold will not contribute to Kerma calculation",
+        update=lambda self, context: setattr(self, "eminEdit", False))
+    eminEdit : bpy.props.BoolProperty(name = "Minimum Energy Edit", default = False)
+    
+    emax : bpy.props.FloatProperty(
+        name = "Maximum Energy",
+        default = 1.0e6,
+        min = 0.0,
+        description="Maximum energy, in eV, to be detected. Particles above the threshold will not contribute to kerma calculation",
+        update=lambda self, context: setattr(self, "emaxEdit", False))
+    emaxEdit : bpy.props.BoolProperty(name = "Maximum Energy Edit", default = False)
+
+    MC2Dose : bpy.props.FloatProperty(
+        name = "Monte Carlo to Dose Factor",
+        default = 1.0,
+        min = 0.0,
+        description="Factor to convert Monte Carlo units to Dose (Gy). Check the documentation to know how this parameter is calculated for brachytherapy seeds",
+        update=lambda self, context: setattr(self, "MC2DoseEdit", False))
+    MC2DoseEdit : bpy.props.BoolProperty(name = "Monte Carlo to Dose Factor Edit", default = False)
+    
+    prescribedDose : bpy.props.FloatProperty(
+        name = "Prescribed Dose",
+        default = 5,
+        min = 0.00001,
+        description="Treatment prescribed dose, in Gy",
+    )
+
+    maxDoseDVH : bpy.props.FloatProperty(
+        name = "DVH Maximum Dose",
+        default = 15,
+        min = 0.00001,
+        description="Maximum dose, in Gy, used to calculate DVH curves",
+    )
+
+    binsDVH: bpy.props.IntProperty(name = "DVH Bins", min = 1, default = 300,
+                                   description="Number of DVH bins")
+    
+    dataPath : bpy.props.StringProperty(name = "Data Prefix", default = "",
+                                        description = "Prefix of the mu-en data files."
+                                        " If empty, the data files will be created in the simulation folder")
+
 # Tracks
 class tallyTracks(bpy.types.PropertyGroup):
     name : bpy.props.StringProperty(name = "Tally Name", default = "Tracks")
@@ -453,6 +543,7 @@ talliesPropsClasses = (
     tallyAngularDetector,
     tallyEmergingParticle,
     tallyTracks,
+    tallyDICOMKerma,
 )
 
 # Source properties
@@ -464,6 +555,28 @@ class sourceProperties(bpy.types.PropertyGroup):
                                      description = "Flag this object as particle source",
                                      default = False)
 
+    # Brachytherapy
+    brachyEnabled : bpy.props.BoolProperty(
+        name = "Brachytherapy Source",
+        description = "Enables brachytherapy source. This source requies a previously loaded DICOM with a RTPLAN, including the seeds positions.",
+        default = False)
+
+    brachyRotation : bpy.props.BoolProperty(
+        name = "Brachytherapy Seed Rotation",
+        description = "If enabled, the seed rotation is applied to the sampled particle.",
+        default = False)
+
+    brachySeedIDEnabled : bpy.props.BoolProperty(
+        name = "Filter Brachytherapy Seed",
+        description = "If enabled, enables the selection of specific brachytherapy seed ID.",
+        default = False)
+    
+    brachySeedID : bpy.props.IntProperty(
+        name = "Brachytherapy Seed ID",
+        min = 0,
+        description = "Brachytherapy seed ID to be used as source",
+        default = 0)
+    
     # CT source
     ctEnable : bpy.props.BoolProperty(
         name = "CT Like Source",
@@ -591,6 +704,23 @@ class sourceProperties(bpy.types.PropertyGroup):
         name = "Spatial Bounding Box Fit",
         description = "When enabled, the spatial source will be sized to fit inside the object bounding box. If disabled, the source size is enlarged to include the entire bounding box",
         default = False)
+
+    spatialShell : bpy.props.BoolProperty(
+        name = "Spatial Shell",
+        description = "When enabled, the spatial source is sampled in a shell rather than the entire volume. The minimum dimensions (below when enabled) define the inner volume of the shell, in which no particles are sampled.",
+        default = False)
+
+    cylShellInRad : bpy.props.FloatProperty(
+        name = "Cylindrical Shell Inner Radius",
+        description = "Cylindrical shell's inner radius, in cm",
+        default = 0.0,
+        min=0.0)
+
+    cylShellInHeight : bpy.props.FloatProperty(
+        name = "Cylindrical Shell Inner height",
+        description = "Cylindrical shell's inner height, in cm",
+        default = 0.0,
+        min=0.0)
     
     # Energy parameters
     energyType : bpy.props.EnumProperty(
@@ -764,6 +894,18 @@ class objectProperties(bpy.types.PropertyGroup):
         name = "Internal variable to know if the loaded .obj comes from a DICOM",
         description = "Set to true if loaded from DICOM_OT_LoadDicom",
         default = False)
+
+    isBrachySeed : bpy.props.BoolProperty(
+        name = "Is Brachytherapy seed copy",
+        description = "Internal variable to know if the objects is a Brachytherapy seed copy",
+        default = False
+    )
+    
+    brachyOrigin : bpy.props.PointerProperty(
+        type=bpy.types.Object,
+        name="Source Template",
+        description="The original object this seed was duplicated from"
+    )
     
     material : bpy.props.IntProperty(name = "Material Index",
                                      min = 0,
@@ -1278,15 +1420,15 @@ class dicomProperties(bpy.types.PropertyGroup):
     enclosureMargin : bpy.props.FloatProperty(
         name = "",
         description = "Distance between the DICOM mesh corner and the limit of an external enclosure, in cm.",
-        default = 0.0,
-        min = 0.0
+        default = 5.0,
+        min = 0.0001
     )    
 
     enclosureMaterial : bpy.props.IntProperty(
         name = "",
         description = "Specify the enclosure material index.",
-        default = 0,
-        min = 0
+        default = 1,
+        min = 1
     )   
 
     printASCII : bpy.props.BoolProperty(
@@ -1304,11 +1446,23 @@ class dicomProperties(bpy.types.PropertyGroup):
     contours : bpy.props.CollectionProperty(type=contoursProperties)
 
     directory : bpy.props.StringProperty(
-        name = "", 
+        name = "DICOM Directory", 
         description="Directory where the DICOM has been loaded",
         default = ""
     )
 
+    loaded : bpy.props.BoolProperty(
+        name = "DICOM Loaded Flag",
+        description = "Flags if a DICOM has been loaded.",
+        default = False
+    )
+
+    usedMats : bpy.props.CollectionProperty(type=IntItem,
+        name = "DICOM Used Materials",
+        description = "Indexes of used materials within the DICOM geometry"
+    )
+
+    seeds : bpy.props.CollectionProperty(type=SeedBrachy)
 
 # Simulation properties groups
 #############################
@@ -1567,6 +1721,9 @@ class worldProperties(bpy.types.PropertyGroup):
     talliesEmergingParticle : bpy.props.CollectionProperty(type=tallyEmergingParticle)
     tracksTally : bpy.props.PointerProperty(type=tallyTracks)
 
+    showTalliesDICOMKerma : bpy.props.BoolProperty(name="Show DICOM Kerma Tallies", default = True)
+    talliesDICOMKerma : bpy.props.CollectionProperty(type=tallyDICOMKerma)
+
 # Scene properties group
 #############################
 class penredSceneProperties(bpy.types.PropertyGroup):
@@ -1677,6 +1834,10 @@ def register():
 
     # Register source properties
     bpy.utils.register_class(sourceProperties)
+
+    # Register auxilary classes
+    for cls in auxClasses:
+        bpy.utils.register_class(cls)
     
     # Register tally properties
     for cls in talliesPropsClasses:
@@ -1752,7 +1913,11 @@ def unregister():
 
     #Unregister dicom property groups
     for cls in dicomClasses:
-        bpy.utils.unregister_class(cls) 
+        bpy.utils.unregister_class(cls)
+        
+    # Unregister auxilary classes
+    for cls in auxClasses:
+        bpy.utils.unregister_class(cls)
         
     # Unregister element properties
     bpy.utils.unregister_class(elementProperties)
