@@ -3857,7 +3857,7 @@ namespace penred{
 	}
       }
 
-      int add(const measurement<type,dim>& toAdd){
+      int add(const measurement<type,dim,Grid>& toAdd){
 
         //Check number of bins
         if(!this->grid.sameBins(toAdd.grid)){
@@ -3960,7 +3960,7 @@ namespace penred{
       }
 
       //Cumulative function
-      measurement<type,dim> cumulative() const {
+      measurement<type,dim,Grid> cumulative() const {
 
 	//Generates a cumulative measurement with the last dimension
 
@@ -3973,7 +3973,7 @@ namespace penred{
 	size_t nBinsPrevDim = this->grid.binsPerIncrement[dim-1];
 
 	//Copy the original measurement
-	measurement<type,dim> out = *this;
+	measurement<type,dim,Grid> out = *this;
 	//Flush data to ensure consistency
 	out.flush();
 
