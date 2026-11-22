@@ -43,6 +43,8 @@
 #include <type_traits>
 #include <algorithm>
 
+#include "grids.hh"
+
 //--------------------------------
 // Auxiliar structs and classes
 //--------------------------------
@@ -1227,24 +1229,8 @@ struct container : public box<T>{
 
 };
 
-//Define a structures to save measures
+//Define structures to save measures
 namespace penred{
-
-  inline std::string triml(const std::string& strin){
-    const std::string delimiters = " \n\r\t\f\v";
-    size_t first = strin.find_first_not_of(delimiters);
-    return (first == std::string::npos) ? "" : strin.substr(first);
-  }
-
-  inline std::string trimr(const std::string& strin){
-    const std::string delimiters = " \n\r\t\f\v";
-    size_t last = strin.find_last_not_of(delimiters);
-    return (last == std::string::npos) ? "" : strin.substr(0,last+1);
-  }
-
-  inline std::string trim(const std::string& strin){
-    return trimr(triml(strin));
-  }  
 
   template<class T>
   struct Quaternion {
@@ -1730,7 +1716,7 @@ namespace penred{
 
     typedef std::pair<double, double> limitsType;
 
-    template<size_t dim = 1>
+    template<std::size_t dim = 1, class Grid = grids::RegularGrid<dim>>
     class multiDimension{
 
       static_assert(dim <= maxDims,
@@ -1742,18 +1728,54 @@ namespace penred{
     protected:
 
       // Variables
-      
-      std::array<unsigned long, dim> nBins;
-      unsigned long totalBins;
-      std::array<unsigned long, dim> binsPerIncrement;
-      std::array<double, dim> binWidths;
-      std::array<std::pair<double, double>, dim> limits;
+      Grid grid;
 
       static constexpr const unsigned nHeaders = dim + 2;
       std::array<std::string, nHeaders> headers; 
 
-      //Initialization functions
+      // Initialization functions
 
+      // + Generic initializations
+
+      template<size_t dimInit>
+      inline std::enable_if_t< (dimInit < dim), int>
+      initDims(const std::array<unsigned long, dimInit>& nBinsIn,
+               const std::array<std::vector<double>, dimInit>& edgesIn){
+
+        //Init auxiliary arrays
+        std::array<unsigned long, dim> nBinsAux;
+        std::fill(nBinsAux.begin(), nBinsAux.end(), 1ul);
+
+        std::array<std::vector<double>, dim> edgesAux;
+        const std::vector<double> defaultEdges{-1.0e35, 1.0e35};
+        for(std::vector<double>& edges : edgesAux)
+          edges = defaultEdges;
+
+        for(size_t i = 0; i < dimInit; ++i){
+          nBinsAux[i] = nBinsIn[i];
+        }
+        for(size_t i = 0; i < dimInit; ++i){
+          edgesAux[i] = edgesIn[i];
+        }
+
+        return initDims(nBinsAux, edgesAux);
+      }
+
+      template<size_t dimInit>
+      inline std::enable_if_t< (dimInit > dim), int>
+      initDims(const std::array<unsigned long, dimInit>& nBinsIn,
+               const std::array<std::vector<double>, dimInit>& edgesIn) = delete;
+
+      template<size_t dimInit>
+      std::enable_if_t< (dimInit == dim), int>
+      initDims(const std::array<unsigned long, dimInit>& nBinsIn,
+               const std::array<std::vector<double>, dimInit>& edgesIn){
+        return grid.init(nBinsIn, edgesIn);
+      }
+
+      
+      // With limit pairs (for regular grids)
+      
       inline int initDims(const std::vector<unsigned long>& nBinsIn,
 			  const std::vector<std::pair<double, double>>& limitsIn){
 	if(nBinsIn.size() != limitsIn.size())
@@ -1776,77 +1798,18 @@ namespace penred{
 
 	return initDims(nBinsAux, limitsAux);	
       }
-      
-      template<size_t dimInit>
-      inline std::enable_if_t< (dimInit < dim), int>
-      initDims(const std::array<unsigned long, dimInit>& nBinsIn,
-	       const std::array<std::pair<double, double>, dimInit>& limitsIn){
-
-	//Init auxiliary arrays
-	std::array<unsigned long, dim> nBinsAux;
-	std::fill(nBinsAux.begin(), nBinsAux.end(), 1ul);
-
-	std::array<std::pair<double, double>, dim> limitsAux;
-	const std::pair<double, double> defaultLimit(-1.0e35, 1.0e35);
-	std::fill(limitsAux.begin(), limitsAux.end(), defaultLimit);
-
-	for(size_t i = 0; i < dimInit; ++i){
-	  nBinsAux[i] = nBinsIn[i];
-	}
-	for(size_t i = 0; i < dimInit; ++i){
-	  limitsAux[i] = limitsIn[i];
-	}
-
-	return initDims(nBinsAux, limitsAux);
-      }
 
       template<size_t dimInit>
-      inline std::enable_if_t< (dimInit > dim), int>
-      initDims(const std::array<unsigned long, dimInit>& nBinsIn,
-	       const std::array<std::pair<double, double>, dimInit>& limitsIn) = delete;
-
-      template<size_t dimInit>
-      std::enable_if_t< (dimInit == dim), int>
-      initDims(const std::array<unsigned long, dimInit>& nBinsIn,
-	       const std::array<std::pair<double, double>, dimInit>& limitsIn){
-
-	//Calculate total number of bins
-	totalBins = std::accumulate(nBinsIn.begin(),
-				    nBinsIn.end(), 1ul,
-				    std::multiplies<unsigned long>());
-	if(totalBins == 0ul)
-	  return errors::INVALID_NUMBER_OF_BINS;
-    
-	//Check limits
-	for(size_t i = 0; i < dim; ++i){
-	  if(limitsIn[i].first >= limitsIn[i].second){
-	    return errors::INVALID_LIMITS;
-	  }
-	}
-
-	//Save bins
-	nBins = nBinsIn;
-
-	//Calculate bins per increment in each dimension
-	binsPerIncrement[0] = 1;
-	for(size_t i = 1; i < dim; ++i){
-	  binsPerIncrement[i] = binsPerIncrement[i-1]*nBins[i-1];
-	}
-
-	//Save limits
-	limits = limitsIn;
-
-	//Calculate bin widths
-	for(size_t i = 0; i < dim; ++i){
-	  binWidths[i] = (limits[i].second - limits[i].first)/static_cast<double>(nBins[i]);
-	}
-
-	return errors::SUCCESS;
-      }
-
-      template<size_t dimInit>
-      inline int initDims(const multiDimension<dimInit>& c){
-	return initDims(c.nBins, c.limits);
+      int initDims(const std::array<unsigned long, dimInit>& nBinsIn,
+                   const std::array<std::pair<double, double>, dimInit>& limitsIn){
+        
+        std::array<std::vector<double>, dimInit> limitsAux;
+        for(size_t d = 0; d < dimInit; ++d){
+          limitsAux[d].resize(2);
+          limitsAux[d][0] = limitsIn[d].first;
+          limitsAux[d][1] = limitsIn[d].second;
+        }
+        return initDims(nBinsIn, limitsAux);
       }
 
       template<size_t binDims, size_t limitsDims>
@@ -1871,19 +1834,27 @@ namespace penred{
 	
       }
 
+      // Grid copy initialization
+
+      template<size_t dimInit>
+      inline int initDims(const multiDimension<dimInit, Grid>& c){
+        this->grid = c.grid;
+        return errors::SUCCESS;
+      }
+      
       inline int initDims(){
 	std::array<unsigned long, 1> auxBins;
-	std::array<std::pair<double, double>, 1> auxLimits;
+	std::array<std::vector<double>, 1> auxEdges;
 
 	auxBins[0] = 1;
-	auxLimits[0] = std::pair<double,double>(-1.0e35, 1.0e35);
+	auxEdges[0] = std::vector<double>{-1.0e35, 1.0e35};
 	
-	return initDims(auxBins, auxLimits);
+	return initDims(auxBins, auxEdges);
       }
       
       //Copy functions
-      inline void copyDimInfo(const multiDimension<dim>& o){
-	*this = o;
+      inline void copyDimInfo(const multiDimension<dim, Grid>& o){
+        *this = o;
       }
       
     public:
@@ -1903,21 +1874,13 @@ namespace penred{
       }
 
       //Check compatibility functions
-      template<size_t auxDim>
-      typename std::enable_if_t<auxDim == dim, bool>
-      compatibleDims(const multiDimension<auxDim>& o) const noexcept {
+      template<size_t auxDim, class auxGrid>
+      typename std::enable_if_t<auxDim == dim && std::is_same<Grid, auxGrid>::value, bool>
+      compatibleDims(const multiDimension<auxDim, auxGrid>& o) const noexcept { return grid.sameAs(o.grid); }
 
-        //Check number of bins in each dimension
-        for(size_t i = 0; i < dim; ++i){
-          if(this->nBins[i] != o.nBins[i])
-            return false;
-        }
-        return true;
-      }
-
-      template<size_t auxDim>
-      typename std::enable_if_t<auxDim != dim, bool>
-      compatibleDims(const multiDimension<auxDim>&) const noexcept {
+      template<size_t auxDim, class auxGrid>
+      typename std::enable_if_t<auxDim != dim || !std::is_same<Grid, auxGrid>::value, bool>
+      compatibleDims(const multiDimension<auxDim, auxGrid>&) const noexcept {
         return false; //Dimensions mismatch
       }
       
@@ -1932,7 +1895,7 @@ namespace penred{
 	std::array<unsigned long, dim> indexes;
 	std::fill(indexes.begin(), indexes.end(), 0ul);
 	
-	for(unsigned long i = 0; i < totalBins; ++i){
+	for(unsigned long i = 0; i < totalBins(); ++i){
 
 	  //Call user function
 	  f(i, indexes);
@@ -1941,7 +1904,7 @@ namespace penred{
 	  ++indexes[0];
 	  //Check for other dimensions index increment
 	  for(size_t idim = 0; idim < dim; ++idim){
-	    if(indexes[idim] >= nBins[idim]){
+	    if(indexes[idim] >= grid.nBins[idim]){
 	      
 	      indexes[idim] = 0;
 	      if(idim < dim-1){
@@ -1967,15 +1930,15 @@ namespace penred{
 	  if(binLimits[idim].first >= binLimits[idim].second){
 	    return errors::MIN_BIN_GREATER_THAN_MAX;
 	  }
-	  if(binLimits[idim].second > nBins[idim])
+	  if(binLimits[idim].second > grid.nBins[idim])
 	    return errors::BIN_OUT_OF_RANGE;	  
 	}
 
 	//Calculate the number of bins to skip in each dimension when the limit is reached
 	std::array<unsigned long, dim> toSkip;
 	for(size_t idim = 0; idim < dim; ++idim){
-	  toSkip[idim] = (nBins[idim] - binLimits[idim].second) + binLimits[idim].first;
-	  toSkip[idim] *= binsPerIncrement[idim];
+	  toSkip[idim] = (grid.nBins[idim] - binLimits[idim].second) + binLimits[idim].first;
+	  toSkip[idim] *= grid.binsPerIncrement[idim];
 	}
 
 	//Store bin indexes in each dimension
@@ -1985,11 +1948,11 @@ namespace penred{
 	size_t globIndex = 0;
 	for(size_t idim = 0; idim < dim; ++idim){
 	  indexes[idim] = binLimits[idim].first;
-	  globIndex += indexes[idim]*binsPerIncrement[idim];
+	  globIndex += indexes[idim]*grid.binsPerIncrement[idim];
 	}
 
 	//Iterate over bins in limits
-	while(globIndex < totalBins){
+	while(globIndex < totalBins()){
 
 	  //Call user function
 	  f(globIndex, indexes);
@@ -2029,7 +1992,7 @@ namespace penred{
 
 	std::array<std::pair<unsigned long, unsigned long>, dim> auxBinLimits;
 	for(size_t i = 0; i < dim; ++i)
-	  auxBinLimits[i] = std::pair<unsigned long, unsigned long>(0lu, nBins[i]);
+	  auxBinLimits[i] = std::pair<unsigned long, unsigned long>(0lu, grid.nBins[i]);
 
 	for(size_t i = 0; i < binLimits.size(); ++i){
 	  unsigned long idim = binLimits[i][0];
@@ -2110,24 +2073,18 @@ namespace penred{
       }
 
       //Get functions
-      const std::array<unsigned long, dim>& readDimBins() const { return nBins; }
+      inline unsigned long totalBins() const {return grid.totalBins;}      
+      const std::array<unsigned long, dim>& readDimBins() const { return grid.nBins; }
       const std::array<std::pair<double, double>, dim>& readLimits() const {
-	return limits;
+        return grid.readLimits();
       }
-      inline const std::array<double, dim>& readBinWidths() const { return binWidths; }
-      inline double readBinWidth(size_t idim) const { return binWidths[idim]; }
-      inline unsigned long getNBins(const unsigned idim) const { return nBins[idim]; }
-      inline unsigned long getNBins() const { return totalBins; }
-      inline unsigned long effectiveDim() const {
-	//Calculate effective dimensions
-	unsigned long effectiveDims = dim;
-	for(size_t i = 0; i < dim; ++i){
-	  if(nBins[i] == 1){
-	    --effectiveDims;
-	  }
-	}
-	return effectiveDims;
+      inline double readBinWidth(const size_t idim, const unsigned ibin = 0) const {
+        return grid.binWidth(idim,ibin);
       }
+      inline unsigned long getNBins(const unsigned idim) const { return grid.nBins[idim]; }
+      inline unsigned long getNBins() const { return totalBins(); }
+      inline unsigned long effectiveDim() const { return grid.effectiveDim(); }
+      const Grid& readGrid() const { return grid; }
 
       //Index functions
       /**
@@ -2137,12 +2094,8 @@ namespace penred{
        * @return 1D index offset into flat data arrays.
        */
       inline unsigned long getGlobalIndex(const std::array<unsigned long, dim>& dimIndexes)const{
-	// Calculate the global index from local indexes in each dimension
-	unsigned long globIndex = dimIndexes[0];
-	for(size_t i = 1; i < dim; ++i){
-	  globIndex += dimIndexes[i]*this->binsPerIncrement[i];
-	}
-	return globIndex;
+        // Calculate the global index from local indexes in each dimension
+        return grid.globalIndex(dimIndexes);
       }
       
       //Stringify functions
@@ -2153,77 +2106,47 @@ namespace penred{
 	for(size_t i = 0; i < dim; ++i){
 	  buf << "\n" << headers[i] << ":\n"
 	      << "  + Number of bins:\n     "
-	      << nBins[i] << "\n"
+	      << grid.nBins[i] << "\n"
 	      << "  + Limits:\n     [";
-	  if(limits[i].first < -1.0e20)
+	  if(grid.readLimits()[i].first < -1.0e20)
 	    buf << "-Inf, ";
 	  else
-	    buf << limits[i].first << ", ";
+	    buf << grid.readLimits()[i].first << ", ";
 
-	  if(limits[i].second > 1.0e20)
+	  if(grid.readLimits()[i].second > 1.0e20)
 	    buf << " Inf";
 	  else
-	    buf << limits[i].second;
+	    buf << grid.readLimits()[i].second;
 	    
 	  buf << ")" << std::endl;
-	  if(nBins[i] > 1){
-	    buf << "  + Bin width:\n     "
-		<< binWidths[i] << std::endl;
-	  }
 	}
 	return buf.str();
       }
 
       //Print functions
       void printDims(FILE* fout,
-		     const bool printOnlyEffective = false) const{
+                     const bool printOnlyEffective = false) const{
 
-	//Print description
-	if(!description.empty()){
-	  fprintf(fout, "#\n");
+        //Print description
+        if(!description.empty()){
+          fprintf(fout, "#\n");
 
-	  //Get next endLine in description string
-	  std::string::size_type endLinePos = description.find('\n');
-	  fprintf(fout, "# %s\n", description.substr(0,endLinePos).c_str());
-	  while(endLinePos != std::string::npos){
-	    std::string::size_type initPos = endLinePos+1;
-	    endLinePos = description.find('\n',initPos);
-	    fprintf(fout, "# %s\n", description.substr(initPos,endLinePos-initPos).c_str());
-	  }
-	}
-	
-	if(printOnlyEffective){
-	  fprintf(fout, "# Dimensions:\n"
-		  "# %lu\n"
-		  "# Number of bins:\n"
-		  "#",
-		  effectiveDim());
-	}
-	else{
-	  fprintf(fout, "# Dimensions:\n"
-		  "# %lu\n"
-		  "# Number of bins:\n"
-		  "#",
-		  static_cast<unsigned long>(dim));
-	}
-	
-	for(size_t i = 0; i < dim; ++i){
-	  if(printOnlyEffective && nBins[i] == 1){
-	    continue;
-	  }	  
-	  fprintf(fout, " %lu", nBins[i]);
-	}
-	fprintf(fout, "\n"
-		"# Limits [low,top): \n");
-	for(size_t i = 0; i < dim; ++i){
-	  if(printOnlyEffective && nBins[i] == 1){
-	    continue;
-	  }	  
-	  fprintf(fout, "# %15.5E %15.5E  %s\n",
-		  limits[i].first,
-		  limits[i].second,
-		  headers[i].c_str());
-	}	
+          //Get next endLine in description string
+          std::string::size_type endLinePos = description.find('\n');
+          fprintf(fout, "# %s\n", description.substr(0,endLinePos).c_str());
+          while(endLinePos != std::string::npos){
+            std::string::size_type initPos = endLinePos+1;
+            endLinePos = description.find('\n',initPos);
+            fprintf(fout, "# %s\n", description.substr(initPos,endLinePos-initPos).c_str());
+          }
+        }
+
+        std::array<std::string, dim> dimHeaders;
+        for(size_t d = 0; d < dim; ++d)
+          dimHeaders[d] = headers[d];
+
+        grid.printDims(fout, printOnlyEffective, dimHeaders);
+    
       }
 
       void printData(FILE* fout,
@@ -2267,7 +2190,7 @@ namespace penred{
 	fprintf(fout, "#");
 	if(printBinNumber || printCoordinates){
 	  for(unsigned long idim = 0; idim < dim; ++idim){
-	    if(nBins[idim] > 1){
+	    if(grid.nBins[idim] > 1){
 	      fprintf(fout, " %*s |",
 		      headersSpace[idim], headers[idim].c_str());
 	    }
@@ -2285,13 +2208,13 @@ namespace penred{
 	std::array<unsigned long, dim> indexes;
 	std::fill(indexes.begin(), indexes.end(), 0lu);
 
-	for(unsigned long i = 0; i < totalBins; ++i){
+	for(unsigned long i = 0; i < totalBins(); ++i){
 
 	  fprintf(fout, " ");
 	  //Print dimensions bin and coordinates information
 	  for(size_t idim = 0; idim < dim; ++idim){
 	    
-	    if(nBins[idim] == 1){
+	    if(grid.nBins[idim] == 1){
 	      //Skip dimensions with a single bin
 	      continue;
 	    }
@@ -2309,12 +2232,10 @@ namespace penred{
 	    //Print position information
 	    if(printCoordinates){
 	      if(printBinNumber){
-		fprintf(fout, " %*.5E  ",headersSpace[idim]-5,
-			limits[idim].first + indexes[idim]*binWidths[idim]);
+            fprintf(fout, " %*.5E  ",headersSpace[idim]-5, grid.binLower(idim, indexes[idim]));
 	      }
 	      else{
-		fprintf(fout, " %*.5E  ",headersSpace[idim],
-			limits[idim].first + indexes[idim]*binWidths[idim]);
+            fprintf(fout, " %*.5E  ",headersSpace[idim], grid.binLower(idim, indexes[idim]));
 	      }
 	    }
 	  }
@@ -2330,9 +2251,9 @@ namespace penred{
 	  ++indexes[0];
 	  //Check for other dimensions index increment
 	  for(size_t idim = 0; idim < dim; ++idim){
-	    if(indexes[idim] >= nBins[idim]){
+	    if(indexes[idim] >= grid.nBins[idim]){
 	      
-	      if(nBins[idim] > 1){
+	      if(grid.nBins[idim] > 1){
 		//Print a blank line to separate coordinate blocks
 		fprintf(fout, "\n");
 	      }
@@ -2374,7 +2295,7 @@ namespace penred{
 	    return 1;
 	  }
 	  
-	  for(unsigned long i = 0; i < totalBins; ++i){
+	  for(unsigned long i = 0; i < totalBins(); ++i){
 	    //Get the value and error
 	    std::pair<double, double> val = fvalue(i, indexes);
 
@@ -2392,13 +2313,13 @@ namespace penred{
 	  
 	  //Iterate all bins
 	  unsigned long k = 0;
-	  while(k < totalBins){
+	  while(k < totalBins()){
 
 	    //Create the files to store the next data plane
 	    std::string baseFilename = prefix;
 	    if(printOnlyEffective){
 	      for(size_t idim = 2; idim < dim; ++idim){
-		if(nBins[idim] > 1) //Add only efective dimensions to filename
+		if(grid.nBins[idim] > 1) //Add only efective dimensions to filename
 		  baseFilename += "_" + std::to_string(indexes[idim]);
 	      }
 	    }
@@ -2417,8 +2338,8 @@ namespace penred{
 	    }
 
 	    //Iterate the first two dimensions
-	    for(size_t j = 0; j < nBins[1]; ++j){
-	      for(size_t i = 0; i < nBins[0]; ++i){
+	    for(size_t j = 0; j < grid.nBins[1]; ++j){
+	      for(size_t i = 0; i < grid.nBins[0]; ++i){
 		//Get the value and error
 		std::pair<double, double> val = fvalue(k, indexes);
 	    
@@ -2441,7 +2362,7 @@ namespace penred{
 
 	    //Check for other dimensions index increment
 	    for(size_t idim = 1; idim < dim; ++idim){
-	      if(indexes[idim] >= nBins[idim]){
+	      if(indexes[idim] >= grid.nBins[idim]){
 	      
 		indexes[idim] = 0;
 		if(idim < dim-1){
@@ -2471,9 +2392,6 @@ namespace penred{
 	initDims();
 	
 	std::string line;
-
-	// ** Dimensions
-	unsigned long readDim;
     
 	//Skip lines until "# Dimensions" is found
 	bool found = false;
@@ -2513,152 +2431,13 @@ namespace penred{
 	  return errors::DIMENSION_NOT_FOUND;
 	}
 
-	//Read dimension
-	std::getline(in, line);
-	if(sscanf(line.c_str(), " %*c %lu", &readDim) != 1){
-	  return errors::DIMENSION_NOT_FOUND;
-	}
-
-	
-	// ** Number of bins
-	found = false;
-	while(std::getline(in, line)){
-	  if(line.find("# Number of bins:") == 0){
-	    found = true;
-	    break;
-	  }
-	}
-
-	if(!found){
-	  return errors::NUMBER_OF_BINS_NOT_FOUND;
-	}
-
-	//Remove comment character
-	in.ignore(std::numeric_limits<std::streamsize>::max(), '#');
-	
-	//Read number of bins for each file dimension	
-	std::vector<unsigned long> readNBins(readDim);
-	for(size_t i = 0; i < readDim; ++i){
-	  in >> readNBins[i];
-	  if(!in){
-	    return errors::NUMBER_OF_BINS_NOT_FOUND;
-	  }
-	  if(readNBins[i] == 0){
-	    return errors::INVALID_NUMBER_OF_BINS;
-	  }
-	}
-
-	//Count effective dimensions
-	unsigned long readEffectiveDim = 0;
-	for(size_t i = 0; i < readDim; ++i){
-	  if(readNBins[i] > 1){
-	    ++readEffectiveDim;
-	  }
-	}
-
-	// * Check dimensions
-	bool readEffective = false;
-	if(readDim > dim){
-	  if(readEffectiveDim <= dim)
-	    readEffective = true;
-	  else
-	    return errors::DIMENSION_MISMATCH;
-	}
-
-	//Set number of bins
-	if(readEffective){
-	  size_t j = 0;
-	  for(size_t i = 0; i < readDim; ++i){
-	    if(readNBins[i] > 1){
-	      nBins[j++] = readNBins[i];
-	    }
-	  }
-	}
-	else{
-	  for(size_t i = 0; i < readDim; ++i){
-	    nBins[i] = readNBins[i];
-	  }
-	}
-
-	//Calculate total number of bins
-	totalBins = std::accumulate(nBins.begin(),
-				    nBins.end(), 1ul,
-				    std::multiplies<unsigned long>());
-
-	if(totalBins == 0ul)
-	  return errors::INVALID_NUMBER_OF_BINS;    
-
-	//Calculate bins per increment in each dimension
-	binsPerIncrement[0] = 1;
-	for(size_t i = 1; i < dim; ++i){
-	  binsPerIncrement[i] = binsPerIncrement[i-1]*nBins[i-1];
-	}
-    
-	//Skip line
-	in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-
-	// ** Limits
-	found = false;
-	while(std::getline(in, line)){
-	  if(line.find("# Limits [low,top):") == 0){
-	    found = true;
-	    break;
-	  }
-	}
-
-	if(!found){
-	  return errors::LIMITS_NOT_FOUND;
-	}
-
-	//Read limits
-	size_t j = 0;
-	for(size_t i = 0; i < readDim; ++i){
-	  if(readEffective && readNBins[i] == 1){
-	    //Skip line
-	    in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-	  }
-	  else{
-	    //Read limits
-	    std::getline(in, line);
-
-	    //Create a buffer from this line
-	    std::stringstream ssline;
-	    ssline.str(line);
-
-	    //Skip comment character
-	    ssline.ignore(std::numeric_limits<std::streamsize>::max(), '#');
-
-	    //Read low limit
-	    ssline >> limits[j].first;
-	    if(!ssline){
-	      return errors::LIMITS_NOT_FOUND;
-	    }
-
-	    //Read top limit
-	    ssline >> limits[j].second;
-	    if(!ssline){
-	      return errors::LIMITS_NOT_FOUND;
-	    }
-
-	    //Read dimension header
-	    std::getline(ssline,headers[j]);
-
-	    if(headers[j].length() > 2){
-	      //Trim header right spaces
-	      headers[j] = trim(headers[j]);
-	    }
-	    
-	    if(limits[j].first >= limits[j].second){
-	      return errors::INVALID_LIMITS;
-	    }
-	    ++j;
-	  }
-	}
-
-	//Calculate bin widths
-	for(size_t i = 0; i < dim; ++i){
-	  binWidths[i] = (limits[i].second - limits[i].first)/static_cast<double>(nBins[i]);
-	}    
+    std::array<std::string, dim> dimHeaders;
+    unsigned long readEffectiveDim;
+    int err = grid.loadDims(in, dimHeaders, readEffectiveDim);
+    if(err != errors::SUCCESS)
+      return err;
+    for(size_t d = 0; d < dim; ++d)
+      headers[d] = dimHeaders[d];
 
 	// ** Sigma
 	found = false;
@@ -2705,8 +2484,8 @@ namespace penred{
 	}
 	
 	// ** Data
-	data.resize(totalBins);
-	sigma.resize(totalBins);
+	data.resize(totalBins());
+	sigma.resize(totalBins());
 
 	//Read the first non comment line (First data bin)
 	found = false;
@@ -2768,7 +2547,7 @@ namespace penred{
 	sigma[0] /= nSigmas;
 
     
-	for(unsigned long i = 1; i < totalBins; ++i){
+	for(unsigned long i = 1; i < totalBins(); ++i){
 
 	  //Skip coordinate and bin numbers
 	  for(size_t iskip = 0; iskip < toSkip; ++iskip){
@@ -2793,12 +2572,21 @@ namespace penred{
       
     };
     
-    template<class type, size_t dim = 1>
-    class results : public multiDimension<dim>{
+    template<class type, size_t dim = 1, class Grid = grids::RegularGrid<dim>>
+    class results : public multiDimension<dim, Grid>{
+
+      void resetData(){
+        //Resize vectors
+        data.resize(this->totalBins());
+        std::fill(data.begin(), data.end(), static_cast<type>(0));
+
+        sigma.resize(this->totalBins());
+        std::fill(sigma.begin(), sigma.end(), 0.0);
+      }
       
     public:
 
-      template<class T, size_t D> friend class results;
+      template<class T, size_t D, class G> friend class results;
       
       std::vector<type> data;
       std::vector<double> sigma;
@@ -2819,6 +2607,20 @@ namespace penred{
       const std::vector<type>& readData() const { return data; }
       const std::vector<double>& readSigma() const { return sigma; }
 
+      //Init functions
+      template<size_t dimInit>
+      inline int init(const std::array<unsigned long, dimInit>& nBinsIn,
+                      const std::array<std::vector<double>, dimInit>& edgesIn){
+	
+        //Init dimensions
+        int err = this->initDims(nBinsIn, edgesIn);
+    	if(err != errors::SUCCESS)
+          return err;
+
+        resetData();
+        return errors::SUCCESS;    
+      }
+            
       inline int init(const std::vector<unsigned long>& nBinsIn,
 		      const std::vector<std::pair<double, double>>& limitsIn){
 
@@ -2827,13 +2629,7 @@ namespace penred{
 	if(err != errors::SUCCESS)
 	  return err;
     
-	//Resize vectors
-	data.resize(this->totalBins);
-	std::fill(data.begin(), data.end(), static_cast<type>(0));
-
-	sigma.resize(this->totalBins);
-	std::fill(sigma.begin(), sigma.end(), 0.0);
-
+    resetData();
 	return errors::SUCCESS;
       }
 
@@ -2848,7 +2644,7 @@ namespace penred{
 	  return err;
 
 	//Check dimensions
-	if(dataIn.size() != this->totalBins || sigmaIn.size() != this->totalBins){
+	if(dataIn.size() != this->totalBins() || sigmaIn.size() != this->totalBins()){
 	  return errors::DIMENSION_MISMATCH; 
 	}
 	
@@ -2868,18 +2664,18 @@ namespace penred{
 	  return err;
     
 	//Resize vectors
-	data.resize(this->totalBins);
+	data.resize(this->totalBins());
 	std::fill(data.begin(), data.end(), static_cast<type>(0));
 
-	sigma.resize(this->totalBins);
+	sigma.resize(this->totalBins());
 	std::fill(sigma.begin(), sigma.end(), 0.0);
 
 	return errors::SUCCESS;    
       }
 
       template<size_t dimInit>
-      inline int init(const results<type, dimInit>& c){
-	return init(c.nBins, c.limits);
+      inline int init(const results<type, dimInit, Grid>& c){
+        return init(c.grid.nBins, c.grid.getInitEdges());
       }
 
       template<size_t binDims, size_t limitsDims>
@@ -2940,27 +2736,7 @@ namespace penred{
         std::array<unsigned long, dim> lowerIdx;
         std::array<unsigned long, dim> upperIdx;
         std::array<double, dim> fractions;
-    
-        for(size_t d = 0; d < dim; ++d) {
-          // Handle out-of-bounds with clamping
-          if(position[d] < this->limits[d].first) {
-            // Below lower limit, use first bin
-            lowerIdx[d] = 0;
-            upperIdx[d] = 0;
-            fractions[d] = 0.0;
-          } else if(position[d] >= this->limits[d].second) {
-            // Above upper limit, use last bin
-            lowerIdx[d] = this->nBins[d] - 1;
-            upperIdx[d] = this->nBins[d] - 1;
-            fractions[d] = 0.0;
-          } else {
-            // Inside range, find bracketing bins
-            double fracIdx = (position[d] - this->limits[d].first) / this->binWidths[d];
-            lowerIdx[d] = static_cast<unsigned long>(fracIdx);
-            upperIdx[d] = std::min(lowerIdx[d] + 1, this->nBins[d] - 1);
-            fractions[d] = fracIdx - lowerIdx[d];
-          }
-        }
+        this->grid.bracket(position, lowerIdx, upperIdx, fractions);
     
         // Perform multi-linear interpolation
         // Number of corners in the hypercube: 2^dim
@@ -3043,7 +2819,7 @@ namespace penred{
       typename std::enable_if_t<auxDim == 0 && dim == 0, int>      
       extractSpectrum1D(const unsigned,
                         const std::array<double, 0>&,
-                        results<type, 1>& spectrum) const {
+                        results<type, 1, grids::rebind_t<1,Grid>>& spectrum) const {
         // Handle no dimension case specially
         return errors::DIMENSION_OUT_OF_RANGE;
       }
@@ -3052,7 +2828,7 @@ namespace penred{
       typename std::enable_if_t<auxDim == 1 && dim == 1, int>      
       extractSpectrum1D(const unsigned,
                         const std::array<double, dim-1>&,
-                        results<type, 1>& spectrum) const {
+                        results<type, 1, grids::rebind_t<1,Grid>>& spectrum) const {
         // Handle 1D case specially (just copy)
         spectrum = *this;
         return errors::SUCCESS;
@@ -3062,53 +2838,40 @@ namespace penred{
       typename std::enable_if_t<(auxDim > 1 && dim > 1), int>
       extractSpectrum1D(const unsigned spectrumDim,
                         const std::array<double, dim-1>& position,
-                        results<type, 1>& spectrum) const {
+                        results<type, 1, grids::rebind_t<1,Grid>>& spectrum) const {
     
         // Validate spectrum dimension
         if(spectrumDim >= dim) {
           return errors::DIMENSION_OUT_OF_RANGE;
         }
-    
+
+        //Create an auxiliary position vector with all dimensions
+        std::array<double, dim> auxPos; 
+        for(size_t d = 0; d < spectrumDim; ++d){
+          auxPos[d] = position[d];
+        }
+        auxPos[spectrumDim] = 1.0e-35; //dummy
+        for(size_t d = spectrumDim+1; d < dim; ++d){
+          auxPos[d] = position[d-1];
+        }
+        
         // Find bracketing indices and fractions for fixed dimensions
+          
         std::array<unsigned long, dim> lowerIdx;
         std::array<unsigned long, dim> upperIdx;
         std::array<double, dim> fractions;
+
+        this->grid.bracket(auxPos, lowerIdx, upperIdx, fractions);
     
         // For the spectrum dimension, we'll iterate over all bins
         lowerIdx[spectrumDim] = 0;
         upperIdx[spectrumDim] = 0;
         fractions[spectrumDim] = 0.0;
     
-        // For all other dimensions, find bracketing bins
-        size_t posIdx = 0;
-        for(size_t d = 0; d < dim; ++d) {
-          if(d == spectrumDim) continue;
-        
-          double coord = position[posIdx];
-        
-          // Handle out-of-bounds gracefully with clamping
-          if(coord < this->limits[d].first) {
-            lowerIdx[d] = 0;
-            upperIdx[d] = 0;
-            fractions[d] = 0.0;
-          } else if(coord >= this->limits[d].second) {
-            lowerIdx[d] = this->nBins[d] - 1;
-            upperIdx[d] = this->nBins[d] - 1;
-            fractions[d] = 0.0;
-          } else {
-            double fracIdx = (coord - this->limits[d].first) / this->binWidths[d];
-            lowerIdx[d] = static_cast<unsigned long>(fracIdx);
-            upperIdx[d] = std::min(lowerIdx[d] + 1, this->nBins[d] - 1);
-            fractions[d] = fracIdx - lowerIdx[d];
-          }
-        
-          posIdx++;
-        }
-    
         // Initialize 1D spectrum
-        std::array<unsigned long, 1> spectrumBins = {this->nBins[spectrumDim]};
-        std::array<std::pair<double,double>, 1> spectrumLimits = {this->limits[spectrumDim]};
-        int err = spectrum.init(spectrumBins, spectrumLimits);
+        std::array<unsigned long, 1> spectrumBins = {this->getNBins(spectrumDim)};
+        std::array<std::vector<double>, 1> spectrumEdges = {this->grid.getInitEdges()[spectrumDim]};
+        int err = spectrum.init(spectrumBins, spectrumEdges);
         if(err != errors::SUCCESS) {
           return err;
         }
@@ -3124,7 +2887,7 @@ namespace penred{
         const unsigned long nCorners = 1ul << (dim - 1ul);
     
         // Iterate over all bins in the spectrum dimension
-        for(unsigned long ibin = 0; ibin < this->nBins[spectrumDim]; ++ibin) {
+        for(unsigned long ibin = 0; ibin < this->getNBins(spectrumDim); ++ibin) {
           double value = 0.0;
           double sigma2 = 0.0;
         
@@ -3164,7 +2927,7 @@ namespace penred{
 
       inline int extractSpectrum1D(const unsigned spectrumDim,
                                    const std::vector<double>& position,
-                                   results<type, 1>& spectrum) const{
+                                   results<type, 1, grids::rebind_t<1,Grid>>& spectrum) const{
         if(position.size() != dim-1){
           return errors::DIMENSION_MISMATCH;
         }
@@ -3178,7 +2941,7 @@ namespace penred{
       typename std::enable_if_t<auxDim == 4 && dim == 4, int>
       extractSpectrum1D(const unsigned spectrumDim,
                         const double coord1, const double coord2, const double coord3,
-                        results<type, 1>& spectrum) const{
+                        results<type, 1, grids::rebind_t<1,Grid>>& spectrum) const{
         const std::array<double, 3> position = {coord1, coord2, coord3};
         return extractSpectrum1D(spectrumDim,position,spectrum);
       }
@@ -3187,7 +2950,7 @@ namespace penred{
       typename std::enable_if_t<auxDim == 3 && dim == 3, int>
       extractSpectrum1D(const unsigned spectrumDim,
                         const double coord1, const double coord2,
-                        results<type, 1>& spectrum) const{
+                        results<type, 1, grids::rebind_t<1,Grid>>& spectrum) const{
         const std::array<double, 2> position = {coord1, coord2};
         return extractSpectrum1D(spectrumDim,position,spectrum);
       }
@@ -3196,7 +2959,7 @@ namespace penred{
       typename std::enable_if_t<auxDim == 2 && dim == 2, int>
       extractSpectrum1D(const unsigned spectrumDim,
                         const double coord,
-                        results<type, 1>& spectrum) const{
+                        results<type, 1, grids::rebind_t<1,Grid>>& spectrum) const{
         const std::array<double, 1> position = {coord};
         return extractSpectrum1D(spectrumDim,position,spectrum);
       }
@@ -3204,97 +2967,86 @@ namespace penred{
       //Profile functions
       template<size_t profDim>
       int profileByBins(const std::array<size_t, profDim>& profDimsIndex,
-			const std::array<std::pair<unsigned long, unsigned long>, dim>& binLimits,
-			results<type, profDim>& profile) const {
+                        const std::array<std::pair<unsigned long, unsigned long>, dim>& binLimits,
+                        results<type, profDim, grids::rebind_t<profDim,Grid>>& profile) const {
 
-	//Create a profile at the dimension "ibin" using
-	//the bin range [minBin, maxBin) in that dimension
+        //Create a profile restricting grid dimensions to those listed at 'profDimsIndex'.
+        //Only bins within the specified bin limits will be considered
 
-	//Check profile dimension
-	if(profDim > dim){
-	  return errors::DIMENSION_OUT_OF_RANGE;
-	}
-	for(size_t i = 0; i < profDim; ++i){
-	  if(profDimsIndex[i] >= dim)
-	    return errors::DIMENSION_OUT_OF_RANGE;
-	}
-	for(size_t i = 0; i < profDim-1; ++i){
-	  for(size_t j = i+1; j < profDim; ++j){
-	    if(profDimsIndex[i] == profDimsIndex[j])
-	    return errors::DIMENSION_REPEATED;
-	  }
-	}
+        //Check profile dimension
+        if(profDim > dim){
+          return errors::DIMENSION_OUT_OF_RANGE;
+        }
+        for(size_t i = 0; i < profDim; ++i){
+          if(profDimsIndex[i] >= dim)
+            return errors::DIMENSION_OUT_OF_RANGE;
+        }
+        for(size_t i = 0; i < profDim-1; ++i){
+          for(size_t j = i+1; j < profDim; ++j){
+            if(profDimsIndex[i] == profDimsIndex[j])
+              return errors::DIMENSION_REPEATED;
+          }
+        }
 
-	//Calculate profile bins
-	std::array<unsigned long, profDim> profileBins;
-	for(size_t i = 0; i < profDim; ++i){
-	  profileBins[i] =
-	    binLimits[profDimsIndex[i]].second - binLimits[profDimsIndex[i]].first;
-	}
-
-	//Calculate profile limits
-	std::array<std::pair<double,double>, profDim> profileLimits;
-	for(size_t i = 0; i < profDim; ++i){
-	  size_t profIndex = profDimsIndex[i];
-	  profileLimits[i].first = this->limits[profIndex].first + 
-	    static_cast<double>(binLimits[profIndex].first)*this->binWidths[profIndex];
-	  profileLimits[i].second = this->limits[profIndex].first + 
-	    static_cast<double>(binLimits[profIndex].second)*this->binWidths[profIndex];
-	}
+        std::array<unsigned long, profDim> profileBins;
+        std::array<std::vector<double>, profDim> profileEdges;
+        int err = this->grid.getProfileInit(profDimsIndex, binLimits, profileBins, profileEdges);
+        if(err != errors::SUCCESS){
+          return err;
+        }
 	
-	//Init profile
-	profile.init(profileBins,
-		     profileLimits);
+        //Init profile
+        profile.init(profileBins, profileEdges);
 
-	//Set headers
-	for(size_t i = 0; i < profDim; ++i){
-	  profile.setDimHeader(i,this->headers[profDimsIndex[i]]);
-	}
-	profile.setValueHeader(this->headers[dim]);
-	profile.setSigmaHeader(this->headers[dim+1]);
-    profile.title = this->title;
-    profile.description = this->description;
+        //Set headers
+        for(size_t i = 0; i < profDim; ++i){
+          profile.setDimHeader(i,this->headers[profDimsIndex[i]]);
+        }
+        profile.setValueHeader(this->headers[dim]);
+        profile.setSigmaHeader(this->headers[dim+1]);
+        profile.title = this->title;
+        profile.description = this->description;
 
-	int err = this->
-	  forEach(binLimits,
-		  [this, &profDimsIndex, &binLimits, &profile]
-		  (const unsigned long globIndex,
-		   const std::array<unsigned long, dim>& indexes) -> void{
+        err = this->
+          forEach(binLimits,
+                  [this, &profDimsIndex, &binLimits, &profile]
+                  (const unsigned long globIndex,
+                   const std::array<unsigned long, dim>& indexes) -> void{
 
-		    //Calculate profile local indexes
-		    std::array<unsigned long, profDim> profIndexes;
-		    for(size_t i = 0; i < profDim; ++i){
-		      profIndexes[i] =
-			indexes[profDimsIndex[i]] - binLimits[profDimsIndex[i]].first;
-		    }
+                    //Calculate profile local indexes
+                    std::array<unsigned long, profDim> profIndexes;
+                    for(size_t i = 0; i < profDim; ++i){
+                      profIndexes[i] =
+                        indexes[profDimsIndex[i]] - binLimits[profDimsIndex[i]].first;
+                    }
 		    
-		    //Calculate profile global indexes
-		    const unsigned long iprof = profile.getGlobalIndex(profIndexes);
+                    //Calculate profile global indexes
+                    const unsigned long iprof = profile.getGlobalIndex(profIndexes);
 
-		    //Add contribution
-		    profile.data[iprof]  += data[globIndex];
-		    profile.sigma[iprof] += sigma[globIndex]*sigma[globIndex];    
+                    //Add contribution
+                    profile.data[iprof]  += data[globIndex];
+                    profile.sigma[iprof] += sigma[globIndex]*sigma[globIndex];    
 			    
-		  });
-	if(err != errors::SUCCESS)
-	  return err;
+                  });
+        if(err != errors::SUCCESS)
+          return err;
 
-	//Obtain final sigma for each bin
-	for(unsigned long iprof = 0; iprof < profile.getNBins(); ++iprof){
-	  profile.sigma[iprof] = sqrt(profile.sigma[iprof]);
-	}
+        //Obtain final sigma for each bin
+        for(unsigned long iprof = 0; iprof < profile.getNBins(); ++iprof){
+          profile.sigma[iprof] = sqrt(profile.sigma[iprof]);
+        }
 	
-	return errors::SUCCESS;
+        return errors::SUCCESS;
       }
 
       template<size_t profDim>
       int profileByBins(const std::array<size_t, profDim>& profDimsIndex,
 			const std::vector<std::array<unsigned long, 3>>& binLimits,
-			results<type, profDim>& profile) const {
+                        results<type, profDim, grids::rebind_t<profDim,Grid>>& profile) const {
 
 	std::array<std::pair<unsigned long, unsigned long>, dim> auxBinLimits;
 	for(size_t i = 0; i < dim; ++i)
-	  auxBinLimits[i] = std::pair<unsigned long, unsigned long>(0lu, this->nBins[i]);
+	  auxBinLimits[i] = std::pair<unsigned long, unsigned long>(0lu, this->grid.nBins[i]);
 
 	for(size_t i = 0; i < binLimits.size(); ++i){
 	  unsigned long idim = binLimits[i][0];
@@ -3310,7 +3062,7 @@ namespace penred{
 
       inline int profile1D(const unsigned long profDim,
 			   const std::array<std::pair<unsigned long, unsigned long>, dim>& binLimits,
-			   results<type, 1>& profile) const{
+                           results<type, 1, grids::rebind_t<1,Grid>>& profile) const{
 	std::array<size_t, 1> aux;
 	aux[0] = profDim;
 	return profileByBins(aux, binLimits, profile);
@@ -3318,14 +3070,14 @@ namespace penred{
 
       inline int profile1D(const unsigned long profDim,
 			   const std::vector<std::array<unsigned long, 3>>& binLimits,
-			   results<type, 1>& profile) const{
+                           results<type, 1, grids::rebind_t<1,Grid>>& profile) const{
 	std::array<size_t, 1> aux;
 	aux[0] = profDim;
 	return profileByBins(aux, binLimits, profile);
       }
 
       inline int profile1D(const unsigned long profDim,
-			   results<type, 1>& profile) const{
+                           results<type, 1, grids::rebind_t<1,Grid>>& profile) const{
 	std::array<size_t, 1> aux;
 	aux[0] = profDim;
 
@@ -3338,7 +3090,7 @@ namespace penred{
 	return profileByBins(aux, binLimits, profile);
       }
 
-      inline int to1D(results<type, 1>& profile) const {
+      inline int to1D(results<type, 1, grids::rebind_t<1,Grid>>& profile) const {
         //Create a 1D results from the actual one. The effecite dimension of the
         //current results must be equal to 1
 
@@ -3365,7 +3117,7 @@ namespace penred{
       int profile2D(const unsigned long profDim1,
                     const unsigned long profDim2,
                     const std::array<std::pair<unsigned long, unsigned long>, dim>& binLimits,
-                    results<type, 2>& profile) const {
+                    results<type, 2, grids::rebind_t<2,Grid>>& profile) const {
     
         // Check that the two profile dimensions are different
         if(profDim1 == profDim2) {
@@ -3390,7 +3142,7 @@ namespace penred{
       inline int profile2D(const unsigned long profDim1,
                            const unsigned long profDim2,
                            const std::vector<std::array<unsigned long, 3>>& binLimits,
-                           results<type, 2>& profile) const {
+                           results<type, 2, grids::rebind_t<2,Grid>>& profile) const {
     
         // Check that the two profile dimensions are different
         if(profDim1 == profDim2) {
@@ -3414,7 +3166,7 @@ namespace penred{
       // Profile to 2D with no bin limits (full range)
       int profile2D(const unsigned long profDim1,
                     const unsigned long profDim2,
-                    results<type, 2>& profile) const {
+                    results<type, 2, grids::rebind_t<2,Grid>>& profile) const {
     
         // Check that the two profile dimensions are different
         if(profDim1 == profDim2) {
@@ -3442,7 +3194,7 @@ namespace penred{
         return profileByBins(profDimsIndex, binLimits, profile);
       }
 
-      inline int to2D(results<type, 2>& profile) const {
+      inline int to2D(results<type, 2, grids::rebind_t<2,Grid>>& profile) const {
         //Create a 2D results from the actual one. The effecite dimension of the
         //current results must be equal to 2
 
@@ -3477,26 +3229,14 @@ namespace penred{
                         interpolation::CubicSpline<type>& spline) const {
     
         // Create 1D profile first
-        results<type, 1> profile;
+        results<type, 1, grids::rebind_t<1,Grid>> profile;
         int err = profile1D(profDim, binLimits, profile);
         if(err != errors::SUCCESS) {
           return err;
         }
-    
-        // Extract X values and Y values
-        std::vector<double> xVals(profile.getNBins());
-        std::vector<type> yVals(profile.getNBins());
-    
-        const double xLow = profile.readLimits()[0].first;
-        const double binWidth = profile.readBinWidth(0);
-    
-        for(unsigned long i = 0; i < profile.getNBins(); ++i) {
-          xVals[i] = xLow + static_cast<double>(i) * binWidth;
-          yVals[i] = profile.data[i];
-        }
-    
+        
         // Initialize spline
-        return spline.init(xVals, yVals);
+        return spline.init(profile.grid.getEdges(false)[0], profile.data);
       }
 
       // Overload with vector bin limits
@@ -3507,7 +3247,7 @@ namespace penred{
         // Convert vector limits to array limits
         std::array<std::pair<unsigned long, unsigned long>, dim> auxBinLimits;
         for(size_t i = 0; i < dim; ++i) {
-          auxBinLimits[i] = std::pair<unsigned long, unsigned long>(0lu, this->nBins[i]);
+          auxBinLimits[i] = std::pair<unsigned long, unsigned long>(0lu, this->grid.nBins[i]);
         }
     
         for(size_t i = 0; i < binLimits.size(); ++i) {
@@ -3542,41 +3282,17 @@ namespace penred{
                         interpolation::BicubicSpline<type>& spline) const {
     
         // Create 2D profile first
-        results<type, 2> profile;
+        results<type, 2, grids::rebind_t<2,Grid>> profile;
         int err = profile2D(profDim1, profDim2, binLimits, profile);
         if(err != errors::SUCCESS) {
           return err;
         }
-    
-        // Extract X and Y values
-        const unsigned long nx = profile.readDimBins()[0];
-        const unsigned long ny = profile.readDimBins()[1];
-    
-        std::vector<double> xVals(nx);
-        std::vector<double> yVals(ny);
-        std::vector<type> values(nx * ny);
-    
-        const double xLow = profile.readLimits()[0].first;
-        const double xWidth = profile.readBinWidth(0);
-        const double yLow = profile.readLimits()[1].first;
-        const double yWidth = profile.readBinWidth(1);
-    
-        // Fill x values
-        for(unsigned long i = 0; i < nx; ++i) {
-          xVals[i] = xLow + static_cast<double>(i) * xWidth;
-        }
-    
-        // Fill y values
-        for(unsigned long j = 0; j < ny; ++j) {
-          yVals[j] = yLow + static_cast<double>(j) * yWidth;
-        }
 
-    
-        // Fill z values (2D matrix)
-        values = profile.data;
-    
+        //Get profile edges
+        const std::array<std::vector<double>, 2> edges = profile.grid.getEdges(false);
+
         // Initialize bicubic spline
-        return spline.init(xVals, yVals, values);
+        return spline.init(edges[0], edges[1], profile.data);
       }
 
       // Overload with vector bin limits
@@ -3588,7 +3304,7 @@ namespace penred{
         // Convert vector limits to array limits
         std::array<std::pair<unsigned long, unsigned long>, dim> auxBinLimits;
         for(size_t i = 0; i < dim; ++i) {
-          auxBinLimits[i] = std::pair<unsigned long, unsigned long>(0lu, this->nBins[i]);
+          auxBinLimits[i] = std::pair<unsigned long, unsigned long>(0lu, this->grid.nBins[i]);
         }
     
         for(size_t i = 0; i < binLimits.size(); ++i) {
@@ -3640,7 +3356,7 @@ namespace penred{
         // Compute sum and its variance
         double sum = 0.0;
         double sumVar = 0.0;
-        for(unsigned long i = 0; i < this->totalBins; ++i) {
+        for(unsigned long i = 0; i < this->totalBins(); ++i) {
 
           const double xi = static_cast<double>(data[i]);
           const double si = sigma[i];
@@ -3662,7 +3378,7 @@ namespace penred{
         const double invSum2  = invSum*invSum;
         const double sigmaSum2 = sumVar;   // σ_S²
 
-        for(unsigned long i = 0; i < this->totalBins; ++i) {
+        for(unsigned long i = 0; i < this->totalBins(); ++i) {
           const double xi = static_cast<double>(data[i]);
           const double si = sigma[i];
           const double si2 = si*si;
@@ -3701,7 +3417,7 @@ namespace penred{
        * @param o     Histogram to subtract.
        * @return errors::SUCCESS, or errors::DIMENSION_MISMATCH.
        */
-      inline int subtract(results<type, dim>& dres, const results<type, dim>& o) const {
+      inline int subtract(results<type, dim, Grid>& dres, const results<type, dim, Grid>& o) const {
 
         //Check compatibility
         if(!this->compatibleDims(o)){
@@ -3712,11 +3428,11 @@ namespace penred{
         dres = *this;
 
         //Compute differences
-        for(size_t i = 0; i < this->totalBins; ++i){
+        for(size_t i = 0; i < this->totalBins(); ++i){
           const double si = dres.sigma[i];          
           dres.sigma[i] = std::sqrt( si*si + o.sigma[i]*o.sigma[i] );
         }
-        for(size_t i = 0; i < this->totalBins; ++i){
+        for(size_t i = 0; i < this->totalBins(); ++i){
           dres.data[i] -= o.data[i];
         }
 
@@ -3744,7 +3460,7 @@ namespace penred{
        * @return errors::SUCCESS, or errors::CORRUPTED_DATA if v or s is not
        *         finite.
        */      
-      inline int subtract(results<type, dim>& dres, const type v, const double s) const {
+      inline int subtract(results<type, dim, Grid>& dres, const type v, const double s) const {
 
         if(!std::isfinite(static_cast<double>(v)) || !std::isfinite(s) || s < 0.0) {
           return errors::CORRUPTED_DATA;
@@ -3754,11 +3470,11 @@ namespace penred{
         dres = *this;
 
         //Compute differences
-        for(size_t i = 0; i < this->totalBins; ++i){
+        for(size_t i = 0; i < this->totalBins(); ++i){
           const double si = dres.sigma[i];          
           dres.sigma[i] = std::sqrt( si*si + s*s );
         }
-        for(size_t i = 0; i < this->totalBins; ++i){
+        for(size_t i = 0; i < this->totalBins(); ++i){
           dres.data[i] -= v;
         }
 
@@ -3798,8 +3514,8 @@ namespace penred{
        * @param threshold  Absolute threshold below which |y_i| is treated as 0.
        * @return errors::SUCCESS, or errors::DIMENSION_MISMATCH.
        */      
-      inline int relative(results<type, dim>& dres,
-                          const results<type, dim>& o,
+      inline int relative(results<type, dim, Grid>& dres,
+                          const results<type, dim, Grid>& o,
                           const double subValue = 0.0,
                           const type div0To = static_cast<type>(0),
                           const double threshold = 1.0e-20) const {
@@ -3813,7 +3529,7 @@ namespace penred{
         dres = *this;
 
         //Compute
-        for(size_t i = 0; i < this->totalBins; ++i){
+        for(size_t i = 0; i < this->totalBins(); ++i){
           const double oVal = static_cast<double>(o.data[i]);
           if(std::fabs(oVal) < threshold){
             dres.sigma[i] = 0.0;
@@ -3869,7 +3585,7 @@ namespace penred{
        *
        * @note The reference value v is treated as a single scalar, not as a
        *       per-bin histogram. For a bin-by-bin reference, use the overload
-       *       that takes a results<type, dim> object.
+       *       that takes a results<type, dim, Grid> object.
        *
        * @note Assumes x and v are statistically independent. If v is derived
        *       from the same data as x, the covariance term is omitted and the
@@ -3879,7 +3595,7 @@ namespace penred{
        *       For large relative uncertainties on v, the true distribution of
        *       the ratio is skewed and this formula underestimates the spread.
        */      
-      inline int relative(results<type, dim>& dres,
+      inline int relative(results<type, dim, Grid>& dres,
                           const double v,
                           const double s,
                           const double subValue = 0.0) const {
@@ -3893,7 +3609,7 @@ namespace penred{
         dres = *this;
 
         //Compute
-        for(size_t i = 0; i < this->totalBins; ++i){
+        for(size_t i = 0; i < this->totalBins(); ++i){
             const double iVal = 1.0/v;
             const double iVal2 = iVal*iVal;
             const double xi = static_cast<double>(dres.data[i]);
@@ -3957,8 +3673,8 @@ namespace penred{
       
     };
 
-    template<class type, size_t dim = 1>
-    class measurement : public multiDimension<dim>{
+    template<class type, size_t dim = 1, class Grid = grids::RegularGrid<dim>>
+    class measurement : public multiDimension<dim, Grid>{
 
       static_assert(dim <= maxDims,
 		    "penred::measurements: "
@@ -3970,10 +3686,25 @@ namespace penred{
       std::vector<type> data2;      
       std::vector<type> tmp;
       std::vector<unsigned long long> lastHist;
+
+      void resetData(){
+        //Resize vectors
+        data.resize(this->totalBins());
+        std::fill(data.begin(), data.end(), static_cast<type>(0));
+
+        data2.resize(this->totalBins());
+        std::fill(data2.begin(), data2.end(), static_cast<type>(0));
+
+        tmp.resize(this->totalBins());
+        std::fill(tmp.begin(), tmp.end(), static_cast<type>(0));
+
+        lastHist.resize(this->totalBins());
+        std::fill(lastHist.begin(), lastHist.end(), 0ull);        
+      }
       
     public:
 
-      template<class T, size_t D> friend class measurement;
+      template<class T, size_t D, class G> friend class measurement;
       
       static constexpr size_t dimensions = dim;
 
@@ -3997,60 +3728,53 @@ namespace penred{
       inline std::vector<type>& getData2() { return data2; }
 
       //Init functions
-      inline int init(const std::vector<unsigned long>& nBinsIn,
-		      const std::vector<std::pair<double, double>>& limitsIn){
+      template<size_t dimInit>
+      inline int init(const std::array<unsigned long, dimInit>& nBinsIn,
+                      const std::array<std::vector<double>, dimInit>& edgesIn){
 	
-	//Init dimensions
-	int err = this->initDims(nBinsIn, limitsIn);
+        //Init dimensions
+        int err = this->initDims(nBinsIn, edgesIn);
     	if(err != errors::SUCCESS)
-	  return err;
+          return err;
 
-	//Resize vectors
-	data.resize(this->totalBins);
-	std::fill(data.begin(), data.end(), static_cast<type>(0));
+        resetData();
+        return errors::SUCCESS;    
+      }
+      
+      inline int init(const std::vector<unsigned long>& nBinsIn,
+                      const std::vector<std::pair<double, double>>& limitsIn){
+	
+        //Init dimensions
+        int err = this->initDims(nBinsIn, limitsIn);
+    	if(err != errors::SUCCESS)
+          return err;
 
-	data2.resize(this->totalBins);
-	std::fill(data2.begin(), data2.end(), static_cast<type>(0));
-
-	tmp.resize(this->totalBins);
-	std::fill(tmp.begin(), tmp.end(), static_cast<type>(0));
-
-	lastHist.resize(this->totalBins);
-	std::fill(lastHist.begin(), lastHist.end(), 0ull);
-
-
-	return errors::SUCCESS;    
+        resetData();        
+        return errors::SUCCESS;    
       }
       
       template<size_t dimInit>
       int init(const std::array<unsigned long, dimInit>& nBinsIn,
-	       const std::array<std::pair<double, double>, dimInit>& limitsIn){
+               const std::array<std::pair<double, double>, dimInit>& limitsIn){
 	
-	//Init dimensions
-	int err = this->initDims(nBinsIn, limitsIn);
+        //Init dimensions
+        int err = this->initDims(nBinsIn, limitsIn);
     	if(err != errors::SUCCESS)
-	  return err;
+          return err;
     
-	//Resize vectors
-	data.resize(this->totalBins);
-	std::fill(data.begin(), data.end(), static_cast<type>(0));
-
-	data2.resize(this->totalBins);
-	std::fill(data2.begin(), data2.end(), static_cast<type>(0));
-
-	tmp.resize(this->totalBins);
-	std::fill(tmp.begin(), tmp.end(), static_cast<type>(0));
-
-	lastHist.resize(this->totalBins);
-	std::fill(lastHist.begin(), lastHist.end(), 0ull);
-
-
-	return errors::SUCCESS;    
+        resetData();
+        return errors::SUCCESS;    
       }
 
       template<size_t dimInit>
-      inline int init(const measurement<type, dimInit>& c){
-	return init(c.nBins, c.limits);
+      inline int init(const measurement<type, dimInit, Grid>& c){
+        //Init dimensions
+        int err = this->initDims(c);
+    	if(err != errors::SUCCESS)
+          return err;
+
+        resetData();
+        return errors::SUCCESS;
       }
 
       template<size_t binDims, size_t limitsDims>
@@ -4106,20 +3830,13 @@ namespace penred{
 
 	//Check limits
 	for(size_t i = 0; i < dim; ++i){
-	  if(pos[i] < this->limits[i].first || pos[i] >= this->limits[i].second){
+	  if(pos[i] < this->grid.readLimits()[i].first || pos[i] >= this->grid.readLimits()[i].second){
 	    return;
 	  }
 	}
 
 	//Get indexes
-	std::array<unsigned long, dim> index;
-	for(size_t i = 0; i < dim; ++i){
-	  index[i] = (pos[i] - this->limits[i].first)/this->binWidths[i];
-      if(index[i] >= this->nBins[i]){ //Avoid index overflow due rounding
-        index[i] = this->nBins[i]-1;
-      }
-	}
-
+	const std::array<unsigned long, dim> index = this->grid.findBin(pos);
 
 	//Get global index
 	unsigned long globIndex = this->getGlobalIndex(index);
@@ -4142,17 +3859,17 @@ namespace penred{
 
       int add(const measurement<type,dim>& toAdd){
 
-	//Check number of bins
-	for(size_t i = 0; i < dim; ++i){
-	  if(this->nBins[i] != toAdd.nBins[i])
-	    return errors::DIMENSION_MISMATCH;
-	}
-	for(size_t i = 0; i < this->totalBins; ++i){
-	  data[i]  += toAdd.data[i];
-	  data2[i] += toAdd.data2[i];
-	}
+        //Check number of bins
+        if(!this->grid.sameBins(toAdd.grid)){
+          return errors::DIMENSION_MISMATCH;
+        }
 
-	return errors::SUCCESS;
+        for(size_t i = 0; i < this->totalBins(); ++i){
+          data[i]  += toAdd.data[i];
+          data2[i] += toAdd.data2[i];
+        }
+
+        return errors::SUCCESS;
       }
 
       /**
@@ -4160,7 +3877,7 @@ namespace penred{
        *        Must be called at the end of simulation processing and before extracting results.
        */      
       void flush(){
-	for(unsigned long i = 0; i < this->totalBins; ++i){
+	for(unsigned long i = 0; i < this->totalBins(); ++i){
 	  //Skip empty bins
 	  if(lastHist[i] == 0){continue;}
 
@@ -4176,38 +3893,38 @@ namespace penred{
 	}
       }
 
-      void results(const unsigned long long nhists, results<type, dim>& res) const {
+      void results(const unsigned long long nhists, results<type, dim, Grid>& res) const {
 
-	res.init(this->nBins, this->limits);
+        res.init(this->grid.nBins, this->grid.getInitEdges());
 
-	res.description = this->description;
-    res.title = this->title;
+        res.description = this->description;
+        res.title = this->title;
 
-	//Set headers
-	for(size_t idim = 0; idim < dim; ++idim){
-	  res.setDimHeader(idim, this->headers[idim]);
-	}
-	res.setValueHeader(this->headers[dim]);
-	res.setSigmaHeader(this->headers[dim+1]);
+        //Set headers
+        for(size_t idim = 0; idim < dim; ++idim){
+          res.setDimHeader(idim, this->headers[idim]);
+        }
+        res.setValueHeader(this->headers[dim]);
+        res.setSigmaHeader(this->headers[dim+1]);
 	
-	//Calculate normalization factor
-	const double factor = 1.0/static_cast<double>(nhists);
+        //Calculate normalization factor
+        const double factor = 1.0/static_cast<double>(nhists);
     
-	for(unsigned long i = 0; i < this->totalBins; ++i){
+        for(unsigned long i = 0; i < this->totalBins(); ++i){
 
-	  //Calculate resulting value and error
-	  const double q = data[i]*factor;
-	  double sigma = data2[i]*factor - q*q;
-	  if(sigma > 0.0){
-	    sigma = sqrt(sigma*factor);
-	  }
-	  else{
-	    sigma = 0.0;
-	  }
+          //Calculate resulting value and error
+          const double q = data[i]*factor;
+          double sigma = data2[i]*factor - q*q;
+          if(sigma > 0.0){
+            sigma = sqrt(sigma*factor);
+          }
+          else{
+            sigma = 0.0;
+          }
 
-	  res.data[i] = q;
-	  res.sigma[i] = sigma;
-	}
+          res.data[i] = q;
+          res.sigma[i] = sigma;
+        }
       }
 
       double errorRel(const unsigned long long nhists) const {
@@ -4217,7 +3934,7 @@ namespace penred{
 
 	unsigned long nonZero = 0;
 	double meanErel = 0.0;
-	for(unsigned long i = 0; i < this->totalBins; ++i){
+	for(unsigned long i = 0; i < this->totalBins(); ++i){
 
 	  //Calculate resulting value and error
 	  if(data[i] != 0.0){
@@ -4253,7 +3970,7 @@ namespace penred{
 	  return *this;
 
 	//Calculate the number of bins in previous dimensions
-	size_t nBinsPrevDim = this->binsPerIncrement[dim-1];
+	size_t nBinsPrevDim = this->grid.binsPerIncrement[dim-1];
 
 	//Copy the original measurement
 	measurement<type,dim> out = *this;
@@ -4359,11 +4076,12 @@ namespace penred{
     template <typename>
     struct is_results : std::false_type {};
 
-    template <typename T, size_t dim>
-    struct is_results<results<T, dim>> 
+    template <typename T, size_t dim, class G>
+    struct is_results<results<T, dim, G>> 
       : std::true_type {
       using value_type = T;
       static constexpr size_t dimension = dim;
+      using grid_type = G;
     };
 
     // ++ Traits to detect vectors

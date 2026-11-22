@@ -90,3 +90,5 @@ install(
   DESTINATION ${PROJECT_SOURCE_DIR}/compiled/tests/measurement
   )
 #-----------------------------------------------------------------------------
+
+add_subdirectory(specific)

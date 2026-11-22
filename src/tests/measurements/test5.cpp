@@ -194,13 +194,13 @@ void test_multidimension_boundary_clamping() {
     std::pair<size_t, double> query(double x) {
       size_t lowerIdx = 0;
       double t = 0.0;
-      double fracIdx = (x - this->limits[0].first) / this->binWidths[0];
+      double fracIdx = (x - this->grid.limits[0].first) / this->grid.binWidths[0];
 
       if (fracIdx <= 0.0) {
         lowerIdx = 0;
         t = 0.0;
-      } else if (fracIdx >= static_cast<double>(this->nBins[0] - 1)) {
-        lowerIdx = this->nBins[0] - 2;
+      } else if (fracIdx >= static_cast<double>(this->grid.nBins[0] - 1)) {
+        lowerIdx = this->grid.nBins[0] - 2;
         t = 1.0;
       } else {
         lowerIdx = static_cast<size_t>(fracIdx);
