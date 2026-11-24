@@ -34,6 +34,7 @@
 #include <pybind11/numpy.h>
 #include <algorithm>
 #include <fstream>
+#include <type_traits>
 #include "pen_data.hh"
 #include "math_classes.hh"
 
@@ -105,8 +106,8 @@ std::vector<T> flattenArray(const pybind11::array_t<T>& arr) {
 
 // + Results value extraction
 
-template<typename T, size_t dim>
-pybind11::tuple result2numpy(const penred::measurements::results<T, dim>& results, const bool extractInfo, const bool onlyEffective){
+template<typename T, size_t dim, class Grid>
+pybind11::tuple result2numpy(const penred::measurements::results<T, dim, Grid>& results, const bool extractInfo, const bool onlyEffective){
 
   //Get bins in each dimension
   std::array<unsigned long, dim> nBins = results.readDimBins();
@@ -145,8 +146,7 @@ pybind11::tuple result2numpy(const penred::measurements::results<T, dim>& result
   }
   
   if(extractInfo){
-    //Get interval and description information for each dimension
-    const std::array<std::pair<double, double>, dim> limits = results.readLimits();
+    const auto edges = results.readGrid().getInitEdges();
 
     unsigned ituple = 2;
     for(int i = static_cast<int>(dim)-1; i >= 0; --i){
@@ -157,14 +157,19 @@ pybind11::tuple result2numpy(const penred::measurements::results<T, dim>& result
         continue;
       }
       
-      pybind11::tuple dimInfo(3);
-      dimInfo[0] = limits[i].first;
-      dimInfo[1] = limits[i].second;
-      const std::string header = results.readDimHeader(i);
-      dimInfo[2] = header;
-
-      //Append this dimension to returned results
-      pyRes[ituple++] = dimInfo;
+      if(std::is_same<Grid, penred::grids::RegularGrid<dim>>::value){
+        pybind11::tuple dimInfo(3);
+        dimInfo[0] = edges[i][0];
+        dimInfo[1] = edges[i][1];
+        dimInfo[2] = results.readDimHeader(i);
+        pyRes[ituple++] = dimInfo;
+      }
+      else{
+        pybind11::tuple dimInfo(2);
+        dimInfo[0] = edges[i];
+        dimInfo[1] = results.readDimHeader(i);
+        pyRes[ituple++] = dimInfo;
+      }
     }
 
     //Append value and description info
@@ -186,8 +191,8 @@ pybind11::array_t<T> result2numpy(const std::vector<T>& results, const bool, con
 
 // + Results constructor extraction
 
-template<typename T, size_t dim>
-void numpy2result(penred::measurements::results<T, dim>& obj,
+template<typename T, size_t dim, class Grid>
+void numpy2result(penred::measurements::results<T, dim, Grid>& obj,
                   const pybind11::array_t<T>& values,
                   const pybind11::array_t<T>& sigma,
                   const pybind11::list& info,
@@ -212,7 +217,7 @@ void numpy2result(penred::measurements::results<T, dim>& obj,
   }    
 
   //Check and extract information
-  std::vector<std::pair<double, double>> limits;
+  std::vector<std::vector<double>> edges;
   std::vector<std::string> headers;
   for(size_t i = 0; i < info.size(); ++i){
     //Check if the element is a tuple
@@ -221,45 +226,72 @@ void numpy2result(penred::measurements::results<T, dim>& obj,
     }
 
     pybind11::tuple t = info[i];
-    if(t.size() != 3){
-      throw pybind11::value_error("Tuple " + std::to_string(i) + " has " + 
-                                  std::to_string(t.size()) + " elements, expected 3");
+    if(std::is_same<Grid, penred::grids::RegularGrid<dim>>::value){
+      if(t.size() != 3){
+        throw pybind11::value_error("Regular-grid information tuples must contain (min, max, header)");
+      }
+      if((!pybind11::isinstance<pybind11::int_>(t[0]) &&
+          !pybind11::isinstance<pybind11::float_>(t[0])) ||
+         (!pybind11::isinstance<pybind11::int_>(t[1]) &&
+          !pybind11::isinstance<pybind11::float_>(t[1]))){
+        throw pybind11::type_error("Regular-grid limits must be numeric");
+      }
+      if(!pybind11::isinstance<pybind11::str>(t[2])){
+        throw pybind11::type_error("Dimension header must be a string");
+      }
+      edges.push_back({t[0].cast<double>(), t[1].cast<double>()});
+      headers.push_back(t[2].cast<std::string>());
     }
-
-    // Check first element is numeric
-    if (!pybind11::isinstance<pybind11::int_>(t[0]) && !pybind11::isinstance<pybind11::float_>(t[0])) {
-      throw pybind11::type_error("Tuple " + std::to_string(i) + 
-                                 ", first element must be numeric (int or float)");
+    else{
+      if(t.size() != 2){
+        throw pybind11::value_error("Variable-grid information tuples must contain (edges, header)");
+      }
+      if(!pybind11::isinstance<pybind11::str>(t[1])){
+        throw pybind11::type_error("Dimension header must be a string");
+      }
+      pybind11::sequence edgeSequence = t[0].cast<pybind11::sequence>();
+      std::vector<double> dimensionEdges;
+      for(const pybind11::handle& edge : edgeSequence){
+        if(!pybind11::isinstance<pybind11::int_>(edge) &&
+           !pybind11::isinstance<pybind11::float_>(edge)){
+          throw pybind11::type_error("Variable-grid edges must be numeric");
+        }
+        dimensionEdges.push_back(edge.cast<double>());
+      }
+      edges.push_back(std::move(dimensionEdges));
+      headers.push_back(t[1].cast<std::string>());
     }
-        
-    // Check second element is numeric
-    if (!pybind11::isinstance<pybind11::int_>(t[1]) && !pybind11::isinstance<pybind11::float_>(t[1])) {
-      throw pybind11::type_error("Tuple " + std::to_string(i) + 
-                                 ", second element must be numeric (int or float)");
-    }
-
-    // Check third element is string
-    if (!pybind11::isinstance<pybind11::str>(t[2])) {
-      throw pybind11::type_error("Tuple " + std::to_string(i) + 
-                                 ", third element must be a string");
-    }
-
-    // Extract values
-    double min = t[0].cast<double>();
-    double max = t[1].cast<double>();
-    std::string header = t[2].cast<std::string>();
-
-    limits.emplace_back(min,max);
-    headers.push_back(std::move(header));
   }
     
-  //Reverse bins per dimension and limits to correct numpy ordering
+  //Reverse bins per dimension and edges to correct numpy ordering
   std::reverse(dimBins.begin(), dimBins.end());
-  std::reverse(limits.begin(), limits.end());
+  std::reverse(edges.begin(), edges.end());
   std::reverse(headers.begin(), headers.end());
 
-  //Init it
-  int err = obj.init(dimBins, limits, flattenArray(values), flattenArray(sigma));
+  //Complete dimensions omitted by the input with a single default bin.
+  std::array<unsigned long, dim> bins;
+  std::array<std::vector<double>, dim> gridEdges;
+  bins.fill(1ul);
+  for(std::vector<double>& dimensionEdges : gridEdges)
+    dimensionEdges = {-1.0e35, 1.0e35};
+  for(size_t i = 0; i < dimBins.size(); ++i){
+    bins[i] = dimBins[i];
+    gridEdges[i] = edges[i];
+  }
+
+  //Init it using the common edge-based interface. RegularGrid interprets each
+  //two-element edge vector as its lower and upper limits.
+  int err = obj.init(bins, gridEdges);
+  if(err == penred::measurements::errors::SUCCESS){
+    if(obj.data.size() != static_cast<size_t>(values.size()) ||
+       obj.sigma.size() != static_cast<size_t>(sigma.size())){
+      err = penred::measurements::errors::DIMENSION_MISMATCH;
+    }
+    else{
+      obj.data = flattenArray(values);
+      obj.sigma = flattenArray(sigma);
+    }
+  }
   if(err != penred::measurements::errors::SUCCESS){
     throw pybind11::value_error(penred::measurements::errorToString(err));
   }
@@ -272,8 +304,8 @@ void numpy2result(penred::measurements::results<T, dim>& obj,
 }
 
 // + Results load
-template<typename T, size_t dim>
-void resultsLoad(penred::measurements::results<T, dim>& obj, const std::string& filename){
+template<typename T, size_t dim, class Grid>
+void resultsLoad(penred::measurements::results<T, dim, Grid>& obj, const std::string& filename){
 
   //Read data
   std::ifstream fin(filename, std::ifstream::in);
@@ -293,8 +325,8 @@ void resultsLoad(penred::measurements::results<T, dim>& obj, const std::string& 
 }
 
 // + Results extract values
-template<typename T, size_t dim>
-pybind11::tuple extractValue(const penred::measurements::results<T, dim>& obj,
+template<typename T, size_t dim, class Grid>
+pybind11::tuple extractValue(const penred::measurements::results<T, dim, Grid>& obj,
                              const std::array<double, dim>& position) {
   T value;
   double uncertainty;
@@ -312,11 +344,11 @@ pybind11::tuple extractValue(const penred::measurements::results<T, dim>& obj,
   return ret;
 }
 
-template<typename T, size_t dim>
-pybind11::tuple extractSpectrum1D(const penred::measurements::results<T, dim>& obj,
+template<typename T, size_t dim, class Grid>
+pybind11::tuple extractSpectrum1D(const penred::measurements::results<T, dim, Grid>& obj,
                                   const unsigned spectrumDim,
                                   const std::array<double, dim-1>& position){
-  penred::measurements::results<T, 1> spectrum;
+  penred::measurements::results<T, 1, penred::grids::rebind_t<1, Grid>> spectrum;
 
   int err = obj.extractSpectrum1D(spectrumDim, position, spectrum);
   if(err != penred::measurements::errors::SUCCESS) {

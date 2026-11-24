@@ -46,6 +46,22 @@ They all share the same interface; only the dimensionality of the
 underlying buffer differs. See :class:`~pyPenred.data.results` below
 for the full method reference.
 
+Variable-grid results
+---------------------
+
+The module also exposes ``variableResults``, ``variableResults1D`` through
+``variableResults10D``. These classes provide the same operations using
+arbitrary monotonically increasing bin edges.
+
+Their ``fill`` method keeps the same name as the regular-grid API, but each
+dimension entry in ``info`` is ``(edges, header)``, where ``edges`` contains
+``number_of_bins + 1`` values, in the same NumPy dimension order used by the
+existing regular-grid API. Regular-grid classes continue to use
+``(min, max, header)`` entries unchanged.
+
+For variable-grid objects, ``data()`` returns dimension metadata as
+``(edges, header)`` entries so the original grid can be reconstructed.
+
 .. autoclass:: pyPenred.data.results
    :members:
    :undoc-members:

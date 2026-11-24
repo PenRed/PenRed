@@ -33,14 +33,14 @@ namespace py = pybind11;
 // * Dimension-specific methods adders
 
 // No special methods
-template <typename T, std::size_t D, typename PyClass>
+template <typename T, std::size_t D, typename PyClass, typename Grid>
 struct specialMethods{
   static void add(PyClass& cls) {
 
     cls.def("to2D",
-            [](const penred::measurements::results<T, D>& obj) -> penred::measurements::results<T, 2>{
+            [](const penred::measurements::results<T, D, Grid>& obj) -> penred::measurements::results<T, 2, penred::grids::rebind_t<2, Grid>>{
 
-              penred::measurements::results<T, 2> r;
+              penred::measurements::results<T, 2, penred::grids::rebind_t<2, Grid>> r;
               int err = obj.to2D(r);
               if(err != penred::measurements::errors::SUCCESS) {
                 std::string errorMsg("Error extracting 2D results. ");
@@ -62,9 +62,9 @@ Raises:
     ValueError: If the effective dimensions are not 2.
 )")
       .def("to1D",
-           [](const penred::measurements::results<T, D>& obj) -> penred::measurements::results<T, 1>{
+           [](const penred::measurements::results<T, D, Grid>& obj) -> penred::measurements::results<T, 1, penred::grids::rebind_t<1, Grid>>{
 
-             penred::measurements::results<T, 1> r;
+             penred::measurements::results<T, 1, penred::grids::rebind_t<1, Grid>> r;
              int err = obj.to1D(r);
              if(err != penred::measurements::errors::SUCCESS) {
                std::string errorMsg("Error extracting 1D results. ");
@@ -91,11 +91,11 @@ Raises:
 
 
 // 1D case
-template <typename T, typename PyClass>
-struct specialMethods<T, 1, PyClass>{
+template <typename T, typename PyClass, typename Grid>
+struct specialMethods<T, 1, PyClass, Grid>{
   static void add(PyClass& cls){
     cls.def("extractValue1D",
-            [](const penred::measurements::results<T, 1>& obj,
+            [](const penred::measurements::results<T, 1, Grid>& obj,
                const double x) -> py::tuple{
               
               T value;
@@ -130,11 +130,11 @@ Raises:
 };
 
 // Partial specialization for 2D.
-template <typename T, typename PyClass>
-struct specialMethods<T, 2, PyClass>{
+template <typename T, typename PyClass, typename Grid>
+struct specialMethods<T, 2, PyClass, Grid>{
   static void add(PyClass& cls){
     cls.def("extractValue2D",
-            [](const penred::measurements::results<T, 2>& obj,
+            [](const penred::measurements::results<T, 2, Grid>& obj,
                const double x,
                const double y) -> py::tuple{
               
@@ -172,11 +172,11 @@ Raises:
 };
 
 // Partial specialization for 3D.
-template <typename T, typename PyClass>
-struct specialMethods<T, 3, PyClass>{
+template <typename T, typename PyClass, typename Grid>
+struct specialMethods<T, 3, PyClass, Grid>{
   static void add(PyClass& cls){
     cls.def("extractValue3D",
-            [](const penred::measurements::results<T, 3>& obj,
+            [](const penred::measurements::results<T, 3, Grid>& obj,
                const double x,
                const double y,
                const double z) -> py::tuple{
@@ -215,9 +215,9 @@ Raises:
 )")
       
       .def("to2D",
-           [](const penred::measurements::results<T, 3>& obj) -> penred::measurements::results<T, 2>{
+           [](const penred::measurements::results<T, 3, Grid>& obj) -> penred::measurements::results<T, 2, penred::grids::rebind_t<2, Grid>>{
 
-             penred::measurements::results<T, 2> r;
+             penred::measurements::results<T, 2, penred::grids::rebind_t<2, Grid>> r;
              int err = obj.to2D(r);
              if(err != penred::measurements::errors::SUCCESS) {
                std::string errorMsg("Error extracting 2D results. ");
@@ -239,9 +239,9 @@ Raises:
     ValueError: If the effective dimensions are not 2.
 )")
       .def("to1D",
-           [](const penred::measurements::results<T, 3>& obj) -> penred::measurements::results<T, 1>{
+           [](const penred::measurements::results<T, 3, Grid>& obj) -> penred::measurements::results<T, 1, penred::grids::rebind_t<1, Grid>>{
 
-             penred::measurements::results<T, 1> r;
+             penred::measurements::results<T, 1, penred::grids::rebind_t<1, Grid>> r;
              int err = obj.to1D(r);
              if(err != penred::measurements::errors::SUCCESS) {
                std::string errorMsg("Error extracting 1D results. ");
@@ -267,10 +267,11 @@ Raises:
 
 // * Register templates
 
-template <typename T, std::size_t D>
+template <typename T, std::size_t D, template<std::size_t> class GridTemplate>
 void registerResults(py::module_& m, const std::string& name){
 
-  using R = penred::measurements::results<T, D>;
+  using Grid = GridTemplate<D>;
+  using R = penred::measurements::results<T, D, Grid>;
 
   const std::string classDoc =
     "Results container for a maximum of " + std::to_string(D) + "D data.\n"
@@ -325,7 +326,7 @@ Returns:
 Raises:
     None
 )")
-    .def("load", &resultsLoad<T, D>,
+    .def("load", &resultsLoad<T, D, Grid>,
          py::arg("filename"),
          R"(
 Load results from a text file
@@ -414,7 +415,7 @@ Returns:
 Raises:
     ValueError: If transformation fails. If that happens, please, report the error.
 )")
-    .def("fill", &numpy2result<T, D>,
+    .def("fill", &numpy2result<T, D, Grid>,
          py::arg("values"),
          py::arg("sigma"),
          py::arg("info"),
@@ -425,7 +426,7 @@ Fills the results object with the provided data.
 Args:
     values (vector) : Numpy vector with the values to be saved
     sigma (vector) : Numpy vector with the uncertainty of each value corresponding to one standard deviation
-    info (list): List of tuples where each element contains the information of the corresponding dimension. Each element must use the following format: (min, max, header), where *min* and *max* are the minimum and maximum grid value for this dimension, respectively, and *header* the text header for dimension's column.
+    info (list): List of tuples in NumPy dimension order. For regular-grid classes, each element is (min, max, header). For variable-grid classes, each element is (edges, header), where *edges* contains the bin edges for that dimension.
     value_header (str): Header assigned to *values*. An example for a energetic spectrum could be 'E (eV)'.
 
 Returns:
@@ -435,10 +436,10 @@ Raises:
     TypeError: Incompatible types have been provided.
     ValueError: Dimensions mismatch or incompatible values have been provided.
 )")
-    .def("extractValue", &extractValue<T,D>,
+    .def("extractValue", &extractValue<T,D,Grid>,
          py::arg("position"),
          R"(
-Interpolate the value within the grid at the specified position in each dimension
+Interpolate linearly the value within the grid at the specified position in each dimension
 
 Args:
     position (list) : List of positions for each dimension within the grid.
@@ -450,7 +451,7 @@ Raises:
     ValueError: If the interpolation fails.
 )")
 
-    .def("extractSpectrum1D", &extractSpectrum1D<T,D>,
+    .def("extractSpectrum1D", &extractSpectrum1D<T,D,Grid>,
          py::arg("spectrum_dim"),
          py::arg("positions"),
          R"(
@@ -558,33 +559,37 @@ Raises:
 )");
 
   // Add the dimension-specific methods.
-  specialMethods<T, D, py::class_<R>>::add(cls);
+  specialMethods<T, D, py::class_<R>, Grid>::add(cls);
 }
 
 // Forward declaration of the recursion.
-template <typename T, std::size_t D, std::size_t MaxD>
+template <typename T, std::size_t D, std::size_t MaxD,
+          template<std::size_t> class GridTemplate>
 struct registerResultsRange;
 
 // Base case: D == MaxD (nothing left to register).
-template <typename T, std::size_t MaxD>
-struct registerResultsRange<T, MaxD, MaxD>{
+template <typename T, std::size_t MaxD,
+          template<std::size_t> class GridTemplate>
+struct registerResultsRange<T, MaxD, MaxD, GridTemplate>{
   static void apply(py::module_&, const std::string&) {}
 };
 
 // Recursive case: register D, then recurse on D+1.
-template <typename T, std::size_t D, std::size_t MaxD>
+template <typename T, std::size_t D, std::size_t MaxD,
+          template<std::size_t> class GridTemplate>
 struct registerResultsRange{
   static void apply(py::module_& m, const std::string& base){
-    registerResults<T, D>(m, base + std::to_string(D) + "D");
-    registerResultsRange<T, D + 1, MaxD>::apply(m, base);
+    registerResults<T, D, GridTemplate>(m, base + std::to_string(D) + "D");
+    registerResultsRange<T, D + 1, MaxD, GridTemplate>::apply(m, base);
   }
 };
 
 // Convenience entry point.
-template <typename T, std::size_t MinD, std::size_t MaxD>
+template <typename T, std::size_t MinD, std::size_t MaxD,
+          template<std::size_t> class GridTemplate>
 void registerResultsRangeAll(py::module_& m, const std::string& base)
 {
-    registerResultsRange<T, MinD, MaxD>::apply(m, base);
+    registerResultsRange<T, MinD, MaxD, GridTemplate>::apply(m, base);
 }
 
 PYBIND11_MODULE(data,m){
@@ -738,8 +743,14 @@ Raises:
     )");
 
   // Registers results1D, results2D, ..., results{maxDims}D
-  registerResultsRangeAll<double, /*Min=*/1, /*Max=*/11>(m, "results");
-  registerResults<double, penred::measurements::maxDims>(m, "results");
+  registerResultsRangeAll<double, /*Min=*/1, /*Max=*/11,
+                          penred::grids::RegularGrid>(m, "results");
+  registerResults<double, penred::measurements::maxDims,
+                  penred::grids::RegularGrid>(m, "results");
+  registerResultsRangeAll<double, /*Min=*/1, /*Max=*/11,
+                          penred::grids::VariableGrid>(m, "variableResults");
+  registerResults<double, penred::measurements::maxDims,
+                  penred::grids::VariableGrid>(m, "variableResults");
 
   py::class_<vector3D<double>>(m, "Vector3D")
     .def(py::init<>())
