@@ -4,10 +4,12 @@
 #include <cmath>
 #include <random>
 #include <cassert>
+#include <iomanip>
 #include <numeric>
 #include <string>
 
 #include "math_classes.hh"
+#include "pen_grid.hh"
 
 // ============================================================================
 // LIGHTWEIGHT TEST HARNESS
@@ -96,6 +98,281 @@ void test_spline_invalid_inputs() {
   std::vector<double> X_short = {0.0, 1.0, 2.0};
   std::vector<double> Y_short = {1.0, 2.0, 3.0};
   TEST_ASSERT(spline.init(X_short, Y_short) == penred::interpolation::NOT_ENOUGH_DATA_POINTS, "Failed to reject N < 4");
+}
+
+double evaluate_pen_grid_spline(const std::vector<double>& x,
+                                const std::vector<double>& y,
+                                const double query) {
+  const int n = static_cast<int>(x.size());
+  std::vector<double> xCopy = x;
+  std::vector<double> yCopy = y;
+  std::vector<double> a(n), b(n), c(n), d(n);
+  SPLINE(xCopy.data(), yCopy.data(),
+         a.data(), b.data(), c.data(), d.data(), 0.0, 0.0, n);
+
+  size_t interval = 0;
+  if(query >= x.back()) {
+    interval = x.size() - 2;
+  } else if(query > x.front()) {
+    interval = static_cast<size_t>(
+      std::upper_bound(x.begin(), x.end(), query) - x.begin() - 1);
+  }
+
+  return a[interval] + query * (b[interval] +
+                                query * (c[interval] + query * d[interval]));
+}
+
+double evaluate_pen_grid_bicubic(
+  const std::vector<double>& x,
+  const std::vector<double>& y,
+  const std::vector<double>& values,
+  const double xQuery,
+  const double yQuery) {
+  const size_t nx = x.size();
+  std::vector<double> yProfile(y.size());
+  for(size_t j = 0; j < y.size(); ++j) {
+    const std::vector<double> row(values.begin() + j * nx,
+                                  values.begin() + (j + 1) * nx);
+    yProfile[j] = evaluate_pen_grid_spline(x, row, xQuery);
+  }
+  return evaluate_pen_grid_spline(y, yProfile, yQuery);
+}
+
+void print_spline_1d_table(const std::string& title,
+                           const std::vector<double>& queries,
+                           const std::vector<double>& generated,
+                           const std::vector<double>& reference) {
+  std::cout << "\n" << title << "\n"
+            << "       x              generated              SPLINE"
+               "                 abs diff\n";
+  for(size_t i = 0; i < queries.size(); ++i) {
+    std::cout << std::fixed << std::setprecision(12)
+              << std::setw(14) << queries[i]
+              << " | "
+              << std::setw(24) << generated[i]
+              << " | "
+              << std::setw(24) << reference[i]
+              << " | "
+              << std::setw(18) << std::abs(generated[i] - reference[i])
+              << "\n";
+  }
+}
+
+void print_spline_2d_table(
+  const std::string& title,
+  const std::vector<std::pair<double, double>>& queries,
+  const std::vector<double>& generated,
+  const std::vector<double>& reference) {
+  std::cout << "\n" << title << "\n"
+            << "       x              y              generated"
+               "              SPLINE                 abs diff\n";
+  for(size_t i = 0; i < queries.size(); ++i) {
+    std::cout << std::fixed << std::setprecision(12)
+              << std::setw(14) << queries[i].first
+              << " | "
+              << std::setw(14) << queries[i].second
+              << " | "
+              << std::setw(24) << generated[i]
+              << " | "
+              << std::setw(24) << reference[i]
+              << " | "
+              << std::setw(18) << std::abs(generated[i] - reference[i])
+              << "\n";
+  }
+}
+
+template<class Grid>
+struct spline_comparison_results_initializer;
+
+template<>
+struct spline_comparison_results_initializer<penred::grids::RegularGrid<2>> {
+  static int init(penred::measurements::results<double, 2,
+                                                 penred::grids::RegularGrid<2>>& results) {
+    return results.init(
+      std::vector<unsigned long>{5, 6},
+      std::vector<std::pair<double, double>>{{0.0, 10.0}, {0.0, 12.0}});
+  }
+};
+
+template<>
+struct spline_comparison_results_initializer<penred::grids::VariableGrid<2>> {
+  static int init(penred::measurements::results<double, 2,
+                                                 penred::grids::VariableGrid<2>>& results) {
+    return results.init(
+      std::array<unsigned long, 2>{5, 6},
+      std::array<std::vector<double>, 2>{
+        std::vector<double>{0.0, 1.0, 2.0, 4.0, 7.0, 10.0},
+        std::vector<double>{0.0, 0.5, 2.0, 5.0, 7.0, 9.0, 12.0}});
+  }
+};
+
+template<size_t Dim, class Grid>
+class exposed_results
+  : public penred::measurements::results<double, Dim, Grid> {
+public:
+  const Grid& readGridForTest() const {
+    return this->grid;
+  }
+};
+
+template<class Grid>
+void fill_spline_comparison_results(
+  penred::measurements::results<double, 2, Grid>& results) {
+  for(size_t iy = 0; iy < results.getNBins(1); ++iy) {
+    for(size_t ix = 0; ix < results.getNBins(0); ++ix) {
+      const size_t index = ix + results.getNBins(0) * iy;
+      results.data[index] = 2.0 * ix * ix + 3.0 * iy + ix * iy + 1.0;
+    }
+  }
+}
+
+template<class Grid>
+void test_results_interpolate1d_matches_pen_grid_spline() {
+  using Results = penred::measurements::results<double, 2, Grid>;
+
+  Results results;
+  TEST_ASSERT(spline_comparison_results_initializer<Grid>::init(results) ==
+                penred::measurements::errors::SUCCESS,
+              "Failed to initialize results for 1D SPLINE comparison");
+  fill_spline_comparison_results(results);
+
+  using Profile = exposed_results<1, penred::grids::rebind_t<1, Grid>>;
+  Profile profile;
+  TEST_ASSERT(results.profile1D(0, profile) ==
+                penred::measurements::errors::SUCCESS,
+              "Failed to create full 1D profile");
+  const auto fullProfileEdges = profile.readGridForTest().getEdges(false)[0];
+
+  penred::interpolation::CubicSpline<double> generated;
+  TEST_ASSERT(results.interpolate1D(0, generated) ==
+                penred::measurements::errors::SUCCESS,
+              "Failed to generate full 1D spline");
+
+  const std::vector<double> fullQueries = {
+    fullProfileEdges.front() + 0.1,
+    fullProfileEdges[2],
+    fullProfileEdges.back() - 0.1};
+  std::vector<double> generatedValues;
+  std::vector<double> referenceValues;
+  for(const double query : fullQueries) {
+    const double generatedValue = generated.evaluate(query);
+    const double referenceValue =
+      evaluate_pen_grid_spline(fullProfileEdges, profile.data, query);
+    generatedValues.push_back(generatedValue);
+    referenceValues.push_back(referenceValue);
+    TEST_ASSERT_NEAR(
+      generatedValue,
+      referenceValue,
+      1.0e-12,
+      "Full 1D results spline differs from pen_grid SPLINE");
+  }
+  print_spline_1d_table("Full 1D spline comparison", fullQueries,
+                        generatedValues, referenceValues);
+
+  const std::vector<std::array<unsigned long, 3>> limits = {
+    {0, 1, 5}, {1, 1, 6}};
+  TEST_ASSERT(results.profile1D(0, limits, profile) ==
+                penred::measurements::errors::SUCCESS,
+              "Failed to create limited 1D profile");
+  const auto limitedProfileEdges = profile.readGridForTest().getEdges(false)[0];
+  TEST_ASSERT(results.interpolate1D(0, limits, generated) ==
+                penred::measurements::errors::SUCCESS,
+              "Failed to generate limited 1D spline");
+  const std::vector<double> limitedQueries = {
+    limitedProfileEdges.front() + 0.1,
+    limitedProfileEdges[2],
+    limitedProfileEdges.back() - 0.1};
+  generatedValues.clear();
+  referenceValues.clear();
+  for(const double query : limitedQueries) {
+    const double generatedValue = generated.evaluate(query);
+    const double referenceValue =
+      evaluate_pen_grid_spline(limitedProfileEdges, profile.data, query);
+    generatedValues.push_back(generatedValue);
+    referenceValues.push_back(referenceValue);
+    TEST_ASSERT_NEAR(
+      generatedValue,
+      referenceValue,
+      1.0e-12,
+      "Limited 1D results spline differs from pen_grid SPLINE");
+  }
+  print_spline_1d_table("Limited 1D spline comparison", limitedQueries,
+                        generatedValues, referenceValues);
+}
+
+template<class Grid>
+void test_results_interpolate2d_matches_pen_grid_spline() {
+  using Results = penred::measurements::results<double, 2, Grid>;
+
+  Results results;
+  TEST_ASSERT(spline_comparison_results_initializer<Grid>::init(results) ==
+                penred::measurements::errors::SUCCESS,
+              "Failed to initialize results for 2D SPLINE comparison");
+  fill_spline_comparison_results(results);
+
+  using Profile = exposed_results<2, penred::grids::rebind_t<2, Grid>>;
+  Profile profile;
+  TEST_ASSERT(results.profile2D(0, 1, profile) ==
+                penred::measurements::errors::SUCCESS,
+              "Failed to create full 2D profile");
+  const auto fullEdges = profile.readGridForTest().getEdges(false);
+
+  penred::interpolation::BicubicSpline<double> generated;
+  TEST_ASSERT(results.interpolate2D(0, 1, generated) ==
+                penred::measurements::errors::SUCCESS,
+              "Failed to generate full 2D spline");
+  const std::vector<std::pair<double, double>> fullQueries = {
+    {fullEdges[0][0] + 0.1, fullEdges[1][0] + 0.1},
+    {fullEdges[0][2], fullEdges[1][3]},
+    {fullEdges[0].back() - 0.1, fullEdges[1].back() - 0.1}};
+  std::vector<double> generatedValues;
+  std::vector<double> referenceValues;
+  for(const auto& query : fullQueries) {
+    const double generatedValue = generated.evaluate(query.first, query.second);
+    const double referenceValue =
+      evaluate_pen_grid_bicubic(fullEdges[0], fullEdges[1], profile.data,
+                                query.first, query.second);
+    generatedValues.push_back(generatedValue);
+    referenceValues.push_back(referenceValue);
+    TEST_ASSERT_NEAR(
+      generatedValue,
+      referenceValue,
+      1.0e-12,
+      "Full 2D results spline differs from pen_grid SPLINE");
+  }
+  print_spline_2d_table("Full 2D spline comparison", fullQueries,
+                        generatedValues, referenceValues);
+
+  const std::vector<std::array<unsigned long, 3>> limits = {
+    {0, 1, 5}, {1, 1, 5}};
+  TEST_ASSERT(results.profile2D(0, 1, limits, profile) ==
+                penred::measurements::errors::SUCCESS,
+              "Failed to create limited 2D profile");
+  const auto limitedEdges = profile.readGridForTest().getEdges(false);
+  TEST_ASSERT(results.interpolate2D(0, 1, limits, generated) ==
+                penred::measurements::errors::SUCCESS,
+              "Failed to generate limited 2D spline");
+  const std::vector<std::pair<double, double>> limitedQueries = {
+    {limitedEdges[0][0] + 0.1, limitedEdges[1][0] + 0.1},
+    {limitedEdges[0][2], limitedEdges[1][2]},
+    {limitedEdges[0].back() - 0.1, limitedEdges[1].back() - 0.1}};
+  generatedValues.clear();
+  referenceValues.clear();
+  for(const auto& query : limitedQueries) {
+    const double generatedValue = generated.evaluate(query.first, query.second);
+    const double referenceValue =
+      evaluate_pen_grid_bicubic(limitedEdges[0], limitedEdges[1], profile.data,
+                                query.first, query.second);
+    generatedValues.push_back(generatedValue);
+    referenceValues.push_back(referenceValue);
+    TEST_ASSERT_NEAR(
+      generatedValue,
+      referenceValue,
+      1.0e-12,
+      "Limited 2D results spline differs from pen_grid SPLINE");
+  }
+  print_spline_2d_table("Limited 2D spline comparison", limitedQueries,
+                        generatedValues, referenceValues);
 }
 
 
@@ -604,10 +881,18 @@ int main() {
   RUN_TEST(test_spline_exact_cubic);
   RUN_TEST(test_spline_large_offset_precision);
   RUN_TEST(test_spline_invalid_inputs);
+  RUN_TEST((test_results_interpolate1d_matches_pen_grid_spline<
+            penred::grids::RegularGrid<2>>));
+  RUN_TEST((test_results_interpolate1d_matches_pen_grid_spline<
+            penred::grids::VariableGrid<2>>));
 
   // 2D Spline
   RUN_TEST(test_bicubic_spline_surface);
   RUN_TEST(test_bicubic_spline_invalid_inputs);
+  RUN_TEST((test_results_interpolate2d_matches_pen_grid_spline<
+            penred::grids::RegularGrid<2>>));
+  RUN_TEST((test_results_interpolate2d_matches_pen_grid_spline<
+            penred::grids::VariableGrid<2>>));
 
   // Grids & Dimensions
   RUN_TEST(test_multidimension_indexing);

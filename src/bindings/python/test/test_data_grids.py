@@ -159,5 +159,75 @@ class ResultsGridTests(unittest.TestCase):
         self.assertIsInstance(result_1d.to1D(), data.results1D)
 
 
+class SplineTests(unittest.TestCase):
+    def test_results_create_cubic_spline(self):
+        result = data.results1D()
+        result.fill(
+            np.array([0.0, 1.0, 8.0, 27.0]),
+            np.ones(4),
+            [(0.0, 3.0, "x")],
+        )
+
+        spline = result.interpolate1D(0)
+        self.assertIsInstance(spline, data.CubicSpline)
+        self.assertAlmostEqual(spline.evaluate(spline.readX()[2]), 8.0)
+
+        limited = result.interpolate1D(0, [(0, 0, 4)])
+        self.assertIsInstance(limited, data.CubicSpline)
+        self.assertAlmostEqual(limited.evaluate(limited.readX()[2]), 8.0)
+
+    def test_results_create_bicubic_spline(self):
+        values = np.fromfunction(
+            lambda row, column: row + column,
+            (4, 4),
+            dtype=float,
+        )
+        result = data.results2D()
+        result.fill(
+            values,
+            np.ones_like(values),
+            [(0.0, 3.0, "y"), (0.0, 3.0, "x")],
+        )
+
+        spline = result.interpolate2D(0, 1)
+        self.assertIsInstance(spline, data.BicubicSpline)
+        self.assertAlmostEqual(spline.evaluate(0.0, 0.0), 0.0)
+
+    def test_cubic_spline_scalar_and_bulk_evaluation(self):
+        spline = data.CubicSpline()
+        spline.init(
+            [0.0, 1.0, 2.0, 3.0],
+            [0.0, 1.0, 8.0, 27.0],
+            s1=0.0,
+            sn=18.0,
+        )
+
+        self.assertTrue(spline.initialized())
+        self.assertEqual(list(spline.readX()), [0.0, 1.0, 2.0, 3.0])
+        self.assertAlmostEqual(spline.evaluate(1.5), 3.375)
+        np.testing.assert_allclose(
+            spline.evaluate(np.array([0.5, 1.5, 2.5])),
+            [0.125, 3.375, 15.625],
+        )
+
+    def test_cubic_spline_rejects_invalid_input(self):
+        spline = data.CubicSpline()
+        with self.assertRaises(ValueError):
+            spline.init([0.0, 1.0, 1.0, 3.0], [0.0, 1.0, 2.0, 3.0])
+
+    def test_bicubic_spline_scalar_and_grid_evaluation(self):
+        spline = data.BicubicSpline()
+        x = [0.0, 1.0, 2.0, 3.0]
+        y = [0.0, 1.0, 2.0, 3.0]
+        values = [x_value + y_value for y_value in y for x_value in x]
+        spline.init(x, y, values)
+
+        self.assertAlmostEqual(spline.evaluate(1.5, 2.5), 4.0)
+        np.testing.assert_allclose(
+            spline.evaluateGrid([0.5, 1.5], [0.5, 1.5]),
+            [[1.0, 2.0], [2.0, 3.0]],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

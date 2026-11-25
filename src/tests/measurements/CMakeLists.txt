@@ -83,6 +83,8 @@ install(
 add_executable(measure_t5 ${CMAKE_CURRENT_SOURCE_DIR}/test5.cpp)
 
 target_include_directories(measure_t5 PUBLIC ${PROJECT_SOURCE_DIR}/kernel/includes)
+target_include_directories(measure_t5 PUBLIC ${PROJECT_SOURCE_DIR}/kernel/grids/includes)
+target_link_libraries(measure_t5 pen_grids)
 
 #-----------------------------------------------------------------------------
 install(

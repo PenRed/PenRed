@@ -467,6 +467,119 @@ Returns:
 Raises:
     ValueError: If the interpolation fails.
 )")
+.def("interpolate1D",
+     [](const R& obj, const unsigned long profileDim) {
+       penred::interpolation::CubicSpline<T> spline;
+       const int err = obj.interpolate1D(profileDim, spline);
+       if(err != penred::measurements::errors::SUCCESS) {
+         std::string errorMsg("Error creating 1D spline. ");
+         errorMsg += penred::measurements::errorToString(err);
+         throw py::value_error(errorMsg.c_str());
+       }
+       return spline;
+     },
+     py::arg("profile_dim"),
+     R"(
+Create a cubic spline from the full-range profile along one dimension.
+
+Args:
+profile_dim (int): Dimension along which the profile is created.
+
+Returns:
+A CubicSpline object.
+
+Raises:
+ValueError: If the profile cannot be created.
+)")
+.def("interpolate1D",
+     [](const R& obj,
+        const unsigned long profileDim,
+        const std::vector<std::array<unsigned long, 3>>& binLimits) {
+       penred::interpolation::CubicSpline<T> spline;
+       const int err = obj.interpolate1D(profileDim, binLimits, spline);
+       if(err != penred::measurements::errors::SUCCESS) {
+         std::string errorMsg("Error creating 1D spline. ");
+         errorMsg += penred::measurements::errorToString(err);
+         throw py::value_error(errorMsg.c_str());
+       }
+       return spline;
+     },
+     py::arg("profile_dim"),
+     py::arg("bin_limits"),
+     R"(
+Create a cubic spline from a profile along one dimension.
+
+Args:
+profile_dim (int): Dimension along which the profile is created.
+bin_limits (list): Optional limits as (dimension, first_bin, last_bin)
+    entries. The upper bin limit is exclusive.
+
+Returns:
+A CubicSpline object.
+
+Raises:
+ValueError: If the profile cannot be created.
+)")
+.def("interpolate2D",
+     [](const R& obj,
+        const unsigned long profileDim1,
+        const unsigned long profileDim2) {
+       penred::interpolation::BicubicSpline<T> spline;
+       const int err = obj.interpolate2D(profileDim1, profileDim2, spline);
+       if(err != penred::measurements::errors::SUCCESS) {
+         std::string errorMsg("Error creating 2D spline. ");
+         errorMsg += penred::measurements::errorToString(err);
+         throw py::value_error(errorMsg.c_str());
+       }
+       return spline;
+     },
+     py::arg("profile_dim1"),
+     py::arg("profile_dim2"),
+     R"(
+Create a bicubic spline from the full-range profile along two dimensions.
+
+Args:
+profile_dim1 (int): First profile dimension.
+profile_dim2 (int): Second profile dimension.
+
+Returns:
+A BicubicSpline object.
+
+Raises:
+ValueError: If the profile cannot be created.
+)")
+.def("interpolate2D",
+     [](const R& obj,
+        const unsigned long profileDim1,
+        const unsigned long profileDim2,
+        const std::vector<std::array<unsigned long, 3>>& binLimits) {
+       penred::interpolation::BicubicSpline<T> spline;
+       const int err = obj.interpolate2D(profileDim1, profileDim2, binLimits, spline);
+       if(err != penred::measurements::errors::SUCCESS) {
+         std::string errorMsg("Error creating 2D spline. ");
+         errorMsg += penred::measurements::errorToString(err);
+         throw py::value_error(errorMsg.c_str());
+       }
+       return spline;
+     },
+     py::arg("profile_dim1"),
+     py::arg("profile_dim2"),
+     py::arg("bin_limits"),
+     R"(
+Create a bicubic spline from a profile along two dimensions.
+
+Args:
+profile_dim1 (int): First profile dimension.
+profile_dim2 (int): Second profile dimension.
+bin_limits (list): Optional limits as (dimension, first_bin, last_bin)
+    entries. The upper bin limit is exclusive.
+
+Returns:
+A BicubicSpline object.
+
+Raises:
+ValueError: If the profile cannot be created.
+)")
     .def("subtract",
          [](const R& obj, const R& obj2) -> R {
            R res;
@@ -595,6 +708,92 @@ void registerResultsRangeAll(py::module_& m, const std::string& base)
 PYBIND11_MODULE(data,m){
 
   m.doc() = "penred data module";
+
+  using CubicSpline = penred::interpolation::CubicSpline<double>;
+  using BicubicSpline = penred::interpolation::BicubicSpline<double>;
+
+  py::class_<CubicSpline>(m, "CubicSpline",
+                          "One-dimensional cubic spline interpolator.")
+    .def(py::init<>())
+    .def("initialized", &CubicSpline::initialized)
+    .def("clear", &CubicSpline::clear)
+    .def("init",
+         [](CubicSpline& spline,
+            const std::vector<double>& x,
+            const std::vector<double>& y,
+            const double s1,
+            const double sn) {
+           const int err = spline.init(x, y, s1, sn);
+           if(err != penred::interpolation::SUCCESS) {
+             std::string errorMsg("Error initializing cubic spline. ");
+             errorMsg += penred::interpolation::errorToString(err);
+             throw py::value_error(errorMsg.c_str());
+           }
+         },
+         py::arg("x"),
+         py::arg("y"),
+         py::arg("s1") = 0.0,
+         py::arg("sn") = 0.0,
+         "Initialize the spline from strictly increasing coordinates and values.")
+    .def("evaluate",
+         py::overload_cast<const double>(&CubicSpline::evaluate, py::const_),
+         py::arg("x"),
+         "Evaluate the spline at one coordinate.")
+    .def("evaluate",
+         [](const CubicSpline& spline,
+            const std::vector<double>& x) {
+           const std::vector<double> values = spline.evaluate(x);
+           py::array_t<double> result(values.size());
+           auto resultView = result.mutable_unchecked<1>();
+           for(size_t i = 0; i < values.size(); ++i)
+             resultView(i) = values[i];
+           return result;
+         },
+         py::arg("x"),
+         "Evaluate the spline at multiple coordinates.")
+    .def("readX", &CubicSpline::readX,
+         "Return the coordinates used to initialize the spline.");
+
+  py::class_<BicubicSpline>(m, "BicubicSpline",
+                            "Two-dimensional tensor-product cubic spline interpolator.")
+    .def(py::init<>())
+    .def("clear", &BicubicSpline::clear)
+    .def("init",
+         [](BicubicSpline& spline,
+            const std::vector<double>& x,
+            const std::vector<double>& y,
+            const std::vector<double>& values) {
+           const int err = spline.init(x, y, values);
+           if(err != penred::interpolation::SUCCESS) {
+             std::string errorMsg("Error initializing bicubic spline. ");
+             errorMsg += penred::interpolation::errorToString(err);
+             throw py::value_error(errorMsg.c_str());
+           }
+         },
+         py::arg("x"),
+         py::arg("y"),
+         py::arg("values"),
+         "Initialize the spline from strictly increasing coordinates and row-major values.")
+    .def("evaluate",
+         &BicubicSpline::evaluate,
+         py::arg("x"),
+         py::arg("y"),
+         "Evaluate the spline at one coordinate pair.")
+    .def("evaluateGrid",
+         [](const BicubicSpline& spline,
+            const std::vector<double>& x,
+            const std::vector<double>& y) {
+           const std::vector<double> values = spline.evaluateGrid(x, y);
+           py::array_t<double> result({y.size(), x.size()});
+           auto resultView = result.mutable_unchecked<2>();
+           for(size_t j = 0; j < y.size(); ++j)
+             for(size_t i = 0; i < x.size(); ++i)
+               resultView(j, i) = values[j * x.size() + i];
+           return result;
+         },
+         py::arg("x"),
+         py::arg("y"),
+         "Evaluate the spline on a Cartesian product of coordinates.");
 
   m.def("dict2SectionString", &dict2SectionString,
 	py::arg("conf"),	
