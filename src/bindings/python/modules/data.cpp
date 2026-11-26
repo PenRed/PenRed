@@ -872,10 +872,10 @@ PYBIND11_MODULE(data,m){
          [](const TensorProductSpline& spline,
             const std::vector<std::vector<double>>& queryAxes) {
            const std::vector<double> values = spline.evaluateGrid(queryAxes);
-           std::vector<ssize_t> shape;
+           std::vector<py::ssize_t> shape;
            shape.reserve(queryAxes.size());
            for(auto axis = queryAxes.rbegin(); axis != queryAxes.rend(); ++axis)
-             shape.push_back(static_cast<ssize_t>(axis->size()));
+             shape.push_back(static_cast<py::ssize_t>(axis->size()));
            py::array_t<double> result(shape);
            std::copy(values.begin(), values.end(), result.mutable_data());
            return result;
