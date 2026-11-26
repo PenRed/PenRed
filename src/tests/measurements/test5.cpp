@@ -100,6 +100,78 @@ void test_spline_invalid_inputs() {
   TEST_ASSERT(spline.init(X_short, Y_short) == penred::interpolation::NOT_ENOUGH_DATA_POINTS, "Failed to reject N < 4");
 }
 
+void test_tensor_product_spline() {
+  using penred::interpolation::TensorProductSpline;
+
+  const std::vector<std::vector<double>> axes = {
+    {0.0, 1.0, 2.0, 3.0},
+    {0.0, 1.0, 2.0, 3.0},
+    {0.0, 1.0, 2.0, 3.0}
+  };
+  std::vector<double> values;
+  for(double z : axes[2])
+    for(double y : axes[1])
+      for(double x : axes[0])
+        values.push_back(x + 2.0 * y + 3.0 * z);
+
+  TensorProductSpline<double> spline;
+  TEST_ASSERT(spline.init(axes, values) == penred::interpolation::SUCCESS,
+              "TensorProductSpline initialization failed");
+  TEST_ASSERT(spline.initialized(),
+              "TensorProductSpline should be initialized");
+  TEST_ASSERT_NEAR(spline.evaluate({0.5, 1.5, 2.5}), 11.0, 1.0e-12,
+                   "TensorProductSpline 3D evaluation mismatch");
+
+  const std::vector<std::vector<double>> queryAxes = {
+    {0.5, 1.5}, {0.5, 1.5}, {0.5, 1.5}
+  };
+  const std::vector<double> grid = spline.evaluateGrid(queryAxes);
+  TEST_ASSERT(grid.size() == 8,
+              "TensorProductSpline evaluateGrid returned wrong size");
+  // Axis 0 varies fastest: the first two values use x = 0.5 and x = 1.5.
+  TEST_ASSERT_NEAR(grid[0], 3.0, 1.0e-12,
+                   "TensorProductSpline evaluateGrid first value mismatch");
+  TEST_ASSERT_NEAR(grid[1], 4.0, 1.0e-12,
+                   "TensorProductSpline evaluateGrid axis ordering mismatch");
+
+  const std::vector<std::vector<double>> shortAxes = {
+    {0.0, 1.0, 2.0}, axes[1], axes[2]};
+  TEST_ASSERT(spline.init(shortAxes, values) ==
+                penred::interpolation::NOT_ENOUGH_DATA_POINTS,
+              "TensorProductSpline failed to reject a short axis");
+  TEST_ASSERT(!spline.initialized(),
+              "TensorProductSpline should clear state after failed init");
+}
+
+void test_tensor_product_spline_matches_bicubic() {
+  using penred::interpolation::TensorProductSpline;
+
+  const std::vector<double> x = {0.0, 1.0, 2.0, 3.0};
+  const std::vector<double> y = {0.0, 1.0, 2.0, 3.0};
+  std::vector<double> values;
+  for(double yValue : y)
+    for(double xValue : x)
+      values.push_back(xValue * xValue + 2.0 * yValue + xValue * yValue);
+
+  penred::interpolation::BicubicSpline<double> bicubic;
+  TensorProductSpline<double> tensor;
+  const std::vector<std::vector<double>> tensorAxes = {x, y};
+  TEST_ASSERT(bicubic.init(x, y, values) == penred::interpolation::SUCCESS,
+              "BicubicSpline initialization failed");
+  TEST_ASSERT(tensor.init(tensorAxes, values) == penred::interpolation::SUCCESS,
+              "TensorProductSpline 2D initialization failed");
+
+  for(const auto& query : {std::pair<double, double>{0.25, 0.75},
+                           std::pair<double, double>{1.5, 2.5},
+                           std::pair<double, double>{2.75, 1.25}}) {
+    TEST_ASSERT_NEAR(
+      tensor.evaluate({query.first, query.second}),
+      bicubic.evaluate(query.first, query.second),
+      1.0e-12,
+      "TensorProductSpline differs from BicubicSpline");
+  }
+}
+
 double evaluate_pen_grid_spline(const std::vector<double>& x,
                                 const std::vector<double>& y,
                                 const double query) {
@@ -881,6 +953,8 @@ int main() {
   RUN_TEST(test_spline_exact_cubic);
   RUN_TEST(test_spline_large_offset_precision);
   RUN_TEST(test_spline_invalid_inputs);
+  RUN_TEST(test_tensor_product_spline);
+  RUN_TEST(test_tensor_product_spline_matches_bicubic);
   RUN_TEST((test_results_interpolate1d_matches_pen_grid_spline<
             penred::grids::RegularGrid<2>>));
   RUN_TEST((test_results_interpolate1d_matches_pen_grid_spline<

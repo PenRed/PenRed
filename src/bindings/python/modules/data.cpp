@@ -467,6 +467,52 @@ Returns:
 Raises:
     ValueError: If the interpolation fails.
 )")
+.def("interpolateND",
+     [](const R& obj) {
+       penred::interpolation::TensorProductSpline<T> spline;
+       const int err = obj.interpolateND(spline);
+       if(err != penred::measurements::errors::SUCCESS) {
+         std::string errorMsg("Error creating N-dimensional spline. ");
+         errorMsg += penred::measurements::errorToString(err);
+         throw py::value_error(errorMsg.c_str());
+       }
+       return spline;
+     },
+     R"(
+Create an N-dimensional tensor-product cubic spline from the full result grid.
+
+Returns:
+A TensorProductSpline object.
+
+Raises:
+ValueError: If the spline cannot be created.
+)")
+.def("interpolateND",
+     [](const R& obj,
+        const std::vector<std::array<unsigned long, 3>>& binLimits) {
+       penred::interpolation::TensorProductSpline<T> spline;
+       const int err = obj.interpolateND(binLimits, spline);
+       if(err != penred::measurements::errors::SUCCESS) {
+         std::string errorMsg("Error creating N-dimensional spline. ");
+         errorMsg += penred::measurements::errorToString(err);
+         throw py::value_error(errorMsg.c_str());
+       }
+       return spline;
+     },
+     py::arg("bin_limits"),
+     R"(
+Create an N-dimensional tensor-product cubic spline from a limited profile.
+
+Args:
+bin_limits (list): Limits as (dimension, first_bin, last_bin) entries.
+    The upper bin limit is exclusive.
+
+Returns:
+A TensorProductSpline object.
+
+Raises:
+ValueError: If the spline cannot be created.
+)")
 .def("interpolate1D",
      [](const R& obj, const unsigned long profileDim) {
        penred::interpolation::CubicSpline<T> spline;
@@ -711,6 +757,7 @@ PYBIND11_MODULE(data,m){
 
   using CubicSpline = penred::interpolation::CubicSpline<double>;
   using BicubicSpline = penred::interpolation::BicubicSpline<double>;
+  using TensorProductSpline = penred::interpolation::TensorProductSpline<double>;
 
   py::class_<CubicSpline>(m, "CubicSpline",
                           "One-dimensional cubic spline interpolator.")
@@ -794,6 +841,50 @@ PYBIND11_MODULE(data,m){
          py::arg("x"),
          py::arg("y"),
          "Evaluate the spline on a Cartesian product of coordinates.");
+
+  py::class_<TensorProductSpline>(
+    m, "TensorProductSpline",
+    "N-dimensional tensor-product cubic spline interpolator. "
+    "Axes and positions use results dimension order; axis 0 is fastest in values.")
+    .def(py::init<>())
+    .def("initialized", &TensorProductSpline::initialized)
+    .def("clear", &TensorProductSpline::clear)
+    .def("init",
+         [](TensorProductSpline& spline,
+            const std::vector<std::vector<double>>& axes,
+            const std::vector<double>& values) {
+           const int err = spline.init(axes, values);
+           if(err != penred::interpolation::SUCCESS) {
+             std::string errorMsg("Error initializing N-dimensional spline. ");
+             errorMsg += penred::interpolation::errorToString(err);
+             throw py::value_error(errorMsg.c_str());
+           }
+         },
+         py::arg("axes"),
+         py::arg("values"),
+         "Initialize the spline from coordinate axes and flattened values. "
+         "Values use axis 0 as the fastest-changing dimension.")
+    .def("evaluate",
+         &TensorProductSpline::evaluate,
+         py::arg("position"),
+         "Evaluate the spline at one N-dimensional position.")
+    .def("evaluateGrid",
+         [](const TensorProductSpline& spline,
+            const std::vector<std::vector<double>>& queryAxes) {
+           const std::vector<double> values = spline.evaluateGrid(queryAxes);
+           std::vector<ssize_t> shape;
+           shape.reserve(queryAxes.size());
+           for(auto axis = queryAxes.rbegin(); axis != queryAxes.rend(); ++axis)
+             shape.push_back(static_cast<ssize_t>(axis->size()));
+           py::array_t<double> result(shape);
+           std::copy(values.begin(), values.end(), result.mutable_data());
+           return result;
+         },
+         py::arg("axes"),
+         "Evaluate the spline on a Cartesian product of query axes. "
+         "The NumPy shape is reversed so axis 0 remains fastest in the buffer.")
+    .def("readAxes", &TensorProductSpline::readAxes,
+         "Return the coordinate axes used to initialize the spline.");
 
   m.def("dict2SectionString", &dict2SectionString,
 	py::arg("conf"),	

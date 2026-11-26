@@ -1665,6 +1665,128 @@ namespace penred{
         rowSplines.clear();
       }
     };
+
+    template<class T>
+    struct TensorProductSpline {
+      // Axes and positions follow results dimension order. Flattened values
+      // use axis 0 as the fastest-changing dimension.
+
+    private:
+      std::vector<std::vector<double>> axes;
+      std::vector<T> values;
+      std::vector<size_t> axisSizes;
+
+      T evaluateReduced(const std::vector<T>& currentValues,
+                        const size_t axis,
+                        const std::vector<double>& position) const {
+        if(axis == axes.size())
+          return currentValues.front();
+
+        const size_t axisSize = axisSizes[axis];
+        const size_t profileCount = currentValues.size() / axisSize;
+        std::vector<T> reducedValues(profileCount);
+
+        for(size_t profile = 0; profile < profileCount; ++profile) {
+          std::vector<T> profileValues(
+            currentValues.begin() + profile * axisSize,
+            currentValues.begin() + (profile + 1) * axisSize);
+          CubicSpline<T> spline;
+          spline.init(axes[axis], profileValues);
+          reducedValues[profile] = spline.evaluate(position[axis]);
+        }
+
+        return evaluateReduced(reducedValues, axis + 1, position);
+      }
+
+    public:
+      TensorProductSpline() = default;
+
+      inline bool initialized() const noexcept {
+        return !axes.empty() && !values.empty();
+      }
+
+      inline void clear() noexcept {
+        axes.clear();
+        values.clear();
+        axisSizes.clear();
+      }
+
+      template<class CType>
+      int init(const std::vector<std::vector<CType>>& axesIn,
+               const std::vector<T>& valuesIn) {
+        clear();
+        if(axesIn.empty())
+          return DIMENSION_MISMATCH;
+
+        size_t expectedValues = 1;
+        axes.resize(axesIn.size());
+        axisSizes.resize(axesIn.size());
+        for(size_t axis = 0; axis < axesIn.size(); ++axis) {
+          if(axesIn[axis].size() < 4)
+            return NOT_ENOUGH_DATA_POINTS;
+
+          axes[axis].assign(axesIn[axis].begin(), axesIn[axis].end());
+          axisSizes[axis] = axes[axis].size();
+          expectedValues *= axisSizes[axis];
+
+          for(size_t i = 1; i < axes[axis].size(); ++i) {
+            if(axes[axis][i] <= axes[axis][i - 1]) {
+              clear();
+              return UNORDERED_DATA;
+            }
+          }
+        }
+
+        if(expectedValues != valuesIn.size()) {
+          clear();
+          return DIMENSION_MISMATCH;
+        }
+
+        values = valuesIn;
+        return SUCCESS;
+      }
+
+      T evaluate(const std::vector<double>& position) const {
+        if(!initialized() || position.size() != axes.size())
+          return static_cast<T>(0);
+        return evaluateReduced(values, 0, position);
+      }
+
+      std::vector<T> evaluateGrid(
+        const std::vector<std::vector<double>>& queryAxes) const {
+        if(!initialized() || queryAxes.size() != axes.size())
+          return std::vector<T>();
+        for(const auto& queryAxis : queryAxes) {
+          if(queryAxis.empty())
+            return std::vector<T>();
+        }
+
+        size_t resultSize = 1;
+        for(const auto& queryAxis : queryAxes)
+          resultSize *= queryAxis.size();
+
+        std::vector<T> result(resultSize);
+        std::vector<size_t> queryIndexes(queryAxes.size(), 0);
+        std::vector<double> position(queryAxes.size());
+        for(size_t resultIndex = 0; resultIndex < resultSize; ++resultIndex) {
+          for(size_t axis = 0; axis < queryAxes.size(); ++axis)
+            position[axis] = queryAxes[axis][queryIndexes[axis]];
+          result[resultIndex] = evaluate(position);
+
+          for(size_t axis = 0; axis < queryAxes.size(); ++axis) {
+            ++queryIndexes[axis];
+            if(queryIndexes[axis] < queryAxes[axis].size())
+              break;
+            queryIndexes[axis] = 0;
+          }
+        }
+        return result;
+      }
+
+      const std::vector<std::vector<double>>& readAxes() const {
+        return axes;
+      }
+    };
     
   } //namespace interpolation
   
@@ -3331,6 +3453,60 @@ namespace penred{
         }
     
         return interpolate2D(profDim1, profDim2, binLimits, spline);
+      }
+
+      int interpolateND(const std::array<std::pair<unsigned long, unsigned long>, dim>& binLimits,
+                        interpolation::TensorProductSpline<type>& spline) const {
+        
+        results<type, dim, grids::rebind_t<dim,Grid>> profile;
+        const std::array<size_t, dim> profDimsIndex = [] {
+          std::array<size_t, dim> indexes{};
+          for(size_t i = 0; i < dim; ++i)
+            indexes[i] = i;
+          return indexes;
+        }();
+
+        int err = profileByBins(profDimsIndex, binLimits, profile);
+        if(err != errors::SUCCESS)
+          return err;
+
+        const auto edges = profile.grid.getEdges(false);
+        std::vector<std::vector<double>> splineAxes(dim);
+        for(size_t i = 0; i < dim; ++i)
+          splineAxes[i] = edges[i];
+        return spline.init(splineAxes, profile.data);
+      }
+
+      inline int interpolateND(const std::vector<std::array<unsigned long, 3>>& binLimits,
+                               interpolation::TensorProductSpline<type>& spline) const {
+        
+        results<type, dim, grids::rebind_t<dim,Grid>> profile;
+        const std::array<size_t, dim> profDimsIndex = [] {
+          std::array<size_t, dim> indexes{};
+          for(size_t i = 0; i < dim; ++i)
+            indexes[i] = i;
+          return indexes;
+        }();
+
+        int err = profileByBins(profDimsIndex, binLimits, profile);
+        if(err != errors::SUCCESS)
+          return err;
+
+        const auto edges = profile.grid.getEdges(false);
+        std::vector<std::vector<double>> splineAxes(dim);
+        for(size_t i = 0; i < dim; ++i)
+          splineAxes[i] = edges[i];
+        return spline.init(splineAxes, profile.data);
+      }
+
+      inline int interpolateND(interpolation::TensorProductSpline<type>& spline) const {
+        
+        std::array<std::pair<unsigned long, unsigned long>, dim> binLimits;
+        for(size_t i = 0; i < dim; ++i) {
+          binLimits[i].first = 0;
+          binLimits[i].second = this->getNBins(i);
+        }
+        return interpolateND(binLimits, spline);
       }
 
       // Operations

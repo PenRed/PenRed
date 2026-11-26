@@ -228,6 +228,47 @@ class SplineTests(unittest.TestCase):
             [[1.0, 2.0], [2.0, 3.0]],
         )
 
+    def test_tensor_product_spline_axis_order_and_grid_shape(self):
+        axes = [
+            [0.0, 1.0, 2.0, 3.0],
+            [0.0, 1.0, 2.0, 3.0],
+            [0.0, 1.0, 2.0, 3.0],
+        ]
+        values = np.empty((4, 4, 4))
+        for i2, z in enumerate(axes[2]):
+            for i1, y in enumerate(axes[1]):
+                for i0, x in enumerate(axes[0]):
+                    values[i2, i1, i0] = x + 2.0 * y + 3.0 * z
+
+        spline = data.TensorProductSpline()
+        spline.init(axes, values.ravel())
+
+        self.assertAlmostEqual(spline.evaluate([0.5, 1.5, 2.5]), 11.0)
+        grid = spline.evaluateGrid(
+            [[0.5, 1.5], [0.5, 1.5], [0.5, 1.5]]
+        )
+        self.assertEqual(grid.shape, (2, 2, 2))
+        self.assertAlmostEqual(grid[0, 0, 0], 3.0)
+        self.assertAlmostEqual(grid[0, 0, 1], 4.0)
+
+    def test_results_create_tensor_product_spline(self):
+        values = np.empty((4, 4, 4))
+        for i2 in range(4):
+            for i1 in range(4):
+                for i0 in range(4):
+                    values[i2, i1, i0] = i0 + 2.0 * i1 + 3.0 * i2
+
+        result = data.results3D()
+        result.fill(
+            values,
+            np.ones_like(values),
+            [(0.0, 4.0, "z"), (0.0, 4.0, "y"), (0.0, 4.0, "x")],
+        )
+
+        spline = result.interpolateND()
+        self.assertIsInstance(spline, data.TensorProductSpline)
+        self.assertAlmostEqual(spline.evaluate([0.5, 1.5, 2.5]), 11.0)
+
 
 if __name__ == "__main__":
     unittest.main()
